@@ -8,7 +8,8 @@ Elementor.
 
 | Document | What it answers |
 |---|---|
-| **[MASTER-PLAN.md](MASTER-PLAN.md)** | The plan: verified state, architecture, 18 modules, 6 phases, security findings, decisions, next 10 actions |
+| **[MASTER-PLAN.md](MASTER-PLAN.md)** | Verified project state, repository architecture, security findings, current decisions and phase overview |
+| **[Agency-grade dashboard master plan](docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md)** | No-code builder + Theme Studio, CRM/inbox/automation, frontend data architecture, ready pages/components, industry packs and approval gates |
 | [docs/PROJECT-ANALYSIS.md](docs/PROJECT-ANALYSIS.md) | Full technical inventory of all four repos, with every figure measured |
 | [docs/DATABASE-INVENTORY.md](docs/DATABASE-INVENTORY.md) | All **45 tables** with columns, keys and references |
 | [docs/PAGE-BUILDER-SPEC.md](docs/PAGE-BUILDER-SPEC.md) | The Elementor replacement: data model, block library, editor UX, renderer, build phases |

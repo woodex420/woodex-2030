@@ -6,7 +6,7 @@
 
 ## 1. Executive summary
 
-Your plan is **80% correct and every specific number in it checks out against the real code** — but it describes **two different codebases as if they were one**, and it was written without access to the database, which I now have (as schema, not live data). Three things change the plan materially:
+The verified inventory below is a **migration-derived snapshot, not a live database introspection**. The two application surfaces—the public storefront and the operational dashboard—remain distinct, but should share their design system, builder renderer and typed data contracts. The user's updated direction promotes the no-code page builder and global Theme Studio to a core product pillar, with multi-industry starter packs and an end-to-end CRM plan. The full, approval-gated v2 is in [`docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md`](docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md).
 
 | # | Finding | Impact |
 |---|---|---|
@@ -39,6 +39,16 @@ RLS have not been compared against it, the edge function is not deployed, and th
 verification. Request project ref, anon key and the safe read-only query results using
 `docs/SUPABASE-SETUP.md` before pointing the apps at a real project. Never use a service-role key in a
 browser build.
+
+**Dashboard refresh:** the WOODEX overview, shell, and catalogue were refreshed in the local monorepo
+(commit `b716816`, still local-only) with the charcoal/leaf/timber palette, seeded furniture imagery,
+PKR labels, and an explicit demo-data mode. The preview login is mock-only. This is a UI foundation,
+not approval to deploy or connect to a live database.
+
+**User-confirmed planning direction (2026-10-05):** plan first and wait for approval before coding;
+provide both mock demo sign-in and a later Supabase Auth path; plan all-industry UI/page packs from v1;
+launch website live chat + WhatsApp first. The exact boundary between all-industry template coverage
+and production backend parity remains an approval question in the v2 plan.
 
 ## 2. Verified inventory (what we actually have)
 
@@ -184,8 +194,12 @@ Status legend: ✅ exists & wired · 🟡 exists, partially wired · 🔴 exists
 | **M16** | Settings & integrations | — | `create-payment-intent` (empty) | ⛔ Settings is a stub | Real settings: users, roles, company profile, tax, currency, Stripe deposits, email/SMS, WhatsApp tokens, audit |
 | **M17** | B2B / corporate portal | `b2b_companies`, `b2b_users` | — | ⛔ unused tables | Trade accounts, contract pricing via `pricing_rules`, bulk quote requests, credit terms |
 | **M18** | AI copilots | — | Gemini (`@google/genai`) | 🟡 exists only in AI Dashboard 3.1 | Port `geminiService`: draft WhatsApp replies, quotation drafting, lead scoring, insight summaries |
+| **M19** | **Theme Studio** | Proposed `sites`, `site_themes`, `theme_revisions` | — | ⛔ not implemented | Global design tokens, header/footer, responsive/light/dark/RTL previews, presets and rollback; schema subject to preflight |
+| **M20** | **Unified inbox & support** | Existing WhatsApp tables + proposed channel/conversation records | Website chat + WhatsApp adapters | ⛔ no provider-neutral inbox | Start with website chat + WhatsApp; keep existing WhatsApp records behind a non-destructive adapter |
+| **M21** | **No-code automation studio** | Proposed workflow definitions/versions/runs/outbox | Worker/Edge Functions not yet approved | ⛔ not implemented | Visual trigger-condition-action workflows with dry-run, permission checks, consent, idempotency, audit and emergency stop |
+| **M22** | **Industry starter packs** | Vertical manifests + approved typed adapters | — | ⛔ not implemented | Shared UI/page packs and synthetic demo states for all requested verticals; live connectors are separately gated |
 
-### Role matrix (from your answer: internal team, distinct roles)
+### Initial role matrix (existing WOODEX roles; v2 extensions in the detailed plan)
 
 | Role | Primary modules | Permission shape in `user_permissions` |
 |---|---|---|
@@ -196,82 +210,80 @@ Status legend: ✅ exists & wired · 🟡 exists, partially wired · 🔴 exists
 | **Accounts** | M06, M07, M09, M12 | read all, edit payments/refunds/invoices, no product edits |
 | **Content/Editor** | M13, M14, M03, M16 | page builder + media; publish rights gated behind approval |
 
-`user_permissions` already stores exactly this shape per module: `can_view / can_create / can_edit / can_delete`. Current `profiles.role` only allows `admin|editor|viewer` — it must be widened to `management | sales | warehouse | delivery | accounts | editor`.
+`user_permissions` currently stores coarse per-module `can_view / can_create / can_edit / can_delete` flags. The known profile role set is limited and may differ from the live project. The v2 plan adds support, marketer, owner, and capability/resource scopes; reconcile all role and membership changes against live schema/RLS before migration.
 
 ---
 
-## 7. Phase plan (corrected)
+## 7. Phased plan — builder and Theme Studio are core pillars
 
-### Phase 0 — Unblock & secure *(1 day)*
-- **Rotate every exposed secret** (§10) — do this first, it is unrelated to code.
-- Choose the unblock path in §3 and give me the schema/row-count dump.
-- Decide the monorepo layout (§5, decision D1).
-- **Exit gate:** no live secrets in the public repo; a read-only path to real data exists.
+The old sequence treated the builder as a late add-on. That is superseded by the user's 2026-10-05 direction. The detailed plan, page inventory, data model, CRM flows, acceptance gates, and open scope decisions are in **[`docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md`](docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md)**.
 
-### Phase 1A — Storefront platform upgrade *(3–5 days)*
-React 18.3 → 19, Vite 5 → 7/8, Tailwind 3.4 → 4 with the token bridge, router v6 → v8, prune the 31 dead shadcn wrappers + ~17 Radix deps, wire the storefront to real Supabase (products, categories, room packages, blog, media) instead of its hard-coded `src/data/*.ts`.
-**Exit gate:** identical-looking site, green build, catalog served from the database.
+### Phase 0 — Approve scope, rights, and safe preflight
+- Get approval of the plan and confirm what “all industries from v1” means: starter UI/page packs for every vertical vs full production backend parity.
+- Confirm tenant/workspace scope, permitted Preline use/attribution, and any rights to reuse the user-supplied interior reference repo.
+- Obtain the exact safe Supabase preflight JSON and compare it with migrations. Do **not** apply the draft page-builder migration before complete schema/RLS review and explicit approval.
+- **Exit:** approved product scope, source/license boundaries, workspace/role model, and verified schema/RLS map.
 
-### Phase 1B — Dashboard platform upgrade *(2–3 days)*
-Same stack target, plus the **token bridge for the 553 `text-text-primary`/`bg-surface-base`/`border-separator` usages** so nothing renders differently, and delete the duplicate `woodex-master/`, `apps/*` scaffold and `woodex-furniture-*` copies.
-**Exit gate:** dashboard renders identically on the new stack.
+### Phase 1 — Agency-grade shell, design system, and reusable app patterns
+- Design the shared app shell, role-aware navigation, workspace/site context, global search, page headers, forms, tables, responsive states, and design-token contract.
+- Evaluate Preline selectively under its current license; keep existing WOODEX tokens authoritative, support light/dark and tested RTL, and retain the shared chart adapter while chart-library choice is deferred.
+- **Exit:** representative desktop/tablet/mobile pages pass accessibility, dark/light, keyboard, and RTL review.
 
-### Phase 2 — TailAdmin shell *(3–4 days)*
-Vendor TailAdmin v2.4 (MIT), extract collapsible `AppSidebar`, `AppHeader`, breadcrumbs, `ThemeProvider` **dark mode**, auth layouts. Replace `DashboardLayout.tsx`. Add a **real 404** (today `path="*"` silently redirects).
-**Exit gate:** dark mode works; every route has a title; 404 exists.
+### Phase 2 — Theme Studio + visual builder canvas
+- Build the visual no-code editor, real pointer and keyboard drag/drop, nested outline, inspector, responsive/RTL preview, reusable blocks/templates, undo/redo and recovery.
+- Add global site identity, colours, typography, component defaults, spacing/layout, header/footer, and theme version/rollback controls.
+- **Exit:** a non-developer can create a branded landing page and see a global theme change propagate without writing code.
 
-### Phase 3 — Port the 13 modules *(~2 weeks, module by module)*
-Order (ops-first, matching your answer): **Dashboard → Orders → Quotations → Products → Inventory → Customers → Deliveries → Returns → WhatsApp → Analytics → Showroom → Settings → (new) Page Builder.**
-Every module gets, as part of "done":
-- **React Query** (provider is mounted, zero hooks used today)
-- **server-side pagination + filtering** via `.range()` (10 `.limit()` calls currently cap tables at 100 rows silently)
-- **TailAdmin dialogs + `sonner` toasts** replacing all **18 `alert()`/`confirm()`**
-- loading/empty/error states, and a react-query cache key convention
-**Exit gate:** no module is a stub; no `alert()` left in the codebase.
+### Phase 3 — CMS workflow, media, and safe publishing
+- Implement page/theme revisions, review/approve/publish/rollback, navigation, redirects, media library, SEO/accessibility checks, and typed data bindings.
+- Apply a reviewed migration only after the user approves the complete preflight diff; connect live data only after RLS tests.
+- **Exit:** authorized users can publish and roll back; public access is limited to published content; editor output matches storefront output.
 
-### Phase 4 — RBAC & audit *(~1 week — highest-value differentiator)*
-Widen `profiles.role` to the six real roles; build the role × module matrix on `user_permissions`; per-route guards **and** per-action gating (replace the single `canEdit` boolean); user-management UI; audit-log viewer on `user_activity_log`; and a full **RLS policy audit** — with real data, client-side gating is UX, not security.
-**Exit gate:** a `delivery` user logging in sees only assigned deliveries, proven by an RLS test, not by hiding a button.
+### Phase 4 — CRM customer 360 and WOODEX lifecycle
+- Connect intake, identity resolution, assignment/queues, SLA, qualification, tasks, quotations, orders, delivery, returns, support, and analytics through typed frontend services.
+- **Exit:** a synthetic lead can be followed from capture to after-sales with assignment and audit history.
 
-### Phase 5 — Page Builder & CMS *(core v1 built locally; hardening still open — §8)*
-The shared block renderer, mock-backed editor, draft/publish flow, migration and storefront CMS route are implemented in `/home/user/woodex-platform`. Remaining work: compare the migration with the user's actual schema/RLS; apply and verify it on the correct project; deploy the lead-intake function; add revision diff/rollback, navigation/media UI, and pointer drag-and-drop.
+### Phase 5 — Website chat + WhatsApp unified inbox and automation
+- Deliver provider-neutral conversation views, website chat, WhatsApp adapter, assignment/SLA/saved replies, consent/opt-out, and a no-code trigger/condition/action automation studio.
+- Add logs, approvals, idempotency, retry limits, quiet hours and emergency stop before production outbound messaging.
+- **Exit:** synthetic website chat and test WhatsApp events appear in the same customer timeline; demo mode cannot send real messages.
 
-**Exit gate:** after the live migration is reviewed and applied, a marketer publishes a new landing page without a developer and the storefront serves it from the user's Supabase project.
+### Phase 6 — Multi-industry starter packs and ready-page library
+- Provide the shared shell, page catalogue, component library, manifests, and synthetic examples for SaaS, CRM, ERP, commerce, finance/banking, healthcare, education, HRM, AI/analytics, project management, SEO, and WOODEX.
+- **Exit:** each pack is clearly labelled `template-only`, `synthetic-demo`, or `live-connected`; no template implies unbuilt integrations or compliance.
 
-### Phase 6 — AI & advanced *(pick, then sequence)*
-Gemini copilots (M18) · notification center + Supabase Realtime · command palette (`cmdk` is installed and unused) · FullCalendar for deliveries · triage the **29 dead edge functions** (wire or delete — start with `quotation-pdf-generator`, 264 lines ready) · i18n + RTL (Urdu/Arabic — strong for a Lahore exporter) · code splitting (the source storefront is still largely one client bundle) · expand tests beyond the current **55 local core/dashboard/storefront checks** · Sentry · complete `create-payment-intent` for Stripe deposits.
-
----
-
-## 8. Page Builder — the Elementor replacement
-
-Full specification: **[`docs/PAGE-BUILDER-SPEC.md`](docs/PAGE-BUILDER-SPEC.md)**
-
-**Why not Elementor:** Elementor is WordPress/PHP, produces markup you don't control, and can't bind to your Supabase products, quotations or inventory. What you actually need is a **block-based visual builder whose output the storefront renders natively from your own design system** — so a builder page is indistinguishable from a hand-coded page, and can drop in live product grids, room packages and quote-request forms.
-
-**Architecture in one line:** the editor writes a **JSON document**; `packages/builder-core` renders that same JSON in the editor canvas *and* in the storefront — so preview ≡ production by construction.
-
-- **Content model (5 new tables):** `pages`, `page_blocks` (or `content JSONB` + tree), `page_revisions`, `navigation`, `redirects`. **None exist today** — DDL is in the spec.
-- **Block library (~28 blocks):** layout (section/container/columns/grid), content (heading, text, image, video, button, icon, divider, spacer, accordion, tabs, quote, table), commerce (product grid, product card, category strip, price table, add-to-quote, room package), lead-gen (form, WhatsApp CTA, contact card, map), dynamic (latest blog, testimonials, FAQ from DB, client logos, stats).
-- **Token-bound styling only** — blocks pick from design-system tokens, so pages can't drift from the brand. Advanced users get a scoped custom-CSS field.
-- **Dynamic bindings** — any block can bind to a query (`products where category = X limit 8`), which is the thing Elementor fundamentally cannot do here.
-- **Workflow:** draft → preview (shareable link) → publish (versioned, instant rollback); revisions on every publish; per-locale content for i18n.
-- **Performance:** pages are static-first with cached HTML at the edge plus client hydration only for interactive blocks — a builder must never be the reason the site gets slow.
-- **Import path:** if there is real Elementor content, the spec includes a JSON import/mapping plan.
+### Phase 7 — Later channels and advanced capabilities
+- Add Instagram/Facebook DMs and email after business-account/app approvals, webhook validation and consent are ready; then expand campaigns, analytics, AI-assistive features, and vertical-specific live connectors.
 
 ---
 
-## 9. Design system
+## 8. Page Builder + Theme Studio — the Elementor-style product pillar
 
-Full detail: **[`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md)**
+The existing `packages/builder-core` and editor v1 are the starting point, not the finished product. The present foundation already has a typed block registry, shared editor/storefront renderer, schema-driven inspector, outline, undo/redo, device preview, draft save, validation, and publish path. The main gaps are **true drag-and-drop**, reusable global sections/templates, a full site-wide Theme Studio, review/revision/rollback UI, and hardened live data bindings.
 
-One token source, three consumers (storefront, dashboard, builder):
+**The user's requirement:** a real no-code visual builder, with global control of colours, typography, component defaults, spacing/layout, breakpoints, header/footer, responsive modes, and RTL. Normal page creation must not require source code. Use validated blocks and token controls; do not expose arbitrary JavaScript, SQL, or unsafe HTML.
 
-- Tailwind v4 `@theme` with CSS custom properties as the single source of truth.
-- **A token bridge** maps the dashboard's existing 553 legacy classes (`text-text-primary`, `text-text-secondary`, `border-separator`, `bg-surface-base`) onto the new theme variables, so Phase 1B ships with **zero visual diff**.
-- Two brand contexts, one system: the storefront's HON-inspired white/dark/green and the dashboard's TailAdmin surface scale become *semantic* tokens (`--surface-base`, `--text-primary`, `--accent`) with per-app themes.
-- Dark mode defined once via `class` strategy (TailAdmin's `ThemeProvider`).
-- Recharts → single charting decision (§11 D2) with a shared chart theme so analytics looks the same everywhere.
+**Architecture:** keep the typed JSON document and shared renderer as the default. The editor and published storefront must use the same schema/renderer. A bounded alternative-engine comparison may inform drag/drop interaction, but no engine switch is approved unless it preserves typed data bindings, safe rendering, accessibility, and existing document compatibility.
+
+- **Theme Studio:** site identity; semantic light/dark palettes; typography roles; global styles for headings, buttons, forms, cards, links and tables; layout/grid/breakpoints; header/footer/menu; theme presets; staged preview; version history and rollback.
+- **Builder UX:** block library/search; pointer + keyboard drag/drop; tree/navigator; inline editing; inspector tabs; device/locale/RTL preview; undo/redo; autosave/recovery; reusable blocks/sections/page templates; media, SEO and accessibility tools.
+- **Publishing:** draft → review → approve → publish → monitor → rollback; signed expiring preview links; immutable versions; role/RLS enforcement; audit events.
+- **Dynamic content:** typed allowlisted data sources; user-configured filters/sort/limits; safe fallback content; no user-authored SQL.
+- **Data gate:** the five-table CMS migration is a local draft only. Compare it against the exact live project schema, grants, RLS, functions, triggers and storage policies before any application. It is not applied.
+
+Detailed scope and acceptance criteria: **[`docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md`](docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md) §5** and the existing technical draft **[`docs/PAGE-BUILDER-SPEC.md`](docs/PAGE-BUILDER-SPEC.md)**.
+
+---
+
+## 9. Design system and component strategy
+
+Detailed target: **[`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md)** and **[`docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md`](docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md) §4**.
+
+- Keep `packages/design-system` as the single semantic token source for dashboard, storefront, and builder. Extend it with Theme Studio-editable site-level tokens rather than introducing Preline's defaults as a second brand system.
+- Evaluate Preline v5 as a selective component/pattern source. It is DOM-driven in React and has dual MIT + Fair Use terms; verify integration lifecycle, attribution, and commercial derivative conditions before copying code. Do not include Pro assets without their license.
+- Build WOODEX React wrappers for shared forms, tables, navigation, overlays, charts, calendars, chat, file upload, Kanban and builder controls. Keep the codebase's existing chart wrapper; chart-library selection remains deferred.
+- Support light/dark, responsive desktop/tablet/mobile, semantic states, reduced motion, WCAG-oriented testing, and logical properties for RTL/Urdu/Arabic.
+- Preline MCP/Agent Skills/AI prompts remain optional developer tooling and are not runtime product features; never feed them customer data or secrets.
 
 ---
 
@@ -292,14 +304,22 @@ The repo `woodex420/woodex` is **public** and contains:
 
 ---
 
-## 11. Decisions I need from you
+## 11. Decisions confirmed for planning and remaining gates
 
-| # | Decision | Options | My recommendation |
-|---|---|---|---|
-| **D1** | Repo strategy | (a) new `woodex-platform` monorepo as §5 · (b) keep 3 repos, share packages via npm · (c) keep as-is | **(a)** — one design system, one builder, one CI |
-| **D2** | Charting | recharts (in use) vs ApexCharts (your plan) | **ApexCharts** — better out-of-box for financial/ops tables and printable reports; migrate both apps in one pass so charts don't diverge |
-| **D3** | Real data path | §3 option 1 / 2 / 3 | **Option 1** (open network) — everything else needs manual re-dumping |
-| **D4** | Which app is the "master" | dashboard-first vs storefront-first | **Storefront 1A + dashboard 1B in parallel**, then dashboard modules, then builder — the storefront upgrade is small and unblocks the builder's renderer |
+| Topic | Current decision/state |
+|---|---|
+| Monorepo | New local `woodex-platform` monorepo is the selected build target; it is not currently published to a remote. |
+| Planning/implementation order | Deliver the master plan first; wait for the user's approval before implementation. |
+| Sign-in | Both modes: safe seeded mock demo now; Supabase Auth after the user's exact project is confirmed and reviewed. |
+| Page builder | A core project pillar: no-code drag/drop with site-wide Theme Studio and controlled publishing. |
+| Industry scope | All-industry UI/page packs are in the plan; confirm whether the user expects production backend parity for every vertical or WOODEX live data plus reusable starter packs. |
+| First communication channels | Website live chat + WhatsApp. Instagram/Facebook DMs and email are later adapters. |
+| Charting | Deferred by the user; maintain one shared chart wrapper so the underlying library can change in one place. |
+| Live Supabase | Use seeded mock data until the exact project/ref and safe preflight JSON are available; never assume the placeholder ref and never use a service-role key in the browser. |
+| Marketingwoodex reference repo | No source/content/data reuse until repository ownership and reuse permission are confirmed; current GitHub metadata declares no license. |
+| Preline | Use as a selective reference only after license/attribution review; do not copy Pro assets. |
+
+Open gates and detailed recommendations are tracked in **[`docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md`](docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md) §11**.
 
 ---
 
@@ -307,27 +327,29 @@ The repo `woodex420/woodex` is **public** and contains:
 
 | Risk | Mitigation |
 |---|---|
-| Building the builder before the design system is tokenised | Phase 1A/1B must land before Phase 5 |
-| 45-table schema with 29 never-called functions means unknown half-features | Triage every function: wire, delete, or rewrite — no "leave it" |
-| Duplicate copies (`woodex-master/`, `apps/*`, `woodex-furniture-*`, `complete-project/`) cause edits to the wrong tree | Phase 1B deletes them; single app per surface |
-| RLS drift between migrations and live DB | Get a live schema dump (§3) and diff before Phase 4 |
-| Builder output causing site-wide slowdown | Static-first rendering + budget tests in CI |
-| Storefront has **no backend calls today** | Phase 1A adds the data layer — do it before the builder binds to it |
+| Global Theme Studio is built before the semantic token contract is stable | Complete the token and schema contract first; Theme Studio edits versioned tokens, not ad-hoc page CSS |
+| 45-table migration inventory differs from the user's live project | Safe preflight + schema/RLS diff before any migration, provider wiring, or live data binding |
+| Duplicate source trees make it easy to edit the wrong app | Keep `/home/user/woodex-platform` as the selected local monorepo; this repo remains planning/coordination |
+| Builder output causes slow or inconsistent pages | Use the shared typed renderer, lazy interactive blocks, performance budgets; decide prerender/edge only after hosting is confirmed |
+| “All industries” expands into unbounded backend scope | Ship shared UI/page packs; label each as template, synthetic demo, or live-connected; approve each production domain separately |
+| Preline's dual Fair Use terms affect a commercial builder derivative | License/attribution review before copying or bundling implementation code; avoid Pro assets without a license |
+| Reference repo rights are unclear | No code/assets/content/data reuse until ownership and permission are confirmed |
+| WhatsApp-only schema is forced into a universal conversation model too early | Use a non-destructive channel adapter first; normalize after live schema and migration review |
+| No-code automation accidentally sends messages or changes money/data | Consent/quiet-hour limits, dry-run, role checks, human approvals, idempotency, audit log, retries/dead-letter queue, and emergency stop |
+| Finance/healthcare/banking demo pages are mistaken for compliant live products | Explicit data-mode/feature labels; domain-specific security, privacy, and compliance review before any live connector |
 
 ---
 
-## 13. Next 10 actions
+## 13. Next actions — planning gates before implementation
 
-1. **Revoke** the `sbp_…` token and rotate Stripe/SendGrid/WhatsApp/JWT secrets; untrack `.env`.
-2. Choose D1–D4 (§11) and the §3 unblock path.
-3. Run the row-count query in §3 and share it — it decides module order by real activity.
-4. Delete the duplicate trees and scaffold dirs; confirm `woodex-admin/src` + `supabase/` as canonical.
-5. Phase 1A: storefront stack upgrade + token bridge.
-6. Phase 1B: dashboard stack upgrade + prune dead shadcn wrappers.
-7. Phase 2: TailAdmin shell + dark mode + real 404.
-8. Phase 3: port M06 (E-Quotation) first — it has 4 tables and 6 functions of ready backend, i.e. the fastest real value.
-9. Phase 4: RBAC across the six real roles + RLS audit.
-10. Phase 5: page builder (spec ready).
+1. Review **[`docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md`](docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md)** and approve or request changes. No dashboard code or migration work starts before approval.
+2. Confirm whether all-industry v1 means UI/page packs or full production backend parity for every industry.
+3. Confirm the initial workspace/tenant model and role/capability hierarchy.
+4. Confirm legal/reuse rights for the marketingwoodex reference; the plan does not reuse its code or content.
+5. Review Preline's current dual license/attribution terms before any implementation code is copied.
+6. Provide the exact safe Supabase preflight requested in `docs/SUPABASE-SETUP.md` when ready; do not send service-role keys, PATs, customer records, or unredacted dumps.
+7. After approval, implement the design-system/shell foundations and Theme Studio + builder canvas as the first major workstream.
+8. Then implement CMS publishing/RLS, customer lifecycle CRM, website chat + WhatsApp inbox/automation, and all-industry page packs by the exit gates in the detailed plan.
 
 ---
 
@@ -340,3 +362,4 @@ The repo `woodex420/woodex` is **public** and contains:
 | `docs/DATABASE-INVENTORY.md` | All 45 tables with columns, keys and references |
 | `docs/PAGE-BUILDER-SPEC.md` | Elementor replacement: data model, block library, editor UX, renderer, phases |
 | `docs/DESIGN-SYSTEM.md` | Token architecture, TailAdmin mapping, migration steps |
+| `docs/AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md` | User-approved planning scope, agency-level dashboard UX, component/page catalogue, no-code builder/Theme Studio, CRM flows, frontend data model, security and phase gates |

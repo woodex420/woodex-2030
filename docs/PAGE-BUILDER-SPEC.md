@@ -1,12 +1,12 @@
 # WOODEX Page Builder — Specification (Elementor replacement)
 
-**Module:** M13 · **Depends on:** design system (Phase 1), dashboard shell (Phase 2), Supabase (Phase 0) · **Status:** core v1/editor implemented locally in `/home/user/woodex-platform`; live schema/migration verification pending
+**Module:** M13 · **Priority:** primary product pillar · **Status:** existing editor/core v1 is implemented locally; live schema/migration verification pending. The complete v2 product scope (Theme Studio, full drag-and-drop, global components, multi-industry starter packs, CRM bindings, and approval gates) is defined in [`AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md`](AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md) §5. This file is a technical v1 baseline, not approval to implement or apply the migration.
 
 ---
 
 ## 1. Goal
 
-A **visual, block-based page builder** inside the WOODEX dashboard that lets a non-developer compose, preview and publish storefront pages — landing pages, campaign pages, product showcases, B2B pitches — **using live Supabase data and the real design system**, with no developer and no WordPress.
+A **visual, block-based page builder** inside the WOODEX dashboard that lets a non-developer compose and preview storefront pages—landing pages, campaigns, product showcases, and B2B pitches—using the approved design system and typed data adapters. Until the actual Supabase project and its RLS/schema are verified, the editor runs on deterministic mock data; live publishing is gated on that review.
 
 ### Why not Elementor
 
@@ -16,7 +16,7 @@ A **visual, block-based page builder** inside the WOODEX dashboard that lets a n
 | Outputs its own HTML/CSS you don't control | Emits a **JSON document** rendered by your own React components |
 | Cannot query your products/quotations | Native **dynamic bindings** to `products`, `categories`, `room_packages`, `blog_posts`, `testimonials`, `faqs` |
 | Styling drifts from brand | Styling restricted to **design tokens**; no arbitrary values |
-| Pages are slow | Static-first rendering with edge caching; interactive blocks hydrate only when needed |
+| Pages are slow | Shared renderer and lazy interactive blocks; prerender/edge caching is a later hosting decision, not an assumed current capability |
 | No idea about your roles | Uses `user_permissions` — editors draft, managers publish |
 
 ---
@@ -52,7 +52,7 @@ Reference implementation to reuse: the storefront already has a working **`RoomC
 
 ## 3. Data model
 
-None of these tables exist today. New migration `2026xxxx_create_page_builder.sql`:
+The migration-derived inventory has no CMS tables. A five-table migration draft exists in the local monorepo but is unapplied. The schema below is a design sketch only—not approved DDL—and must be reconciled against the complete safe preflight JSON, live grants, functions, triggers, and RLS before any migration is applied.
 
 ```sql
 -- Pages: one row per page, per locale
@@ -64,7 +64,7 @@ create table pages (
   status         text not null default 'draft',    -- draft | review | published | archived
   layout         text not null default 'default',  -- storefront layout shell
   seo            jsonb not null default '{}',      -- title, description, og_image, noindex, canonical
-  settings       jsonb not null default '{}',      -- header/footer variant, custom css, scripts
+  settings       jsonb not null default '{}',      -- validated layout/header/footer options only; no executable scripts or arbitrary CSS in v1
   created_by     uuid references profiles(id),
   updated_by     uuid references profiles(id),
   published_at   timestamptz,
@@ -119,7 +119,7 @@ create table redirects (
 );
 ```
 
-RLS: `pages`/`page_blocks`/`page_revisions`/`navigation`/`redirects` are **publicly readable only when `status='published'` and locale matches**; writes require the matching `user_permissions` row (`can_create`/`can_edit` for draft, `can_edit` + role `management`/`editor` for publish). Publish is a separate permission from edit — that is the whole point of the review workflow.
+Candidate access rule (not final policy): public/anonymous reads are restricted to published documents and the requested locale; authenticated writes require workspace membership plus scoped capabilities; publishing is a separate capability from editing. The exact grants, policy expressions, workspace boundary, and role mapping must be reviewed/tested against the user's live project before use. Publish is separate from edit by design.
 
 ---
 
@@ -189,7 +189,7 @@ Start with 12 blocks (layout 6 + heading + text + image + button + product_grid 
 | `faqs` | category | Per-page FAQ + SEO schema |
 | `services` | slug | Service landing pages |
 
-Bindings are resolved **server-side** at build/cache time with the publish-time snapshot stored alongside the document, so an editor changing a product doesn't silently change 200 landing pages until they're re-cached — the cache invalidates on content change instead.
+Target behavior after a trusted resolver and hosting/cache architecture exist: resolve bindings with server-side authorization, bounded queries, safe fallbacks, and deliberate invalidation. The current Vite storefront does not establish server rendering or edge caching; initial mock/editor work must not claim either. Live bindings require the schema/RLS gate in the master plan.
 
 ---
 
@@ -197,8 +197,8 @@ Bindings are resolved **server-side** at build/cache time with the publish-time 
 
 | Area | Behaviour |
 |---|---|
-| **Canvas** | Live render in an iframe using the real renderer; click to select, drag to reorder, drop zones highlighted; drag block type from the library panel |
-| **Outline tree** | Full page structure, drag to restructure, click to select, toggle visibility, lock |
+| **Canvas (target v2)** | Live render using the shared renderer; click to select/edit; pointer drag with clear drop zones and keyboard move/reorder; responsive and direction preview. The current local v1 has manual up/down reordering, not full pointer drag/drop. |
+| **Outline tree (target v2)** | Full page structure, accessible reorder/reparent, rename, toggle visibility, lock, duplicate, and select. |
 | **Inspector** | Generated from the block's zod schema: Content / Style / Advanced tabs; style pickers only offer design tokens |
 | **Device preview** | Desktop / tablet / mobile widths; per-breakpoint style editing; content is shared unless explicitly overridden |
 | **Toolbar** | Undo/redo (100 steps, ⌘Z/⌘⇧Z), autosave every 20s, Save draft, Preview (shareable signed link), Publish |
@@ -214,8 +214,8 @@ Bindings are resolved **server-side** at build/cache time with the publish-time 
 
 ## 8. Rendering & performance
 
-- **Static-first:** on publish, render the page to HTML and cache it at the edge; the storefront serves cached HTML and hydrates only interactive blocks (`form`, `add_to_quote`, `accordion`, `tabs`, carousels).
-- **Cache invalidation:** publishing a page, changing a bound collection, or editing a bound product purges affected routes.
+- **Initial release:** use the current storefront route and the shared renderer; lazy-load interactive blocks and optimize media. Confirm hosting and rendering capability before promising server rendering or edge cache.
+- **Future cache contract:** once a trusted server/prerender layer is selected, publishing or a relevant bound-record change invalidates only affected routes; measure cache behavior and fallback states.
 - **Budget in CI:** a builder page must stay within the same performance budget as a hand-coded page (LCP/CLS/JS-byte caps); the builder must never be the reason the site slows down.
 - **Fallbacks:** if a binding returns nothing, the block renders its fallback props (never an empty hole in the layout).
 - **SEO:** builder pages emit the same `<title>`/meta/JSON-LD pipeline as coded pages, including `Product` and `FAQPage` structured data from bindings.
@@ -249,5 +249,5 @@ Bindings are resolved **server-side** at build/cache time with the publish-time 
 
 1. Phase 1A/1B done — the design system is tokenised (blocks style themselves exclusively from tokens).
 2. Phase 2 done — dashboard shell + dark mode, so the editor inherits them.
-3. Phase 0 done — a real data path exists, so bindings can be tested against real products.
+3. Safe schema/RLS preflight is available before any live binding or migration. A deterministic mock adapter is sufficient to build and test the visual editor before live database access.
 4. A decision on **who can publish** (role names in §6 of MASTER-PLAN), because it defines the permission checks built into P5.
