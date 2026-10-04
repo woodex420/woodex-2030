@@ -1,12 +1,13 @@
 # Workspace map
 
-This sandbox holds four checkouts. The large clone of `woodex-admin` was **trimmed** to keep the
+This sandbox holds the plan repo plus four source/work checkouts. The large clone of `woodex-admin` was **trimmed** to keep the
 workspace inside its snapshot budget — the code that matters is intact, the regenerable bulk
 (git history, committed screenshots, `dist`, `node_modules`, and duplicate project copies) was removed.
 
 | Path | What it is | State |
 |---|---|---|
-| `/home/user/woodex-2030` | **This repo** — planning/coordination for the WOODEX platform | plan docs in `docs/` |
+| `/home/user/woodex-2030` | **This repo** — planning/coordination for the WOODEX platform | plan docs in `docs/`; fixed Arena branch |
+| `/home/user/woodex-platform` | New WOODEX monorepo | Dashboard + storefront + shared builder; 55 tests pass; local only, no remote configured |
 | `/home/user/woodex-admin` | `woodex420/woodex@woodex-admin` — **the real dashboard + real backend** | trimmed to 1.8 MB: `src/` (13 pages), `supabase/` (16 migrations, 45-table schema, 32 edge functions), `docs/`, 40+ handover reports |
 | `/home/user/woodex-reimagined` | `blackibexofficial-blip/woodex-reimagined` — public storefront | full clone; `node_modules` installed; dev server running |
 | `/home/user/woodex-ai-dashboard-3.1` | `blackibexofficial-blip/Woodex-AI-Dashboard-3.1` — AI/UX prototype | full clone, 503 KB |

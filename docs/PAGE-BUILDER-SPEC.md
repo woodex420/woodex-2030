@@ -1,6 +1,6 @@
 # WOODEX Page Builder — Specification (Elementor replacement)
 
-**Module:** M13 · **Depends on:** design system (Phase 1), dashboard shell (Phase 2), Supabase (Phase 0) · **Status:** spec ready to build
+**Module:** M13 · **Depends on:** design system (Phase 1), dashboard shell (Phase 2), Supabase (Phase 0) · **Status:** core v1/editor implemented locally in `/home/user/woodex-platform`; live schema/migration verification pending
 
 ---
 

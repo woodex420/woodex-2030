@@ -1,6 +1,6 @@
 # WOODEX Platform — Master Plan
 
-**Prepared:** 2026-10-05 · **Analysis basis:** real code in 4 Cloned Repositories (see §2) · **Status:** analysis complete — 1 hard blocker (§3) and 2 decisions (§11)
+**Prepared:** 2026-10-05 · **Analysis basis:** real code in 4 cloned repositories (see §2) · **Status:** analysis complete; implementation checkpoint below (live Supabase remains unverified)
 
 ---
 
@@ -17,6 +17,28 @@ Your plan is **80% correct and every specific number in it checks out against th
 **What is genuinely good news:** the database design is far more complete than a typical project at this stage — **45 tables, 106 RLS policies, 32 edge functions, 8 storage buckets**, covering quotations, orders, deliveries, returns, inventory, WhatsApp CRM, showroom and analytics. The dashboard is a real working app, not a mock. Most of the backend you need **already exists**; the work is wiring, permissions, pagination and UI — not designing a system from scratch.
 
 ---
+
+## Implementation checkpoint — 2026-10-05
+
+Build work is now underway in the local monorepo at `/home/user/woodex-platform` (the code is not yet
+published to a remote repository):
+
+| Delivered locally | Details |
+|---|---|
+| Dashboard platform + shell | React 19 / Vite 8 / Tailwind 4; all 13 production dashboard pages ported; grouped nav, role guards, theme, real 404 |
+| Storefront port | All 23 original routes and assets, shared design system, Supabase-first catalogue with the original curated data as fallback |
+| Shared builder core | 17 block types, same renderer in dashboard and storefront, token-only styles, validation, rich-text sanitiser, immutable tree operations |
+| Page editor v1 | Create/edit, block palette + outline, schema-driven inspector, up/down reorder, duplicate/delete, undo/redo, desktop/tablet/mobile canvas, draft save, validate/publish |
+| CMS schema draft | 5-table migration with RLS, role checks, revisions and atomic save/publish RPC; not yet applied to any project |
+| Lead intake | Storefront form → edge function (service-role key server-side); mock mode writes a CRM lead |
+| Verification | 55 tests pass across core/dashboard/storefront; both production builds and all four source-graph typechecks pass |
+
+**Still blocked/unverified:** the user's Supabase project is different from the placeholder ref found in
+the repo, and this sandbox cannot reach Supabase. The migration has not been applied, the real schema and
+RLS have not been compared against it, the edge function is not deployed, and there is no live-data
+verification. Request project ref, anon key and the safe read-only query results using
+`docs/SUPABASE-SETUP.md` before pointing the apps at a real project. Never use a service-role key in a
+browser build.
 
 ## 2. Verified inventory (what we actually have)
 
@@ -156,7 +178,7 @@ Status legend: ✅ exists & wired · 🟡 exists, partially wired · 🔴 exists
 | **M10** | WhatsApp CRM | 7 `whatsapp_*` tables | 9 WhatsApp functions + `whatsapp-engine` service | 🟡 1 wired (`whatsapp-chat-messages`) | Inbox UI, templates, campaigns, automation rules, appointments, analytics rollup, engine worker |
 | **M11** | Virtual showroom | `virtual_rooms`, `collaboration_sessions`, `user_presence` | — | 🟡 `ShowroomPage` | Room manager, 360° panoramas, shared sessions, presence |
 | **M12** | Analytics & reporting | `analytics_daily` | `analytics-aggregator` | 🔴 dead | Daily rollup job, sales/inventory/quotation dashboards, date ranges, export |
-| **M13** | **CMS & Page Builder** | ⛔ **0 of 5 tables exist** | — | ⛔ | **The Elementor replacement — see §8 and `docs/PAGE-BUILDER-SPEC.md`** |
+| **M13** | **CMS & Page Builder** | ⛔ **No CMS tables in the parsed repo migrations; live project schema unknown** | `wx_save_page_document` in pending migration | 🟡 **Builder core + editor v1 built locally; no live schema/deploy verification** | **The Elementor replacement — see §8 and `docs/PAGE-BUILDER-SPEC.md`** |
 | **M14** | Media library | `media_assets` | 9 × `create-bucket-*-temp` | 🔴 | Upload/browse/tag/crop, bucket policies, replace the 9 ad-hoc bucket functions with one |
 | **M15** | **RBAC & audit** | `user_permissions`, `user_activity_log` (both **exist, both unused**) | — | ⛔ | **Your highest-value differentiator** — §7 Phase 4 |
 | **M16** | Settings & integrations | — | `create-payment-intent` (empty) | ⛔ Settings is a stub | Real settings: users, roles, company profile, tax, currency, Stripe deposits, email/SMS, WhatsApp tokens, audit |
@@ -211,11 +233,13 @@ Every module gets, as part of "done":
 Widen `profiles.role` to the six real roles; build the role × module matrix on `user_permissions`; per-route guards **and** per-action gating (replace the single `canEdit` boolean); user-management UI; audit-log viewer on `user_activity_log`; and a full **RLS policy audit** — with real data, client-side gating is UX, not security.
 **Exit gate:** a `delivery` user logging in sees only assigned deliveries, proven by an RLS test, not by hiding a button.
 
-### Phase 5 — Page Builder & CMS *(2–3 weeks — §8)*
-**Exit gate:** a marketer publishes a new landing page without a developer, and the published page is served by the storefront from the database.
+### Phase 5 — Page Builder & CMS *(core v1 built locally; hardening still open — §8)*
+The shared block renderer, mock-backed editor, draft/publish flow, migration and storefront CMS route are implemented in `/home/user/woodex-platform`. Remaining work: compare the migration with the user's actual schema/RLS; apply and verify it on the correct project; deploy the lead-intake function; add revision diff/rollback, navigation/media UI, and pointer drag-and-drop.
+
+**Exit gate:** after the live migration is reviewed and applied, a marketer publishes a new landing page without a developer and the storefront serves it from the user's Supabase project.
 
 ### Phase 6 — AI & advanced *(pick, then sequence)*
-Gemini copilots (M18) · notification center + Supabase Realtime · command palette (`cmdk` is installed and unused) · FullCalendar for deliveries · triage the **29 dead edge functions** (wire or delete — start with `quotation-pdf-generator`, 264 lines ready) · i18n + RTL (Urdu/Arabic — strong for a Lahore exporter) · code splitting (1.44 MB single chunk, 0 lazy routes) · tests (currently **0**) · Sentry · complete `create-payment-intent` for Stripe deposits.
+Gemini copilots (M18) · notification center + Supabase Realtime · command palette (`cmdk` is installed and unused) · FullCalendar for deliveries · triage the **29 dead edge functions** (wire or delete — start with `quotation-pdf-generator`, 264 lines ready) · i18n + RTL (Urdu/Arabic — strong for a Lahore exporter) · code splitting (the source storefront is still largely one client bundle) · expand tests beyond the current **55 local core/dashboard/storefront checks** · Sentry · complete `create-payment-intent` for Stripe deposits.
 
 ---
 
