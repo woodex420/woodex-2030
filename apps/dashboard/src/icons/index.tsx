@@ -439,3 +439,8 @@ export const GitMerge = (p: IconProps) => (
     <path d="M6 21V9" transform="translate(0,-3)" />
   </Icon>
 );
+export const Trash2 = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M6 6l1 14a1.5 1.5 0 0 0 1.5 1.4h7A1.5 1.5 0 0 0 17 20l1-14M10 11v6M14 11v6" />
+  </Icon>
+);

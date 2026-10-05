@@ -82,6 +82,15 @@ CREATE TABLE IF NOT EXISTS tasks(
   id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, lead_id INTEGER, quote_id INTEGER, order_id INTEGER,
   title TEXT NOT NULL, due TEXT, owner TEXT DEFAULT 'You', priority TEXT DEFAULT 'normal', done INTEGER DEFAULT 0,
   created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS pages(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT UNIQUE NOT NULL, title TEXT NOT NULL,
+  status TEXT DEFAULT 'Draft', seo_title TEXT, seo_desc TEXT, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS page_blocks(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, page_id INTEGER NOT NULL, type TEXT NOT NULL,
+  props TEXT NOT NULL DEFAULT '{}', sort INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS page_versions(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, page_id INTEGER NOT NULL, snapshot TEXT NOT NULL,
+  note TEXT, who TEXT DEFAULT 'You', created_at TEXT);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -213,9 +222,8 @@ function ensureCrmDemo() {
       .run(clifton.id, "Send installment-2 reminder", new Date(Date.now() - 864e5).toISOString().slice(0, 10), "normal", t, t);
   }
   // deliberately ambiguous pair for the review queue: same email, different phone
-  const info = db.prepare("INSERT INTO clients(name,email,email_norm,phone,phone_norm,tags,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+  db.prepare("INSERT INTO clients(name,email,email_norm,phone,phone_norm,tags,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)")
     .run("Clifton Villa 9 (WhatsApp)", "sales@cliftonvilla9.example", "sales@cliftonvilla9.example", "+92 300 7654321", "3007654321", "[]", "WhatsApp", t, t);
-  void info;
   console.log("[seed] CRM demo: clients, links, tasks, 1 review pair");
 }
 
@@ -778,6 +786,7 @@ app.get("/api/stats", wrap((req, res) => {
         payments, monthly,
       };
     })(),
+    site: { pages: n("SELECT COUNT(*) n FROM pages"), published: n("SELECT COUNT(*) n FROM pages WHERE status='Published'") },
     crm: {
       clients: n("SELECT COUNT(*) n FROM clients WHERE merged_into IS NULL"),
       review: (() => { let c = 0; for (const key of ["email_norm", "phone_norm"]) c += db.prepare(`SELECT COUNT(*) n FROM (SELECT ${key} k FROM clients WHERE merged_into IS NULL AND ${key} IS NOT NULL GROUP BY ${key} HAVING COUNT(*)>1)`).get().n; return c; })(),
@@ -788,6 +797,178 @@ app.get("/api/stats", wrap((req, res) => {
   });
 }));
 
+/* ---- P7/P8 Website CMS: typed block registry, pages, publish, versions ---- */
+const BLOCKS = {
+  "hero": { label: "Hero", group: "Marketing", fields: [
+    { k: "kicker", t: "text" }, { k: "heading", t: "text", req: true }, { k: "sub", t: "textarea" },
+    { k: "image", t: "image" }, { k: "cta_label", t: "text" }, { k: "cta_href", t: "text" } ] },
+  "text-section": { label: "Text + points", group: "Content", fields: [
+    { k: "kicker", t: "text" }, { k: "heading", t: "text", req: true }, { k: "body", t: "textarea" },
+    { k: "bullets", t: "lines" }, { k: "image", t: "image" } ] },
+  "product-grid": { label: "Product grid (live)", group: "Commerce", fields: [
+    { k: "heading", t: "text" }, { k: "match", t: "text", help: "series / category / sku words" },
+    { k: "ids", t: "text", help: "or exact ids, comma separated" }, { k: "limit", t: "text" } ] },
+  "product-feature": { label: "Product spotlight (live)", group: "Commerce", fields: [
+    { k: "productId", t: "text", req: true }, { k: "heading", t: "text" }, { k: "body", t: "textarea" } ] },
+  "materials": { label: "Materials & craft", group: "Commerce", fields: [
+    { k: "heading", t: "text" }, { k: "sub", t: "textarea" } ] },
+  "gallery": { label: "Gallery", group: "Content", fields: [
+    { k: "heading", t: "text" }, { k: "images", t: "lines", req: true } ] },
+  "testimonials": { label: "Testimonials", group: "Social proof", fields: [
+    { k: "heading", t: "text" }, { k: "items", t: "lines", req: true, help: "quote | name | role" } ] },
+  "faq": { label: "FAQ accordion", group: "Content", fields: [
+    { k: "heading", t: "text" }, { k: "items", t: "lines", req: true, help: "question | answer" } ] },
+  "cta-band": { label: "CTA band", group: "Marketing", fields: [
+    { k: "heading", t: "text", req: true }, { k: "sub", t: "textarea" },
+    { k: "primary_label", t: "text" }, { k: "primary_href", t: "text" },
+    { k: "secondary_label", t: "text" }, { k: "secondary_href", t: "text" } ] },
+  "lead-form": { label: "Lead form → CRM", group: "Lead gen", fields: [
+    { k: "heading", t: "text", req: true }, { k: "sub", t: "textarea" },
+    { k: "submit_label", t: "text" }, { k: "consent", t: "textarea" } ] },
+};
+app.get("/api/blocks", (req, res) => res.json({ registry: BLOCKS }));
+const MEDIA = () => fs.readdirSync(path.join(HERE, "public/img")).filter((f) => /\.(jpg|jpeg|png|webp)$/i.test(f));
+app.get("/api/media", (req, res) => res.json({ items: MEDIA().slice(0, 96) }));
+
+const rowPage = (r, blocks) => ({ id: r.id, slug: r.slug, title: r.title, status: r.status,
+  seoTitle: r.seo_title, seoDesc: r.seo_desc, createdAt: r.created_at, updatedAt: r.updated_at,
+  blocks: blocks ?? db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id)
+    .map((b) => ({ type: b.type, props: JSON.parse(b.props || "{}") })) });
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
+function validatePage(title, blocks) {
+  const errs = [];
+  if (!blocks.length) errs.push({ block: -1, msg: "Page has no blocks yet." });
+  blocks.forEach((b, i) => {
+    const spec = BLOCKS[b.type];
+    if (!spec) return errs.push({ block: i, msg: `Unknown block type “${b.type}”.` });
+    for (const f of spec.fields) {
+      const v = b.props?.[f.k];
+      if (f.req && (!v || !String(v).trim())) errs.push({ block: i, msg: `${spec.label}: “${f.k}” is required.` });
+      if (f.t === "image" && v) { const sv = String(v); const okImg = sv.startsWith("/img/") || sv.startsWith("http") || sv.startsWith("data:") || /^[\w.-]+\.(jpg|jpeg|png|webp)$/i.test(sv);
+        if (!okImg) errs.push({ block: i, msg: `${spec.label}: image must be a library file or URL.` }); }
+    }
+    if (b.type === "cta-band" && (b.props.primary_label && !b.props.primary_href)) errs.push({ block: i, msg: "CTA band: primary button needs a link." });
+  });
+  if (!title || !title.trim()) errs.push({ block: -1, msg: "Page title is required." });
+  return errs;
+}
+
+app.get("/api/pages", wrap((req, res) => {
+  let rows = db.prepare("SELECT * FROM pages ORDER BY datetime(updated_at) DESC").all();
+  if (req.query.status) rows = rows.filter((r) => r.status === req.query.status);
+  res.json({ total: rows.length, published: rows.filter((r) => r.status === "Published").length,
+    items: rows.map((r) => ({ ...rowPage(r, []), blockCount: db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE page_id=?").get(r.id).n })) });
+}));
+app.post("/api/pages", wrap((req, res) => {
+  const { slug, title, template } = req.body ?? {};
+  if (!slug || !SLUG_RE.test(slug)) return res.status(400).json({ error: "slug must be lowercase letters/numbers/dashes (2-61)" });
+  if (db.prepare("SELECT id FROM pages WHERE slug=?").get(slug)) return res.status(409).json({ error: "slug already exists" });
+  const t = now();
+  const info = db.prepare("INSERT INTO pages(slug,title,status,created_at,updated_at) VALUES(?,?,?,?,?)").run(slug, title || slug, "Draft", t, t);
+  const pid = info.lastInsertRowid;
+  const packs = {
+    "sale-landing": [
+      { type: "hero", props: { kicker: "Limited period", heading: "Workspace Sale — up to 30% off", sub: "Executive desks, ergonomic chairs and storage, ready in Lahore warehouse.", image: "desk-product.jpg", cta_label: "Shop the sale", cta_href: "/shop" } },
+      { type: "product-grid", props: { heading: "Featured this week", match: "executive desk", limit: "4" } },
+      { type: "cta-band", props: { heading: "Bulk order for an office floor?", sub: "Get a quotation with installation in 48 hours.", primary_label: "Request a quote", primary_href: "/quotation" } },
+    ],
+    "collection-intro": [
+      { type: "hero", props: { kicker: "New collection", heading: "The Boardroom Series", sub: "Solid Sheesham, silent soft-close drawers, five-year frame warranty.", image: "conference-table.jpg", cta_label: "View products", cta_href: "/shop" } },
+      { type: "materials", props: { heading: "Built like furniture should be", sub: "Seasoned hardwood, hand-applied finish, marine-grade hardware." } },
+      { type: "faq", props: { heading: "Common questions", items: "Do you deliver nationwide? | Yes — flat-rate cargo, assembly included in Lahore and Karachi.\nIs there a warranty? | 5 years on frames, 2 years on mechanisms." } },
+    ],
+  };
+  for (const [i, b] of ((packs[template] ?? []).entries())) db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props), i);
+  const r = db.prepare("SELECT * FROM pages WHERE id=?").get(pid);
+  emit("pages", { title: "Page created: /" + r.slug, who: r.title });
+  res.status(201).json(rowPage(r));
+}));
+app.get("/api/pages/:key", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.key, req.params.key);
+  if (!r) return res.status(404).json({ error: "page not found" });
+  res.json(rowPage(r));
+}));
+app.get("/api/pages/:key/public", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM pages WHERE slug=?").get(req.params.key);
+  if (!r) return res.status(404).json({ error: "no page at that address" });
+  const wantDraft = req.query.draft === "1";
+  if (r.status !== "Published" && !wantDraft) return res.status(404).json({ error: "page is not published" });
+  res.json({ slug: r.slug, title: r.title, status: r.status, seoTitle: r.seo_title, seoDesc: r.seo_desc,
+    publishedAt: r.updated_at,
+    blocks: db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id)
+      .map((b) => ({ type: b.type, props: JSON.parse(b.props || "{}") })) });
+}));
+app.put("/api/pages/:id/blocks", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const blocks = Array.isArray(req.body?.blocks) ? req.body.blocks : [];
+  db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id);
+  blocks.forEach((b, i) => db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
+    .run(r.id, String(b.type), JSON.stringify(b.props ?? {}), i));
+  const { title, seoTitle, seoDesc } = req.body ?? {};
+  db.prepare("UPDATE pages SET title=COALESCE(?,title), seo_title=COALESCE(?,seo_title), seo_desc=COALESCE(?,seo_desc), updated_at=? WHERE id=?")
+    .run(title ?? null, seoTitle ?? null, seoDesc ?? null, now(), r.id);
+  res.json({ ...rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)),
+    validation: validatePage(req.body?.title ?? r.title, blocks) });
+}));
+app.post("/api/pages/:id/publish", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const blocks = db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id).map((b) => ({ type: b.type, props: JSON.parse(b.props || "{}") }));
+  const errs = validatePage(req.body?.title ?? r.title, blocks);
+  if (errs.length) return res.status(422).json({ error: "validation failed", validation: errs });
+  const t = now();
+  db.prepare("INSERT INTO page_versions(page_id,snapshot,note,created_at) VALUES(?,?,?,?)")
+    .run(r.id, JSON.stringify({ blocks, seo: { title: r.seo_title, desc: r.seo_desc } }), req.body?.note ?? "published", t);
+  db.prepare("UPDATE pages SET status='Published', updated_at=? WHERE id=?").run(t, r.id);
+  emit("pages", { title: "Page published: /" + r.slug, who: r.title });
+  res.json({ ...rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)), versions: db.prepare("SELECT COUNT(*) n FROM page_versions WHERE page_id=?").get(r.id).n });
+}));
+app.post("/api/pages/:id/unpublish", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  db.prepare("UPDATE pages SET status='Draft', updated_at=? WHERE id=?").run(now(), r.id);
+  emit("pages", { title: "Page unpublished: /" + r.slug, who: r.title });
+  res.json(rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)));
+}));
+app.get("/api/pages/:id/versions", wrap((req, res) => {
+  const rows = db.prepare("SELECT id, note, who, created_at, snapshot FROM page_versions WHERE page_id=? ORDER BY id DESC").all(req.params.id);
+  res.json({ items: rows.map((v) => ({ id: v.id, note: v.note, who: v.who, createdAt: v.created_at,
+    blocks: JSON.parse(v.snapshot).blocks.length })) });
+}));
+app.post("/api/pages/:id/rollback", wrap((req, res) => {
+  const v = db.prepare("SELECT * FROM page_versions WHERE id=? AND page_id=?").get(req.body?.version_id, req.params.id);
+  if (!v) return res.status(404).json({ error: "version not found" });
+  const snap = JSON.parse(v.snapshot);
+  db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(req.params.id);
+  (snap.blocks ?? []).forEach((b, i) => db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
+    .run(req.params.id, b.type, JSON.stringify(b.props ?? {}), i));
+  db.prepare("UPDATE pages SET updated_at=? WHERE id=?").run(now(), req.params.id);
+  emit("pages", { title: "Version rolled back on page " + req.params.id, who: "You" });
+  res.json(rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
+}));
+
+function ensureSiteDemo() {
+  if (db.prepare("SELECT COUNT(*) n FROM pages").get().n > 0) return;
+  const t = now();
+  const info = db.prepare("INSERT INTO pages(slug,title,status,seo_title,seo_desc,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+    .run("ramadan-workspace-sale", "Ramadan Workspace Sale", "Published",
+      "Ramadan Workspace Sale — Woodex Furniture", "Up to 30% off desks & ergonomic chairs. Quotation + installation in 48h.", t, t);
+  const pid = info.lastInsertRowid;
+  const demo = [
+    { type: "hero", props: { kicker: "Ramadan offer · Lahore & nationwide", heading: "Your workspace, upgraded for PKR under 150,000", sub: "Solid-wood desks, ergonomic chairs and silent soft-close storage — warehouse stock, delivered and installed before Eid.", image: "office-desk-setup.jpg", cta_label: "Request a quotation", cta_href: "/quotation", cta2: "Browse the catalog" } },
+    { type: "product-grid", props: { heading: "On offer this week", match: "desk chair executive ergonomic", limit: "4" } },
+    { type: "text-section", props: { kicker: "How it works", heading: "Ordered today, working by next week", body: "We quote from live warehouse stock, build to spec where needed in our Johar Town workshop, and install with a customer sign-off checklist.", bullets: "48h quotation with real stock, not guesses\n50% advance unlocks production\nDelivery + assembly included in Lahore" } },
+    { type: "testimonials", props: { heading: "What clients say", items: "They outfitted our entire 30-seat office in nine days.\nAhmed K. · DHA\nIn the budget, on time, no scratches on the walls.\nSana T. · Clifton\nThe chair is still perfect after two years.\nBilal Traders" } },
+    { type: "faq", props: { heading: "Before you ask", items: "Is the offer on custom sizes too? | Custom orders get 10% off materials; sizes are free.\nCan I pay in installments? | 50% advance, rest on delivery — cards accepted at showroom.\nDo you deliver outside Lahore? | Nationwide cargo, assembly guidance by video call." } },
+    { type: "lead-form", props: { heading: "Reserve your offer slot", sub: "Share your requirement — we confirm stock and install date within one working day.", submit_label: "Send to sales", consent: "By sending you agree to be contacted on WhatsApp about this offer." } },
+    { type: "cta-band", props: { heading: "Need 10+ desks?", sub: "Bulk floor plans get dedicated pricing and staged delivery.", primary_label: "Talk to B2B desk", primary_href: "/b2b" } },
+  ];
+  for (const [i, b] of demo.entries()) db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props), i);
+  db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)").run(pid, JSON.stringify({ blocks: demo }), "seeded", "System", t);
+  console.log("[seed] site demo: 1 published landing page (7 blocks)");
+}
+
 /* Shared imagery */
 app.use("/img", express.static(path.join(HERE, "public/img"), { maxAge: "1h" }));
 
@@ -795,4 +976,5 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 await seed();
 ensureFinanceDemo();
 ensureCrmDemo();
+ensureSiteDemo();
 app.listen(PORT, "0.0.0.0", () => console.log(`[woodex-api] http://localhost:${PORT} · db=data/woodex.db`));

@@ -8,13 +8,14 @@ import Crm from "@/pages/Crm";
 import { QuotationsList, QuotationBuilder } from "@/pages/Quotations";
 import Catalog from "@/pages/Catalog";
 import Clients from "@/pages/Clients";
+import Website, { PageEditor } from "@/pages/Website";
 import Invoices from "@/pages/Invoices";
 import Projects from "@/pages/Projects";
 import Operations from "@/pages/Operations";
 import Analytics from "@/pages/Analytics";
 import Settings from "@/pages/Settings";
 import { Placeholder } from "@/pages/Placeholder";
-import { Globe, Megaphone, MessagesSquare, Package, Store } from "@/icons";
+import { Megaphone, MessagesSquare, Package, Store } from "@/icons";
 
 function NotFound() {
   return (
@@ -65,18 +66,8 @@ export default function App() {
                 />
               }
             />
-            <Route
-              path="/website"
-              element={
-                <Placeholder
-                  crumbs={["Digital", "Website / CMS"]}
-                  title="Website / CMS"
-                  description="Page builder, templates and multi-site publishing."
-                  icon={<Globe size={20} />}
-                  planned="Phase 4 (visual builder §30)"
-                />
-              }
-            />
+            <Route path="/website" element={<Website />} />
+            <Route path="/website/edit/:id" element={<PageEditor />} />
             <Route
               path="/marketing"
               element={
