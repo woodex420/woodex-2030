@@ -267,9 +267,15 @@ const decorateInvoice = (r) => { const j = rowInvoice(r);
 const rowReturn = (r) => ({ id: r.id, ref: r.ref, orderId: r.order_id, customer: r.customer, item: r.item, reason: r.reason,
   state: r.state, refundAmount: r.refund_amount, resolution: r.resolution, createdAt: r.created_at, updatedAt: r.updated_at });
 const wrap = (fn) => (req, res) => { try { fn(req, res); } catch (e) { res.status(500).json({ error: String(e.message || e) }); } };
+/* TODO-2 (QA): compound write flows run atomically — a mid-flow throw rolls the whole
+   route back (no order-without-invoice half-state). */
+const wtx = (fn) => { db.exec("BEGIN IMMEDIATE"); try { const r = fn(); db.exec("COMMIT"); return r; }
+  catch (e) { try { db.exec("ROLLBACK"); } catch { /* aborted */ } throw e; } };
+const wrapTx = (fn) => wrap((req, res) => wtx(() => fn(req, res)));
 
 /* ---------------- app ---------------- */
 const app = express();
+app.set("trust proxy", "loopback"); // dev/prod sit behind a loopback proxy (vite, e2b) — req.ip must be the real client for the login backstop
 app.use(express.json({ limit: "2mb" }));
 
 /* ---- Foundation: session auth + RBAC (bearer token; no cookies) ---- */
@@ -386,11 +392,10 @@ app.get("/api/quotes", wrap((req, res) => {
   if (req.query.status) rows = rows.filter((r) => r.status === req.query.status);
   res.json({ total: rows.length, items: rows.map(rowQuote) });
 }));
-app.post("/api/quotes", wrap((req, res) => {
+app.post("/api/quotes", wrapTx((req, res) => {
   const { customer, contact, items = [], total, note, source = "storefront" } = req.body ?? {};
   if (!customer || !items.length) return res.status(400).json({ error: "customer and items are required" });
-  const seq = 2295 + db.prepare("SELECT COUNT(*) n FROM quotes").get().n;
-  const ref = req.body.ref || "Q-" + seq;
+  const ref = req.body.ref || nextRef("quotes", "Q-", 2295);
   const sum = typeof total === "number" ? total : items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
   const t = now();
   const info = db.prepare("INSERT INTO quotes(ref,customer,contact,items,total,status,source,note,audit,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
@@ -398,7 +403,7 @@ app.post("/api/quotes", wrap((req, res) => {
       JSON.stringify([{ who: source === "storefront" ? customer : "You", action: "requested quotation via " + source, time: t }]), t, t);
   const qLed = rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid));
   { const m = matchOrCreateClient({ name: customer, contact: contact ?? note, source }); linkClient(m.client.id, "quote", qLed.id); }
-  emit("quotes", { title: "Quotation " + ref + " requested", who: customer }); res.status(201).json(qLed);
+  emit("quotes", { title: "Quotation " + ref + " requested", who: "Storefront" }); res.status(201).json(qLed);
 }));
 app.patch("/api/quotes/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
@@ -413,7 +418,7 @@ app.patch("/api/quotes/:id", wrap((req, res) => {
   const out = rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(r.id));
   if (status === "Sent") db.prepare("INSERT INTO tasks(quote_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
     .run(r.id, "Follow up on quote " + r.ref + " (" + r.customer + ")", new Date(Date.now() + 864e5 * 3).toISOString().slice(0, 10), "normal", now(), now());
-  if (status) emit("quotes", { title: "Quotation " + r.ref + " → " + status, who: r.customer });
+  if (status) emit("quotes", { title: "Quotation " + r.ref + " → " + status, who: req.actor ?? "Sales" });
   res.json(out);
 }));
 
@@ -460,11 +465,11 @@ const resolveTemplate = (tpl, clientId) => {
   return tpl.body.replaceAll("{{name}}", cl.name ?? "there").replaceAll("{{ref}}", ref);
 };
 const touchInbox = (extra = {}) => emit("inbox", extra);
-app.post("/api/leads", wrap((req, res) => {
+app.post("/api/leads", wrapTx((req, res) => {
   const { name, company, interest, source = "Website", contact, note } = req.body ?? {};
   if (!name) return res.status(400).json({ error: "name is required" });
   const t = now();
-  const ref = "L-" + (1100 + db.prepare("SELECT COUNT(*) n FROM leads").get().n);
+  const ref = nextRef("leads", "L-", 1100);
   const info = db.prepare("INSERT INTO leads(ref,name,company,interest,source,contact,status,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
     .run(ref, name, company ?? null, interest ?? "General inquiry", source, contact ?? null, "New", note ?? null, t, t);
   const led = rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid));
@@ -473,8 +478,8 @@ app.post("/api/leads", wrap((req, res) => {
   { const conv = ensureConv(m.client.id);
     appendMsg(conv.id, { channel: "system", direction: "system", author: "System", body: `New ${source} lead ${led.ref}: "${interest}"${contact ? " · " + contact : ""} — follow up within 24h.` });
     db.prepare("UPDATE conversations SET unread=unread+1 WHERE id=?").run(conv.id); touchInbox({ clientId: m.client.id }); }
-  emit("leads", { title: "New lead " + name + (m.created ? " + client created" : ""), who: name, context: interest ?? "" });
-  emit("clients", { title: (m.created ? "Client created: " : "Client matched: ") + m.client.name, who: m.client.name });
+  emit("leads", { title: "New lead " + led.ref + (m.created ? " + client record" : ""), who: "CRM", context: (interest ?? "").slice(0, 24) }); // TODO-7: no PII on public SSE
+  emit("clients", { title: (m.created ? "Client record created" : "Client matched"), who: "CRM" });
   res.status(201).json({ ...led, clientId: m.client.id });
 }));
 app.patch("/api/leads/:id", wrap((req, res) => {
@@ -483,7 +488,7 @@ app.patch("/api/leads/:id", wrap((req, res) => {
   const { status, owner } = req.body ?? {};
   db.prepare("UPDATE leads SET status=?, owner=?, updated_at=? WHERE id=?").run(status ?? r.status, owner ?? r.owner, now(), r.id);
   const leadOut = rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(r.id));
-  emit("leads", { title: "Lead " + r.ref + " → " + (req.body?.status ?? r.status), who: r.name });
+  emit("leads", { title: "Lead " + r.ref + " → " + (req.body?.status ?? r.status), who: req.actor ?? "CRM" });
   res.json(leadOut);
 }));
 
@@ -491,12 +496,12 @@ app.patch("/api/leads/:id", wrap((req, res) => {
 app.get("/api/orders", wrap((req, res) => {
   res.json({ total: 0, items: db.prepare("SELECT * FROM orders ORDER BY datetime(created_at) DESC").all().map(rowOrder) });
 }));
-app.post("/api/orders", wrap((req, res) => {
+app.post("/api/orders", wrapTx((req, res) => {
   const { customer, items = [], total, source } = req.body ?? {};
   if (!customer || !items.length) return res.status(400).json({ error: "customer and items are required" });
   const t = now();
   const sum = typeof total === "number" ? total : items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
-  const ref = "WX-" + (4300 + db.prepare("SELECT COUNT(*) n FROM orders").get().n); // was inline → later bare `ref` threw → 500 after insert
+  const ref = nextRef("orders", "WX-", 4300);
   const info = db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
     .run(ref, customer, JSON.stringify(items), sum,
       "Pending", "production", source || "Showroom", "TBD", t, t);
@@ -509,7 +514,7 @@ app.post("/api/orders", wrap((req, res) => {
     if (invRow) linkClient(m.client.id, "invoice", invRow.id);
     db.prepare("INSERT OR IGNORE INTO tasks(client_id,order_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
       .run(m.client.id, oLed.id, "Collect 50% advance before production — " + ref, new Date(Date.now() + 864e5 * 2).toISOString().slice(0, 10), "high", t, t); }
-  emit("orders", { title: "Order " + ref + " placed · invoice issued", who: customer }); res.status(201).json(oLed);
+  emit("orders", { title: "Order " + ref + " placed · invoice issued", who: "Checkout" }); res.status(201).json(oLed);
 }));
 app.patch("/api/orders/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(req.params.id, req.params.id);
@@ -519,7 +524,7 @@ app.patch("/api/orders/:id", wrap((req, res) => {
     status ?? r.status, stage ?? r.stage, owner ?? r.owner, due ?? r.due, now(), r.id
   );
   const oOut = rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(r.id));
-  if (req.body?.stage || req.body?.status) emit("orders", { title: "Order " + r.ref + " → " + (req.body?.stage ? req.body.stage + " · " : "") + (req.body?.status ?? r.status), who: r.customer });
+  if (req.body?.stage || req.body?.status) emit("orders", { title: "Order " + r.ref + " → " + (req.body?.stage ? req.body.stage + " · " : "") + (req.body?.status ?? r.status), who: req.actor ?? "Ops" });
   res.json(oOut);
 }));
 
@@ -606,17 +611,21 @@ const rowTask = (r) => ({ id: r.id, clientId: r.client_id, leadId: r.lead_id, qu
 
 /* ---- auth endpoints + team management ---- */
 const rowUserLite = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, active: !!u.active, updatedAt: u.updated_at });
+const ipMisses = new Map(); // TODO-5: 30 failed logins/min/IP backstop (successes never count)
 app.post("/api/auth/login", wrap((req, res) => {
   const raw = String(req.body?.email ?? req.body?.username ?? "").trim().toLowerCase();
   const email = raw.includes("@") ? raw : raw + "@woodex.pk"; // username or full email both work
   const pw = String(req.body?.password ?? "");
   const rl = loginBucket.get(email) ?? { n: 0, t: Date.now() };
   if (Date.now() - rl.t > 60_000) { rl.n = 0; rl.t = Date.now(); }
-  if (rl.n >= 5) { res.set("retry-after", "60"); return res.status(429).json({ error: "too many attempts — wait a minute" }); }
+  const ipk = req.ip ?? "local"; const ipb = ipMisses.get(ipk) ?? { n: 0, t: Date.now() };
+  if (Date.now() - ipb.t > 60_000) { ipb.n = 0; ipb.t = Date.now(); }
+  if (rl.n >= 5 || ipb.n >= 30) { res.set("retry-after", "60"); return res.status(429).json({ error: "too many attempts — wait a minute" }); }
   const u = db.prepare("SELECT * FROM users WHERE email=?").get(email);
   const guess = u ? hashPass(pw, u.pass_salt) : hashPass("x", "00");
   if (!u || !crypto.timingSafeEqual(Buffer.from(guess.hash, "hex"), Buffer.from(u.pass_hash, "hex"))) {
     rl.n += 1; loginBucket.set(email, rl);
+    ipb.n += 1; ipMisses.set(ipk, ipb);
     return res.status(401).json({ error: "wrong email or password" });
   }
   if (!u.active) return res.status(403).json({ error: "account disabled — ask an owner" });
@@ -702,14 +711,14 @@ app.get("/api/clients/:id", wrap((req, res) => {
   if (!c) return res.status(404).json({ error: "not found" });
   res.json(clientFull(c));
 }));
-app.post("/api/clients", wrap((req, res) => {
+app.post("/api/clients", wrapTx((req, res) => {
   const b = req.body ?? {}; if (!b.name) return res.status(400).json({ error: "name required" });
   const t = now();
   const info = db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
     .run(b.name, b.company ?? null, b.email ?? null, normEmail(b.email), b.phone ?? null, normPhone(b.phone),
       JSON.stringify(b.tags ?? []), b.notes ?? null, b.source ?? "manual", t, t);
   const c = db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid);
-  emit("clients", { title: "Client added: " + c.name, who: c.name });
+  emit("clients", { title: "Client added · #" + c.id, who: req.actor ?? "Sales" });
   res.status(201).json(rowClientLite(c));
 }));
 app.patch("/api/clients/:id", wrap((req, res) => {
@@ -723,7 +732,7 @@ app.patch("/api/clients/:id", wrap((req, res) => {
       b.tags ? JSON.stringify(b.tags) : c.tags, b.notes ?? c.notes, now(), c.id);
   res.json(rowClientLite(db.prepare("SELECT * FROM clients WHERE id=?").get(c.id)));
 }));
-app.post("/api/clients/:id/merge", wrap((req, res) => {
+app.post("/api/clients/:id/merge", wrapTx((req, res) => {
   const into = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
   const from = db.prepare("SELECT * FROM clients WHERE id=?").get(req.body?.from_id);
   if (!into || !from) return res.status(404).json({ error: "client pair not found" });
@@ -733,7 +742,7 @@ app.post("/api/clients/:id/merge", wrap((req, res) => {
   db.prepare("UPDATE clients SET email=?, email_norm=?, phone=?, phone_norm=?, company=COALESCE(company,?), notes=TRIM(COALESCE(notes,'')||?) WHERE id=?")
     .run(into.email ?? from.email, into.email_norm ?? from.email_norm, into.phone ?? from.phone, into.phone_norm ?? from.phone_norm,
       from.company, from.notes ? " | merged note: " + from.notes : "", into.id);
-  emit("clients", { title: "Merged " + from.name + " → " + into.name, who: into.name });
+  emit("clients", { title: "Clients merged → #" + into.id, who: req.actor ?? "Sales" });
   res.json(clientFull(db.prepare("SELECT * FROM clients WHERE id=?").get(into.id)));
 }));
 app.get("/api/tasks", wrap((req, res) => {
@@ -981,6 +990,8 @@ app.get("/sitemap.xml", wrap((req, res) => {
   res.setHeader("content-type", "application/xml; charset=utf-8");
   res.end('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     rows.map((x) => `  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`).join("\n") +
+    "\n" + db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all()
+      .map((x) => `  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`).join("\n") +
     "\n</urlset>\n");
 }));
 app.get("/robots.txt", wrap((req, res) => {
@@ -1009,7 +1020,10 @@ const insertInvoice = ({ ref, quoteId, orderId, customer, items, discount, tax, 
   return db.prepare("SELECT * FROM invoices WHERE id=?").get(info.lastInsertRowid);
 };
 const subtotalOf = (items) => items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
-const nextRef = (table, prefix, pad) => prefix + String(db.prepare("SELECT COUNT(*) n FROM " + table).get().n + pad).padStart(4, "0");
+const nextRef = (table, prefix, floor = 0) => { // MAX-based: survives row deletion (QA TODO-3)
+  const m = db.prepare("SELECT MAX(CAST(substr(ref, ?) AS INTEGER)) v FROM " + table).get(prefix.length + 1).v ?? 0;
+  return prefix + String(Math.max(m, floor) + 1);
+};
 
 app.get("/api/invoices", wrap((req, res) => {
   let rows = db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC").all().map(decorateInvoice);
@@ -1048,7 +1062,7 @@ app.post("/api/invoices", wrap((req, res) => {
   emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
 }));
-app.post("/api/quotes/:id/invoice", wrap((req, res) => {
+app.post("/api/quotes/:id/invoice", wrapTx((req, res) => {
   const q = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
   if (!q) return res.status(404).json({ error: "quote not found" });
   const items = JSON.parse(q.items || "[]");
@@ -1078,7 +1092,7 @@ app.patch("/api/invoices/:id", wrap((req, res) => {
     now(), r.id);
   res.json(rowInvoice(db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)));
 }));
-app.post("/api/invoices/:id/payments", wrap((req, res) => {
+app.post("/api/invoices/:id/payments", wrapTx((req, res) => {
   const r = db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id);
   if (!r) return res.status(404).json({ error: "not found" });
   const amount = Number(req.body?.amount);
@@ -1101,7 +1115,7 @@ app.get("/api/returns", wrap((req, res) => {
   if (req.query.state) rows = rows.filter((r) => r.state === req.query.state);
   res.json({ total: rows.length, open: rows.filter((r) => r.state !== "Closed").length, items: rows });
 }));
-app.post("/api/returns", wrap((req, res) => {
+app.post("/api/returns", wrapTx((req, res) => {
   const b = req.body ?? {};
   let customer = b.customer; let orderId = null;
   if (b.order_id || b.order_ref) { const o = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(b.order_id ?? b.order_ref, b.order_ref ?? b.order_id);
@@ -1345,11 +1359,31 @@ app.get("/api/pages/:key", wrap((req, res) => {
   if (!r) return res.status(404).json({ error: "page not found" });
   res.json(rowPage(r));
 }));
+const PREVIEW_SECRET = crypto.randomBytes(32).toString("hex"); // restart rotates → old links die with it
+const previewSig = (slug, exp) => crypto.createHmac("sha256", PREVIEW_SECRET).update(slug + "." + exp).digest("base64url").slice(0, 40);
+const previewSigOk = (slug, exp, sig) => {
+  if (!sig || !(Number(exp) > Date.now())) return false;
+  const a = Buffer.from(previewSig(slug, exp)), b = Buffer.from(String(sig).slice(0, 64));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+const bearerValid = (req) => {
+  const t = String(req.headers.authorization ?? "").replace(/^Bearer\s+/i, "") || String(req.query.token ?? "");
+  if (!t) return false;
+  const u = db.prepare("SELECT u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(t);
+  return !!u && !!u.active && String(u.expires_at) >= now();
+};
+app.post("/api/pages/:id/preview-link", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.id, req.params.id);
+  if (!r) return res.status(404).json({ error: "page not found" });
+  const exp = Date.now() + 15 * 60e3; // 15-minute preview window (TODO-1)
+  res.json({ url: "/p/" + r.slug + "?draft=1&exp=" + exp + "&sig=" + previewSig(r.slug, exp), expiresAt: new Date(exp).toISOString() });
+}));
 app.get("/api/pages/:key/public", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM pages WHERE slug=?").get(req.params.key);
   if (!r) return res.status(404).json({ error: "no page at that address" });
   const wantDraft = req.query.draft === "1";
-  if (r.status !== "Published" && !wantDraft) return res.status(404).json({ error: "page is not published" });
+  if (r.status !== "Published" && !(wantDraft && (previewSigOk(r.slug, req.query.exp, req.query.sig) || bearerValid(req))))
+    return res.status(404).json({ error: "page is not published" }); // TODO-1: drafts need a valid sig or a session — ?draft=1 alone no longer opens
   res.json({ slug: r.slug, title: r.title, status: r.status, seoTitle: r.seo_title, seoDesc: r.seo_desc,
     publishedAt: r.updated_at,
     blocks: pageBlocks(r.id), theme: r.theme ? JSON.parse(r.theme) : null });

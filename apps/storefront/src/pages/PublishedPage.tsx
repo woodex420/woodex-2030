@@ -226,6 +226,7 @@ export default function PublishedPage() {
   const { slug } = useParams();
   const [params] = useSearchParams();
   const draft = params.get("draft") === "1";
+  const sig = params.get("sig"); const exp = params.get("exp"); // TODO-1: signed preview window
   const [doc, setDoc] = useState<PageDoc | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -234,7 +235,7 @@ export default function PublishedPage() {
     document.documentElement.classList.remove("wx-pagebar");
     void (async () => {
       try {
-        const res = await fetch("/api/pages/" + encodeURIComponent(slug ?? "") + "/public" + (draft ? "?draft=1" : ""));
+        const res = await fetch("/api/pages/" + encodeURIComponent(slug ?? "") + "/public" + (draft ? "?draft=1" + (sig ? "&sig=" + encodeURIComponent(sig) + "&exp=" + encodeURIComponent(exp ?? "") : "") : ""));
         if (!res.ok) { setErr((await res.json().catch(() => ({}))).error ?? "Page not found"); return; }
         const j = (await res.json()) as PageDoc;
         setDoc(j);

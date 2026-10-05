@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { cn } from "@/lib/cn";
+import { previewHref, storeUrl } from "@/lib/preview";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -140,6 +141,8 @@ export function PageEditor() {
   const [over, setOver] = useState<number | null>(null);
   const [locked, setLocked] = useState<Set<number>>(new Set());
   const [previewKey, setPreviewKey] = useState(0);
+  const [prevUrl, setPrevUrl] = useState<string | null>(null); // TODO-1: signed draft preview from the store origin
+  useEffect(() => { if (page) void previewHref(page).then(setPrevUrl); else setPrevUrl(null); }, [page?.id, page?.status, previewKey]);
   const saveTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => { if (page) { setBlocks(page.blocks ?? []); setTitle(page.title); setTheme(page.theme ?? null); setSeo({ seoTitle: page.seoTitle ?? "", seoDesc: page.seoDesc ?? "" }); } }, [page]);
@@ -290,9 +293,9 @@ export function PageEditor() {
                 </li>))}
             </ul>
             <div className="mt-2 border-t border-hairline pt-2">
-              <iframe key={previewKey} title="Page preview" src={`/p/${page.slug}${page.status !== "Published" ? "?draft=1" : ""}`}
+              <iframe key={previewKey} title="Page preview" src={prevUrl ?? storeUrl("/p/" + page.slug)}
                 className="h-40 w-full rounded-control border border-line bg-white" onLoad={() => void 0} />
-              <p className="mt-1 text-[10px] text-subtle">Live iframe — save publishes preview state; full page in new tab: <a className="font-semibold text-primary-600 hover:underline" href={`/p/${page.slug}${page.status !== "Published" ? "?draft=1" : ""}`} target="_blank" rel="noreferrer">/p/{page.slug}</a></p>
+              <p className="mt-1 text-[10px] text-subtle">Live iframe — save publishes preview state; full page in new tab: <a className="font-semibold text-primary-600 hover:underline" href={prevUrl ?? storeUrl("/p/" + page.slug)} target="_blank" rel="noreferrer">/p/{page.slug}</a></p>
             </div>
           </Card>
 
@@ -429,7 +432,7 @@ export default function Website() {
     { key: "u", header: "Updated", cell: (r) => <span className="text-caption text-muted">{timeAgo(r.updatedAt)}</span> },
     { key: "a", header: "", align: "right", cell: (r) => (
       <span className="flex justify-end gap-1.5">
-        <a href={`/p/${r.slug}${r.status !== "Published" ? "?draft=1" : ""}`} target="_blank" rel="noreferrer"><Button size="sm" variant="secondary"><Eye size={13} /> View</Button></a>
+        <Button size="sm" variant="secondary" onClick={() => void previewHref(r).then((u) => window.open(u, "_blank", "noopener"))}><Eye size={13} /> View</Button>
         <Link to={`/website/edit/${r.id}`}><Button size="sm"><FileText size={13} /> Edit</Button></Link>
       </span>) },
   ];

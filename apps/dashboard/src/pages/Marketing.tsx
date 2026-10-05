@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
+import { previewHref } from "@/lib/preview";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -57,7 +58,7 @@ export default function Marketing() {
     { key: "p", header: "Page", cell: (r) => (
       <span className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-control bg-primary-50 text-primary-700"><FileText size={15} /></span>
         <span><Link to={`/website/edit/${r.id}`} className="block text-small font-semibold text-ink hover:underline">{r.title}</Link>
-          <a href={`/p/${r.slug}${r.status !== "Published" ? "?draft=1" : ""}`} target="_blank" rel="noreferrer" className="block text-caption text-subtle hover:text-primary-600">/p/{r.slug}</a></span></span>) },
+          <button type="button" onClick={() => void previewHref(r).then((u) => window.open(u, "_blank", "noopener"))} className="block text-caption text-subtle hover:text-primary-600">/p/{r.slug}</button></span></span>) },
     { key: "s", header: "Status", cell: (r) => <StatusBadge status={r.status} /> },
     { key: "v", header: "Views", align: "right", cell: (r) => <span className="font-semibold text-ink">{r.views}</span> },
     { key: "u", header: "Uniques", align: "right", cell: (r) => String(r.uniques) },
