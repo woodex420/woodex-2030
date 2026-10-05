@@ -1,6 +1,6 @@
 # WOODEX Agency OS — Master System Plan **v3.1**
 
-**Product: Woodex FURNITURE** (Lahore, PKR) · Prepared 2026-10-05 · **Status: DO NOT CODE YET — approval question issued per PRD §27.**
+**Product: Woodex FURNITURE** (Lahore, PKR) · Prepared 2026-10-05 · **Status: v3.1 APPROVED (5 Oct, “start as you recommend”) — Phase 1/2 docs shipped; P5 finance loop LIVE (invoices/payments/returns/order-tracker, commit 8500e42); next: P3 realtime/SSE + P4 CRM depth, then P7/P8 builder.**
 Supersedes v2.0 dashboard plan and this doc's v3.0 draft. Companion evidence: `docs/AGENCY_OS_MASTER_SYSTEM_PRD_PROMPT.md` (**official PRD, saved verbatim — source-of-truth #1**), `docs/PHASE0-AUDIT-REPORT.md` (PRD §27 20-item output), `docs/PLAN-FURNITURE-TRACK-v2.1.md` (boundary fix), `docs/PHASE0-AUDIT-AND-PLAN-V2.md` (initial audit).
 **v3.1 changelog:** ① PRD §22’s 14 phases replace my interim numbering (§9 rewritten; nothing silently replaced per §02). ② Interiors admin dashboard (WoodexAdmin v2, user-pasted + code-verified) adopted as the **proven IA blueprint**, furniture-translated (§5). ③ Vireo sales.html studied live → KPI hierarchy spec for Overview/Sales (§5). ④ Builder feasibility evidence: their whole Elementor-style editor = **2.6k LOC vanilla** with a 148-line CSS-class-allowlisted block registry → custom typed-block builder confirmed viable; comparator risk downgraded (§4.5). ⑤ Resource audit statuses recorded incl. two `BLOCKED` refs (woodex420/woodex = secrets policy; woodex-ai-suite = 404) with the corrected-request protocol.
 
