@@ -87,3 +87,5 @@ Global header/footer = section refs (edit once, fan out on publish) — exactly 
 2. Supabase project ref for *Woodex* side still unknown — Postgres now, Supabase-on-request later (D5 keeps the door open).
 3. Preline Fair-Use — never ship their templates verbatim as a product; wrappers + NOTICE file only.
 4. P19 shows their bug backlog touches chat/coming-soon/PDF blocks — import their QA list into our P5/P9 acceptance tests.
+
+> **Update (same day):** scope corrected for Woodex Furniture — see `docs/PLAN-FURNITURE-TRACK-v2.1.md`; interiors-brand migration items in §5 P13 are OUT of this product.
