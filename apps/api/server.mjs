@@ -602,7 +602,8 @@ const rowTask = (r) => ({ id: r.id, clientId: r.client_id, leadId: r.lead_id, qu
 /* ---- auth endpoints + team management ---- */
 const rowUserLite = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, active: !!u.active, updatedAt: u.updated_at });
 app.post("/api/auth/login", wrap((req, res) => {
-  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  const raw = String(req.body?.email ?? req.body?.username ?? "").trim().toLowerCase();
+  const email = raw.includes("@") ? raw : raw + "@woodex.pk"; // username or full email both work
   const pw = String(req.body?.password ?? "");
   const rl = loginBucket.get(email) ?? { n: 0, t: Date.now() };
   if (Date.now() - rl.t > 60_000) { rl.n = 0; rl.t = Date.now(); }
@@ -1458,12 +1459,26 @@ try {
     console.log("[woodex-api] P10 inbox demo threads seeded");
   }
 } catch (e) { console.error("[woodex-api] inbox seed skipped:", e.message); }
+/* Foundation: admin/admin simple login — migrate the legacy owner row once */
+try {
+  if (!db.prepare("SELECT id FROM users WHERE email='admin@woodex.pk'").get()) {
+    const legacy = db.prepare("SELECT id FROM users WHERE email='usman@woodex.pk'").get();
+    if (legacy) {
+      const { salt, hash } = hashPass("admin");
+      db.prepare("UPDATE users SET email='admin@woodex.pk', name='Admin', role='owner', pass_salt=?, pass_hash=?, active=1, updated_at=? WHERE id=?").run(salt, hash, now(), legacy.id);
+      db.prepare("DELETE FROM sessions WHERE user_id=?").run(legacy.id); // old pw's tokens invalid
+    } else {
+      const { salt, hash } = hashPass("admin");
+      db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run("admin@woodex.pk", "Admin", "owner", salt, hash, now(), now());
+    }
+    console.log("[woodex-api] login: admin / admin");
+  }
+} catch (e) { console.error("[woodex-api] admin migration skipped:", e.message); }
 /* Foundation: demo team (password: woodex123 for all) */
 try {
   {
     const t = now();
-    const team = [
-      ["usman@woodex.pk", "Usman (Owner)", "owner"],
+    const team = [ // owner role is the admin/admin row migrated above — not recreated here
       ["ayesha@woodex.pk", "Ayesha (Content)", "editor"],
       ["bilal@woodex.pk", "Bilal (Sales)", "sales"],
       ["farhan@woodex.pk", "Farhan (Finance)", "finance"],

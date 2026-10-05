@@ -2,39 +2,32 @@ import { useRef, useState } from "react";
 import { login } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
-import { Eye, EyeOff, Lock, Sparkles } from "@/icons";
-
-const DEMO = [
-  ["usman@woodex.pk", "Owner — everything incl. team + purge"],
-  ["ayesha@woodex.pk", "Editor — website, theme, catalog"],
-  ["bilal@woodex.pk", "Sales — CRM, inbox, quotes, orders"],
-  ["farhan@woodex.pk", "Finance — invoices, payments, returns"],
-  ["guest@woodex.pk", "Viewer — read-only"],
-];
-const DEMO_PW = "woodex123";
+import { Eye, EyeOff, Lock } from "@/icons";
 
 function Spinner() {
   return <span aria-hidden className="mr-1 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />;
 }
 
 export default function Login() {
-  const [email, setEmail] = useState("usman@woodex.pk");
-  const [pw, setPw] = useState(DEMO_PW);
+  const [user, setUser] = useState("admin");
+  const [pw, setPw] = useState("admin");
   const [show, setShow] = useState(false);
   const [caps, setCaps] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const pwRef = useRef<HTMLInputElement>(null);
-  const go = async (useEmail = email.trim(), usePw = pw) => {
-    if (busy) return;
+  const go = async () => {
+    if (busy || !user.trim()) return;
     setBusy(true); setErr(null);
     try {
-      await login(useEmail, usePw);
+      await login(user.trim(), pw);
+      return; // success unmounts this screen
     } catch (e) {
-      const msg = e instanceof TypeError ? "Can’t reach the Woodex API — it’s booting or offline; try again in a moment." : e instanceof Error ? e.message : String(e);
+      const msg = e instanceof TypeError
+        ? "Can’t reach the Woodex API — it’s booting or offline; try again in a moment."
+        : e instanceof Error ? e.message : String(e);
       setErr(msg); setBusy(false);
       window.setTimeout(() => pwRef.current?.focus(), 0);
-      return; // stay busy=false; success path unmounts this screen
     }
   };
   return (
@@ -47,8 +40,8 @@ export default function Login() {
         </div>
         <div className="rounded-card border border-hairline bg-white p-5 shadow-card">
           <form onSubmit={(e) => { e.preventDefault(); void go(); }} noValidate>
-            <Field label="Work email" required>
-              <Input autoFocus value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@woodex.pk" autoComplete="username" spellCheck={false} disabled={busy} />
+            <Field label="Username" required>
+              <Input autoFocus value={user} onChange={(e) => { setUser(e.target.value); setErr(null); }} placeholder="admin" autoComplete="username" spellCheck={false} disabled={busy} />
             </Field>
             <div className="mt-3">
               <Field label="Password" required>
@@ -65,21 +58,13 @@ export default function Login() {
             {err && (
               <p role="alert" className="mt-3 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-caption font-semibold text-danger-strong">{err}</p>
             )}
-            <Button type="submit" className="mt-4 h-11 w-full text-small font-bold" disabled={busy || !email.trim()}>
+            <Button type="submit" className="mt-4 h-11 w-full text-small font-bold" disabled={busy || !user.trim()}>
               {busy ? <><Spinner /> Signing in…</> : "Sign in"}
             </Button>
           </form>
-          <p className="mt-4 mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-subtle"><Sparkles size={10} /> demo accounts · tap to sign in instantly</p>
-          <ul className="space-y-1">
-            {DEMO.map(([e, w]) => (
-              <li key={e}>
-                <button disabled={busy} onClick={() => void go(e, DEMO_PW)} className="flex w-full items-baseline justify-between gap-2 rounded-control px-2 py-1 text-left text-caption transition-colors hover:bg-surface-secondary disabled:opacity-60">
-                  <b className="text-ink">{e.split("@")[0]}</b><span className="truncate text-[10px] text-subtle">{w}</span>
-                </button>
-              </li>))}
-          </ul>
+          <p className="mt-3 text-center text-[11px] text-subtle">Demo access — user <b className="font-mono text-ink">admin</b> · pass <b className="font-mono text-ink">admin</b> · team &amp; roles in Settings</p>
         </div>
-        <p className="mt-3 text-center text-[10px] text-subtle">Tokens live 7 days · forgot nothing — passwords reset in Settings → Team (owner)</p>
+        <p className="mt-3 text-center text-[10px] text-subtle">Sessions live 7 days · works inside the preview iframe (no storage needed)</p>
       </div>
     </div>
   );
