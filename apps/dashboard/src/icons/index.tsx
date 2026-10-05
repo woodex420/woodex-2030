@@ -444,3 +444,10 @@ export const Trash2 = (p: IconProps) => (
     <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M6 6l1 14a1.5 1.5 0 0 0 1.5 1.4h7A1.5 1.5 0 0 0 17 20l1-14M10 11v6M14 11v6" />
   </Icon>
 );
+
+export const Lock = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
+    <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5M12 14.5v2" />
+  </Icon>
+);

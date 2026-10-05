@@ -12,14 +12,16 @@ import { ArrowRight, CheckCircle2, Star, Send, ChevronDown } from "lucide-react"
 import { toast } from "sonner";
 
 type Block = { type: string; props: Record<string, unknown> };
-type PageDoc = { slug: string; title: string; status: string; seoTitle?: string; seoDesc?: string; publishedAt?: string; blocks: Block[] };
+type Theme = { primary?: string; ink?: string; bg?: string; font?: "sans" | "serif"; announce?: string };
+type PageDoc = { slug: string; title: string; status: string; seoTitle?: string; seoDesc?: string; publishedAt?: string; blocks: Block[]; theme?: Theme | null };
 
 const S = (b: Block, k: string) => String(b.props[k] ?? "");
 const L = (b: Block, k: string) => S(b, k).split("\n").map((x) => x.trim()).filter(Boolean);
 const imgSrc = (v: string) => (v.startsWith("http") || v.startsWith("/img/") ? v : "/img/" + v);
 const pkr = (n: number) => "Rs " + Math.round(n).toLocaleString("en-PK");
+const hexA = (h: string, a: number) => { const m = /^#?([0-9a-f]{6})$/i.exec(h.trim()); if (!m) return h; const v = parseInt(m[1], 16); return `rgba(${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}, ${a})`; };
 
-function LeadForm({ b, slug }: { b: Block; slug: string }) {
+function LeadForm({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
   const [f, setF] = useState({ name: "", contact: "", need: "" });
   const [done, setDone] = useState(false);
   const send = async (e: React.FormEvent) => {
@@ -46,7 +48,7 @@ function LeadForm({ b, slug }: { b: Block; slug: string }) {
       <Input placeholder="Your name *" value={f.name} onChange={(e) => setF((x) => ({ ...x, name: e.target.value }))} />
       <Input placeholder="Phone or email" value={f.contact} onChange={(e) => setF((x) => ({ ...x, contact: e.target.value }))} />
       <Input className="sm:col-span-2" placeholder="What do you need? e.g. 6-seater dining in Sheesham" value={f.need} onChange={(e) => setF((x) => ({ ...x, need: e.target.value }))} />
-      <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-3">
+      <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-3" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}>
         <Send className="mr-1.5 h-4 w-4" /> {S(b, "submit_label") || "Send to sales"}
       </Button>
       {S(b, "consent") && <p className="text-[11px] text-muted-foreground sm:col-span-3">{S(b, "consent")}</p>}
@@ -76,7 +78,7 @@ function ProductGrid({ b }: { b: Block }) {
           <div className="p-3.5">
             <p className="line-clamp-1 text-sm font-bold">{p.name}</p>
             <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{p.rating.toFixed(1)} · {p.category}</p>
-            <p className="mt-1.5 font-black text-primary">{pkr(p.price)}{typeof p.originalPrice === "number" && p.originalPrice > p.price && <s className="ml-1.5 text-xs font-normal text-muted-foreground">{pkr(p.originalPrice)}</s>}</p>
+            <p className="mt-1.5 font-black text-primary" style={th?.primary ? { color: th.primary } : undefined}>{pkr(p.price)}{typeof p.originalPrice === "number" && p.originalPrice > p.price && <s className="ml-1.5 text-xs font-normal text-muted-foreground">{pkr(p.originalPrice)}</s>}</p>
           </div>
         </Link>
       ))}
@@ -84,18 +86,18 @@ function ProductGrid({ b }: { b: Block }) {
   );
 }
 
-function BlockView({ b, slug }: { b: Block; slug: string }) {
+function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
   switch (b.type) {
     case "hero":
       return (
-        <section className="relative overflow-hidden rounded-3xl bg-primary/5">
+        <section className="relative overflow-hidden rounded-3xl bg-primary/5" style={th?.primary ? { background: hexA(th.primary, 0.06) } : undefined}>
           <div className="grid items-center gap-6 p-8 sm:p-12 lg:grid-cols-2">
             <div>
-              {S(b, "kicker") && <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">{S(b, "kicker")}</p>}
+              {S(b, "kicker") && <p className="text-xs font-black uppercase tracking-[0.2em] text-primary" style={th?.primary ? { color: th.primary } : undefined}>{S(b, "kicker")}</p>}
               <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">{S(b, "heading")}</h1>
               {S(b, "sub") && <p className="mt-4 max-w-lg text-muted-foreground">{S(b, "sub")}</p>}
               <div className="mt-6 flex flex-wrap gap-3">
-                {S(b, "cta_label") && <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90"><Link to={S(b, "cta_href") || "/shop"}>{S(b, "cta_label")} <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>}
+                {S(b, "cta_label") && <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}><Link to={S(b, "cta_href") || "/shop"}>{S(b, "cta_label")} <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>}
                 {S(b, "cta2") && <Button asChild variant="outline"><Link to="/shop">{S(b, "cta2")}</Link></Button>}
               </div>
             </div>
@@ -107,11 +109,11 @@ function BlockView({ b, slug }: { b: Block; slug: string }) {
       return (
         <section className="grid items-center gap-8 py-4 lg:grid-cols-2">
           <div>
-            {S(b, "kicker") && <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">{S(b, "kicker")}</p>}
+            {S(b, "kicker") && <p className="text-xs font-black uppercase tracking-[0.2em] text-primary" style={th?.primary ? { color: th.primary } : undefined}>{S(b, "kicker")}</p>}
             <h2 className="mt-2 text-2xl font-black sm:text-3xl">{S(b, "heading")}</h2>
             {S(b, "body") && <p className="mt-3 text-muted-foreground">{S(b, "body")}</p>}
             <ul className="mt-4 space-y-2">
-              {L(b, "bullets").map((x, i) => <li key={i} className="flex items-start gap-2 text-sm"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{x}</li>)}
+              {L(b, "bullets").map((x, i) => <li key={i} className="flex items-start gap-2 text-sm"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" style={th?.primary ? { color: th.primary } : undefined} />{x}</li>)}
             </ul>
           </div>
           {S(b, "image") && <img src={imgSrc(S(b, "image"))} alt="" className="aspect-video w-full rounded-2xl object-cover" />}
@@ -128,8 +130,8 @@ function BlockView({ b, slug }: { b: Block; slug: string }) {
           <div>
             <h2 className="text-2xl font-black">{S(b, "heading") || p.name}</h2>
             <p className="mt-2 text-muted-foreground">{S(b, "body") || p.shortDescription}</p>
-            <p className="mt-4 text-2xl font-black text-primary">{pkr(p.price)}</p>
-            <Button asChild className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90"><Link to={"/shop/" + p.id}>View product <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>
+            <p className="mt-4 text-2xl font-black text-primary" style={th?.primary ? { color: th.primary } : undefined}>{pkr(p.price)}</p>
+            <Button asChild className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}><Link to={"/shop/" + p.id}>View product <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>
           </div>
         </section>
       );
@@ -199,10 +201,14 @@ function BlockView({ b, slug }: { b: Block; slug: string }) {
         </section>
       );
     }
-    case "lead-form": return <section className="py-6"><LeadForm b={b} slug={slug} /></section>;
+    case "global-section": {
+      const inner = b.props.section as Block | undefined;
+      return inner ? <BlockView b={inner} slug={slug} th={th} /> : null;
+    }
+    case "lead-form": return <section className="py-6"><LeadForm b={b} slug={slug} th={th} /></section>;
     case "cta-band":
       return (
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-primary px-8 py-10 text-primary-foreground">
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-primary px-8 py-10 text-primary-foreground" style={th?.primary ? { background: th.primary } : undefined}>
           <div><h2 className="text-2xl font-black text-white">{S(b, "heading")}</h2>{S(b, "sub") && <p className="mt-1 max-w-md text-sm text-white/80">{S(b, "sub")}</p>}</div>
           <span className="flex gap-3">
             {S(b, "primary_label") && <Button asChild className="bg-white text-primary hover:bg-white/90"><Link to={S(b, "primary_href") || "/contact"}>{S(b, "primary_label")}</Link></Button>}
@@ -238,9 +244,15 @@ export default function PublishedPage() {
   }, [slug, draft]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={doc?.theme ? { background: doc.theme.bg, color: doc.theme.ink } : undefined}>
+      {doc?.theme?.announce && (
+        <div className="px-4 py-1.5 text-center text-[12px] font-bold tracking-wide text-white" style={{ background: doc.theme.primary ?? "#166534" }}>
+          {doc.theme.announce}
+        </div>
+      )}
+      {doc?.theme?.font === "serif" && <style>{".wx-themed h1,.wx-themed h2,.wx-themed h3{font-family:Georgia,'Times New Roman',serif}"}</style>}
       <Header />
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <main className="wx-themed mx-auto max-w-5xl px-4 py-10 sm:px-6">
         {err && (
           <div className="mx-auto max-w-md rounded-2xl border bg-card p-10 text-center">
             <p className="text-lg font-black">Nothing published here</p>
@@ -257,7 +269,7 @@ export default function PublishedPage() {
               </p>
             )}
             <div className="space-y-10">
-              {doc.blocks.map((b, i) => <BlockView key={i} b={b} slug={doc.slug} />)}
+              {doc.blocks.map((b, i) => <BlockView key={i} b={b} slug={doc.slug} th={doc.theme ?? undefined} />)}
             </div>
             {doc.publishedAt && <p className="mt-10 text-center text-[11px] text-muted-foreground">Published {new Date(doc.publishedAt).toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric" })} · prices in PKR, live from our catalog</p>}
           </>

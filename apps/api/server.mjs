@@ -91,6 +91,9 @@ CREATE TABLE IF NOT EXISTS page_blocks(
 CREATE TABLE IF NOT EXISTS page_versions(
   id INTEGER PRIMARY KEY AUTOINCREMENT, page_id INTEGER NOT NULL, snapshot TEXT NOT NULL,
   note TEXT, who TEXT DEFAULT 'You', created_at TEXT);
+CREATE TABLE IF NOT EXISTS saved_sections(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, category TEXT DEFAULT 'Custom',
+  tags TEXT DEFAULT '[]', block TEXT NOT NULL, created_at TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -786,7 +789,7 @@ app.get("/api/stats", wrap((req, res) => {
         payments, monthly,
       };
     })(),
-    site: { pages: n("SELECT COUNT(*) n FROM pages"), published: n("SELECT COUNT(*) n FROM pages WHERE status='Published'") },
+    site: { pages: n("SELECT COUNT(*) n FROM pages"), published: n("SELECT COUNT(*) n FROM pages WHERE status='Published'"), sections: n("SELECT COUNT(*) n FROM saved_sections") },
     crm: {
       clients: n("SELECT COUNT(*) n FROM clients WHERE merged_into IS NULL"),
       review: (() => { let c = 0; for (const key of ["email_norm", "phone_norm"]) c += db.prepare(`SELECT COUNT(*) n FROM (SELECT ${key} k FROM clients WHERE merged_into IS NULL AND ${key} IS NOT NULL GROUP BY ${key} HAVING COUNT(*)>1)`).get().n; return c; })(),
@@ -796,6 +799,9 @@ app.get("/api/stats", wrap((req, res) => {
     seededAt: db.prepare("SELECT value FROM meta WHERE key='seeded_at'").get()?.value ?? null,
   });
 }));
+
+const pageCols = db.prepare("PRAGMA table_info(pages)").all().map((c) => c.name);
+if (!pageCols.includes("theme")) db.exec("ALTER TABLE pages ADD COLUMN theme TEXT");
 
 /* ---- P7/P8 Website CMS: typed block registry, pages, publish, versions ---- */
 const BLOCKS = {
@@ -822,18 +828,55 @@ const BLOCKS = {
     { k: "heading", t: "text", req: true }, { k: "sub", t: "textarea" },
     { k: "primary_label", t: "text" }, { k: "primary_href", t: "text" },
     { k: "secondary_label", t: "text" }, { k: "secondary_href", t: "text" } ] },
+  "global-section": { label: "Global section (fan-out)", group: "Global", fields: [
+    { k: "section_id", t: "text", req: true, help: "section id — edit the source once, updates every page" } ] },
   "lead-form": { label: "Lead form → CRM", group: "Lead gen", fields: [
     { k: "heading", t: "text", req: true }, { k: "sub", t: "textarea" },
     { k: "submit_label", t: "text" }, { k: "consent", t: "textarea" } ] },
 };
+const rowSection = (r) => ({ id: r.id, name: r.name, category: r.category, tags: JSON.parse(r.tags || "[]"),
+  block: JSON.parse(r.block), usage: sectionUsage(r.id), createdAt: r.created_at, updatedAt: r.updated_at });
+app.get("/api/saved-sections", wrap((req, res) => {
+  const rows = db.prepare("SELECT * FROM saved_sections ORDER BY datetime(updated_at) DESC").all();
+  res.json({ total: rows.length, items: rows.map(rowSection) });
+}));
+app.post("/api/saved-sections", wrap((req, res) => {
+  const { name, category, block } = req.body ?? {};
+  if (!name || !block?.type || !BLOCKS[block.type]) return res.status(400).json({ error: "name + valid block required" });
+  const t = now();
+  const info = db.prepare("INSERT INTO saved_sections(name,category,tags,block,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+    .run(name, category || "Custom", JSON.stringify(req.body?.tags ?? []), JSON.stringify({ type: block.type, props: block.props ?? {} }), t, t);
+  const out = rowSection(db.prepare("SELECT * FROM saved_sections WHERE id=?").get(info.lastInsertRowid));
+  emit("sections", { title: "Section saved: " + name, who: category || "Custom" });
+  res.status(201).json(out);
+}));
+app.patch("/api/saved-sections/:id", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM saved_sections WHERE id=?").get(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  db.prepare("UPDATE saved_sections SET name=?, category=?, tags=?, block=?, updated_at=? WHERE id=?").run(
+    req.body?.name ?? r.name, req.body?.category ?? r.category,
+    req.body?.tags ? JSON.stringify(req.body.tags) : r.tags,
+    req.body?.block ? JSON.stringify({ type: req.body.block.type, props: req.body.block.props ?? {} }) : r.block, now(), r.id);
+  emit("sections", { title: "Section updated: " + r.name, who: "fans out to " + sectionUsage(r.id) + " page(s)" });
+  res.json(rowSection(db.prepare("SELECT * FROM saved_sections WHERE id=?").get(r.id)));
+}));
+app.delete("/api/saved-sections/:id", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM saved_sections WHERE id=?").get(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const usage = sectionUsage(r.id);
+  if (usage > 0) return res.status(409).json({ error: `in use on ${usage} page${usage > 1 ? "s" : ""} — detach references first` });
+  db.prepare("DELETE FROM saved_sections WHERE id=?").run(r.id);
+  res.json({ deleted: r.id });
+}));
+
 app.get("/api/blocks", (req, res) => res.json({ registry: BLOCKS }));
 const MEDIA = () => fs.readdirSync(path.join(HERE, "public/img")).filter((f) => /\.(jpg|jpeg|png|webp)$/i.test(f));
 app.get("/api/media", (req, res) => res.json({ items: MEDIA().slice(0, 96) }));
 
 const rowPage = (r, blocks) => ({ id: r.id, slug: r.slug, title: r.title, status: r.status,
   seoTitle: r.seo_title, seoDesc: r.seo_desc, createdAt: r.created_at, updatedAt: r.updated_at,
-  blocks: blocks ?? db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id)
-    .map((b) => ({ type: b.type, props: JSON.parse(b.props || "{}") })) });
+  blocks: blocks ?? pageBlocks(r.id),
+  theme: r.theme ? JSON.parse(r.theme) : null });
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
 function validatePage(title, blocks) {
   const errs = [];
@@ -848,11 +891,20 @@ function validatePage(title, blocks) {
         if (!okImg) errs.push({ block: i, msg: `${spec.label}: image must be a library file or URL.` }); }
     }
     if (b.type === "cta-band" && (b.props.primary_label && !b.props.primary_href)) errs.push({ block: i, msg: "CTA band: primary button needs a link." });
+    if (b.type === "global-section") { const sid = Number(b.props.section_id);
+      if (!sid || !db.prepare("SELECT id FROM saved_sections WHERE id=?").get(sid)) errs.push({ block: i, msg: "Global section points to a missing source (re-detach or pick a section)." }); }
   });
   if (!title || !title.trim()) errs.push({ block: -1, msg: "Page title is required." });
   return errs;
 }
 
+const rowBlock = (b) => { const props = JSON.parse(b.props || "{}");
+  if (b.type === "global-section") { const sec = db.prepare("SELECT * FROM saved_sections WHERE id=?").get(Number(props.section_id));
+    if (sec) return { type: b.type, props: { ...props, sectionLabel: sec.name, section: { type: JSON.parse(sec.block).type, props: JSON.parse(sec.block).props } } }; }
+  return { type: b.type, props }; };
+const pageBlocks = (pid) => db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(pid).map(rowBlock);
+const sectionUsage = (sid) => db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE type='global-section' AND props LIKE ?").get(`%"section_id":"${sid}"%`).n
+  + db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE type='global-section' AND props LIKE ?").get(`%"section_id":${sid}%`).n;
 app.get("/api/pages", wrap((req, res) => {
   let rows = db.prepare("SELECT * FROM pages ORDER BY datetime(updated_at) DESC").all();
   if (req.query.status) rows = rows.filter((r) => r.status === req.query.status);
@@ -895,8 +947,7 @@ app.get("/api/pages/:key/public", wrap((req, res) => {
   if (r.status !== "Published" && !wantDraft) return res.status(404).json({ error: "page is not published" });
   res.json({ slug: r.slug, title: r.title, status: r.status, seoTitle: r.seo_title, seoDesc: r.seo_desc,
     publishedAt: r.updated_at,
-    blocks: db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id)
-      .map((b) => ({ type: b.type, props: JSON.parse(b.props || "{}") })) });
+    blocks: pageBlocks(r.id), theme: r.theme ? JSON.parse(r.theme) : null });
 }));
 app.put("/api/pages/:id/blocks", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
@@ -905,9 +956,9 @@ app.put("/api/pages/:id/blocks", wrap((req, res) => {
   db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id);
   blocks.forEach((b, i) => db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
     .run(r.id, String(b.type), JSON.stringify(b.props ?? {}), i));
-  const { title, seoTitle, seoDesc } = req.body ?? {};
-  db.prepare("UPDATE pages SET title=COALESCE(?,title), seo_title=COALESCE(?,seo_title), seo_desc=COALESCE(?,seo_desc), updated_at=? WHERE id=?")
-    .run(title ?? null, seoTitle ?? null, seoDesc ?? null, now(), r.id);
+  const { title, seoTitle, seoDesc, theme } = req.body ?? {};
+  db.prepare("UPDATE pages SET title=COALESCE(?,title), seo_title=COALESCE(?,seo_title), seo_desc=COALESCE(?,seo_desc), theme=COALESCE(?,theme), updated_at=? WHERE id=?")
+    .run(title ?? null, seoTitle ?? null, seoDesc ?? null, theme ? JSON.stringify(theme) : null, now(), r.id);
   res.json({ ...rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)),
     validation: validatePage(req.body?.title ?? r.title, blocks) });
 }));
@@ -965,6 +1016,13 @@ function ensureSiteDemo() {
     { type: "cta-band", props: { heading: "Need 10+ desks?", sub: "Bulk floor plans get dedicated pricing and staged delivery.", primary_label: "Talk to B2B desk", primary_href: "/b2b" } },
   ];
   for (const [i, b] of demo.entries()) db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props), i);
+  const si = db.prepare("INSERT INTO saved_sections(name,category,tags,block,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+    .run("Trust strip", "Social proof", JSON.stringify(["woodex", "reusable"]),
+      JSON.stringify({ type: "text-section", props: { kicker: "Why Woodex", heading: "12 years · 4,100+ rooms · 5-year frame warranty", body: "Own Johar Town workshop, seasoned Sheesham & Grade-A hardware, delivery with customer sign-off checklist.", bullets: "4.9 average rating across 860 reviews\nFactory-direct pricing, no showroom loading\nFree 3D preview for bulk orders" } }), t, t);
+  const globalRef = { type: "global-section", props: { section_id: String(si.lastInsertRowid) } };
+  db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, globalRef.type, JSON.stringify(globalRef.props), 1);
+  const shifted = db.prepare("SELECT id, sort FROM page_blocks WHERE page_id=? AND sort>=1 ORDER BY sort DESC").all(pid);
+  for (const row of shifted) db.prepare("UPDATE page_blocks SET sort=sort+1 WHERE id=?").run(row.id);
   db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)").run(pid, JSON.stringify({ blocks: demo }), "seeded", "System", t);
   console.log("[seed] site demo: 1 published landing page (7 blocks)");
 }
