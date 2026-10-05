@@ -78,6 +78,7 @@ export type ApiStats = {
   recent: { type: string; title: string; who: string; context: string; time: string }[];
   invoices: { total: number; collected: number; outstanding: number; byStatus: Record<string, { count: number; value: number }> };
   returns: { total: number; open: number };
+  crm: { clients: number; review: number; tasksDue: number; hotLeads: number };
   finance: { aov: number; target: { value: number; pct: number }; deals: { won: number; open: number };
     topProducts: { name: string; qty: number; value: number }[];
     sources: { name: string; count: number; pct: number }[];

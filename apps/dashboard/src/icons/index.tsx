@@ -432,3 +432,10 @@ export const Undo2 = (p: IconProps) => (
     <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
   </Icon>
 );
+export const GitMerge = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" />
+    <path d="M6 6v2.2c0 1 .5 1.9 1.3 2.5l4.4 3.4a2 2 0 0 0 2.3 0l1.7-1.3" />
+    <path d="M6 21V9" transform="translate(0,-3)" />
+  </Icon>
+);

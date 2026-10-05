@@ -9,9 +9,11 @@ type Item = { id: string; group: string; label: string; hint?: string; icon: Rea
 const NAV: Item[] = [
   { id: "n-ov", group: "Go to", label: "Overview", icon: <ClipboardList size={14} />, to: "/", kw: "home dashboard" },
   { id: "n-crm", group: "Go to", label: "CRM pipeline", icon: <Users size={14} />, to: "/crm", kw: "leads kanban" },
+  { id: "n-cl", group: "Go to", label: "Clients & 360", icon: <Users size={14} />, to: "/clients", kw: "customer lifetime value merge review dedupe" },
   { id: "n-q", group: "Go to", label: "Sales & Quotations", icon: <FileText size={14} />, to: "/quotations", kw: "quotes e-quotation" },
   { id: "n-nq", group: "Actions", label: "New E-Quotation", hint: "opens the builder", icon: <FileText size={14} />, to: "/quotations/new", kw: "create quote draft" },
   { id: "n-inv", group: "Go to", label: "Invoices & Payments", icon: <Receipt size={14} />, to: "/invoices", kw: "finance receivables" },
+  { id: "n-nc", group: "Actions", label: "New client", hint: "opens form", icon: <Users size={14} />, to: "/clients?new=1", kw: "add customer create" },
   { id: "n-ni", group: "Actions", label: "Invoice from quote", hint: "opens issuer", icon: <Banknote size={14} />, to: "/invoices?issue=1", kw: "create invoice bill" },
   { id: "n-cat", group: "Go to", label: "Catalog", icon: <Search size={14} />, to: "/catalog", kw: "products skus price stock" },
   { id: "n-ops", group: "Go to", label: "Operations board", icon: <ClipboardList size={14} />, to: "/operations", kw: "orders production delivery returns rma" },

@@ -37,6 +37,7 @@ const groups: NavGroup[] = [
     label: "Sales",
     items: [
       { label: "CRM", to: "/crm", icon: Users },
+      { label: "Clients", to: "/clients", icon: Building },
       { label: "Sales & Quotations", to: "/quotations", icon: ClipboardList },
       { label: "Invoices & Payments", to: "/invoices", icon: Receipt },
       { label: "Ecommerce", to: "/ecommerce", icon: Store },

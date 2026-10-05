@@ -152,9 +152,10 @@ export function KpiRow() {
     { id: "leads", label: "Leads", value: String(stats?.leads.total ?? "—"), trend: 12.4, comparison: stats ? `${stats.leads.byStatus.New ?? 0} new right now` : "from shared backend", icon: "users", tone: "info" },
     { id: "aov", label: "Avg order value", value: f && f.aov ? fmtPKR(f.aov) : "—", trend: 3.4, comparison: stats ? `${stats.orders.total} orders` : "", icon: "invoice", tone: "info" },
     { id: "returns", label: "Open returns", value: stats ? String(stats.returns.open) : "—", trend: stats && stats.returns.open === 0 ? 4 : -4, comparison: stats ? `${stats.returns.total} RMA total` : "", icon: "factory", tone: stats && stats.returns.open > 0 ? "danger" : "success" },
+    { id: "tasks", label: "Follow-ups due", value: stats ? String(stats.crm.tasksDue) : "—", trend: stats && stats.crm.tasksDue > 0 ? -6 : 9, comparison: stats ? `${stats.crm.hotLeads} hot leads · ${stats.crm.review} merge review` : "", icon: "clipboard", tone: stats && stats.crm.tasksDue > 0 ? "warning" : "success" },
   ];
   return (
-    <section aria-label="Key performance indicators" className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4 xl:grid-cols-6">
+    <section aria-label="Key performance indicators" className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4 xl:grid-cols-4">
       {live.map((k) => {
         const Icon = kpiIcons[k.icon];
         const up = k.trend >= 0;

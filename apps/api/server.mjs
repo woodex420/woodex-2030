@@ -14,6 +14,8 @@
  *   GET  /api/invoices[?status=open|...] · GET/PATCH /api/invoices/:id · POST /api/invoices (from quote_id/order_id or raw)
  *   POST /api/invoices/:id/payments  · GET/POST /api/returns · PATCH /api/returns/:id
  *   GET  /api/orders/lookup?ref=     public order tracking for storefront
+ *   P4 CRM: GET/POST/PATCH /api/clients · /api/clients/review · /api/clients/:id/merge
+ *           GET/POST/PATCH /api/tasks · leads now carry score + scoreWhy
  *   GET  /api/stats                  KPI + activity rollup for the dashboard
  *   GET  /img/:file                  shared product photography
  */
@@ -70,6 +72,16 @@ CREATE TABLE IF NOT EXISTS returns(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, order_id INTEGER, customer TEXT,
   item TEXT, reason TEXT, state TEXT DEFAULT 'Requested', refund_amount REAL DEFAULT 0,
   resolution TEXT, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS clients(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, company TEXT, email TEXT, email_norm TEXT,
+  phone TEXT, phone_norm TEXT, city TEXT, tags TEXT DEFAULT '[]', notes TEXT, source TEXT,
+  merged_into INTEGER, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS client_links(client_id INTEGER NOT NULL, entity TEXT NOT NULL, entity_id INTEGER NOT NULL,
+  UNIQUE(entity, entity_id));
+CREATE TABLE IF NOT EXISTS tasks(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, lead_id INTEGER, quote_id INTEGER, order_id INTEGER,
+  title TEXT NOT NULL, due TEXT, owner TEXT DEFAULT 'You', priority TEXT DEFAULT 'normal', done INTEGER DEFAULT 0,
+  created_at TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -170,6 +182,43 @@ function ensureFinanceDemo() {
   console.log("[seed] finance demo: 2 invoices, 1 payment, 1 return");
 }
 
+function ensureCrmDemo() {
+  if (db.prepare("SELECT COUNT(*) n FROM clients").get().n > 0) return;
+  const t = now();
+  const seen = new Map();
+  const upsert = (name, extra = {}, entity = null, entityId = null) => {
+    if (!name) return;
+    const key = String(name).toLowerCase().trim();
+    let c = seen.get(key) ?? db.prepare("SELECT * FROM clients WHERE lower(name)=? AND merged_into IS NULL").get(key);
+    if (!c) {
+      const info = db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,city,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+        .run(name, extra.company ?? null, extra.email ?? null, extra.email ? normEmail(extra.email) : null,
+          extra.phone ?? null, extra.phone ? normPhone(extra.phone) : null, extra.city ?? "Lahore",
+          JSON.stringify(extra.tags ?? []), extra.notes ?? null, extra.source ?? "backfill", t, t);
+      c = db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid);
+      seen.set(key, c);
+    }
+    if (entity) db.prepare("INSERT OR IGNORE INTO client_links(client_id,entity,entity_id) VALUES(?,?,?)").run(c.id, entity, entityId);
+  };
+  for (const r of db.prepare("SELECT * FROM leads").all()) upsert(r.name, { company: r.company, source: r.source, notes: r.note }, "lead", r.id);
+  for (const r of db.prepare("SELECT * FROM quotes").all()) upsert(r.customer, { source: r.source }, "quote", r.id);
+  for (const r of db.prepare("SELECT * FROM orders").all()) upsert(r.customer, { source: "checkout" }, "order", r.id);
+  for (const r of db.prepare("SELECT * FROM invoices").all()) upsert(r.customer, {}, "invoice", r.id);
+  const clifton = db.prepare("SELECT id FROM clients WHERE name LIKE ?").get("%Clifton%");
+  if (clifton) db.prepare("UPDATE clients SET email='sales@cliftonvilla9.example', email_norm='sales@cliftonvilla9.example' WHERE id=?").run(clifton.id);
+  if (clifton) {
+    db.prepare("INSERT INTO tasks(client_id,title,due,priority,done,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+      .run(clifton.id, "Confirm teak veneer swatch before production", new Date(Date.now() + 864e5).toISOString().slice(0, 10), "high", 0, t, t);
+    db.prepare("INSERT INTO tasks(client_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+      .run(clifton.id, "Send installment-2 reminder", new Date(Date.now() - 864e5).toISOString().slice(0, 10), "normal", t, t);
+  }
+  // deliberately ambiguous pair for the review queue: same email, different phone
+  const info = db.prepare("INSERT INTO clients(name,email,email_norm,phone,phone_norm,tags,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+    .run("Clifton Villa 9 (WhatsApp)", "sales@cliftonvilla9.example", "sales@cliftonvilla9.example", "+92 300 7654321", "3007654321", "[]", "WhatsApp", t, t);
+  void info;
+  console.log("[seed] CRM demo: clients, links, tasks, 1 review pair");
+}
+
 /* ---------------- helpers ---------------- */
 const rowProduct = (r) => ({ ...JSON.parse(r.json), price: r.price, inStock: !!r.in_stock, stockQty: r.stock_qty, updatedAt: r.updated_at });
 const rowQuote = (r) => ({ id: r.id, ref: r.ref, customer: r.customer, contact: r.contact, items: JSON.parse(r.items), total: r.total, status: r.status, source: r.source, note: r.note, audit: JSON.parse(r.audit || "[]"), createdAt: r.created_at, updatedAt: r.updated_at });
@@ -258,7 +307,9 @@ app.post("/api/quotes", wrap((req, res) => {
   const info = db.prepare("INSERT INTO quotes(ref,customer,contact,items,total,status,source,note,audit,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
     .run(ref, customer, contact ?? null, JSON.stringify(items), sum, "Draft", source, note ?? null,
       JSON.stringify([{ who: source === "storefront" ? customer : "You", action: "requested quotation via " + source, time: t }]), t, t);
-  emit("quotes", { title: "Quotation " + ref + " requested", who: customer }); res.status(201).json(rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid)));
+  const qLed = rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid));
+  { const m = matchOrCreateClient({ name: customer, contact: contact ?? note, source }); linkClient(m.client.id, "quote", qLed.id); }
+  emit("quotes", { title: "Quotation " + ref + " requested", who: customer }); res.status(201).json(qLed);
 }));
 app.patch("/api/quotes/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
@@ -271,6 +322,8 @@ app.patch("/api/quotes/:id", wrap((req, res) => {
     status ?? r.status, note ?? r.note, customer ?? r.customer, contact ?? r.contact, JSON.stringify(audit), now(), r.id
   );
   const out = rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(r.id));
+  if (status === "Sent") db.prepare("INSERT INTO tasks(quote_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+    .run(r.id, "Follow up on quote " + r.ref + " (" + r.customer + ")", new Date(Date.now() + 864e5 * 3).toISOString().slice(0, 10), "normal", now(), now());
   if (status) emit("quotes", { title: "Quotation " + r.ref + " → " + status, who: r.customer });
   res.json(out);
 }));
@@ -278,7 +331,10 @@ app.patch("/api/quotes/:id", wrap((req, res) => {
 /* Leads — contact form → CRM */
 app.get("/api/leads", wrap((req, res) => {
   const rows = db.prepare("SELECT * FROM leads ORDER BY datetime(created_at) DESC").all();
-  res.json({ total: rows.length, items: rows.map(rowLead) });
+  const items = rows.map((r) => { const l = rowLead(r); const sc = scoreLead(l);
+    const link = db.prepare("SELECT client_id c FROM client_links WHERE entity='lead' AND entity_id=?").get(l.id);
+    return { ...l, score: sc.score, scoreWhy: sc.why, clientId: link?.c ?? null }; });
+  res.json({ total: rows.length, items });
 }));
 app.post("/api/leads", wrap((req, res) => {
   const { name, company, interest, source = "Website", contact, note } = req.body ?? {};
@@ -287,7 +343,12 @@ app.post("/api/leads", wrap((req, res) => {
   const ref = "L-" + (1100 + db.prepare("SELECT COUNT(*) n FROM leads").get().n);
   const info = db.prepare("INSERT INTO leads(ref,name,company,interest,source,contact,status,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
     .run(ref, name, company ?? null, interest ?? "General inquiry", source, contact ?? null, "New", note ?? null, t, t);
-  emit("leads", { title: "New lead " + name, who: name, context: interest ?? "" }); res.status(201).json(rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid)));
+  const led = rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid));
+  const m = matchOrCreateClient({ name, company, contact, source, note });
+  linkClient(m.client.id, "lead", led.id);
+  emit("leads", { title: "New lead " + name + (m.created ? " + client created" : ""), who: name, context: interest ?? "" });
+  emit("clients", { title: (m.created ? "Client created: " : "Client matched: ") + m.client.name, who: m.client.name });
+  res.status(201).json({ ...led, clientId: m.client.id });
 }));
 app.patch("/api/leads/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM leads WHERE id=? OR ref=?").get(req.params.id, req.params.id);
@@ -311,7 +372,16 @@ app.post("/api/orders", wrap((req, res) => {
   const info = db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
     .run("WX-" + (4300 + db.prepare("SELECT COUNT(*) n FROM orders").get().n), customer, JSON.stringify(items), sum,
       "Pending", "production", source || "Showroom", "TBD", t, t);
-  emit("orders", { title: "Order " + ref + " placed", who: customer }); res.status(201).json(rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid)));
+  const oLed = rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid));
+  { const m = matchOrCreateClient({ name: customer, contact: req.body?.contact, source: "checkout" }); linkClient(m.client.id, "order", oLed.id);
+    db.prepare("INSERT INTO invoices(ref,order_id,customer,items,subtotal,total,status,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+      .run("INV-26-" + (1100 + db.prepare("SELECT COUNT(*) n FROM invoices").get().n), oLed.id, customer, oLed.items ? JSON.stringify(oLed.items) : "[]",
+        oLed.total, Math.round(oLed.total * 1.05), "Issued", new Date(Date.now() + 864e5 * 7).toISOString().slice(0, 10), t, t);
+    const invRow = db.prepare("SELECT id FROM invoices WHERE order_id=?").get(oLed.id);
+    if (invRow) linkClient(m.client.id, "invoice", invRow.id);
+    db.prepare("INSERT OR IGNORE INTO tasks(client_id,order_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+      .run(m.client.id, oLed.id, "Collect 50% advance before production — " + ref, new Date(Date.now() + 864e5 * 2).toISOString().slice(0, 10), "high", t, t); }
+  emit("orders", { title: "Order " + ref + " placed · invoice issued", who: customer }); res.status(201).json(oLed);
 }));
 app.patch("/api/orders/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(req.params.id, req.params.id);
@@ -326,12 +396,177 @@ app.patch("/api/orders/:id", wrap((req, res) => {
 }));
 
 /* Dashboard rollup */
+/* ---- P4 CRM: single client record, links, tasks, scoring ---- */
+const digits = (v) => String(v ?? "").replace(/\D+/g, "");
+const normPhone = (v) => (digits(v).slice(-10) || null);
+const normEmail = (v) => { const m = String(v ?? "").match(/[\w.+-]+@[\w-]+\.[\w.]+/); return m ? m[0].toLowerCase() : null; };
+const rowClientLite = (c) => ({ id: c.id, name: c.name, company: c.company, email: c.email, phone: c.phone, city: c.city,
+  tags: JSON.parse(c.tags || "[]"), notes: c.notes, source: c.source, createdAt: c.created_at, updatedAt: c.updated_at });
+const linkIds = (clientId, entity) => db.prepare("SELECT entity_id id FROM client_links WHERE client_id=? AND entity=?").all(clientId, entity).map((r) => r.id);
+const inList = (ids) => (ids.length ? `(${ids.join(",")})` : "(0)");
+
+function scoreLead(l) {
+  let score = 20; const why = ["base engagement score"];
+  const srcBonus = { Referral: 25, "Walk-in": 20, Website: 12, "Website Form": 12, Instagram: 12, Ecommerce: 12, "Contact Form": 10, Campaign: 10, "Cold Outreach": 4 }[l.source] ?? 6;
+  score += srcBonus; why.push(l.source + " source +" + srcBonus);
+  const q = db.prepare("SELECT COUNT(*) n FROM quotes WHERE contact=? OR customer=?").get(l.contact ?? "", l.name)?.n ?? 0;
+  if (q) { score += 20; why.push("has " + q + " quote" + (q > 1 ? "s" : "") + " +20"); }
+  const o = db.prepare("SELECT COUNT(*) n FROM orders WHERE customer=?").get(l.name)?.n ?? 0;
+  if (o) { score += 30; why.push("repeat buyer / live order +30"); }
+  if (l.contact && /@/.test(l.contact) && digits(l.contact).length > 6) { score += 10; why.push("full contact +10"); }
+  const days = (Date.now() - Date.parse(l.updatedAt ?? l.createdAt)) / 864e5;
+  if (days < 7) { score += 15; why.push("active this week +15"); } else if (days < 30) { score += 5; why.push("active this month +5"); }
+  if (/(budget|rs\s?\d|lakhs?|crore)/i.test((l.note ?? "") + " " + (l.interest ?? ""))) { score += 10; why.push("budget signal +10"); }
+  if (l.status === "Lost") { score -= 30; why.push("marked lost −30"); }
+  return { score: Math.max(0, Math.min(100, score)), why };
+}
+
+/** identity resolution: phone OR email match — never silently merge conflicts */
+function matchOrCreateClient({ name, company, contact, source, note }) {
+  const email = normEmail(contact), phone = normPhone(contact);
+  let where = [];
+  if (email) where.push("email_norm=" + db2s(email));
+  if (phone) where.push("phone_norm=" + db2s(phone));
+  where.push("lower(name)=" + db2s(String(name ?? "").toLowerCase().trim()));
+  const sql = "SELECT * FROM clients WHERE merged_into IS NULL AND (" + where.join(" OR ") + ") ORDER BY id LIMIT 2";
+  const hits = db.prepare(sql).all();
+  const t = now();
+  if (hits.length === 0) {
+    const info = db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+      .run(name ?? "Unknown", company ?? null, email ? String(contact).match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] : null, email, phone,
+        "[]", note ? String(note).slice(0, 400) : null, source ?? "manual", t, t);
+    return { client: db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid), created: true };
+  }
+  const c = hits[0];
+  const patch = {};
+  if (email && !c.email_norm) { patch.email = email; patch.email_norm = email; }
+  if (phone && !c.phone_norm) { patch.phone = phone; patch.phone_norm = phone; }
+  if (company && !c.company) patch.company = company;
+  if (Object.keys(patch).length) {
+    db.prepare("UPDATE clients SET " + Object.keys(patch).map((k) => k + "=?").join(",") + ", updated_at=? WHERE id=?")
+      .run(...Object.values(patch), t, c.id);
+  }
+  return { client: db.prepare("SELECT * FROM clients WHERE id=?").get(c.id), created: false };
+}
+const db2s = (v) => "'" + String(v).replace(/'/g, "''") + "'";
+const linkClient = (clientId, entity, entityId) =>
+  db.prepare("INSERT OR IGNORE INTO client_links(client_id,entity,entity_id) VALUES(?,?,?)").run(clientId, entity, entityId);
+
+function clientTimeline(clientId) {
+  const ev = [];
+  for (const id of linkIds(clientId, "lead")) { const r = db.prepare("SELECT * FROM leads WHERE id=?").get(id); if (r) ev.push({ kind: "lead", ref: r.ref, label: "Lead · " + (r.interest ?? "inquiry"), status: r.status, time: r.created_at }); }
+  for (const id of linkIds(clientId, "quote")) { const r = db.prepare("SELECT * FROM quotes WHERE id=?").get(id); if (r) ev.push({ kind: "quote", ref: r.ref, label: "Quotation " + r.ref, status: r.status, value: r.total, time: r.created_at }); }
+  for (const id of linkIds(clientId, "order")) { const r = db.prepare("SELECT * FROM orders WHERE id=?").get(id); if (r) ev.push({ kind: "order", ref: r.ref, label: "Order " + r.ref, status: r.status + " · " + r.stage, value: r.total, time: r.created_at }); }
+  for (const id of linkIds(clientId, "invoice")) { const r = db.prepare("SELECT * FROM invoices WHERE id=?").get(id); if (r) ev.push({ kind: "invoice", ref: r.ref, label: "Invoice " + r.ref, status: r.status, value: r.total, paid: r.paid, time: r.created_at }); }
+  for (const id of linkIds(clientId, "return")) { const r = db.prepare("SELECT * FROM returns WHERE id=?").get(id); if (r) ev.push({ kind: "return", ref: r.ref, label: "Return " + r.ref, status: r.state, time: r.created_at }); }
+  return ev.sort((a, b) => Date.parse(b.time ?? 0) - Date.parse(a.time ?? 0)).slice(0, 30);
+}
+
+function clientFull(c) {
+  const orders = linkIds(c.id, "order").map((id) => db.prepare("SELECT * FROM orders WHERE id=?").get(id)).filter(Boolean);
+  const quotes = linkIds(c.id, "quote").map((id) => db.prepare("SELECT * FROM quotes WHERE id=?").get(id)).filter(Boolean);
+  const invoices = linkIds(c.id, "invoice").map((id) => db.prepare("SELECT * FROM invoices WHERE id=?").get(id)).filter(Boolean);
+  const lifetime = orders.reduce((n, o) => n + o.total, 0);
+  const outstanding = invoices.reduce((n, i) => n + Math.max(0, i.total - i.paid), 0);
+  const tl = clientTimeline(c.id);
+  const tasks = db.prepare("SELECT * FROM tasks WHERE client_id=? ORDER BY done ASC, datetime(COALESCE(due,'9999')) ASC").all(c.id).map(rowTask);
+  return { ...rowClientLite(c), lifetime, outstanding, quotes: quotes.length, orders: orders.length,
+    openBalance: outstanding, lastActivity: tl[0]?.time ?? c.updated_at, timeline: tl, tasks };
+}
+const rowTask = (r) => ({ id: r.id, clientId: r.client_id, leadId: r.lead_id, quoteId: r.quote_id, orderId: r.order_id,
+  title: r.title, due: r.due, owner: r.owner, priority: r.priority, done: !!r.done, createdAt: r.created_at, updatedAt: r.updated_at });
+
 /* ---- P3 realtime: Server-Sent Events bus ---- */
 const sseClients = new Set();
 const emit = (type, payload = {}) => {
   const json = JSON.stringify({ type, at: now(), ...payload });
   for (const c of sseClients) { try { c.write(`event: ${type}\ndata: ${json}\n\n`); } catch { sseClients.delete(c); } }
 };
+app.get("/api/clients", wrap((req, res) => {
+  let rows = db.prepare("SELECT * FROM clients WHERE merged_into IS NULL ORDER BY datetime(updated_at) DESC").all();
+  const q = String(req.query.q ?? "").toLowerCase();
+  if (q) rows = rows.filter((c) => (c.name + " " + (c.company ?? "") + " " + (c.email ?? "") + " " + (c.phone ?? "")).toLowerCase().includes(q));
+  const items = rows.map((c) => { const f = clientFull(c);
+    return { ...rowClientLite(c), lifetime: f.lifetime, outstanding: f.outstanding, quotes: f.quotes, orders: f.orders,
+      lastActivity: f.lastActivity, openTasks: f.tasks.filter((x) => !x.done).length }; });
+  res.json({ total: items.length, items });
+}));
+app.get("/api/clients/review", wrap((req, res) => {
+  const pairs = [];
+  for (const key of ["email_norm", "phone_norm"]) {
+    const rows = db.prepare(`SELECT ${key} k, COUNT(*) c, GROUP_CONCAT(id) ids FROM clients WHERE merged_into IS NULL AND ${key} IS NOT NULL GROUP BY ${key} HAVING c > 1`).all();
+    for (const r of rows) { const ids = r.ids.split(",").map(Number);
+      for (let i = 0; i + 1 < ids.length; i++) {
+        const a = db.prepare("SELECT * FROM clients WHERE id=?").get(ids[i]), b = db.prepare("SELECT * FROM clients WHERE id=?").get(ids[i + 1]);
+        pairs.push({ a: rowClientLite(a), b: rowClientLite(b), shared: key === "email_norm" ? "email" : "phone", value: r.k,
+          conflict: (a.phone_norm ?? "") !== (b.phone_norm ?? "") && (a.email_norm ?? "") !== (b.email_norm ?? "") ? "other contact differs" : "same " + (key === "email_norm" ? "email" : "phone") });
+      } }
+  }
+  res.json({ total: pairs.length, items: pairs });
+}));
+app.get("/api/clients/:id", wrap((req, res) => {
+  const c = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+  if (!c) return res.status(404).json({ error: "not found" });
+  res.json(clientFull(c));
+}));
+app.post("/api/clients", wrap((req, res) => {
+  const b = req.body ?? {}; if (!b.name) return res.status(400).json({ error: "name required" });
+  const t = now();
+  const info = db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+    .run(b.name, b.company ?? null, b.email ?? null, normEmail(b.email), b.phone ?? null, normPhone(b.phone),
+      JSON.stringify(b.tags ?? []), b.notes ?? null, b.source ?? "manual", t, t);
+  const c = db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid);
+  emit("clients", { title: "Client added: " + c.name, who: c.name });
+  res.status(201).json(rowClientLite(c));
+}));
+app.patch("/api/clients/:id", wrap((req, res) => {
+  const c = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+  if (!c) return res.status(404).json({ error: "not found" });
+  const b = req.body ?? {};
+  db.prepare("UPDATE clients SET name=?,company=?,email=?,email_norm=?,phone=?,phone_norm=?,city=?,tags=?,notes=?,updated_at=? WHERE id=?")
+    .run(b.name ?? c.name, b.company ?? c.company, b.email ?? c.email,
+      b.email !== undefined ? normEmail(b.email) : c.email_norm, b.phone ?? c.phone,
+      b.phone !== undefined ? normPhone(b.phone) : c.phone_norm, b.city ?? c.city,
+      b.tags ? JSON.stringify(b.tags) : c.tags, b.notes ?? c.notes, now(), c.id);
+  res.json(rowClientLite(db.prepare("SELECT * FROM clients WHERE id=?").get(c.id)));
+}));
+app.post("/api/clients/:id/merge", wrap((req, res) => {
+  const into = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+  const from = db.prepare("SELECT * FROM clients WHERE id=?").get(req.body?.from_id);
+  if (!into || !from) return res.status(404).json({ error: "client pair not found" });
+  db.prepare("UPDATE client_links SET client_id=? WHERE client_id=?").run(into.id, from.id);
+  const t = now();
+  db.prepare("UPDATE clients SET merged_into=?, updated_at=? WHERE id=?").run(into.id, t, from.id);
+  db.prepare("UPDATE clients SET email=?, email_norm=?, phone=?, phone_norm=?, company=COALESCE(company,?), notes=TRIM(COALESCE(notes,'')||?) WHERE id=?")
+    .run(into.email ?? from.email, into.email_norm ?? from.email_norm, into.phone ?? from.phone, into.phone_norm ?? from.phone_norm,
+      from.company, from.notes ? " | merged note: " + from.notes : "", into.id);
+  emit("clients", { title: "Merged " + from.name + " → " + into.name, who: into.name });
+  res.json(clientFull(db.prepare("SELECT * FROM clients WHERE id=?").get(into.id)));
+}));
+app.get("/api/tasks", wrap((req, res) => {
+  let rows = db.prepare("SELECT * FROM tasks ORDER BY done ASC, datetime(COALESCE(due,'9999')) ASC").all();
+  if (req.query.scope === "today") rows = rows.filter((r) => !r.done && (r.due ?? "") <= now().slice(0, 10));
+  res.json({ total: rows.length, open: rows.filter((r) => !r.done).length, overdue: rows.filter((r) => !r.done && r.due && r.due < now().slice(0, 10)).length, items: rows.map(rowTask) });
+}));
+app.post("/api/tasks", wrap((req, res) => {
+  const b = req.body ?? {}; if (!b.title) return res.status(400).json({ error: "title required" });
+  const t = now();
+  const info = db.prepare("INSERT INTO tasks(client_id,lead_id,quote_id,order_id,title,due,owner,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+    .run(b.client_id ?? null, b.lead_id ?? null, b.quote_id ?? null, b.order_id ?? null, b.title, b.due ?? null, b.owner ?? "You", b.priority ?? "normal", t, t);
+  const out = rowTask(db.prepare("SELECT * FROM tasks WHERE id=?").get(info.lastInsertRowid));
+  emit("tasks", { title: "Task added: " + b.title.slice(0, 60), who: b.owner ?? "You" });
+  res.status(201).json(out);
+}));
+app.patch("/api/tasks/:id", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM tasks WHERE id=?").get(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const b = req.body ?? {};
+  db.prepare("UPDATE tasks SET title=?, due=?, owner=?, priority=?, done=?, updated_at=? WHERE id=?").run(
+    b.title ?? r.title, b.due ?? r.due, b.owner ?? r.owner, b.priority ?? r.priority,
+    b.done !== undefined ? (b.done ? 1 : 0) : r.done, now(), r.id);
+  res.json(rowTask(db.prepare("SELECT * FROM tasks WHERE id=?").get(r.id)));
+}));
+
 app.get("/api/events", (req, res) => {
   res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
   res.write("retry: 3000\n\n");
@@ -411,6 +646,8 @@ app.post("/api/quotes/:id/invoice", wrap((req, res) => {
   db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
     JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued from quote", time: now() },
       ...JSON.parse(q.audit || "[]")]), now(), q.id);
+  { const cl = db.prepare("SELECT client_id c FROM clients WHERE lower(name)=lower(?) AND merged_into IS NULL").get(r.customer);
+    if (cl) linkClient(cl.c, "invoice", r.id); }
   emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
 }));
@@ -541,6 +778,12 @@ app.get("/api/stats", wrap((req, res) => {
         payments, monthly,
       };
     })(),
+    crm: {
+      clients: n("SELECT COUNT(*) n FROM clients WHERE merged_into IS NULL"),
+      review: (() => { let c = 0; for (const key of ["email_norm", "phone_norm"]) c += db.prepare(`SELECT COUNT(*) n FROM (SELECT ${key} k FROM clients WHERE merged_into IS NULL AND ${key} IS NOT NULL GROUP BY ${key} HAVING COUNT(*)>1)`).get().n; return c; })(),
+      tasksDue: n("SELECT COUNT(*) n FROM tasks WHERE done=0 AND (due IS NULL OR due<=date('now'))"),
+      hotLeads: db.prepare("SELECT * FROM leads ORDER BY datetime(updated_at) DESC LIMIT 60").all().map(rowLead).filter((l) => scoreLead(l).score >= 55).length,
+    },
     seededAt: db.prepare("SELECT value FROM meta WHERE key='seeded_at'").get()?.value ?? null,
   });
 }));
@@ -551,4 +794,5 @@ app.use("/img", express.static(path.join(HERE, "public/img"), { maxAge: "1h" }))
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 await seed();
 ensureFinanceDemo();
+ensureCrmDemo();
 app.listen(PORT, "0.0.0.0", () => console.log(`[woodex-api] http://localhost:${PORT} · db=data/woodex.db`));

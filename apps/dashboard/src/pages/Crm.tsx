@@ -160,7 +160,7 @@ export default function Crm() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-small font-semibold text-ink">{l.name}</p>
-                        <Badge tone={l.source === "Referral" ? "success" : "info"} dot={false} className="px-1.5 py-0">{l.source}</Badge>
+                        <span className="flex shrink-0 items-center gap-1"><Badge tone={l.source === "Referral" ? "success" : "info"} dot={false} className="px-1.5 py-0">{l.source}</Badge>{typeof (l as { score?: number }).score === "number" && <span title={(l as { scoreWhy?: string[] }).scoreWhy?.join("\n")} className={"grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-bold " + ((l as { score?: number }).score! >= 55 ? "bg-danger text-white" : (l as { score?: number }).score! >= 35 ? "bg-warning-soft text-warning-strong" : "bg-slate-100 text-subtle")}>{(l as { score?: number }).score}</span>}</span>
                       </div>
                       <p className="mt-1 line-clamp-1 text-caption text-muted">{l.interest ?? "—"}</p>
                       {l.note && <p className="mt-0.5 text-caption font-medium text-primary-700">{l.note}</p>}

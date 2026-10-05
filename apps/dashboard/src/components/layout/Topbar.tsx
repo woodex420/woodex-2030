@@ -29,7 +29,7 @@ import {
 type Note = { id: string; title: string; desc: string; time: string; tone: keyof typeof chipTone };
 
 const TONE_BY_TYPE: Record<string, Note["tone"]> = {
-  leads: "info", quotes: "primary", orders: "warning", invoices: "success", payments: "success", returns: "danger", products: "muted",
+  leads: "info", quotes: "primary", orders: "warning", invoices: "success", payments: "success", returns: "danger", products: "muted", clients: "primary", tasks: "neutral",
 };
 
 export function Topbar({
@@ -61,7 +61,7 @@ export function Topbar({
   }, []);
 
   /* SSE events land at the top of the notification stack */
-  useRealtime(/leads|quotes|orders|invoices|payments|returns|products/, (ev: RtEvent) => {
+  useRealtime(/leads|quotes|orders|invoices|payments|returns|products|clients|tasks/, (ev: RtEvent) => {
     setLiveNotes((prev) => [{ id: ev.type + Date.now(), title: ev.title ?? "Update", desc: [ev.who, ev.context].filter(Boolean).join(" · ") || "changed in the shared backend", time: "just now", tone: TONE_BY_TYPE[ev.type] ?? "neutral" }, ...prev].slice(0, 14));
     setUnread((u) => u + 1);
   });
