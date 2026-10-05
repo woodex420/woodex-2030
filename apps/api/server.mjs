@@ -101,6 +101,15 @@ CREATE TABLE IF NOT EXISTS track_events(
   created_at TEXT);
 CREATE INDEX IF NOT EXISTS idx_track_slug ON track_events(slug, kind, created_at);
 CREATE INDEX IF NOT EXISTS idx_track_page ON track_events(page_id, kind, created_at);
+CREATE TABLE IF NOT EXISTS conversations(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER NOT NULL UNIQUE,
+  status TEXT DEFAULT 'open', assignee TEXT, priority INTEGER DEFAULT 0,
+  unread INTEGER DEFAULT 0, last_at TEXT, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS messages(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER NOT NULL,
+  channel TEXT NOT NULL, direction TEXT DEFAULT 'outbound', author TEXT,
+  body TEXT NOT NULL, meta TEXT, created_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conversation_id, id);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -354,6 +363,37 @@ app.get("/api/leads", wrap((req, res) => {
     return { ...l, score: sc.score, scoreWhy: sc.why, clientId: link?.c ?? null }; });
   res.json({ total: rows.length, items });
 }));
+/* ---- P10 omnichannel: per-client conversations, threads, WhatsApp handoff ---- */
+const CONV_CHANNELS = new Set(["whatsapp", "email", "phone", "note", "system"]);
+const CONV_STATUS = new Set(["open", "pending", "resolved", "snoozed"]);
+const INBOX_TEMPLATES = [
+  { id: "welcome", label: "New lead welcome", body: "Assalam-o-Alaikum {{name}}, thanks for reaching out to Woodex! Share a few details about your space and I'll send options with prices. - Woodex" },
+  { id: "quote-followup", label: "Quote follow-up", body: "Hi {{name}}, following up on {{ref}} - should we hold the stock for you this week? - Woodex" },
+  { id: "payment-reminder", label: "Advance reminder", body: "Hi {{name}}, gentle reminder: 50% advance on {{ref}} gets production started this week. - Woodex" },
+  { id: "delivery-update", label: "Delivery update", body: "Hi {{name}}, good news - your order is packed and our team will call before arrival. - Woodex" },
+];
+const waPhone = (phone) => { const d = String(phone ?? "").replace(/\D/g, ""); if (d.length < 10) return null; return d.startsWith("92") ? d : "92" + d.slice(-10); };
+const ensureConv = (clientId) => {
+  let c = db.prepare("SELECT * FROM conversations WHERE client_id=?").get(clientId);
+  if (!c) { const t = now(); db.prepare("INSERT INTO conversations(client_id,created_at,updated_at,last_at) VALUES(?,?,?,?)").run(clientId, t, t, t); c = db.prepare("SELECT * FROM conversations WHERE client_id=?").get(clientId); }
+  return c;
+};
+const appendMsg = (convId, { channel = "note", direction = "outbound", author = "You", body, meta = null }) => {
+  const t = now();
+  const info = db.prepare("INSERT INTO messages(conversation_id,channel,direction,author,body,meta,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(convId, channel, direction, String(author).slice(0, 40), String(body).slice(0, 4000), meta ? JSON.stringify(meta) : null, t);
+  db.prepare("UPDATE conversations SET last_at=?, updated_at=?, unread=unread+?, status=CASE WHEN ?='inbound' THEN 'open' ELSE status END WHERE id=?")
+    .run(t, t, direction === "inbound" ? 1 : 0, direction, convId);
+  return db.prepare("SELECT * FROM messages WHERE id=?").get(info.lastInsertRowid);
+};
+const rowMsg = (m) => ({ id: m.id, channel: m.channel, direction: m.direction, author: m.author, body: m.body, createdAt: m.created_at, meta: m.meta ? JSON.parse(m.meta) : null });
+const resolveTemplate = (tpl, clientId) => {
+  const cl = db.prepare("SELECT * FROM clients WHERE id=?").get(clientId) ?? {};
+  const ref = db.prepare("SELECT l.ref FROM client_links x JOIN leads l ON l.id=x.entity_id WHERE x.client_id=? AND x.entity='lead' ORDER BY l.id DESC LIMIT 1").get(clientId)?.ref
+    ?? db.prepare("SELECT q.ref FROM client_links x JOIN quotes q ON q.id=x.entity_id WHERE x.client_id=? AND x.entity='quote' ORDER BY q.id DESC LIMIT 1").get(clientId)?.ref ?? "your inquiry";
+  return tpl.body.replaceAll("{{name}}", cl.name ?? "there").replaceAll("{{ref}}", ref);
+};
+const touchInbox = (extra = {}) => emit("inbox", extra);
 app.post("/api/leads", wrap((req, res) => {
   const { name, company, interest, source = "Website", contact, note } = req.body ?? {};
   if (!name) return res.status(400).json({ error: "name is required" });
@@ -364,6 +404,9 @@ app.post("/api/leads", wrap((req, res) => {
   const led = rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid));
   const m = matchOrCreateClient({ name, company, contact, source, note });
   linkClient(m.client.id, "lead", led.id);
+  { const conv = ensureConv(m.client.id);
+    appendMsg(conv.id, { channel: "system", direction: "system", author: "System", body: `New ${source} lead ${led.ref}: "${interest}"${contact ? " · " + contact : ""} — follow up within 24h.` });
+    db.prepare("UPDATE conversations SET unread=unread+1 WHERE id=?").run(conv.id); touchInbox({ clientId: m.client.id }); }
   emit("leads", { title: "New lead " + name + (m.created ? " + client created" : ""), who: name, context: interest ?? "" });
   emit("clients", { title: (m.created ? "Client created: " : "Client matched: ") + m.client.name, who: m.client.name });
   res.status(201).json({ ...led, clientId: m.client.id });
@@ -720,6 +763,85 @@ app.delete("/api/track", wrap((req, res) => {
   const info = conds.length ? db.prepare("DELETE FROM track_events WHERE " + conds.join(" AND ")).run(...args) : db.prepare("DELETE FROM track_events").run();
   res.json({ deleted: info.changes });
 }));
+app.get("/api/inbox", wrap((req, res) => {
+  const { box = "all", channel, q } = req.query;
+  let rows = db.prepare("SELECT cv.*, cl.name clientName, cl.phone, cl.company, cl.city FROM conversations cv JOIN clients cl ON cl.id=cv.client_id AND cl.merged_into IS NULL ORDER BY datetime(cv.last_at) DESC").all();
+  if (box === "unread") rows = rows.filter((r) => r.unread > 0);
+  if (q) { const needle = String(q).toLowerCase();
+    rows = rows.filter((r) => (r.clientName + " " + (r.company ?? "") + " " + (r.phone ?? "")).toLowerCase().includes(needle)
+      || db.prepare("SELECT 1 FROM messages m WHERE m.conversation_id=? AND lower(m.body) LIKE ? LIMIT 1").get(r.id, "%" + needle + "%")); }
+  const items = rows.map((r) => {
+    const last = db.prepare("SELECT * FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 1").get(r.id);
+    const total = db.prepare("SELECT COUNT(*) n FROM messages WHERE conversation_id=?").get(r.id).n;
+    if (channel && last?.channel !== channel) return null;
+    const lead = db.prepare("SELECT l.ref, l.status, l.interest FROM client_links x JOIN leads l ON l.id=x.entity_id WHERE x.client_id=? AND x.entity='lead' ORDER BY l.id DESC LIMIT 1").get(r.client_id);
+    return { id: r.id, clientId: r.client_id, clientName: r.clientName, company: r.company, phone: r.phone, city: r.city,
+      status: r.status, assignee: r.assignee, priority: r.priority, unread: r.unread, lastAt: r.last_at, updatedAt: r.updated_at,
+      lastMessage: last ? { body: String(last.body).slice(0, 90), channel: last.channel, direction: last.direction, author: last.author } : null,
+      totalMessages: total, lead: lead ?? null, wa: waPhone(r.phone) };
+  }).filter(Boolean);
+  const counts = { all: db.prepare("SELECT COUNT(*) n FROM conversations").get().n,
+    unread: db.prepare("SELECT COUNT(*) n FROM conversations WHERE unread>0").get().n,
+    open: db.prepare("SELECT COUNT(*) n FROM conversations WHERE status='open'").get().n };
+  res.json({ total: items.length, counts, items });
+}));
+app.get("/api/inbox/templates", wrap((req, res) => res.json({ items: INBOX_TEMPLATES })));
+app.get("/api/inbox/:clientId/thread", wrap((req, res) => {
+  const cl = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId);
+  if (!cl) return res.status(404).json({ error: "client not found" });
+  const conv = ensureConv(cl.id);
+  const msgs = db.prepare("SELECT * FROM messages WHERE conversation_id=? ORDER BY id ASC").all(conv.id);
+  if (conv.unread > 0) db.prepare("UPDATE conversations SET unread=0, updated_at=? WHERE id=?").run(now(), conv.id);
+  const orders = db.prepare("SELECT o.ref, o.status, o.total FROM client_links x JOIN orders o ON o.id=x.entity_id WHERE x.client_id=? AND x.entity='order' ORDER BY o.id DESC LIMIT 3").all(cl.id);
+  const quotes = db.prepare("SELECT q.ref, q.status, q.total FROM client_links x JOIN quotes q ON q.id=x.entity_id WHERE x.client_id=? AND x.entity='quote' ORDER BY q.id DESC LIMIT 3").all(cl.id);
+  const invoices = db.prepare("SELECT i.ref, i.status, i.due FROM client_links x JOIN invoices i ON i.id=x.entity_id WHERE x.client_id=? AND x.entity='invoice' ORDER BY i.id DESC LIMIT 2").all(cl.id);
+  touchInbox({ clientId: cl.id });
+  res.json({ conversation: { id: conv.id, clientId: cl.id, status: conv.status, assignee: conv.assignee, priority: conv.priority, unread: 0, lastAt: conv.last_at },
+    client: rowClientLite(cl), messages: msgs.map(rowMsg),
+    context: { orders, quotes, invoices }, wa: waPhone(cl.phone) });
+}));
+app.post("/api/inbox/:clientId/messages", wrap((req, res) => {
+  const cl = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId);
+  if (!cl) return res.status(404).json({ error: "client not found" });
+  const b = req.body ?? {};
+  const body = String(b.body ?? "").trim();
+  if (!body || body.length > 4000) return res.status(400).json({ error: "body required (1–4000 chars)" });
+  const channel = CONV_CHANNELS.has(b.channel) ? b.channel : "note";
+  let direction = ["inbound", "outbound"].includes(b.direction) ? b.direction : "outbound";
+  if (channel === "system") direction = "system";
+  const conv = ensureConv(cl.id);
+  const m = appendMsg(conv.id, { channel, direction, author: b.author ?? "You", body });
+  touchInbox({ clientId: cl.id });
+  res.status(201).json(rowMsg(m));
+}));
+app.post("/api/inbox/:clientId/handoff", wrap((req, res) => {
+  const cl = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId);
+  if (!cl) return res.status(404).json({ error: "client not found" });
+  const phone = waPhone(cl.phone);
+  if (!phone) return res.status(400).json({ error: "client has no dialable phone number" });
+  const b = req.body ?? {};
+  const tpl = INBOX_TEMPLATES.find((x) => x.id === b.templateId);
+  const body = String(b.body ?? "").trim() || (tpl ? resolveTemplate(tpl, cl.id) : "");
+  if (!body) return res.status(400).json({ error: "templateId or body required" });
+  const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(body);
+  const conv = ensureConv(cl.id);
+  const m = appendMsg(conv.id, { channel: "whatsapp", direction: "outbound", author: b.author ?? "You", body, meta: { handoff: url, template: tpl?.id ?? null } });
+  if (tpl) db.prepare("UPDATE conversations SET updated_at=?, last_at=? WHERE id=?").run(now(), now(), conv.id);
+  touchInbox({ clientId: cl.id });
+  res.json({ url, message: rowMsg(m) });
+}));
+app.patch("/api/inbox/conversations/:id", wrap((req, res) => {
+  const cv = db.prepare("SELECT * FROM conversations WHERE id=?").get(req.params.id);
+  if (!cv) return res.status(404).json({ error: "conversation not found" });
+  const b = req.body ?? {};
+  if (b.status !== undefined && !CONV_STATUS.has(b.status)) return res.status(400).json({ error: "status must be open|pending|resolved|snoozed" });
+  db.prepare("UPDATE conversations SET status=?, assignee=?, priority=?, unread=?, updated_at=? WHERE id=?").run(
+    b.status ?? cv.status, b.assignee !== undefined ? (b.assignee ? String(b.assignee).slice(0, 40) : null) : cv.assignee,
+    b.priority !== undefined ? (b.priority ? 1 : 0) : cv.priority, Number.isFinite(Number(b.unread)) ? Math.max(0, Number(b.unread)) : cv.unread, now(), cv.id);
+  touchInbox({ clientId: cv.client_id });
+  res.json(db.prepare("SELECT * FROM conversations WHERE id=?").get(cv.id));
+}));
+
 const xmlEsc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
 app.get("/sitemap.xml", wrap((req, res) => {
   const base = (readTheme().siteUrl || "http://localhost:5174").replace(/\/+$/, "");
@@ -1183,6 +1305,30 @@ app.use("/img", express.static(path.join(HERE, "public/img"), { maxAge: "1h" }))
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 await seed();
+/* P10 demo threads — boot-guarded, runs even after the main seed() short-circuits */
+try {
+  if (db.prepare("SELECT COUNT(*) n FROM conversations").get().n === 0) {
+    const seeds = [
+      { n: -5, msgs: [["inbound", "whatsapp", "Hassan", "Salam, do you have the L-shaped desk in walnut? Need 4 for a new office by Eid."], ["outbound", "whatsapp", "Usman", "Walaikum salam! Yes — 6 in stock at Gulberg. I'll send prices + 3D layout options today."], ["inbound", "whatsapp", "Hassan", "Great, also do you install in DHA?"]] },
+      { n: -2, msgs: [["inbound", "email", "Bilal Traders", "Following up on quote Q-1042 — can we move to 40% advance?"], ["outbound", "note", "Ayesha", "Owner asked for payment plan — approved 40/60 per finance, updating quote."]] },
+      { n: -1, msgs: [["inbound", "phone", "Sana", "Call: wants 3 executive tables delivered before the 20th, meeting room chairs too."], ["outbound", "whatsapp", "Usman", "Confirmed stock + slot on 19th. Sending delivery address form shortly."]] },
+    ];
+    for (const [i, sp] of seeds.entries()) {
+      const cl = db.prepare("SELECT id FROM clients WHERE merged_into IS NULL ORDER BY id LIMIT 1 OFFSET ?").get(i);
+      if (!cl) break;
+      const t = new Date(Date.now() + sp.n * 864e5).toISOString();
+      const info = db.prepare("INSERT INTO conversations(client_id,status,assignee,unread,last_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+        .run(cl.id, "open", i === 1 ? "Ayesha" : "Usman", i === 2 ? 1 : 0, t, t, t);
+      let k = 0;
+      for (const [dir, ch, au, body] of sp.msgs) {
+        k += 19 * 60 * 1000;
+        db.prepare("INSERT INTO messages(conversation_id,channel,direction,author,body,created_at) VALUES(?,?,?,?,?,?)")
+          .run(info.lastInsertRowid, ch, dir, au, body, new Date(Date.parse(t) + k).toISOString());
+      }
+    }
+    console.log("[woodex-api] P10 inbox demo threads seeded");
+  }
+} catch (e) { console.error("[woodex-api] inbox seed skipped:", e.message); }
 ensureFinanceDemo();
 ensureCrmDemo();
 ensureSiteDemo();

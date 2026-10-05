@@ -13,7 +13,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { SkeletonRows, EmptyState, ErrorState } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { useApi, useRealtime, mutate, fmtPKR, timeAgo } from "@/lib/api";
-import { Building, Check, ClipboardList, GitMerge, Plus, Users } from "@/icons";
+import {Building, Check, ClipboardList, GitMerge, Plus, Users, MessagesSquare} from "@/icons";
 
 type ClientRow = { id: number; name: string; company?: string | null; email?: string | null; phone?: string | null;
   city?: string | null; tags: string[]; source?: string | null; lifetime: number; outstanding: number;
@@ -37,6 +37,7 @@ export default function Clients() {
   const [nf, setNf] = useState({ name: "", company: "", phone: "", email: "" });
   const [params] = useSearchParams();
   useEffect(() => { if (params.get("new") === "1") setNewOpen(true); }, [params]);
+  const cParam = params.get("c");
   const { push } = useToast();
   const { data, loading, error, reload } = useApi<{ total: number; items: ClientRow[] }>(`/api/clients${q ? "?q=" + encodeURIComponent(q) : ""}`, 30000);
   const review = useApi<{ items: ReviewPair[]; total: number }>("/api/clients/review", 45000);
@@ -50,6 +51,12 @@ export default function Clients() {
       setOpen360(await r.json());
     } catch (e) { push({ tone: "danger", title: "Load failed", desc: e instanceof Error ? e.message : String(e) }); }
   };
+  useEffect(() => {
+    if (!cParam) return;
+    void (async () => {
+      try { const r = await fetch(`/api/clients/${cParam}`); if (r.ok) setOpen360(await r.json()); } catch { /* ignore bad deep link */ }
+    })();
+  }, [cParam]);
   const merge = async (keepId: number, fromId: number) => {
     try {
       await mutate(`/api/clients/${keepId}/merge`, { from_id: fromId }, "POST");
@@ -153,6 +160,7 @@ export default function Clients() {
         description={open360 ? [open360.phone, open360.email, open360.city].filter(Boolean).join(" · ") || "no contact details yet" : undefined}
         footer={open360 && <>
           <span className="mr-auto text-caption text-subtle">lifetime {fmtPKR(open360.lifetime)} · outstanding <b className={open360.outstanding ? "text-warning-strong" : ""}>{fmtPKR(open360.outstanding)}</b></span>
+          <a href={`/omnichannel?c=${open360.id}`}><Button variant="secondary"><MessagesSquare size={13} /> Inbox thread</Button></a>
           <Button variant="secondary" onClick={() => setOpen360(null)}>Close</Button>
           <Button onClick={() => (push({ tone: "info", title: "Quote drafted", desc: "Prefilled builder opens with this client." }))}><Users size={14} /> New quote for client</Button>
         </>}>
