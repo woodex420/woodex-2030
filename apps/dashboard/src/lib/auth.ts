@@ -7,7 +7,11 @@ export type User = { id: number; email: string; name: string; role: string; acti
 type AuthState = { status: "loading" | "in" | "out"; user: User | null; caps: string[] };
 
 const KEY = "wx_token";
-let state: AuthState = { status: "loading", user: null, caps: [] };
+const hasToken = (() => { try { return !!localStorage.getItem(KEY); } catch { return false; } })();
+let state: AuthState = { status: hasToken ? "loading" : "out", user: null, caps: [] };
+const RET_KEY = "wx_return";
+const saveReturn = () => { try { const p = location.pathname + location.search; if (p && p !== "/") sessionStorage.setItem(RET_KEY, p); } catch { /* noop */ } };
+const takeReturn = () => { try { const p = sessionStorage.getItem(RET_KEY); if (p) { sessionStorage.removeItem(RET_KEY); window.history.replaceState(null, "", p); } } catch { /* noop */ } };
 const subs = new Set<() => void>();
 const set = (patch: Partial<AuthState>) => { state = { ...state, ...patch }; subs.forEach((f) => f()); };
 
@@ -18,12 +22,14 @@ export async function login(email: string, password: string) {
   const j = await r.json().catch(() => ({} as { token?: string; user?: User; caps?: string[] }));
   if (!r.ok) throw new Error(j.error ?? "login failed");
   try { localStorage.setItem(KEY, j.token); } catch { /* private mode */ }
+  takeReturn(); // land back where an expired session yanked us from
   set({ status: "in", user: j.user, caps: j.caps ?? [] });
   return j.user as User;
 }
 export async function logout() {
   try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* offline — local sign-out anyway */ }
-  try { localStorage.removeItem(KEY); } catch { /* noop */ }
+  try { localStorage.removeItem(KEY); sessionStorage.removeItem(RET_KEY); } catch { /* noop */ }
+  if (location.pathname !== "/") window.history.replaceState(null, "", "/");
   set({ status: "out", user: null, caps: [] });
 }
 export async function restoreSession() {
@@ -62,7 +68,7 @@ export function installFetchPatch() {
     if (t && url.startsWith("/api/") && !headers.authorization) headers.authorization = "Bearer " + t;
     const res = await orig(input as never, { ...init, headers });
     if (res.status === 401 && !url.includes("/api/auth/")) {
-      try { localStorage.removeItem(KEY); } catch { /* noop */ }
+      try { localStorage.removeItem(KEY); saveReturn(); } catch { /* noop */ }
       set({ status: "out", user: null, caps: [] });
     }
     return res;

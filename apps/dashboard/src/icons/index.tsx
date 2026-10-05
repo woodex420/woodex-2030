@@ -477,3 +477,10 @@ export const Shield = (p: IconProps) => (
     <path d="M9.5 12l1.8 1.8 3.4-3.6" />
   </Icon>
 );
+
+export const EyeOff = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10.7 5.1A9.8 9.8 0 0 1 12 5c6.3 0 9.4 5.7 10 6.8-.2.5-1.2 2.3-3 3.9M6.6 6.8C3.9 8.5 2.4 11 2 11.8c.6 1.1 3.7 6.8 10 6.8a10.9 10.9 0 0 0 4-.7" />
+    <path d="M9.9 10a3 3 0 0 0 4.2 4.2M3 3l18 18" />
+  </Icon>
+);

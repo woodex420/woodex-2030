@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { ComponentPropsWithRef, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 import { ChevronDown } from "@/icons";
 
@@ -41,7 +41,7 @@ export function Field({
   );
 }
 
-export function Input({ error, className, ...rest }: InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) {
+export function Input({ error, className, ...rest }: ComponentPropsWithRef<"input"> & { error?: boolean }) {
   return <input className={cn(inputCls(error), className)} {...rest} />;
 }
 
