@@ -8,9 +8,11 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { DataTable } from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { quotes } from "@/data/mock";
-import { ArrowRight, Check, FileText, Plus, Save, Send, Sparkles } from "@/icons";
+import { formatPKR, getProductById, products } from "@/data/products";
+import { ArrowRight, Check, FileText, Plus, Save, Search, Send, Sparkles } from "@/icons";
 
 const IconTrash = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
@@ -117,11 +119,26 @@ export function QuotationBuilder() {
   const isNew = location.pathname.endsWith("/new");
   const { push } = useToast();
   const [status, setStatus] = useState<(typeof lifecycle)[number]>("Draft");
-  const [lines, setLines] = useState<Line[]>([
-    { id: 1, name: "Executive Modular Kitchen", material: "Ply + Acrylic · Sage Green", qty: 1, price: 850000 },
-    { id: 2, name: "Aurora Sliding Wardrobe", material: "HMR Board · Smoked Oak", qty: 2, price: 240000 },
-    { id: 3, name: "Lahore 3-Seater Sofa", material: "Solid Sheesham · Matte Walnut", qty: 1, price: 128000 },
-  ]);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [lines, setLines] = useState<Line[]>(() => {
+    const seeded = ["ballmer-executive-desk", "titan-executive-desk", "aurora-sliding-wardrobe"].map(
+      (id) => getProductById(id)
+    );
+    const fallback: Line[] = [
+      { id: 1, name: "Executive Modular Kitchen", material: "Ply + Acrylic · Sage Green", qty: 1, price: 850000 },
+      { id: 2, name: "Aurora Sliding Wardrobe", material: "HMR Board · Smoked Oak", qty: 2, price: 240000 },
+      { id: 3, name: "Lahore 3-Seater Sofa", material: "Solid Sheesham · Matte Walnut", qty: 1, price: 128000 },
+    ];
+    if (seeded.some((s) => !s)) return fallback;
+    return (seeded as NonNullable<ReturnType<typeof getProductById>>[]).map((p, i) => ({
+      id: i + 1,
+      name: p.name,
+      material: p.colors.map((c) => c.name).slice(0, 2).join(" / "),
+      qty: p.isBestSeller ? 2 : 1,
+      price: p.price,
+    }));
+  });
   const [discountPct, setDiscountPct] = useState(5);
   const [taxPct, setTaxPct] = useState(18);
   const [shipping, setShipping] = useState(25000);
@@ -134,7 +151,7 @@ export function QuotationBuilder() {
     return { subtotal, discount, tax, total: subtotal - discount + tax + shipping };
   }, [lines, discountPct, taxPct, shipping]);
 
-  const fmt = (n: number) => "Rs " + n.toLocaleString("en-US");
+  const fmt = (n: number) => formatPKR(n);
 
   const note = (action: string) =>
     setAudit((a) => [{ who: "You", action, time: "Just now" }, ...a]);
@@ -220,8 +237,16 @@ export function QuotationBuilder() {
                 >
                   <Sparkles size={14} /> AI Draft
                 </Button>
-                <Link to="/catalog">
-                  <Button variant="secondary" size="sm">
+                <Link to="/catalog" className="contents" aria-label="Open full catalog">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCatalogOpen(true);
+                    }}
+                  >
                     From Catalog
                   </Button>
                 </Link>
@@ -461,6 +486,71 @@ export function QuotationBuilder() {
           </Card>
         </div>
       </div>
+
+      {/* Product picker — real catalog data imported from woodex-reimagined */}
+      <Modal
+        open={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        title="Add from Catalog"
+        description={`${products.length} live SKUs from the storefront catalog`}
+        className="max-w-2xl"
+      >
+        <div onClick={(e) => e.stopPropagation()}>
+          <label className="relative block">
+            <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-subtle" />
+            <input
+              value={catalogQuery}
+              onChange={(e) => setCatalogQuery(e.target.value)}
+              placeholder="Search products…"
+              className="h-10 w-full rounded-control border border-line-strong pl-9 text-small focus:border-primary-500 focus:outline-none"
+              autoFocus
+            />
+          </label>
+          <ul className="scrollbar-slim mt-3 max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-card border border-line">
+            {products
+              .filter(
+                (p) =>
+                  catalogQuery.trim() === "" ||
+                  (p.name + " " + p.subcategory + " " + (p.series ?? "")).toLowerCase().includes(catalogQuery.toLowerCase())
+              )
+              .slice(0, 40)
+              .map((p) => (
+                <li key={p.id} className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-primary-50/50">
+                  <img src={p.images[0]} alt="" className="h-11 w-14 shrink-0 rounded border border-line object-cover" loading="lazy" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-small font-semibold text-ink">{p.name}</span>
+                    <span className="block truncate text-caption text-muted capitalize">
+                      {p.subcategory?.replace(/-/g, " ")} · {p.inStock ? "in stock" : "made to order"}
+                    </span>
+                  </span>
+                  <span className="text-small font-semibold text-ink">{formatPKR(p.price)}</span>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setLines((x) => [
+                        ...x,
+                        {
+                          id: Date.now() + Math.random(),
+                          name: p.name,
+                          material: p.colors.map((c) => c.name).slice(0, 2).join(" / ") || p.series || "—",
+                          qty: 1,
+                          price: p.price,
+                        },
+                      ]);
+                      note(`added catalog item: ${p.name}`);
+                      push({ tone: "success", title: "Added to quotation", desc: `${p.name} · ${formatPKR(p.price)}` });
+                    }}
+                  >
+                    <Plus size={13} /> Add
+                  </Button>
+                </li>
+              ))}
+            {products.filter((p) => catalogQuery.trim() === "" || (p.name + " " + p.subcategory).toLowerCase().includes(catalogQuery.toLowerCase())).length === 0 && (
+              <li className="px-3 py-8 text-center text-caption text-subtle">No products match “{catalogQuery}”.</li>
+            )}
+          </ul>
+        </div>
+      </Modal>
     </div>
   );
 }

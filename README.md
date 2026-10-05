@@ -53,3 +53,12 @@ src/
 ```
 
 Next phases per design.md §34: validate these 7 screens, then extend to Ecommerce, CMS, Marketing, Omnichannel, Automation, Support, Settings and the Visual Builder (§30).
+
+## Data import — 2026-10-05
+
+Live catalog imported from `blackibexofficial-blip/woodex-reimagined` (per MASTER-PLAN):
+`src/data/products.ts` (205 SKUs, PKR pricing, images, colors, specs, ratings),
+`src/data/materials.ts` (16 material textures) and `src/data/services.ts` — powering the
+Catalog screen and the E-Quotation "From Catalog" product picker. Product/material assets
+live in `src/assets/`. Storefront runs separately on port 5174 (its own clone, with the
+documented lockfile + Lovable tooling fixes applied locally).
