@@ -19,15 +19,24 @@ export default function Login() {
   const go = async () => {
     if (busy || !user.trim()) return;
     setBusy(true); setErr(null);
-    try {
-      await login(user.trim(), pw);
-      return; // success unmounts this screen
-    } catch (e) {
-      const msg = e instanceof TypeError
-        ? "Can’t reach the Woodex API — it’s booting or offline; try again in a moment."
-        : e instanceof Error ? e.message : String(e);
-      setErr(msg); setBusy(false);
-      window.setTimeout(() => pwRef.current?.focus(), 0);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await login(user.trim(), pw);
+        return; // success unmounts this screen
+      } catch (e) {
+        if (e instanceof TypeError) {
+          // API likely hot-restarting (watcher) — retry quietly, then speak up.
+          setErr(attempt < 2 ? "API is restarting — retrying…" : null);
+          if (attempt < 2) { await new Promise((r) => setTimeout(r, 900)); continue; }
+          setErr("Can’t reach the Woodex API — use “Run server” on the API card in the preview panel, then retry.");
+          setBusy(false);
+          window.setTimeout(() => pwRef.current?.focus(), 0);
+          return;
+        }
+        setErr(e instanceof Error ? e.message : String(e)); setBusy(false);
+        window.setTimeout(() => pwRef.current?.focus(), 0);
+        return;
+      }
     }
   };
   return (
