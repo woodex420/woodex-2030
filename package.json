@@ -16,14 +16,14 @@
     "dev:storefront": "npm -w @woodex/storefront run dev",
     "build": "npm -w @woodex/dashboard run build && npm -w @woodex/storefront run build",
     "typecheck": "npm -w @woodex/dashboard run build",
-    "secret-scan": "node scripts/secret-scan.mjs"
+    "secret-scan": "node scripts/secret-scan.mjs",
+    "qa:pg": "node scripts/qa-pg.mjs"
   },
   "engines": {
     "node": ">=22.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
-    "pg": "^8.23.1",
     "playwright": "^1.63.0"
   }
 }

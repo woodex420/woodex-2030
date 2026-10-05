@@ -1,11 +1,10 @@
 # Postgres cut-over runbook (Supabase-compatible)
 
-Status: **data layer ready & verified** — schema, migrator and full verification run green on
-real Postgres semantics (PGlite WASM in CI-less sandbox; same SQL runs on Supabase).
-The API still executes queries through `node:sqlite`; flipping it to `pg` is the remaining
-Step 3 below (a bounded async refactor, listed honestly rather than hand-waved).
+Status: **dual-driver flip implemented and rehearsed** — schema/migrator verification is green and the API's full 77-check battery passes on both SQLite and PGlite (embedded PostgreSQL). The only remaining cutover step is provisioning/migrating a real hosted PostgreSQL instance and running the same canary against it.
 
 ## Files
+- `apps/api/db-adapters.mjs` — promise-based SQLite/PostgreSQL facade, `pg.Pool` transactions with request-local connection context, Postgres placeholder/`RETURNING`/`INSERT OR IGNORE` compatibility; `DATABASE_URL` unset keeps SQLite as default.
+- `scripts/qa-pg.mjs` — disposable PGlite rehearsal: migrates the current SQLite snapshot, runs the full HTTP + SQL QA suite against one shared PGlite instance, then removes its temporary data directory (`npm run qa:pg`).
 - `scripts/schema.postgres.sql` — 1:1 mirror of the SQLite schema (TEXT-carried ISO timestamps
   and JSON blobs are deliberate: every existing comparison/sort keeps working) **plus**
   compatibility shims: `datetime(text)` and a `group_concat(text)` aggregate, so the API's
@@ -29,17 +28,41 @@ Step 3 below (a bounded async refactor, listed honestly rather than hand-waved).
 3. Re-run once with `--truncate` to prove idempotency if desired.
 4. Sessions copy too — logged-in users notice nothing.
 
-## Step 3 — flip the driver (the real work, ~1 focused session)
-In `apps/api`: introduce `db = createDb(DATABASE_URL)` with the same surface
-(`prepare(sql).get/all/run`, `exec`) implemented over a `pg.Pool`:
-1. Queries become async → make the affected route handlers `async` (`wrap()` already
-   supports async fn since P7 publish flow).
-2. `info.lastInsertRowid` → `RETURNING id` on every INSERT.
-3. `?` placeholders → `$n` (helper-level rewrite or literal pass-through since all SQL
-   already flows through `prepare`).
-4. Keep SQLite as `DATABASE_URL`-unset fallback (dev default) — one file, two adapters.
-5. Re-run this repo's E2E curl battery against Postgres before shipping; rollback = unset
-   `DATABASE_URL` (SQLite file was never dropped, just parked).
+## Step 3 — driver flip (implemented; live PG canary still required)
+
+The API now creates `db = await createDb({ sqliteFile, databaseUrl: process.env.DATABASE_URL })`.
+Both adapters expose promise-returning `prepare(sql).get/all/run`, `exec`, and `transaction`;
+all DB-using routes/helpers await their queries.
+
+- No `DATABASE_URL` → SQLite remains the default. Existing `data/woodex.db` is untouched.
+- `DATABASE_URL=postgres://…` → `pg.Pool`; transaction callbacks pin one connection with
+  `AsyncLocalStorage`, so concurrent requests don't cross transaction boundaries.
+- `DATABASE_URL=pglite:/path` → embedded Postgres for local rehearsal/CI; not a production URL.
+- The facade translates `?` to `$n`, `INSERT OR IGNORE` to `ON CONFLICT DO NOTHING`, and
+  requests `RETURNING id` on identity-table inserts so existing `lastInsertRowid` consumers work.
+- SQLite `PRAGMA`/schema bootstrap runs only on SQLite; Postgres schema comes from Step 1/2.
+
+### Verify locally
+
+```bash
+npm run qa                 # SQLite API battery
+npm run qa:pg              # disposable PGlite migration + full 77-check API/SQL battery
+```
+
+`qa:pg` applies the 22-table migration, then imports the API in-process so the HTTP tests and
+direct integrity/cleanup assertions use the *same* PGlite instance. Temporary rehearsal data
+is deleted afterward. Latest rehearsal: **22/22 table digests + migrator query battery green;
+77/77 API checks green**.
+
+### Real hosted cutover (remaining operational step)
+
+1. Provision Postgres and store `DATABASE_URL` in the runtime secret manager (never commit it).
+2. Pause writers; run `node scripts/pg-migrate.mjs --dsn "$DATABASE_URL"`; require `ALL GREEN`.
+3. Run an in-process canary against that same target:
+   `DATABASE_URL="$DATABASE_URL" PORT=0 node scripts/qa-full.mjs --pg-rehearsal`
+   (the flag starts the API on an ephemeral port and shares its DB handle with test assertions).
+4. Start the normal API with `DATABASE_URL="$DATABASE_URL" npm -w @woodex/api run start`.
+   Rollback remains `unset DATABASE_URL` and restart; the SQLite file is still parked.
 
 ## Notes / decisions
 - Booleans are `INTEGER 0/1`, dates are ISO `TEXT`, JSON is `TEXT` — matches app semantics

@@ -107,7 +107,7 @@ CREATE OR REPLACE FUNCTION wx_gc_final(state TEXT[]) RETURNS TEXT
 $$ SELECT CASE WHEN state IS NULL THEN NULL ELSE array_to_string(state, ',') END $$;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-                 WHERE n.nspname='current_schema' AND p.proname='group_concat') THEN
+                 WHERE n.nspname=current_schema() AND p.proname='group_concat') THEN
     CREATE AGGREGATE group_concat(TEXT) (SFUNC=wx_gc_trans, STYPE=TEXT[], FINALFUNC=wx_gc_final, INITCOND='{}');
   END IF;
 END $$;

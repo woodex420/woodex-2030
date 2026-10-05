@@ -4,9 +4,18 @@
 import { DatabaseSync } from "node:sqlite";
 import { writeFileSync } from "node:fs";
 
-const BASE = (process.argv.find((a) => a.startsWith("--base=")) ?? `--base=${process.env.QA_BASE ?? "http://127.0.0.1:3001"}`).slice(7);
+const explicitBase = process.argv.find((a) => a.startsWith("--base="))?.slice(7) ?? process.env.QA_BASE;
+let BASE = explicitBase ?? "http://127.0.0.1:3001";
 const KEEP = process.argv.includes("--keep");
-const DB = new DatabaseSync(new URL("../data/woodex.db", import.meta.url).pathname);
+const PG_REHEARSAL = process.argv.includes("--pg-rehearsal") || process.env.QA_PG_REHEARSAL === "1";
+let DB, qaRuntime = null;
+if (PG_REHEARSAL) {
+  if (!process.env.DATABASE_URL) throw new Error("--pg-rehearsal requires DATABASE_URL=pglite:<dir> or a PostgreSQL URL");
+  qaRuntime = await import("../apps/api/server.mjs"); // run API in this process so PGlite and DB assertions share one engine
+  DB = qaRuntime.db;
+  if (!qaRuntime.httpServer.listening) await new Promise((resolve) => qaRuntime.httpServer.once("listening", resolve));
+  if (!explicitBase) BASE = `http://127.0.0.1:${qaRuntime.httpServer.address().port}`;
+} else DB = new DatabaseSync(new URL("../data/woodex.db", import.meta.url).pathname);
 const TS = Date.now();
 const Q = `QA·${TS}`; // unique fingerprint for every row we create → exact cleanup
 
@@ -157,7 +166,7 @@ await T("POST order (public) → 201 Pending + auto-invoice", async () => {
   want(r, 201); qa.orderId = r.j.id; qa.orderRef = r.j.ref;
   if (r.j.status !== "Pending") bad("status=" + r.j.status);
   const look = await api(`/api/orders/lookup?ref=${encodeURIComponent(r.j.ref)}`, { role: null }); want(look, 200, "lookup");
-  qa.invoiceId = DB.prepare("SELECT id FROM invoices WHERE customer LIKE ? ").get(`${Q} %`)?.id;
+  qa.invoiceId = (await (DB.prepare("SELECT id FROM invoices WHERE customer LIKE ? ").get(`${Q} %`)))?.id;
   if (!qa.invoiceId) bad("auto-invoice missing for QA order");
   return `${r.j.ref} + INV#${qa.invoiceId}`;
 });
@@ -293,11 +302,10 @@ await T("section PATCH → DELETE → gone", async () => {
   const g = await api(`/api/saved-sections/${qa.sectionId}`); if (g.s !== 404) bad("still readable s=" + g.s);
 });
 await T("client merge keeps survivor & links", async () => {
-  const dup = await api("/api/leads", { role: null, method: "POST", body: { name: `${Q} Duplicate`, contact: `qa+dup${TS}@mail.pk`, interest: "same furniture", source: "QA" } }); want(dup, 201);
-  const dupClient = DB.prepare("SELECT client_id id FROM client_links WHERE entity='lead' AND entity_id=?").get(dup.j.id)?.client_id;
-  const a = qa.clientId ?? dupClient; const b2 = dupClient;
-  if (!a || !b2 || a === b2) return `nothing to merge (a=${a} b=${b2})`;
-  const m = await api(`/api/clients/${Math.max(a, b2)}/merge`, { method: "POST", body: { intoId: Math.min(a, b2) } });
+  const dup = await api("/api/clients", { method: "POST", body: { name: `${Q} Duplicate`, email: `qa+dup${TS}@mail.pk`, source: "QA" } }); want(dup, 201);
+  const a = qa.clientId; const b2 = dup.j.id;
+  if (!a || !b2 || a === b2) bad(`invalid merge pair (a=${a} b=${b2})`);
+  const m = await api(`/api/clients/${a}/merge`, { method: "POST", body: { from_id: b2 } });
   if (m.s >= 400) bad("merge: " + m.s + " " + JSON.stringify(m.j).slice(0, 140));
 });
 await T("inbox message round-trip", async () => {
@@ -376,45 +384,63 @@ await T("TODO-1: drafts sealed without a signed preview link", async () => {
   if (sess.status !== 200) bad("session fallback denied: " + sess.status);
   return "sig/exp/forged/expired/session all correct";
 });
-await T("TODO-2: order→invoice→task flow is atomic under forced failure", async () => {
-  const h = (await api("/api/health", { role: null })).j.counts;
-  const r = await api("/api/orders", { role: null, method: "POST", body: { customer: `${Q} Txprobe`, items: [{ name: "x", price: 1e308 * 3, qty: 1 }] } }); // Infinity → must not half-write
-  const h2 = (await api("/api/health", { role: null })).j.counts;
-  const dO = h2.orders - h.orders, dI = h2.invoices - h.invoices;
-  if (dO !== dI) bad(`partial write! orders Δ${dO} vs invoices Δ${dI} (status ${r.s})`);
-  DB.prepare(`DELETE FROM payments WHERE invoice_id IN (SELECT id FROM invoices WHERE customer LIKE '${Q}%')`).run();
-  DB.prepare(`DELETE FROM invoices WHERE customer LIKE '${Q}%'`).run();
-  DB.prepare(`DELETE FROM client_links WHERE client_id IN (SELECT id FROM clients WHERE name LIKE '${Q}%')`).run();
-  DB.prepare(`DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE client_id IN (SELECT id FROM clients WHERE name LIKE '${Q}%'))`).run();
-  DB.prepare(`DELETE FROM conversations WHERE client_id IN (SELECT id FROM clients WHERE name LIKE '${Q}%')`).run();
-  DB.prepare(`DELETE FROM tasks WHERE client_id IN (SELECT id FROM clients WHERE name LIKE '${Q}%') OR order_id IN (SELECT id FROM orders WHERE customer LIKE '${Q}%')`).run();
-  DB.prepare(`DELETE FROM orders WHERE customer LIKE '${Q}%'`).run();
-  DB.prepare(`DELETE FROM clients WHERE name LIKE '${Q}%'`).run();
-  return `status=${r.s}, Δorders=${dO} Δinvoices=${dI} — rolled back together`;
+await T("TODO-2: order→invoice→task flow rolls back after forced invoice failure", async () => {
+  const customer = `${Q} Txprobe`;
+  const literal = "'" + customer.replaceAll("'", "''") + "'";
+  if (PG_REHEARSAL) {
+    await DB.exec(`DROP TRIGGER IF EXISTS qa_force_invoice_failure ON invoices;
+      DROP FUNCTION IF EXISTS qa_force_invoice_failure();
+      CREATE FUNCTION qa_force_invoice_failure() RETURNS trigger LANGUAGE plpgsql AS $qa$
+      BEGIN IF NEW.customer = ${literal} THEN RAISE EXCEPTION 'forced QA invoice failure'; END IF; RETURN NEW; END
+      $qa$;
+      CREATE TRIGGER qa_force_invoice_failure BEFORE INSERT ON invoices FOR EACH ROW EXECUTE FUNCTION qa_force_invoice_failure();`);
+  } else {
+    await DB.exec(`DROP TRIGGER IF EXISTS qa_force_invoice_failure;
+      CREATE TRIGGER qa_force_invoice_failure BEFORE INSERT ON invoices
+      WHEN NEW.customer=${literal} BEGIN SELECT RAISE(ABORT,'forced QA invoice failure'); END;`);
+  }
+  try {
+    const h = (await api("/api/health", { role: null })).j.counts;
+    const r = await api("/api/orders", { role: null, method: "POST", body: { customer, items: [{ name: "x", price: 1000, qty: 1 }] } });
+    const h2 = (await api("/api/health", { role: null })).j.counts;
+    const dO = h2.orders - h.orders, dI = h2.invoices - h.invoices;
+    if (r.s < 500) bad(`fault trigger did not abort the flow (status ${r.s})`);
+    if (dO !== 0 || dI !== 0) bad(`partial write! status ${r.s}, Δorders=${dO}, Δinvoices=${dI}`);
+    return `injected invoice failure returned ${r.s}; Δorders=${dO}, Δinvoices=${dI}`;
+  } finally {
+    if (PG_REHEARSAL) await DB.exec("DROP TRIGGER IF EXISTS qa_force_invoice_failure ON invoices; DROP FUNCTION IF EXISTS qa_force_invoice_failure();");
+    else await DB.exec("DROP TRIGGER IF EXISTS qa_force_invoice_failure;");
+  }
 });
 await T("TODO-3: refs survive deletion (no reuse)", async () => {
-  const before = DB.prepare("SELECT COUNT(*) n FROM leads").get().n;
-  DB.prepare("DELETE FROM leads WHERE id=(SELECT MAX(id) FROM leads WHERE name LIKE 'QA·%')").run(); // old COUNT rule → next lead would REUSE a live row's ref
+  const before = (await (DB.prepare("SELECT COUNT(*) n FROM leads").get())).n;
+  (await (DB.prepare("DELETE FROM leads WHERE id=(SELECT MAX(id) FROM leads WHERE name LIKE 'QA·%')").run())); // old COUNT rule → next lead would REUSE a live row's ref
   const r = await api("/api/leads", { role: null, method: "POST", body: { name: `${Q} Refprobe`, interest: "x", source: "QA" } }); want(r, 201);
-  const clash = DB.prepare("SELECT COUNT(*) n FROM leads WHERE ref=?").get(r.j.ref).n;
-  const dupAny = DB.prepare("SELECT COUNT(*) n FROM (SELECT ref FROM leads GROUP BY ref HAVING COUNT(*)>1)").get().n;
+  const clash = (await (DB.prepare("SELECT COUNT(*) n FROM leads WHERE ref=?").get(r.j.ref))).n;
+  const dupAny = (await (DB.prepare("SELECT COUNT(*) n FROM (SELECT ref FROM leads GROUP BY ref HAVING COUNT(*)>1)").get())).n;
   if (clash > 1 || dupAny > 0) bad(`ref ${r.j.ref} collides (table dup groups: ${dupAny})`);
   return `${r.j.ref} unique among ${before} rows · zero dup refs table-wide`;
 });
 
 /* ============ DB INTEGRITY ============ */
 G("db");
-await T("PRAGMA integrity_check", async () => { const v = DB.prepare("PRAGMA integrity_check").get().integrity_check; if (v !== "ok") bad(v); });
-await T("WAL journal mode", async () => { const m = DB.prepare("PRAGMA journal_mode").get().journal_mode; if (m !== "wal") bad("mode=" + m); });
+await T("database integrity check", async () => {
+  if (PG_REHEARSAL) { const v = (await DB.prepare("SELECT 1 AS ok").get()).ok; if (Number(v) !== 1) bad("Postgres query failed"); return `${DB.kind} connection + SQL ok`; }
+  const v = (await (DB.prepare("PRAGMA integrity_check").get())).integrity_check; if (v !== "ok") bad(v);
+});
+await T("storage journal mode", async () => {
+  if (PG_REHEARSAL) return `${DB.kind} persistence managed by PostgreSQL engine`;
+  const m = (await (DB.prepare("PRAGMA journal_mode").get())).journal_mode; if (m !== "wal") bad("mode=" + m);
+});
 await T("health counts == real rows (fresh read)", async () => {
   const h = (await api("/api/health", { role: null })).j.counts;
-  const real = {}; for (const t2 of Object.keys(h)) { try { real[t2] = DB.prepare(`SELECT COUNT(*) n FROM ${t2}`).get().n; } catch { real[t2] = -1; } }
+  const real = {}; for (const t2 of Object.keys(h)) { try { real[t2] = (await (DB.prepare(`SELECT COUNT(*) n FROM ${t2}`).get())).n; } catch { real[t2] = -1; } }
   const diff = Object.keys(h).filter((k) => real[k] !== -1 && Math.abs(real[k] - h[k]) > 1); // ≤1 drift from concurrent streamcheck insert ok
   if (diff.length) bad("drift " + diff.map((k) => `${k}:${h[k]}≠${real[k]}`).join(" "));
   return Object.keys(h).length + " tables matched";
 });
 await T("sequence continuity (ids are ints, no reuse gaps issue)", async () => {
-  const n = DB.prepare("SELECT MAX(id) m FROM leads").get().m; if (!(n > 0)) bad("no ids");
+  const n = (await (DB.prepare("SELECT MAX(id) m FROM leads").get())).m; if (!(n > 0)) bad("no ids");
   return "max lead id " + n;
 });
 
@@ -440,7 +466,7 @@ G("cleanup");
 await T("remove all QA· rows and re-count", async () => {
   if (KEEP) return "--keep: rows left";
   const like = 'QA·%'; // sweep every QA run's rows, not just this TS
-  DB.exec(`DELETE FROM payments WHERE invoice_id IN (SELECT id FROM invoices WHERE customer LIKE '${like}');
+  (await (DB.exec(`DELETE FROM payments WHERE invoice_id IN (SELECT id FROM invoices WHERE customer LIKE '${like}');
     DELETE FROM invoices WHERE customer LIKE '${like}';
     DELETE FROM returns WHERE reason LIKE '${like}' OR customer LIKE '${like}';
     DELETE FROM orders WHERE customer LIKE '${like}';
@@ -460,18 +486,18 @@ await T("remove all QA· rows and re-count", async () => {
     DELETE FROM messages WHERE conversation_id NOT IN (SELECT id FROM conversations);
     DELETE FROM client_links WHERE entity='lead' AND entity_id NOT IN (SELECT id FROM leads);
     DELETE FROM tasks WHERE client_id IS NOT NULL AND client_id NOT IN (SELECT id FROM clients);
-    DELETE FROM track_events WHERE cid LIKE 'qa-%';`);
-  const n = DB.prepare(`SELECT (SELECT COUNT(*) FROM leads WHERE name LIKE '${like}') + (SELECT COUNT(*) FROM clients WHERE name LIKE '${like}') + (SELECT COUNT(*) FROM users WHERE email LIKE 'qa-%@woodex.pk') x`).get().x;
+    DELETE FROM track_events WHERE cid LIKE 'qa-%';`)));
+  const n = (await (DB.prepare(`SELECT (SELECT COUNT(*) FROM leads WHERE name LIKE '${like}') + (SELECT COUNT(*) FROM clients WHERE name LIKE '${like}') + (SELECT COUNT(*) FROM users WHERE email LIKE 'qa-%@woodex.pk') x`).get())).x;
   if (n !== 0) bad(`${n} QA rows survived`);
   return "workspace untouched";
 });
 await T("no orphans after sweep (sessions/links/messages/tasks vs parents)", async () => {
-  const q = (sql) => DB.prepare(sql).get().n;
+  const q = async (sql) => (await (DB.prepare(sql).get())).n;
   const o = {
-    sessions: q("SELECT COUNT(*) n FROM sessions WHERE user_id NOT IN (SELECT id FROM users)"),
-    client_links: q("SELECT COUNT(*) n FROM client_links WHERE client_id NOT IN (SELECT id FROM clients)"),
-    messages: q("SELECT COUNT(*) n FROM messages WHERE conversation_id NOT IN (SELECT id FROM conversations)"),
-    tasks_to_clients: q("SELECT COUNT(*) n FROM tasks WHERE client_id IS NOT NULL AND client_id NOT IN (SELECT id FROM clients)"),
+    sessions: (await (q("SELECT COUNT(*) n FROM sessions WHERE user_id NOT IN (SELECT id FROM users)"))),
+    client_links: (await (q("SELECT COUNT(*) n FROM client_links WHERE client_id NOT IN (SELECT id FROM clients)"))),
+    messages: (await (q("SELECT COUNT(*) n FROM messages WHERE conversation_id NOT IN (SELECT id FROM conversations)"))),
+    tasks_to_clients: (await (q("SELECT COUNT(*) n FROM tasks WHERE client_id IS NOT NULL AND client_id NOT IN (SELECT id FROM clients)"))),
   };
   const bad2 = Object.entries(o).filter(([, n]) => n > 0); if (bad2.length) bad(JSON.stringify(bad2));
   return "clean";
@@ -487,4 +513,8 @@ for (const [g, c] of Object.entries(byGroup)) console.log(`${g.padEnd(10)} ${Str
 console.log(`TOTAL ${R.length - fails.length}/${R.length} pass  · base ${BASE} · ${((Date.now() - TS) / 1000).toFixed(1)}s`);
 writeFileSync("/tmp/qa-results.json", JSON.stringify({ base: BASE, at: new Date().toISOString(), results: R }, null, 1));
 console.log("json → /tmp/qa-results.json");
-process.exit(0);
+if (qaRuntime) {
+  await new Promise((resolve) => { qaRuntime.httpServer.close(resolve); qaRuntime.httpServer.closeAllConnections?.(); });
+  await DB.close();
+} else DB.close();
+process.exitCode = fails.length ? 1 : 0;

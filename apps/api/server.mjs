@@ -1,6 +1,6 @@
 /**
  * WOODEX platform API — single runtime source of truth for storefront + dashboard.
- * Express + node:sqlite (no external DB). Persists to <repo>/data/woodex.db.
+ * Express + async DB facade (SQLite default; PostgreSQL via DATABASE_URL).
  *
  *   GET  /api/health                 status + row counts
  *   GET  /api/products[?q&sub]       full catalog (price/stock edits merged)
@@ -23,20 +23,21 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
 import express from "express";
 import { loadShopData, ROOT } from "./shop-data.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DB_DIR = path.join(ROOT, "data");
 fs.mkdirSync(DB_DIR, { recursive: true });
-const db = new DatabaseSync(path.join(DB_DIR, "woodex.db"));
+const { createDb } = await import("./db-adapters.mjs");
+const db = await createDb({ sqliteFile: path.join(DB_DIR, "woodex.db"), databaseUrl: process.env.DATABASE_URL ?? "" });
+console.log("[woodex-api] driver=" + db.kind);
 
 const now = () => new Date().toISOString();
 const fmtMoney = (n) => "PKR " + Math.round(n).toLocaleString("en-PK");
 
 /* ---------------- schema ---------------- */
-db.exec(`
+if (db.kind === "sqlite") await db.exec(`
 CREATE TABLE IF NOT EXISTS products(
   id TEXT PRIMARY KEY, json TEXT NOT NULL, price REAL NOT NULL,
   in_stock INTEGER NOT NULL DEFAULT 1, stock_qty INTEGER NOT NULL DEFAULT 99,
@@ -122,7 +123,7 @@ PRAGMA journal_mode = WAL;
 
 /* ---------------- seed ---------------- */
 async function seed() {
-  const count = db.prepare("SELECT COUNT(*) AS n FROM products").get().n;
+  const count = (await (db.prepare("SELECT COUNT(*) AS n FROM products").get())).n;
   if (count > 0) return;
   console.log("[seed] importing storefront catalog into SQLite…");
   const { products, materials, services } = await loadShopData();
@@ -131,12 +132,12 @@ async function seed() {
   );
   for (const p of products) {
     const stock = p.inStock ? 99 : 0;
-    ins.run(p.id, JSON.stringify(p), p.price, p.inStock ? 1 : 0, stock, now());
+    (await (ins.run(p.id, JSON.stringify(p), p.price, p.inStock ? 1 : 0, stock, now())));
   }
   const insMat = db.prepare("INSERT INTO materials(id,json) VALUES(?,?)");
-  materials.forEach((m) => insMat.run(m.id, JSON.stringify(m)));
+  (await Promise.all(materials.map(async (m) => (await (insMat.run(m.id, JSON.stringify(m)))))));
   const insSvc = db.prepare("INSERT INTO services(id,json) VALUES(?,?)");
-  services.forEach((s, i) => insSvc.run(String(i + 1), JSON.stringify(s)));
+  (await Promise.all(services.map(async (s, i) => (await (insSvc.run(String(i + 1), JSON.stringify(s)))))));
 
   // Demo operational data so every module has content on first boot
   const seedLeads = [
@@ -150,10 +151,10 @@ async function seed() {
   const insLead = db.prepare(
     "INSERT INTO leads(ref,name,interest,source,status,owner,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)"
   );
-  seedLeads.forEach(([name, source, interest, status, owner, note], i) => {
+  (await Promise.all(seedLeads.map(async ([name, source, interest, status, owner, note], i) => {
     const t = new Date(Date.now() - (i + 1) * 36e5 * 7).toISOString();
-    insLead.run("L-" + (1042 - i * 3), name, interest, source, status, owner, note, t, t);
-  });
+    (await (insLead.run("L-" + (1042 - i * 3), name, interest, source, status, owner, note, t, t)));
+  })));
 
   const seedQuotes = [
     ["Q-2291", "Gulberg Residency", "Approved", 96500000, "email"],
@@ -166,89 +167,89 @@ async function seed() {
   const insQ = db.prepare(
     "INSERT INTO quotes(ref,customer,items,total,status,source,audit,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)"
   );
-  seedQuotes.forEach(([ref, customer, status, total, source], i) => {
+  (await Promise.all(seedQuotes.map(async ([ref, customer, status, total, source], i) => {
     const t = new Date(Date.now() - (i + 1) * 36e5 * 11).toISOString();
     const items = JSON.stringify([
       { name: first?.name ?? "Executive desk", price: Math.round(total / 24), qty: i + 3 },
     ]);
-    insQ.run(ref, customer, items, total, status, source,
-      JSON.stringify([{ who: "System", action: "seeded from " + source, time: t }]), t, t);
-  });
+    (await (insQ.run(ref, customer, items, total, status, source,
+      JSON.stringify([{ who: "System", action: "seeded from " + source, time: t }]), t, t)));
+  })));
 
   const stages = ["production", "qc", "dispatch", "delivery", "installation"];
   const insO = db.prepare(
     "INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)"
   );
-  ["Clifton Villa 9", "Gulberg Residency", "Tariq Hotels", "Zeeshan Ahmed", "Zen Dental", "Bahria Block C", "Nadia Clock Tower", "Maple Cafe"].forEach((customer, i) => {
+  (await Promise.all(["Clifton Villa 9", "Gulberg Residency", "Tariq Hotels", "Zeeshan Ahmed", "Zen Dental", "Bahria Block C", "Nadia Clock Tower", "Maple Cafe"].map(async (customer, i) => {
     const stage = stages[i % 5];
     const status = i % 4 === 3 ? "Delayed" : i % 3 === 0 ? "In Progress" : "On Track";
     const p = products[(i * 7) % products.length];
     const t = now();
-    insO.run("WX-" + (4210 + i), customer,
+    (await (insO.run("WX-" + (4210 + i), customer,
       JSON.stringify([{ name: p?.name, price: p?.price ?? 50000, qty: (i % 4) + 1 }]),
       (p?.price ?? 50000) * ((i % 4) + 1), status, stage,
       ["Faisal", "Hira", "Logistics", "Kamran"][i % 4],
-      ["Oct 08", "Oct 12", "Oct 15", "Oct 18"][i % 4], t, t);
-  });
-  ensureFinanceDemo();
-  db.prepare("INSERT INTO meta(key,value) VALUES('seeded_at',?)").run(now());
+      ["Oct 08", "Oct 12", "Oct 15", "Oct 18"][i % 4], t, t)));
+  })));
+  (await (ensureFinanceDemo()));
+  (await (db.prepare("INSERT INTO meta(key,value) VALUES('seeded_at',?)").run(now())));
   console.log(`[seed] ${products.length} products, ${materials.length} materials, ${services.length} services, ${seedLeads.length} leads, ${seedQuotes.length} quotes, 8 orders`);
 }
 
-function ensureFinanceDemo() {
-  if (db.prepare("SELECT COUNT(*) n FROM invoices").get().n > 0) return;
-  const orders = db.prepare("SELECT * FROM orders ORDER BY id LIMIT 2").all();
+async function ensureFinanceDemo() {
+  if ((await (db.prepare("SELECT COUNT(*) n FROM invoices").get())).n > 0) return;
+  const orders = (await (db.prepare("SELECT * FROM orders ORDER BY id LIMIT 2").all()));
   const t = now();
-  orders.forEach((o, i) => {
+  (await Promise.all(orders.map(async (o, i) => {
     const items = JSON.parse(o.items);
     const subtotal = items.reduce((n, x) => n + (x.price || 0) * (x.qty || 1), 0);
     const total = Math.round(subtotal * 1.05);
-    const info = db.prepare(`INSERT INTO invoices(ref,order_id,customer,items,subtotal,total,status,due,created_at,updated_at)
+    const info = (await (db.prepare(`INSERT INTO invoices(ref,order_id,customer,items,subtotal,total,status,due,created_at,updated_at)
       VALUES(?,?,?,?,?,?,?,?,?,?)`).run("INV-26-" + (1001 + i), o.id, o.customer, o.items, subtotal, total,
-      i === 0 ? "Issued" : "Partially Paid", new Date(Date.now() + 864e5 * 14).toISOString().slice(0, 10), t, t);
+      i === 0 ? "Issued" : "Partially Paid", new Date(Date.now() + 864e5 * 14).toISOString().slice(0, 10), t, t)));
     if (i === 1) { const paid = Math.round(total * 0.5);
-      db.prepare("INSERT INTO payments(invoice_id,amount,method,reference,created_at) VALUES(?,?,?,?,?)")
-        .run(info.lastInsertRowid, paid, "50% advance — Bank transfer", "TRX-88231", t);
-      db.prepare("UPDATE invoices SET paid=? WHERE id=?").run(paid, info.lastInsertRowid); }
-  });
-  db.prepare("INSERT INTO returns(ref,order_id,customer,item,reason,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
-    .run("RMA-0201", orders[1]?.id ?? null, orders[1]?.customer ?? "Walk-in", "Fabric swatch mismatch", "Color differs from configurator preview", "Requested", t, t);
+      (await (db.prepare("INSERT INTO payments(invoice_id,amount,method,reference,created_at) VALUES(?,?,?,?,?)")
+        .run(info.lastInsertRowid, paid, "50% advance — Bank transfer", "TRX-88231", t)));
+      (await (db.prepare("UPDATE invoices SET paid=? WHERE id=?").run(paid, info.lastInsertRowid))); }
+  })));
+  (await (db.prepare("INSERT INTO returns(ref,order_id,customer,item,reason,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+    .run("RMA-0201", orders[1]?.id ?? null, orders[1]?.customer ?? "Walk-in", "Fabric swatch mismatch", "Color differs from configurator preview", "Requested", t, t)));
   console.log("[seed] finance demo: 2 invoices, 1 payment, 1 return");
 }
 
-function ensureCrmDemo() {
-  if (db.prepare("SELECT COUNT(*) n FROM clients").get().n > 0) return;
+async function ensureCrmDemo() {
+  if ((await (db.prepare("SELECT COUNT(*) n FROM clients").get())).n > 0) return;
   const t = now();
   const seen = new Map();
-  const upsert = (name, extra = {}, entity = null, entityId = null) => {
+  const upsert = async (name, extra = {}, entity = null, entityId = null) => {
     if (!name) return;
     const key = String(name).toLowerCase().trim();
-    let c = seen.get(key) ?? db.prepare("SELECT * FROM clients WHERE lower(name)=? AND merged_into IS NULL").get(key);
+    let c = seen.get(key) ?? (await (db.prepare("SELECT * FROM clients WHERE lower(name)=? AND merged_into IS NULL").get(key)));
     if (!c) {
-      const info = db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,city,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+      const info = (await (db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,city,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
         .run(name, extra.company ?? null, extra.email ?? null, extra.email ? normEmail(extra.email) : null,
           extra.phone ?? null, extra.phone ? normPhone(extra.phone) : null, extra.city ?? "Lahore",
-          JSON.stringify(extra.tags ?? []), extra.notes ?? null, extra.source ?? "backfill", t, t);
-      c = db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid);
+          JSON.stringify(extra.tags ?? []), extra.notes ?? null, extra.source ?? "backfill", t, t)));
+      c = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid)));
       seen.set(key, c);
     }
-    if (entity) db.prepare("INSERT OR IGNORE INTO client_links(client_id,entity,entity_id) VALUES(?,?,?)").run(c.id, entity, entityId);
+    if (entity) (await (db.prepare("INSERT OR IGNORE INTO client_links(client_id,entity,entity_id) VALUES(?,?,?)").run(c.id, entity, entityId)));
   };
-  for (const r of db.prepare("SELECT * FROM leads").all()) upsert(r.name, { company: r.company, source: r.source, notes: r.note }, "lead", r.id);
-  for (const r of db.prepare("SELECT * FROM quotes").all()) upsert(r.customer, { source: r.source }, "quote", r.id);
-  for (const r of db.prepare("SELECT * FROM orders").all()) upsert(r.customer, { source: "checkout" }, "order", r.id);
-  for (const r of db.prepare("SELECT * FROM invoices").all()) upsert(r.customer, {}, "invoice", r.id);
-  const clifton = db.prepare("SELECT id FROM clients WHERE name LIKE ?").get("%Clifton%");
-  if (clifton) db.prepare("UPDATE clients SET email='sales@cliftonvilla9.example', email_norm='sales@cliftonvilla9.example' WHERE id=?").run(clifton.id);
+  for (const r of (await (db.prepare("SELECT * FROM leads").all()))) (await (upsert(r.name, { company: r.company, source: r.source, notes: r.note }, "lead", r.id)));
+  for (const r of (await (db.prepare("SELECT * FROM quotes").all()))) (await (upsert(r.customer, { source: r.source }, "quote", r.id)));
+  for (const r of (await (db.prepare("SELECT * FROM orders").all()))) (await (upsert(r.customer, { source: "checkout" }, "order", r.id)));
+  for (const r of (await (db.prepare("SELECT * FROM invoices").all()))) (await (upsert(r.customer, {}, "invoice", r.id)));
+  const clifton = (await (db.prepare("SELECT id FROM clients WHERE name LIKE ?").get("%Clifton%")));
+  if (clifton) (await (db.prepare("UPDATE clients SET email='sales@cliftonvilla9.example', email_norm='sales@cliftonvilla9.example' WHERE id=?").run(clifton.id)));
   if (clifton) {
-    db.prepare("INSERT INTO tasks(client_id,title,due,priority,done,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
-      .run(clifton.id, "Confirm teak veneer swatch before production", new Date(Date.now() + 864e5).toISOString().slice(0, 10), "high", 0, t, t);
-    db.prepare("INSERT INTO tasks(client_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
-      .run(clifton.id, "Send installment-2 reminder", new Date(Date.now() - 864e5).toISOString().slice(0, 10), "normal", t, t);
+    (await (db.prepare("INSERT INTO tasks(client_id,title,due,priority,done,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+      .run(clifton.id, "Confirm teak veneer swatch before production", new Date(Date.now() + 864e5).toISOString().slice(0, 10), "high", 0, t, t)));
+    (await (db.prepare("INSERT INTO tasks(client_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+      .run(clifton.id, "Send installment-2 reminder", new Date(Date.now() - 864e5).toISOString().slice(0, 10), "normal", t, t)));
   }
   // deliberately ambiguous pair for the review queue: same email, different phone
-  db.prepare("INSERT INTO clients(name,email,email_norm,phone,phone_norm,tags,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)")
-    .run("Clifton Villa 9 (WhatsApp)", "sales@cliftonvilla9.example", "sales@cliftonvilla9.example", "+92 300 7654321", "3007654321", "[]", "WhatsApp", t, t);
+  (await (db.prepare("INSERT INTO clients(name,email,email_norm,phone,phone_norm,tags,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)")
+    .run("Clifton Villa 9 (WhatsApp)", "sales@cliftonvilla9.example", "sales@cliftonvilla9.example", "+92 300 7654321", "3007654321", "[]", "WhatsApp", t, t)));
   console.log("[seed] CRM demo: clients, links, tasks, 1 review pair");
 }
 
@@ -266,12 +267,11 @@ const decorateInvoice = (r) => { const j = rowInvoice(r);
   return j; };
 const rowReturn = (r) => ({ id: r.id, ref: r.ref, orderId: r.order_id, customer: r.customer, item: r.item, reason: r.reason,
   state: r.state, refundAmount: r.refund_amount, resolution: r.resolution, createdAt: r.created_at, updatedAt: r.updated_at });
-const wrap = (fn) => (req, res) => { try { fn(req, res); } catch (e) { res.status(500).json({ error: String(e.message || e) }); } };
+const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((e) => { if (!res.headersSent) res.status(500).json({ error: String(e.message || e) }); else res.end(); });
 /* TODO-2 (QA): compound write flows run atomically — a mid-flow throw rolls the whole
    route back (no order-without-invoice half-state). */
-const wtx = (fn) => { db.exec("BEGIN IMMEDIATE"); try { const r = fn(); db.exec("COMMIT"); return r; }
-  catch (e) { try { db.exec("ROLLBACK"); } catch { /* aborted */ } throw e; } };
-const wrapTx = (fn) => wrap((req, res) => wtx(() => fn(req, res)));
+const wtx = (fn) => db.transaction(fn);
+const wrapTx = (fn) => wrap(async (req, res) => wtx(() => fn(req, res)));
 
 /* ---------------- app ---------------- */
 const app = express();
@@ -308,14 +308,14 @@ const isPublic = (m, p) =>
     p.startsWith("/img/") || p === "/uploads" || /^\/(uploads|img)\//.test(p) ||
     p === "/sitemap.xml" || p === "/robots.txt"
   ) || (m === "POST" && /^\/api\/(track|leads|quotes|orders|auth\/login)$/.test(p));
-app.use((req, res, next) => {
+app.use(async (req, res, next) => { try {
   if (isPublic(req.method, req.path)) return next();
   const auth = String(req.headers.authorization ?? "");
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : String(req.query.token ?? "");
   if (!token) return res.status(401).json({ error: "sign in required", code: "no_token" });
-  const u = db.prepare("SELECT u.id, u.email, u.name, u.role, u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(token);
+  const u = (await (db.prepare("SELECT u.id, u.email, u.name, u.role, u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(token)));
   if (!u) return res.status(401).json({ error: "session expired — sign in again", code: "bad_token" });
-  if (String(u.expires_at) < now()) { db.prepare("DELETE FROM sessions WHERE token=?").run(token); return res.status(401).json({ error: "session expired", code: "expired" }); }
+  if (String(u.expires_at) < now()) { (await (db.prepare("DELETE FROM sessions WHERE token=?").run(token))); return res.status(401).json({ error: "session expired", code: "expired" }); }
   if (!u.active) return res.status(403).json({ error: "account disabled" });
   req.user = u; req.actor = u.name;
   const caps = ROLE_CAPS[u.role] ?? [];
@@ -328,110 +328,110 @@ app.use((req, res, next) => {
       return res.status(403).json({ error: `role '${u.role}' may not ${need} — an owner can grant it`, need });
   }
   next();
-});
+} catch (error) { next(error); } });
 const hashPass = (pw, salt = crypto.randomBytes(8).toString("hex")) =>
   ({ salt, hash: crypto.scryptSync(String(pw), salt, 32).toString("hex") });
 const loginBucket = new Map();
 
 
-app.get("/api/health", wrap((req, res) => {
-  const c = (t) => db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n;
-  res.json({ ok: true, db: "sqlite", ts: now(), counts: { products: c("products"), leads: c("leads"), quotes: c("quotes"), orders: c("orders"), users: c("users"), invoices: c("invoices") } });
+app.get("/api/health", wrap(async (req, res) => {
+  const c = async (t) => (await (db.prepare(`SELECT COUNT(*) n FROM ${t}`).get())).n;
+  res.json({ ok: true, db: db.kind, ts: now(), counts: { products: (await (c("products"))), leads: (await (c("leads"))), quotes: (await (c("quotes"))), orders: (await (c("orders"))), users: (await (c("users"))), invoices: (await (c("invoices"))) } });
 }));
 
-app.get("/api/products", wrap((req, res) => {
+app.get("/api/products", wrap(async (req, res) => {
   const q = (req.query.q || "").toLowerCase();
   const sub = req.query.sub || "";
-  let rows = db.prepare("SELECT * FROM products ORDER BY id").all();
+  let rows = (await (db.prepare("SELECT * FROM products ORDER BY id").all()));
   let items = rows.map(rowProduct);
   if (sub) items = items.filter((p) => p.subcategory === sub);
   if (q) items = items.filter((p) => (p.name + " " + (p.series ?? "")).toLowerCase().includes(q));
   res.json({ total: items.length, items });
 }));
 
-app.get("/api/products/overrides", wrap((req, res) => {
+app.get("/api/products/overrides", wrap(async (req, res) => {
   const since = req.query.since ? Date.parse(req.query.since) : 0;
-  const items = db
+  const items = (await (db
     .prepare("SELECT id, price, in_stock, updated_at FROM products WHERE datetime(updated_at) > datetime(?)")
-    .all(new Date(since).toISOString())
+    .all(new Date(since).toISOString())))
     .map((r) => ({ id: r.id, price: r.price, inStock: !!r.in_stock, updatedAt: r.updated_at }));
   res.json({ serverTime: now(), items });
 }));
 
-app.get("/api/products/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id);
+app.get("/api/products/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   res.json(rowProduct(r));
 }));
 
-app.patch("/api/products/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id);
+app.patch("/api/products/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const { price, inStock, stockQty } = req.body ?? {};
   const json = JSON.parse(r.json);
   if (typeof price === "number" && price > 0) json.price = price;
   if (typeof inStock === "boolean") json.inStock = inStock;
-  db.prepare("UPDATE products SET json=?, price=?, in_stock=?, stock_qty=?, updated_at=? WHERE id=?").run(
+  (await (db.prepare("UPDATE products SET json=?, price=?, in_stock=?, stock_qty=?, updated_at=? WHERE id=?").run(
     JSON.stringify(json),
     json.price,
     json.inStock ? 1 : 0,
     typeof stockQty === "number" ? stockQty : r.stock_qty,
     now(),
     req.params.id
-  );
-  const out = rowProduct(db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id));
+  )));
+  const out = rowProduct((await (db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id))));
   res.json(out);
 }));
 
-app.get("/api/materials", wrap((req, res) => res.json(db.prepare("SELECT json FROM materials").all().map((r) => JSON.parse(r.json)))));
-app.get("/api/services", wrap((req, res) => res.json(db.prepare("SELECT json FROM services").all().map((r) => JSON.parse(r.json)))));
+app.get("/api/materials", wrap(async (req, res) => res.json((await (db.prepare("SELECT json FROM materials").all())).map((r) => JSON.parse(r.json)))));
+app.get("/api/services", wrap(async (req, res) => res.json((await (db.prepare("SELECT json FROM services").all())).map((r) => JSON.parse(r.json)))));
 
 /* Quotes — storefront submits, dashboard works the pipeline */
-app.get("/api/quotes", wrap((req, res) => {
-  let rows = db.prepare("SELECT * FROM quotes ORDER BY datetime(created_at) DESC").all();
+app.get("/api/quotes", wrap(async (req, res) => {
+  let rows = (await (db.prepare("SELECT * FROM quotes ORDER BY datetime(created_at) DESC").all()));
   if (req.query.status) rows = rows.filter((r) => r.status === req.query.status);
   res.json({ total: rows.length, items: rows.map(rowQuote) });
 }));
-app.post("/api/quotes", wrapTx((req, res) => {
+app.post("/api/quotes", wrapTx(async (req, res) => {
   const { customer, contact, items = [], total, note, source = "storefront" } = req.body ?? {};
   if (!customer || !items.length) return res.status(400).json({ error: "customer and items are required" });
-  const ref = req.body.ref || nextRef("quotes", "Q-", 2295);
+  const ref = req.body.ref || (await (nextRef("quotes", "Q-", 2295)));
   const sum = typeof total === "number" ? total : items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
   const t = now();
-  const info = db.prepare("INSERT INTO quotes(ref,customer,contact,items,total,status,source,note,audit,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+  const info = (await (db.prepare("INSERT INTO quotes(ref,customer,contact,items,total,status,source,note,audit,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
     .run(ref, customer, contact ?? null, JSON.stringify(items), sum, "Draft", source, note ?? null,
-      JSON.stringify([{ who: source === "storefront" ? customer : "You", action: "requested quotation via " + source, time: t }]), t, t);
-  const qLed = rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid));
-  { const m = matchOrCreateClient({ name: customer, contact: contact ?? note, source }); linkClient(m.client.id, "quote", qLed.id); }
+      JSON.stringify([{ who: source === "storefront" ? customer : "You", action: "requested quotation via " + source, time: t }]), t, t)));
+  const qLed = rowQuote((await (db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid))));
+  { const m = (await (matchOrCreateClient({ name: customer, contact: contact ?? note, source }))); (await (linkClient(m.client.id, "quote", qLed.id))); }
   emit("quotes", { title: "Quotation " + ref + " requested", who: "Storefront" }); res.status(201).json(qLed);
 }));
-app.patch("/api/quotes/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+app.patch("/api/quotes/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const { status, note, customer, contact } = req.body ?? {};
   const audit = JSON.parse(r.audit || "[]");
   if (status) audit.unshift({ who: req.actor ?? "You", action: "moved to " + status, time: now() });
   if (note) audit.unshift({ who: req.actor ?? "You", action: "noted: " + note, time: now() });
-  db.prepare("UPDATE quotes SET status=?, note=?, customer=?, contact=?, audit=?, updated_at=? WHERE id=?").run(
+  (await (db.prepare("UPDATE quotes SET status=?, note=?, customer=?, contact=?, audit=?, updated_at=? WHERE id=?").run(
     status ?? r.status, note ?? r.note, customer ?? r.customer, contact ?? r.contact, JSON.stringify(audit), now(), r.id
-  );
-  const out = rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(r.id));
-  if (status === "Sent") db.prepare("INSERT INTO tasks(quote_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
-    .run(r.id, "Follow up on quote " + r.ref + " (" + r.customer + ")", new Date(Date.now() + 864e5 * 3).toISOString().slice(0, 10), "normal", now(), now());
+  )));
+  const out = rowQuote((await (db.prepare("SELECT * FROM quotes WHERE id=?").get(r.id))));
+  if (status === "Sent") (await (db.prepare("INSERT INTO tasks(quote_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+    .run(r.id, "Follow up on quote " + r.ref + " (" + r.customer + ")", new Date(Date.now() + 864e5 * 3).toISOString().slice(0, 10), "normal", now(), now())));
   if (status) emit("quotes", { title: "Quotation " + r.ref + " → " + status, who: req.actor ?? "Sales" });
   res.json(out);
 }));
 
 /* Leads — contact form → CRM */
-app.get("/api/leads", wrap((req, res) => {
-  let rows = db.prepare("SELECT * FROM leads ORDER BY datetime(created_at) DESC").all();
+app.get("/api/leads", wrap(async (req, res) => {
+  let rows = (await (db.prepare("SELECT * FROM leads ORDER BY datetime(created_at) DESC").all()));
   const fs = String(req.query.status ?? "").trim();
   if (fs) rows = rows.filter((r) => String(r.status).toLowerCase() === fs.toLowerCase());
   const fq = String(req.query.q ?? "").trim().toLowerCase();
   if (fq) rows = rows.filter((r) => [r.name, r.company, r.interest, r.contact, r.ref].some((v) => String(v ?? "").toLowerCase().includes(fq)));
-  const items = rows.map((r) => { const l = rowLead(r); const sc = scoreLead(l);
-    const link = db.prepare("SELECT client_id c FROM client_links WHERE entity='lead' AND entity_id=?").get(l.id);
-    return { ...l, score: sc.score, scoreWhy: sc.why, clientId: link?.c ?? null }; });
+  const items = (await Promise.all(rows.map(async (r) => { const l = rowLead(r); const sc = (await (scoreLead(l)));
+    const link = (await (db.prepare("SELECT client_id c FROM client_links WHERE entity='lead' AND entity_id=?").get(l.id)));
+    return { ...l, score: sc.score, scoreWhy: sc.why, clientId: link?.c ?? null }; })));
   res.json({ total: rows.length, items });
 }));
 /* ---- P10 omnichannel: per-client conversations, threads, WhatsApp handoff ---- */
@@ -444,86 +444,86 @@ const INBOX_TEMPLATES = [
   { id: "delivery-update", label: "Delivery update", body: "Hi {{name}}, good news - your order is packed and our team will call before arrival. - Woodex" },
 ];
 const waPhone = (phone) => { const d = String(phone ?? "").replace(/\D/g, ""); if (d.length < 10) return null; return d.startsWith("92") ? d : "92" + d.slice(-10); };
-const ensureConv = (clientId) => {
-  let c = db.prepare("SELECT * FROM conversations WHERE client_id=?").get(clientId);
-  if (!c) { const t = now(); db.prepare("INSERT INTO conversations(client_id,created_at,updated_at,last_at) VALUES(?,?,?,?)").run(clientId, t, t, t); c = db.prepare("SELECT * FROM conversations WHERE client_id=?").get(clientId); }
+const ensureConv = async (clientId) => {
+  let c = (await (db.prepare("SELECT * FROM conversations WHERE client_id=?").get(clientId)));
+  if (!c) { const t = now(); (await (db.prepare("INSERT INTO conversations(client_id,created_at,updated_at,last_at) VALUES(?,?,?,?)").run(clientId, t, t, t))); c = (await (db.prepare("SELECT * FROM conversations WHERE client_id=?").get(clientId))); }
   return c;
 };
-const appendMsg = (convId, { channel = "note", direction = "outbound", author = "You", body, meta = null }) => {
+const appendMsg = async (convId, { channel = "note", direction = "outbound", author = "You", body, meta = null }) => {
   const t = now();
-  const info = db.prepare("INSERT INTO messages(conversation_id,channel,direction,author,body,meta,created_at) VALUES(?,?,?,?,?,?,?)")
-    .run(convId, channel, direction, String(author).slice(0, 40), String(body).slice(0, 4000), meta ? JSON.stringify(meta) : null, t);
-  db.prepare("UPDATE conversations SET last_at=?, updated_at=?, unread=unread+?, status=CASE WHEN ?='inbound' THEN 'open' ELSE status END WHERE id=?")
-    .run(t, t, direction === "inbound" ? 1 : 0, direction, convId);
-  return db.prepare("SELECT * FROM messages WHERE id=?").get(info.lastInsertRowid);
+  const info = (await (db.prepare("INSERT INTO messages(conversation_id,channel,direction,author,body,meta,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(convId, channel, direction, String(author).slice(0, 40), String(body).slice(0, 4000), meta ? JSON.stringify(meta) : null, t)));
+  (await (db.prepare("UPDATE conversations SET last_at=?, updated_at=?, unread=unread+?, status=CASE WHEN ?='inbound' THEN 'open' ELSE status END WHERE id=?")
+    .run(t, t, direction === "inbound" ? 1 : 0, direction, convId)));
+  return (await (db.prepare("SELECT * FROM messages WHERE id=?").get(info.lastInsertRowid)));
 };
 const rowMsg = (m) => ({ id: m.id, channel: m.channel, direction: m.direction, author: m.author, body: m.body, createdAt: m.created_at, meta: m.meta ? JSON.parse(m.meta) : null });
-const resolveTemplate = (tpl, clientId) => {
-  const cl = db.prepare("SELECT * FROM clients WHERE id=?").get(clientId) ?? {};
-  const ref = db.prepare("SELECT l.ref FROM client_links x JOIN leads l ON l.id=x.entity_id WHERE x.client_id=? AND x.entity='lead' ORDER BY l.id DESC LIMIT 1").get(clientId)?.ref
-    ?? db.prepare("SELECT q.ref FROM client_links x JOIN quotes q ON q.id=x.entity_id WHERE x.client_id=? AND x.entity='quote' ORDER BY q.id DESC LIMIT 1").get(clientId)?.ref ?? "your inquiry";
+const resolveTemplate = async (tpl, clientId) => {
+  const cl = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(clientId))) ?? {};
+  const ref = (await (db.prepare("SELECT l.ref FROM client_links x JOIN leads l ON l.id=x.entity_id WHERE x.client_id=? AND x.entity='lead' ORDER BY l.id DESC LIMIT 1").get(clientId)))?.ref
+    ?? (await (db.prepare("SELECT q.ref FROM client_links x JOIN quotes q ON q.id=x.entity_id WHERE x.client_id=? AND x.entity='quote' ORDER BY q.id DESC LIMIT 1").get(clientId)))?.ref ?? "your inquiry";
   return tpl.body.replaceAll("{{name}}", cl.name ?? "there").replaceAll("{{ref}}", ref);
 };
 const touchInbox = (extra = {}) => emit("inbox", extra);
-app.post("/api/leads", wrapTx((req, res) => {
+app.post("/api/leads", wrapTx(async (req, res) => {
   const { name, company, interest, source = "Website", contact, note } = req.body ?? {};
   if (!name) return res.status(400).json({ error: "name is required" });
   const t = now();
-  const ref = nextRef("leads", "L-", 1100);
-  const info = db.prepare("INSERT INTO leads(ref,name,company,interest,source,contact,status,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-    .run(ref, name, company ?? null, interest ?? "General inquiry", source, contact ?? null, "New", note ?? null, t, t);
-  const led = rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid));
-  const m = matchOrCreateClient({ name, company, contact, source, note });
-  linkClient(m.client.id, "lead", led.id);
-  { const conv = ensureConv(m.client.id);
-    appendMsg(conv.id, { channel: "system", direction: "system", author: "System", body: `New ${source} lead ${led.ref}: "${interest}"${contact ? " · " + contact : ""} — follow up within 24h.` });
-    db.prepare("UPDATE conversations SET unread=unread+1 WHERE id=?").run(conv.id); touchInbox({ clientId: m.client.id }); }
+  const ref = (await (nextRef("leads", "L-", 1100)));
+  const info = (await (db.prepare("INSERT INTO leads(ref,name,company,interest,source,contact,status,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+    .run(ref, name, company ?? null, interest ?? "General inquiry", source, contact ?? null, "New", note ?? null, t, t)));
+  const led = rowLead((await (db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid))));
+  const m = (await (matchOrCreateClient({ name, company, contact, source, note })));
+  (await (linkClient(m.client.id, "lead", led.id)));
+  { const conv = (await (ensureConv(m.client.id)));
+    (await (appendMsg(conv.id, { channel: "system", direction: "system", author: "System", body: `New ${source} lead ${led.ref}: "${interest}"${contact ? " · " + contact : ""} — follow up within 24h.` })));
+    (await (db.prepare("UPDATE conversations SET unread=unread+1 WHERE id=?").run(conv.id))); touchInbox({ clientId: m.client.id }); }
   emit("leads", { title: "New lead " + led.ref + (m.created ? " + client record" : ""), who: "CRM", context: (interest ?? "").slice(0, 24) }); // TODO-7: no PII on public SSE
   emit("clients", { title: (m.created ? "Client record created" : "Client matched"), who: "CRM" });
   res.status(201).json({ ...led, clientId: m.client.id });
 }));
-app.patch("/api/leads/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM leads WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+app.patch("/api/leads/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM leads WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const { status, owner } = req.body ?? {};
-  db.prepare("UPDATE leads SET status=?, owner=?, updated_at=? WHERE id=?").run(status ?? r.status, owner ?? r.owner, now(), r.id);
-  const leadOut = rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(r.id));
+  (await (db.prepare("UPDATE leads SET status=?, owner=?, updated_at=? WHERE id=?").run(status ?? r.status, owner ?? r.owner, now(), r.id)));
+  const leadOut = rowLead((await (db.prepare("SELECT * FROM leads WHERE id=?").get(r.id))));
   emit("leads", { title: "Lead " + r.ref + " → " + (req.body?.status ?? r.status), who: req.actor ?? "CRM" });
   res.json(leadOut);
 }));
 
 /* Orders — checkout → operations */
-app.get("/api/orders", wrap((req, res) => {
-  res.json({ total: 0, items: db.prepare("SELECT * FROM orders ORDER BY datetime(created_at) DESC").all().map(rowOrder) });
+app.get("/api/orders", wrap(async (req, res) => {
+  res.json({ total: 0, items: (await (db.prepare("SELECT * FROM orders ORDER BY datetime(created_at) DESC").all())).map(rowOrder) });
 }));
-app.post("/api/orders", wrapTx((req, res) => {
+app.post("/api/orders", wrapTx(async (req, res) => {
   const { customer, items = [], total, source } = req.body ?? {};
   if (!customer || !items.length) return res.status(400).json({ error: "customer and items are required" });
   const t = now();
   const sum = typeof total === "number" ? total : items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
-  const ref = nextRef("orders", "WX-", 4300);
-  const info = db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+  const ref = (await (nextRef("orders", "WX-", 4300)));
+  const info = (await (db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
     .run(ref, customer, JSON.stringify(items), sum,
-      "Pending", "production", source || "Showroom", "TBD", t, t);
-  const oLed = rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid));
-  { const m = matchOrCreateClient({ name: customer, contact: req.body?.contact, source: "checkout" }); linkClient(m.client.id, "order", oLed.id);
-    db.prepare("INSERT INTO invoices(ref,order_id,customer,items,subtotal,total,status,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-      .run("INV-26-" + (1100 + db.prepare("SELECT COUNT(*) n FROM invoices").get().n), oLed.id, customer, oLed.items ? JSON.stringify(oLed.items) : "[]",
-        oLed.total, Math.round(oLed.total * 1.05), "Issued", new Date(Date.now() + 864e5 * 7).toISOString().slice(0, 10), t, t);
-    const invRow = db.prepare("SELECT id FROM invoices WHERE order_id=?").get(oLed.id);
-    if (invRow) linkClient(m.client.id, "invoice", invRow.id);
-    db.prepare("INSERT OR IGNORE INTO tasks(client_id,order_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
-      .run(m.client.id, oLed.id, "Collect 50% advance before production — " + ref, new Date(Date.now() + 864e5 * 2).toISOString().slice(0, 10), "high", t, t); }
+      "Pending", "production", source || "Showroom", "TBD", t, t)));
+  const oLed = rowOrder((await (db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid))));
+  { const m = (await (matchOrCreateClient({ name: customer, contact: req.body?.contact, source: "checkout" }))); (await (linkClient(m.client.id, "order", oLed.id)));
+    (await (db.prepare("INSERT INTO invoices(ref,order_id,customer,items,subtotal,total,status,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+      .run("INV-26-" + (1100 + (await (db.prepare("SELECT COUNT(*) n FROM invoices").get())).n), oLed.id, customer, oLed.items ? JSON.stringify(oLed.items) : "[]",
+        oLed.total, Math.round(oLed.total * 1.05), "Issued", new Date(Date.now() + 864e5 * 7).toISOString().slice(0, 10), t, t)));
+    const invRow = (await (db.prepare("SELECT id FROM invoices WHERE order_id=?").get(oLed.id)));
+    if (invRow) (await (linkClient(m.client.id, "invoice", invRow.id)));
+    (await (db.prepare("INSERT OR IGNORE INTO tasks(client_id,order_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+      .run(m.client.id, oLed.id, "Collect 50% advance before production — " + ref, new Date(Date.now() + 864e5 * 2).toISOString().slice(0, 10), "high", t, t))); }
   emit("orders", { title: "Order " + ref + " placed · invoice issued", who: "Checkout" }); res.status(201).json(oLed);
 }));
-app.patch("/api/orders/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+app.patch("/api/orders/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const { status, stage, owner, due } = req.body ?? {};
-  db.prepare("UPDATE orders SET status=?, stage=?, owner=?, due=?, updated_at=? WHERE id=?").run(
+  (await (db.prepare("UPDATE orders SET status=?, stage=?, owner=?, due=?, updated_at=? WHERE id=?").run(
     status ?? r.status, stage ?? r.stage, owner ?? r.owner, due ?? r.due, now(), r.id
-  );
-  const oOut = rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(r.id));
+  )));
+  const oOut = rowOrder((await (db.prepare("SELECT * FROM orders WHERE id=?").get(r.id))));
   if (req.body?.stage || req.body?.status) emit("orders", { title: "Order " + r.ref + " → " + (req.body?.stage ? req.body.stage + " · " : "") + (req.body?.status ?? r.status), who: req.actor ?? "Ops" });
   res.json(oOut);
 }));
@@ -535,16 +535,16 @@ const normPhone = (v) => (digits(v).slice(-10) || null);
 const normEmail = (v) => { const m = String(v ?? "").match(/[\w.+-]+@[\w-]+\.[\w.]+/); return m ? m[0].toLowerCase() : null; };
 const rowClientLite = (c) => ({ id: c.id, name: c.name, company: c.company, email: c.email, phone: c.phone, city: c.city,
   tags: JSON.parse(c.tags || "[]"), notes: c.notes, source: c.source, createdAt: c.created_at, updatedAt: c.updated_at });
-const linkIds = (clientId, entity) => db.prepare("SELECT entity_id id FROM client_links WHERE client_id=? AND entity=?").all(clientId, entity).map((r) => r.id);
+const linkIds = async (clientId, entity) => (await (db.prepare("SELECT entity_id id FROM client_links WHERE client_id=? AND entity=?").all(clientId, entity))).map((r) => r.id);
 const inList = (ids) => (ids.length ? `(${ids.join(",")})` : "(0)");
 
-function scoreLead(l) {
+async function scoreLead(l) {
   let score = 20; const why = ["base engagement score"];
   const srcBonus = { Referral: 25, "Walk-in": 20, Website: 12, "Website Form": 12, Instagram: 12, Ecommerce: 12, "Contact Form": 10, Campaign: 10, "Cold Outreach": 4 }[l.source] ?? 6;
   score += srcBonus; why.push(l.source + " source +" + srcBonus);
-  const q = db.prepare("SELECT COUNT(*) n FROM quotes WHERE contact=? OR customer=?").get(l.contact ?? "", l.name)?.n ?? 0;
+  const q = (await (db.prepare("SELECT COUNT(*) n FROM quotes WHERE contact=? OR customer=?").get(l.contact ?? "", l.name)))?.n ?? 0;
   if (q) { score += 20; why.push("has " + q + " quote" + (q > 1 ? "s" : "") + " +20"); }
-  const o = db.prepare("SELECT COUNT(*) n FROM orders WHERE customer=?").get(l.name)?.n ?? 0;
+  const o = (await (db.prepare("SELECT COUNT(*) n FROM orders WHERE customer=?").get(l.name)))?.n ?? 0;
   if (o) { score += 30; why.push("repeat buyer / live order +30"); }
   if (l.contact && /@/.test(l.contact) && digits(l.contact).length > 6) { score += 10; why.push("full contact +10"); }
   const days = (Date.now() - Date.parse(l.updatedAt ?? l.createdAt)) / 864e5;
@@ -555,20 +555,20 @@ function scoreLead(l) {
 }
 
 /** identity resolution: phone OR email match — never silently merge conflicts */
-function matchOrCreateClient({ name, company, contact, source, note }) {
+async function matchOrCreateClient({ name, company, contact, source, note }) {
   const email = normEmail(contact), phone = normPhone(contact);
   let where = [];
   if (email) where.push("email_norm=" + db2s(email));
   if (phone) where.push("phone_norm=" + db2s(phone));
   where.push("lower(name)=" + db2s(String(name ?? "").toLowerCase().trim()));
   const sql = "SELECT * FROM clients WHERE merged_into IS NULL AND (" + where.join(" OR ") + ") ORDER BY id LIMIT 2";
-  const hits = db.prepare(sql).all();
+  const hits = (await (db.prepare(sql).all()));
   const t = now();
   if (hits.length === 0) {
-    const info = db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+    const info = (await (db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
       .run(name ?? "Unknown", company ?? null, email ? String(contact).match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] : null, email, phone,
-        "[]", note ? String(note).slice(0, 400) : null, source ?? "manual", t, t);
-    return { client: db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid), created: true };
+        phone, "[]", note ? String(note).slice(0, 400) : null, source ?? "manual", t, t)));
+    return { client: (await (db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid))), created: true };
   }
   const c = hits[0];
   const patch = {};
@@ -576,33 +576,33 @@ function matchOrCreateClient({ name, company, contact, source, note }) {
   if (phone && !c.phone_norm) { patch.phone = phone; patch.phone_norm = phone; }
   if (company && !c.company) patch.company = company;
   if (Object.keys(patch).length) {
-    db.prepare("UPDATE clients SET " + Object.keys(patch).map((k) => k + "=?").join(",") + ", updated_at=? WHERE id=?")
-      .run(...Object.values(patch), t, c.id);
+    (await (db.prepare("UPDATE clients SET " + Object.keys(patch).map((k) => k + "=?").join(",") + ", updated_at=? WHERE id=?")
+      .run(...Object.values(patch), t, c.id)));
   }
-  return { client: db.prepare("SELECT * FROM clients WHERE id=?").get(c.id), created: false };
+  return { client: (await (db.prepare("SELECT * FROM clients WHERE id=?").get(c.id))), created: false };
 }
 const db2s = (v) => "'" + String(v).replace(/'/g, "''") + "'";
-const linkClient = (clientId, entity, entityId) =>
-  db.prepare("INSERT OR IGNORE INTO client_links(client_id,entity,entity_id) VALUES(?,?,?)").run(clientId, entity, entityId);
+const linkClient = async (clientId, entity, entityId) =>
+  (await (db.prepare("INSERT OR IGNORE INTO client_links(client_id,entity,entity_id) VALUES(?,?,?)").run(clientId, entity, entityId)));
 
-function clientTimeline(clientId) {
+async function clientTimeline(clientId) {
   const ev = [];
-  for (const id of linkIds(clientId, "lead")) { const r = db.prepare("SELECT * FROM leads WHERE id=?").get(id); if (r) ev.push({ kind: "lead", ref: r.ref, label: "Lead · " + (r.interest ?? "inquiry"), status: r.status, time: r.created_at }); }
-  for (const id of linkIds(clientId, "quote")) { const r = db.prepare("SELECT * FROM quotes WHERE id=?").get(id); if (r) ev.push({ kind: "quote", ref: r.ref, label: "Quotation " + r.ref, status: r.status, value: r.total, time: r.created_at }); }
-  for (const id of linkIds(clientId, "order")) { const r = db.prepare("SELECT * FROM orders WHERE id=?").get(id); if (r) ev.push({ kind: "order", ref: r.ref, label: "Order " + r.ref, status: r.status + " · " + r.stage, value: r.total, time: r.created_at }); }
-  for (const id of linkIds(clientId, "invoice")) { const r = db.prepare("SELECT * FROM invoices WHERE id=?").get(id); if (r) ev.push({ kind: "invoice", ref: r.ref, label: "Invoice " + r.ref, status: r.status, value: r.total, paid: r.paid, time: r.created_at }); }
-  for (const id of linkIds(clientId, "return")) { const r = db.prepare("SELECT * FROM returns WHERE id=?").get(id); if (r) ev.push({ kind: "return", ref: r.ref, label: "Return " + r.ref, status: r.state, time: r.created_at }); }
+  for (const id of (await (linkIds(clientId, "lead")))) { const r = (await (db.prepare("SELECT * FROM leads WHERE id=?").get(id))); if (r) ev.push({ kind: "lead", ref: r.ref, label: "Lead · " + (r.interest ?? "inquiry"), status: r.status, time: r.created_at }); }
+  for (const id of (await (linkIds(clientId, "quote")))) { const r = (await (db.prepare("SELECT * FROM quotes WHERE id=?").get(id))); if (r) ev.push({ kind: "quote", ref: r.ref, label: "Quotation " + r.ref, status: r.status, value: r.total, time: r.created_at }); }
+  for (const id of (await (linkIds(clientId, "order")))) { const r = (await (db.prepare("SELECT * FROM orders WHERE id=?").get(id))); if (r) ev.push({ kind: "order", ref: r.ref, label: "Order " + r.ref, status: r.status + " · " + r.stage, value: r.total, time: r.created_at }); }
+  for (const id of (await (linkIds(clientId, "invoice")))) { const r = (await (db.prepare("SELECT * FROM invoices WHERE id=?").get(id))); if (r) ev.push({ kind: "invoice", ref: r.ref, label: "Invoice " + r.ref, status: r.status, value: r.total, paid: r.paid, time: r.created_at }); }
+  for (const id of (await (linkIds(clientId, "return")))) { const r = (await (db.prepare("SELECT * FROM returns WHERE id=?").get(id))); if (r) ev.push({ kind: "return", ref: r.ref, label: "Return " + r.ref, status: r.state, time: r.created_at }); }
   return ev.sort((a, b) => Date.parse(b.time ?? 0) - Date.parse(a.time ?? 0)).slice(0, 30);
 }
 
-function clientFull(c) {
-  const orders = linkIds(c.id, "order").map((id) => db.prepare("SELECT * FROM orders WHERE id=?").get(id)).filter(Boolean);
-  const quotes = linkIds(c.id, "quote").map((id) => db.prepare("SELECT * FROM quotes WHERE id=?").get(id)).filter(Boolean);
-  const invoices = linkIds(c.id, "invoice").map((id) => db.prepare("SELECT * FROM invoices WHERE id=?").get(id)).filter(Boolean);
+async function clientFull(c) {
+  const orders = (await Promise.all((await (linkIds(c.id, "order"))).map(async (id) => (await (db.prepare("SELECT * FROM orders WHERE id=?").get(id)))))).filter(Boolean);
+  const quotes = (await Promise.all((await (linkIds(c.id, "quote"))).map(async (id) => (await (db.prepare("SELECT * FROM quotes WHERE id=?").get(id)))))).filter(Boolean);
+  const invoices = (await Promise.all((await (linkIds(c.id, "invoice"))).map(async (id) => (await (db.prepare("SELECT * FROM invoices WHERE id=?").get(id)))))).filter(Boolean);
   const lifetime = orders.reduce((n, o) => n + o.total, 0);
   const outstanding = invoices.reduce((n, i) => n + Math.max(0, i.total - i.paid), 0);
-  const tl = clientTimeline(c.id);
-  const tasks = db.prepare("SELECT * FROM tasks WHERE client_id=? ORDER BY done ASC, datetime(COALESCE(due,'9999')) ASC").all(c.id).map(rowTask);
+  const tl = (await (clientTimeline(c.id)));
+  const tasks = (await (db.prepare("SELECT * FROM tasks WHERE client_id=? ORDER BY done ASC, datetime(COALESCE(due,'9999')) ASC").all(c.id))).map(rowTask);
   return { ...rowClientLite(c), lifetime, outstanding, quotes: quotes.length, orders: orders.length,
     openBalance: outstanding, lastActivity: tl[0]?.time ?? c.updated_at, timeline: tl, tasks };
 }
@@ -612,7 +612,7 @@ const rowTask = (r) => ({ id: r.id, clientId: r.client_id, leadId: r.lead_id, qu
 /* ---- auth endpoints + team management ---- */
 const rowUserLite = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, active: !!u.active, updatedAt: u.updated_at });
 const ipMisses = new Map(); // TODO-5: 30 failed logins/min/IP backstop (successes never count)
-app.post("/api/auth/login", wrap((req, res) => {
+app.post("/api/auth/login", wrap(async (req, res) => {
   const raw = String(req.body?.email ?? req.body?.username ?? "").trim().toLowerCase();
   const email = raw.includes("@") ? raw : raw + "@woodex.pk"; // username or full email both work
   const pw = String(req.body?.password ?? "");
@@ -621,7 +621,7 @@ app.post("/api/auth/login", wrap((req, res) => {
   const ipk = req.ip ?? "local"; const ipb = ipMisses.get(ipk) ?? { n: 0, t: Date.now() };
   if (Date.now() - ipb.t > 60_000) { ipb.n = 0; ipb.t = Date.now(); }
   if (rl.n >= 5 || ipb.n >= 30) { res.set("retry-after", "60"); return res.status(429).json({ error: "too many attempts — wait a minute" }); }
-  const u = db.prepare("SELECT * FROM users WHERE email=?").get(email);
+  const u = (await (db.prepare("SELECT * FROM users WHERE email=?").get(email)));
   const guess = u ? hashPass(pw, u.pass_salt) : hashPass("x", "00");
   if (!u || !crypto.timingSafeEqual(Buffer.from(guess.hash, "hex"), Buffer.from(u.pass_hash, "hex"))) {
     rl.n += 1; loginBucket.set(email, rl);
@@ -632,50 +632,50 @@ app.post("/api/auth/login", wrap((req, res) => {
   loginBucket.delete(email);
   const token = crypto.randomBytes(32).toString("hex");
   const t = now();
-  db.prepare("INSERT INTO sessions(token,user_id,created_at,expires_at) VALUES(?,?,?,?)").run(token, u.id, t, new Date(Date.now() + 7 * 864e5).toISOString());
+  (await (db.prepare("INSERT INTO sessions(token,user_id,created_at,expires_at) VALUES(?,?,?,?)").run(token, u.id, t, new Date(Date.now() + 7 * 864e5).toISOString())));
   emit("users", { title: u.name + " signed in", who: u.name });
   res.json({ token, user: rowUserLite(u), caps: ROLE_CAPS[u.role], roles: ROLES });
 }));
 app.get("/api/auth/me", wrap((req, res) => res.json({ user: rowUserLite(req.user), caps: ROLE_CAPS[req.user.role], roles: ROLES })));
-app.post("/api/auth/logout", wrap((req, res) => {
+app.post("/api/auth/logout", wrap(async (req, res) => {
   const auth = String(req.headers.authorization ?? "");
-  if (auth.startsWith("Bearer ")) db.prepare("DELETE FROM sessions WHERE token=?").run(auth.slice(7));
+  if (auth.startsWith("Bearer ")) (await (db.prepare("DELETE FROM sessions WHERE token=?").run(auth.slice(7))));
   res.json({ ok: true });
 }));
-app.get("/api/users", wrap((req, res) => res.json({ items: db.prepare("SELECT * FROM users ORDER BY id").all().map(rowUserLite), roles: ROLES, caps: ROLE_CAPS })));
-app.post("/api/users", wrap((req, res) => {
+app.get("/api/users", wrap(async (req, res) => res.json({ items: (await (db.prepare("SELECT * FROM users ORDER BY id").all())).map(rowUserLite), roles: ROLES, caps: ROLE_CAPS })));
+app.post("/api/users", wrap(async (req, res) => {
   const { email, name, role, password } = req.body ?? {};
   const em = String(email ?? "").trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(em)) return res.status(400).json({ error: "valid email required" });
   if (!name || String(name).length > 60) return res.status(400).json({ error: "name required (≤60)" });
   if (!ROLES.includes(role)) return res.status(400).json({ error: "role must be " + ROLES.join("|") });
   if (String(password ?? "").length < 6) return res.status(400).json({ error: "password ≥6 chars" });
-  if (db.prepare("SELECT id FROM users WHERE email=?").get(em)) return res.status(409).json({ error: "email exists" });
+  if ((await (db.prepare("SELECT id FROM users WHERE email=?").get(em)))) return res.status(409).json({ error: "email exists" });
   const { salt, hash } = hashPass(password);
   const t = now();
-  const info = db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run(em, String(name), role, salt, hash, t, t);
+  const info = (await (db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run(em, String(name), role, salt, hash, t, t)));
   emit("users", { title: "Team member added: " + name, who: req.actor });
-  res.status(201).json(rowUserLite(db.prepare("SELECT * FROM users WHERE id=?").get(info.lastInsertRowid)));
+  res.status(201).json(rowUserLite((await (db.prepare("SELECT * FROM users WHERE id=?").get(info.lastInsertRowid)))));
 }));
-app.patch("/api/users/:id", wrap((req, res) => {
-  const u = db.prepare("SELECT * FROM users WHERE id=?").get(req.params.id);
+app.patch("/api/users/:id", wrap(async (req, res) => {
+  const u = (await (db.prepare("SELECT * FROM users WHERE id=?").get(req.params.id)));
   if (!u) return res.status(404).json({ error: "user not found" });
   const { role, active, password, name } = req.body ?? {};
   if (role !== undefined && !ROLES.includes(role)) return res.status(400).json({ error: "bad role" });
   if (u.id === req.user.id && active === false) return res.status(400).json({ error: "can't disable your own account" });
-  if (u.role === "owner" && role !== undefined && role !== "owner" && db.prepare("SELECT COUNT(*) n FROM users WHERE role='owner' AND active=1").get().n <= 1)
+  if (u.role === "owner" && role !== undefined && role !== "owner" && (await (db.prepare("SELECT COUNT(*) n FROM users WHERE role='owner' AND active=1").get())).n <= 1)
     return res.status(400).json({ error: "last active owner stays owner" });
   const t = now();
-  db.prepare("UPDATE users SET role=?, active=?, name=?, updated_at=? WHERE id=?").run(
-    role ?? u.role, active !== undefined ? (active ? 1 : 0) : u.active, name ? String(name).slice(0, 60) : u.name, t, u.id);
+  (await (db.prepare("UPDATE users SET role=?, active=?, name=?, updated_at=? WHERE id=?").run(
+    role ?? u.role, active !== undefined ? (active ? 1 : 0) : u.active, name ? String(name).slice(0, 60) : u.name, t, u.id)));
   if (password !== undefined) {
     if (String(password).length < 6) return res.status(400).json({ error: "password ≥6 chars" });
     const { salt, hash } = hashPass(password);
-    db.prepare("UPDATE users SET pass_salt=?, pass_hash=? WHERE id=?").run(salt, hash, u.id);
+    (await (db.prepare("UPDATE users SET pass_salt=?, pass_hash=? WHERE id=?").run(salt, hash, u.id)));
   }
-  if (active === false || password !== undefined) db.prepare("DELETE FROM sessions WHERE user_id=?").run(u.id);
+  if (active === false || password !== undefined) (await (db.prepare("DELETE FROM sessions WHERE user_id=?").run(u.id)));
   emit("users", { title: "Team update: " + u.name, who: req.actor });
-  res.json(rowUserLite(db.prepare("SELECT * FROM users WHERE id=?").get(u.id)));
+  res.json(rowUserLite((await (db.prepare("SELECT * FROM users WHERE id=?").get(u.id)))));
 }));
 
 /* ---- P3 realtime: Server-Sent Events bus ---- */
@@ -684,89 +684,89 @@ const emit = (type, payload = {}) => {
   const json = JSON.stringify({ type, at: now(), ...payload });
   for (const c of sseClients) { try { c.write(`event: ${type}\ndata: ${json}\n\n`); } catch { sseClients.delete(c); } }
 };
-app.get("/api/clients", wrap((req, res) => {
-  let rows = db.prepare("SELECT * FROM clients WHERE merged_into IS NULL ORDER BY datetime(updated_at) DESC").all();
+app.get("/api/clients", wrap(async (req, res) => {
+  let rows = (await (db.prepare("SELECT * FROM clients WHERE merged_into IS NULL ORDER BY datetime(updated_at) DESC").all()));
   const q = String(req.query.q ?? "").toLowerCase();
   if (q) rows = rows.filter((c) => (c.name + " " + (c.company ?? "") + " " + (c.email ?? "") + " " + (c.phone ?? "")).toLowerCase().includes(q));
-  const items = rows.map((c) => { const f = clientFull(c);
+  const items = (await Promise.all(rows.map(async (c) => { const f = (await (clientFull(c)));
     return { ...rowClientLite(c), lifetime: f.lifetime, outstanding: f.outstanding, quotes: f.quotes, orders: f.orders,
-      lastActivity: f.lastActivity, openTasks: f.tasks.filter((x) => !x.done).length }; });
+      lastActivity: f.lastActivity, openTasks: f.tasks.filter((x) => !x.done).length }; })));
   res.json({ total: items.length, items });
 }));
-app.get("/api/clients/review", wrap((req, res) => {
+app.get("/api/clients/review", wrap(async (req, res) => {
   const pairs = [];
   for (const key of ["email_norm", "phone_norm"]) {
-    const rows = db.prepare(`SELECT ${key} k, COUNT(*) c, GROUP_CONCAT(id) ids FROM clients WHERE merged_into IS NULL AND ${key} IS NOT NULL GROUP BY ${key} HAVING c > 1`).all();
+    const rows = (await (db.prepare(`SELECT ${key} k, COUNT(*) c, GROUP_CONCAT(CAST(id AS TEXT)) ids FROM clients WHERE merged_into IS NULL AND ${key} IS NOT NULL GROUP BY ${key} HAVING COUNT(*) > 1`).all()));
     for (const r of rows) { const ids = r.ids.split(",").map(Number);
       for (let i = 0; i + 1 < ids.length; i++) {
-        const a = db.prepare("SELECT * FROM clients WHERE id=?").get(ids[i]), b = db.prepare("SELECT * FROM clients WHERE id=?").get(ids[i + 1]);
+        const a = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(ids[i]))), b = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(ids[i + 1])));
         pairs.push({ a: rowClientLite(a), b: rowClientLite(b), shared: key === "email_norm" ? "email" : "phone", value: r.k,
           conflict: (a.phone_norm ?? "") !== (b.phone_norm ?? "") && (a.email_norm ?? "") !== (b.email_norm ?? "") ? "other contact differs" : "same " + (key === "email_norm" ? "email" : "phone") });
       } }
   }
   res.json({ total: pairs.length, items: pairs });
 }));
-app.get("/api/clients/:id", wrap((req, res) => {
-  const c = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+app.get("/api/clients/:id", wrap(async (req, res) => {
+  const c = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id)));
   if (!c) return res.status(404).json({ error: "not found" });
-  res.json(clientFull(c));
+  res.json((await (clientFull(c))));
 }));
-app.post("/api/clients", wrapTx((req, res) => {
+app.post("/api/clients", wrapTx(async (req, res) => {
   const b = req.body ?? {}; if (!b.name) return res.status(400).json({ error: "name required" });
   const t = now();
-  const info = db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+  const info = (await (db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
     .run(b.name, b.company ?? null, b.email ?? null, normEmail(b.email), b.phone ?? null, normPhone(b.phone),
-      JSON.stringify(b.tags ?? []), b.notes ?? null, b.source ?? "manual", t, t);
-  const c = db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid);
+      JSON.stringify(b.tags ?? []), b.notes ?? null, b.source ?? "manual", t, t)));
+  const c = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid)));
   emit("clients", { title: "Client added · #" + c.id, who: req.actor ?? "Sales" });
   res.status(201).json(rowClientLite(c));
 }));
-app.patch("/api/clients/:id", wrap((req, res) => {
-  const c = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+app.patch("/api/clients/:id", wrap(async (req, res) => {
+  const c = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id)));
   if (!c) return res.status(404).json({ error: "not found" });
   const b = req.body ?? {};
-  db.prepare("UPDATE clients SET name=?,company=?,email=?,email_norm=?,phone=?,phone_norm=?,city=?,tags=?,notes=?,updated_at=? WHERE id=?")
+  (await (db.prepare("UPDATE clients SET name=?,company=?,email=?,email_norm=?,phone=?,phone_norm=?,city=?,tags=?,notes=?,updated_at=? WHERE id=?")
     .run(b.name ?? c.name, b.company ?? c.company, b.email ?? c.email,
       b.email !== undefined ? normEmail(b.email) : c.email_norm, b.phone ?? c.phone,
       b.phone !== undefined ? normPhone(b.phone) : c.phone_norm, b.city ?? c.city,
-      b.tags ? JSON.stringify(b.tags) : c.tags, b.notes ?? c.notes, now(), c.id);
-  res.json(rowClientLite(db.prepare("SELECT * FROM clients WHERE id=?").get(c.id)));
+      b.tags ? JSON.stringify(b.tags) : c.tags, b.notes ?? c.notes, now(), c.id)));
+  res.json(rowClientLite((await (db.prepare("SELECT * FROM clients WHERE id=?").get(c.id)))));
 }));
-app.post("/api/clients/:id/merge", wrapTx((req, res) => {
-  const into = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
-  const from = db.prepare("SELECT * FROM clients WHERE id=?").get(req.body?.from_id);
+app.post("/api/clients/:id/merge", wrapTx(async (req, res) => {
+  const into = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id)));
+  const from = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.body?.from_id)));
   if (!into || !from) return res.status(404).json({ error: "client pair not found" });
-  db.prepare("UPDATE client_links SET client_id=? WHERE client_id=?").run(into.id, from.id);
+  (await (db.prepare("UPDATE client_links SET client_id=? WHERE client_id=?").run(into.id, from.id)));
   const t = now();
-  db.prepare("UPDATE clients SET merged_into=?, updated_at=? WHERE id=?").run(into.id, t, from.id);
-  db.prepare("UPDATE clients SET email=?, email_norm=?, phone=?, phone_norm=?, company=COALESCE(company,?), notes=TRIM(COALESCE(notes,'')||?) WHERE id=?")
+  (await (db.prepare("UPDATE clients SET merged_into=?, updated_at=? WHERE id=?").run(into.id, t, from.id)));
+  (await (db.prepare("UPDATE clients SET email=?, email_norm=?, phone=?, phone_norm=?, company=COALESCE(company,?), notes=TRIM(COALESCE(notes,'')||?) WHERE id=?")
     .run(into.email ?? from.email, into.email_norm ?? from.email_norm, into.phone ?? from.phone, into.phone_norm ?? from.phone_norm,
-      from.company, from.notes ? " | merged note: " + from.notes : "", into.id);
+      from.company, from.notes ? " | merged note: " + from.notes : "", into.id)));
   emit("clients", { title: "Clients merged → #" + into.id, who: req.actor ?? "Sales" });
-  res.json(clientFull(db.prepare("SELECT * FROM clients WHERE id=?").get(into.id)));
+  res.json((await (clientFull((await (db.prepare("SELECT * FROM clients WHERE id=?").get(into.id)))))));
 }));
-app.get("/api/tasks", wrap((req, res) => {
-  let rows = db.prepare("SELECT * FROM tasks ORDER BY done ASC, datetime(COALESCE(due,'9999')) ASC").all();
+app.get("/api/tasks", wrap(async (req, res) => {
+  let rows = (await (db.prepare("SELECT * FROM tasks ORDER BY done ASC, datetime(COALESCE(due,'9999')) ASC").all()));
   if (req.query.scope === "today") rows = rows.filter((r) => !r.done && (r.due ?? "") <= now().slice(0, 10));
   res.json({ total: rows.length, open: rows.filter((r) => !r.done).length, overdue: rows.filter((r) => !r.done && r.due && r.due < now().slice(0, 10)).length, items: rows.map(rowTask) });
 }));
-app.post("/api/tasks", wrap((req, res) => {
+app.post("/api/tasks", wrap(async (req, res) => {
   const b = req.body ?? {}; if (!b.title) return res.status(400).json({ error: "title required" });
   const t = now();
-  const info = db.prepare("INSERT INTO tasks(client_id,lead_id,quote_id,order_id,title,due,owner,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-    .run(b.client_id ?? null, b.lead_id ?? null, b.quote_id ?? null, b.order_id ?? null, b.title, b.due ?? null, b.owner ?? "You", b.priority ?? "normal", t, t);
-  const out = rowTask(db.prepare("SELECT * FROM tasks WHERE id=?").get(info.lastInsertRowid));
+  const info = (await (db.prepare("INSERT INTO tasks(client_id,lead_id,quote_id,order_id,title,due,owner,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+    .run(b.client_id ?? null, b.lead_id ?? null, b.quote_id ?? null, b.order_id ?? null, b.title, b.due ?? null, b.owner ?? "You", b.priority ?? "normal", t, t)));
+  const out = rowTask((await (db.prepare("SELECT * FROM tasks WHERE id=?").get(info.lastInsertRowid))));
   emit("tasks", { title: "Task added: " + b.title.slice(0, 60), who: b.owner ?? "You" });
   res.status(201).json(out);
 }));
-app.patch("/api/tasks/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM tasks WHERE id=?").get(req.params.id);
+app.patch("/api/tasks/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM tasks WHERE id=?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const b = req.body ?? {};
-  db.prepare("UPDATE tasks SET title=?, due=?, owner=?, priority=?, done=?, updated_at=? WHERE id=?").run(
+  (await (db.prepare("UPDATE tasks SET title=?, due=?, owner=?, priority=?, done=?, updated_at=? WHERE id=?").run(
     b.title ?? r.title, b.due ?? r.due, b.owner ?? r.owner, b.priority ?? r.priority,
-    b.done !== undefined ? (b.done ? 1 : 0) : r.done, now(), r.id);
-  res.json(rowTask(db.prepare("SELECT * FROM tasks WHERE id=?").get(r.id)));
+    b.done !== undefined ? (b.done ? 1 : 0) : r.done, now(), r.id)));
+  res.json(rowTask((await (db.prepare("SELECT * FROM tasks WHERE id=?").get(r.id)))));
 }));
 
 app.get("/api/events", (req, res) => {
@@ -779,15 +779,15 @@ app.get("/api/events", (req, res) => {
 
 /* ---- P6 Theme Engine: site-wide tokens, persisted in meta['site_theme'] ---- */
 const THEME_DEFAULTS = { brand: "#16A34A", darkBrand: null, radius: 4, font: "sans", mode: "light", tintNav: false, announce: null, siteUrl: null };
-const readTheme = () => {
-  const raw = db.prepare("SELECT value FROM meta WHERE key='site_theme'").get();
+const readTheme = async () => {
+  const raw = (await (db.prepare("SELECT value FROM meta WHERE key='site_theme'").get()));
   let saved = {};
   try { saved = raw ? JSON.parse(raw.value) : {}; } catch { /* corrupt row → defaults */ }
   return { ...THEME_DEFAULTS, ...saved };
 };
 const isHex = (v) => /^#[0-9a-f]{6}$/i.test(String(v ?? "").trim());
-app.get("/api/theme", wrap((req, res) => res.json(readTheme())));
-app.put("/api/theme", wrap((req, res) => {
+app.get("/api/theme", wrap(async (req, res) => res.json((await (readTheme())))));
+app.put("/api/theme", wrap(async (req, res) => {
   const b = req.body ?? {};
   const errs = [];
   if (b.brand !== undefined && !isHex(b.brand)) errs.push("brand must be #rrggbb hex");
@@ -805,7 +805,7 @@ app.put("/api/theme", wrap((req, res) => {
     } else errs.push("announce needs text (1–160 chars) or null to clear");
   }
   if (errs.length) return res.status(400).json({ error: [...new Set(errs)].join("; ") });
-  const cur = readTheme();
+  const cur = (await (readTheme()));
   const next = {
     brand: isHex(b.brand ?? cur.brand) ? String(b.brand ?? cur.brand).trim() : cur.brand,
     darkBrand: (b.darkBrand !== undefined ? b.darkBrand : cur.darkBrand) ?? null,
@@ -816,14 +816,14 @@ app.put("/api/theme", wrap((req, res) => {
     announce: announce !== undefined ? announce : (cur.announce ?? null),
     siteUrl: (b.siteUrl !== undefined ? (b.siteUrl ? String(b.siteUrl).trim() : null) : (cur.siteUrl ?? null)) ?? null,
   };
-  db.prepare("INSERT INTO meta(key,value) VALUES('site_theme',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify(next));
+  (await (db.prepare("INSERT INTO meta(key,value) VALUES('site_theme',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify(next))));
   emit("theme", {});
   res.json(next);
 }));
 
 /* ---- P9 marketing: first-party event pixel + analytics + sitemap ---- */
 const TRACK_KINDS = new Set(["view", "cta", "scroll"]);
-app.post("/api/track", wrap((req, res) => {
+app.post("/api/track", wrap(async (req, res) => {
   const b = req.body ?? {};
   const kind = String(b.kind ?? "");
   if (!TRACK_KINDS.has(kind)) return res.status(400).json({ error: "kind must be view|cta|scroll" });
@@ -832,28 +832,28 @@ app.post("/api/track", wrap((req, res) => {
   let pct = null;
   if (kind === "scroll") { pct = Math.round(Number(b.pct)); if (pct !== 50 && pct !== 90) return res.status(400).json({ error: "pct must be 50 or 90" }); }
   const clip = (v, n) => (v == null ? null : String(v).slice(0, n));
-  const page = db.prepare("SELECT id FROM pages WHERE slug=?").get(slug);
-  db.prepare("INSERT INTO track_events(page_id,slug,kind,label,href,cid,ref,utm_source,utm_medium,utm_campaign,pct,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+  const page = (await (db.prepare("SELECT id FROM pages WHERE slug=?").get(slug)));
+  (await (db.prepare("INSERT INTO track_events(page_id,slug,kind,label,href,cid,ref,utm_source,utm_medium,utm_campaign,pct,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
     .run(page?.id ?? null, slug, kind, clip(b.label, 60), clip(b.href, 300), clip(b.cid, 64), clip(b.ref, 300),
-      clip(b.utm?.source, 40), clip(b.utm?.medium, 40), clip(b.utm?.campaign, 60), pct, now());
+      clip(b.utm?.source, 40), clip(b.utm?.medium, 40), clip(b.utm?.campaign, 60), pct, now())));
   emit("track", { slug, kind });
   res.status(201).json({ ok: true });
 }));
 
 const mkSince = (days) => new Date(Date.now() - (days - 1) * 864e5).toISOString().slice(0, 10);
-app.get("/api/marketing/stats", wrap((req, res) => {
+app.get("/api/marketing/stats", wrap(async (req, res) => {
   const days = Math.min(60, Math.max(1, Number(req.query.days) || 14));
   const since = mkSince(days);
   const dayKey = (iso) => String(iso).slice(0, 10);
   const bump = (map, k, f = "c") => { if (k >= since) map[k] = (map[k] ?? 0) + f; };
   const dViews = {}, dCtas = {}, dLeads = {};
-  for (const r of db.prepare("SELECT substr(created_at,1,10) d, kind, COUNT(*) c FROM track_events WHERE kind IN ('view','cta') GROUP BY d, kind").all()) {
+  for (const r of (await (db.prepare("SELECT substr(created_at,1,10) d, kind, COUNT(*) c FROM track_events WHERE kind IN ('view','cta') GROUP BY d, kind").all()))) {
     bump(dViews, r.d, r.kind === "view" ? r.c : 0); bump(dCtas, r.d, r.kind === "cta" ? r.c : 0);
   }
   const leadsSql = "SELECT substr(created_at,1,10) d, COUNT(*) c FROM leads WHERE source LIKE 'Landing:%' GROUP BY d";
   let leadTotals = { c: 0 };
-  for (const r of db.prepare(leadsSql).all()) { if (r.d >= since) { dLeads[r.d] = (dLeads[r.d] ?? 0) + r.c; leadTotals = { c: leadTotals.c + r.c }; } }
-  const totalsRow = db.prepare("SELECT kind, COUNT(*) c, COUNT(DISTINCT CASE WHEN kind='view' THEN cid END) u, MAX(CASE WHEN kind='scroll' AND pct=50 THEN 1 ELSE 0 END) s50 FROM track_events WHERE substr(created_at,1,10)>=? GROUP BY kind").all(since);
+  for (const r of (await (db.prepare(leadsSql).all()))) { if (r.d >= since) { dLeads[r.d] = (dLeads[r.d] ?? 0) + r.c; leadTotals = { c: leadTotals.c + r.c }; } }
+  const totalsRow = (await (db.prepare("SELECT kind, COUNT(*) c, COUNT(DISTINCT CASE WHEN kind='view' THEN cid END) u, MAX(CASE WHEN kind='scroll' AND pct=50 THEN 1 ELSE 0 END) s50 FROM track_events WHERE substr(created_at,1,10)>=? GROUP BY kind").all(since)));
   const g = {}; for (const r of totalsRow) g[r.kind] = r;
   const views = g.view?.c ?? 0, ctas = g.cta?.c ?? 0;
   const daily = [];
@@ -861,88 +861,88 @@ app.get("/api/marketing/stats", wrap((req, res) => {
     const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
     daily.push({ date: d, views: dViews[d] ?? 0, ctas: dCtas[d] ?? 0, leads: dLeads[d] ?? 0 });
   }
-  const pages = db.prepare(`SELECT p.id, p.slug, p.title, p.status,
+  const pages = (await (db.prepare(`SELECT p.id, p.slug, p.title, p.status,
       (SELECT COUNT(*) FROM track_events t WHERE t.page_id=p.id AND t.kind='view') views,
       (SELECT COUNT(*) FROM track_events t WHERE t.page_id=p.id AND t.kind='cta') ctas,
       (SELECT COUNT(DISTINCT t.cid) FROM track_events t WHERE t.page_id=p.id AND t.kind='view') uniques,
       (SELECT COUNT(*) FROM leads l WHERE l.source = 'Landing: ' || p.slug) leads
-    FROM pages p ORDER BY views DESC, p.updated_at DESC`).all();
+    FROM pages p ORDER BY views DESC, p.updated_at DESC`).all()));
   const refs = {};
-  for (const r of db.prepare("SELECT ref, COUNT(*) c FROM track_events WHERE kind='view' GROUP BY ref ORDER BY c DESC LIMIT 16").all()) {
+  for (const r of (await (db.prepare("SELECT ref, COUNT(*) c FROM track_events WHERE kind='view' GROUP BY ref ORDER BY c DESC LIMIT 16").all()))) {
     let host = "direct / typed";
     if (r.ref) { try { host = new URL(r.ref).hostname; } catch { host = "other"; } }
     refs[host] = (refs[host] ?? 0) + r.c;
   }
-  const utms = db.prepare("SELECT utm_source s, utm_medium m, utm_campaign camp, COUNT(*) c FROM track_events WHERE kind='view' AND utm_source IS NOT NULL GROUP BY s, m, camp ORDER BY c DESC LIMIT 8").all();
-  const feed = db.prepare("SELECT slug, kind, label, created_at FROM track_events ORDER BY id DESC LIMIT 12").all();
+  const utms = (await (db.prepare("SELECT utm_source s, utm_medium m, utm_campaign camp, COUNT(*) c FROM track_events WHERE kind='view' AND utm_source IS NOT NULL GROUP BY s, m, camp ORDER BY c DESC LIMIT 8").all()));
+  const feed = (await (db.prepare("SELECT slug, kind, label, created_at FROM track_events ORDER BY id DESC LIMIT 12").all()));
   res.json({ days, since, totals: { views, ctas, unique: g.view?.u ?? 0, scroll50: g.scroll?.c ?? 0,
     ctr: views ? +((ctas / views) * 100).toFixed(1) : 0, leads: leadTotals.c,
     convPct: views ? +((leadTotals.c / views) * 100).toFixed(1) : 0 },
     daily, pages, refs: Object.entries(refs).map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n).slice(0, 8),
     utms, feed });
 }));
-app.get("/api/pages/:key/analytics", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.key, req.params.key);
+app.get("/api/pages/:key/analytics", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.key, req.params.key)));
   if (!r) return res.status(404).json({ error: "page not found" });
   const days = Math.min(60, Math.max(1, Number(req.query.days) || 14));
   const since = mkSince(days);
   const daily = {};
-  for (const x of db.prepare("SELECT substr(created_at,1,10) d, kind, COUNT(*) c FROM track_events WHERE page_id=? GROUP BY d, kind").all(r.id)) {
+  for (const x of (await (db.prepare("SELECT substr(created_at,1,10) d, kind, COUNT(*) c FROM track_events WHERE page_id=? GROUP BY d, kind").all(r.id)))) {
     if (x.d < since) continue;
     (daily[x.d] ??= { date: x.d, views: 0, ctas: 0, scrolls: 0 })[x.kind === "view" ? "views" : x.kind === "cta" ? "ctas" : "scrolls"] += x.c;
   }
-  const topCtas = db.prepare("SELECT COALESCE(label,'(unlabeled)') label, COUNT(*) c FROM track_events WHERE page_id=? AND kind='cta' GROUP BY label ORDER BY c DESC LIMIT 8").all(r.id);
-  const totals = db.prepare("SELECT COUNT(*) c, SUM(kind='view') v, SUM(kind='cta') k FROM track_events WHERE page_id=?").get(r.id);
-  const leads = db.prepare("SELECT COUNT(*) c FROM leads WHERE source = 'Landing: ' || ?").get(r.slug).c;
+  const topCtas = (await (db.prepare("SELECT COALESCE(label,'(unlabeled)') label, COUNT(*) c FROM track_events WHERE page_id=? AND kind='cta' GROUP BY label ORDER BY c DESC LIMIT 8").all(r.id)));
+  const totals = (await (db.prepare("SELECT COUNT(*) c, SUM(CASE WHEN kind='view' THEN 1 ELSE 0 END) v, SUM(CASE WHEN kind='cta' THEN 1 ELSE 0 END) k FROM track_events WHERE page_id=?").get(r.id)));
+  const leads = (await (db.prepare("SELECT COUNT(*) c FROM leads WHERE source = 'Landing: ' || ?").get(r.slug))).c;
   res.json({ page: { id: r.id, slug: r.slug, title: r.title, status: r.status }, totals: { events: totals.c, views: totals.v ?? 0, ctas: totals.k ?? 0, leads },
     daily: Object.values(daily).sort((a, b) => a.date.localeCompare(b.date)), topCtas });
 }));
-app.delete("/api/track", wrap((req, res) => {
+app.delete("/api/track", wrap(async (req, res) => {
   const conds = []; const args = [];
   if (req.query.slug) { conds.push("slug=?"); args.push(String(req.query.slug).slice(0, 80)); }
   if (req.query.before) { conds.push("created_at<?"); args.push(String(req.query.before) + (String(req.query.before).length === 10 ? "T23:59:59.999Z" : "")); }
-  const info = conds.length ? db.prepare("DELETE FROM track_events WHERE " + conds.join(" AND ")).run(...args) : db.prepare("DELETE FROM track_events").run();
+  const info = conds.length ? (await (db.prepare("DELETE FROM track_events WHERE " + conds.join(" AND ")).run(...args))) : (await (db.prepare("DELETE FROM track_events").run()));
   res.json({ deleted: info.changes });
 }));
-app.get("/api/inbox", wrap((req, res) => {
+app.get("/api/inbox", wrap(async (req, res) => {
   const { box = "all", channel, q } = req.query;
-  let rows = db.prepare("SELECT cv.*, cl.name clientName, cl.phone, cl.company, cl.city FROM conversations cv JOIN clients cl ON cl.id=cv.client_id AND cl.merged_into IS NULL ORDER BY datetime(cv.last_at) DESC").all();
+  let rows = (await (db.prepare("SELECT cv.*, cl.name clientName, cl.phone, cl.company, cl.city FROM conversations cv JOIN clients cl ON cl.id=cv.client_id AND cl.merged_into IS NULL ORDER BY datetime(cv.last_at) DESC").all()));
   if (box === "unread") rows = rows.filter((r) => r.unread > 0);
   if (q) { const needle = String(q).toLowerCase();
-    rows = rows.filter((r) => (r.clientName + " " + (r.company ?? "") + " " + (r.phone ?? "")).toLowerCase().includes(needle)
-      || db.prepare("SELECT 1 FROM messages m WHERE m.conversation_id=? AND lower(m.body) LIKE ? LIMIT 1").get(r.id, "%" + needle + "%")); }
-  const items = rows.map((r) => {
-    const last = db.prepare("SELECT * FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 1").get(r.id);
-    const total = db.prepare("SELECT COUNT(*) n FROM messages WHERE conversation_id=?").get(r.id).n;
+    const matchingThreads = new Set((await (db.prepare("SELECT DISTINCT conversation_id FROM messages WHERE lower(body) LIKE ?").all("%" + needle + "%"))).map((m) => m.conversation_id));
+    rows = rows.filter((r) => (r.clientName + " " + (r.company ?? "") + " " + (r.phone ?? "")).toLowerCase().includes(needle) || matchingThreads.has(r.id)); }
+  const items = (await Promise.all(rows.map(async (r) => {
+    const last = (await (db.prepare("SELECT * FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 1").get(r.id)));
+    const total = (await (db.prepare("SELECT COUNT(*) n FROM messages WHERE conversation_id=?").get(r.id))).n;
     if (channel && last?.channel !== channel) return null;
-    const lead = db.prepare("SELECT l.ref, l.status, l.interest FROM client_links x JOIN leads l ON l.id=x.entity_id WHERE x.client_id=? AND x.entity='lead' ORDER BY l.id DESC LIMIT 1").get(r.client_id);
+    const lead = (await (db.prepare("SELECT l.ref, l.status, l.interest FROM client_links x JOIN leads l ON l.id=x.entity_id WHERE x.client_id=? AND x.entity='lead' ORDER BY l.id DESC LIMIT 1").get(r.client_id)));
     return { id: r.id, clientId: r.client_id, clientName: r.clientName, company: r.company, phone: r.phone, city: r.city,
       status: r.status, assignee: r.assignee, priority: r.priority, unread: r.unread, lastAt: r.last_at, updatedAt: r.updated_at,
       lastMessage: last ? { body: String(last.body).slice(0, 90), channel: last.channel, direction: last.direction, author: last.author } : null,
       totalMessages: total, lead: lead ?? null, wa: waPhone(r.phone) };
-  }).filter(Boolean);
-  const counts = { all: db.prepare("SELECT COUNT(*) n FROM conversations").get().n,
-    unread: db.prepare("SELECT COUNT(*) n FROM conversations WHERE unread>0").get().n,
-    open: db.prepare("SELECT COUNT(*) n FROM conversations WHERE status='open'").get().n };
+  }))).filter(Boolean);
+  const counts = { all: (await (db.prepare("SELECT COUNT(*) n FROM conversations").get())).n,
+    unread: (await (db.prepare("SELECT COUNT(*) n FROM conversations WHERE unread>0").get())).n,
+    open: (await (db.prepare("SELECT COUNT(*) n FROM conversations WHERE status='open'").get())).n };
   res.json({ total: items.length, counts, items });
 }));
 app.get("/api/inbox/templates", wrap((req, res) => res.json({ items: INBOX_TEMPLATES })));
-app.get("/api/inbox/:clientId/thread", wrap((req, res) => {
-  const cl = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId);
+app.get("/api/inbox/:clientId/thread", wrap(async (req, res) => {
+  const cl = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId)));
   if (!cl) return res.status(404).json({ error: "client not found" });
-  const conv = ensureConv(cl.id);
-  const msgs = db.prepare("SELECT * FROM messages WHERE conversation_id=? ORDER BY id ASC").all(conv.id);
-  if (conv.unread > 0) db.prepare("UPDATE conversations SET unread=0, updated_at=? WHERE id=?").run(now(), conv.id);
-  const orders = db.prepare("SELECT o.ref, o.status, o.total FROM client_links x JOIN orders o ON o.id=x.entity_id WHERE x.client_id=? AND x.entity='order' ORDER BY o.id DESC LIMIT 3").all(cl.id);
-  const quotes = db.prepare("SELECT q.ref, q.status, q.total FROM client_links x JOIN quotes q ON q.id=x.entity_id WHERE x.client_id=? AND x.entity='quote' ORDER BY q.id DESC LIMIT 3").all(cl.id);
-  const invoices = db.prepare("SELECT i.ref, i.status, i.due FROM client_links x JOIN invoices i ON i.id=x.entity_id WHERE x.client_id=? AND x.entity='invoice' ORDER BY i.id DESC LIMIT 2").all(cl.id);
+  const conv = (await (ensureConv(cl.id)));
+  const msgs = (await (db.prepare("SELECT * FROM messages WHERE conversation_id=? ORDER BY id ASC").all(conv.id)));
+  if (conv.unread > 0) (await (db.prepare("UPDATE conversations SET unread=0, updated_at=? WHERE id=?").run(now(), conv.id)));
+  const orders = (await (db.prepare("SELECT o.ref, o.status, o.total FROM client_links x JOIN orders o ON o.id=x.entity_id WHERE x.client_id=? AND x.entity='order' ORDER BY o.id DESC LIMIT 3").all(cl.id)));
+  const quotes = (await (db.prepare("SELECT q.ref, q.status, q.total FROM client_links x JOIN quotes q ON q.id=x.entity_id WHERE x.client_id=? AND x.entity='quote' ORDER BY q.id DESC LIMIT 3").all(cl.id)));
+  const invoices = (await (db.prepare("SELECT i.ref, i.status, i.due FROM client_links x JOIN invoices i ON i.id=x.entity_id WHERE x.client_id=? AND x.entity='invoice' ORDER BY i.id DESC LIMIT 2").all(cl.id)));
   touchInbox({ clientId: cl.id });
   res.json({ conversation: { id: conv.id, clientId: cl.id, status: conv.status, assignee: conv.assignee, priority: conv.priority, unread: 0, lastAt: conv.last_at },
     client: rowClientLite(cl), messages: msgs.map(rowMsg),
     context: { orders, quotes, invoices }, wa: waPhone(cl.phone) });
 }));
-app.post("/api/inbox/:clientId/messages", wrap((req, res) => {
-  const cl = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId);
+app.post("/api/inbox/:clientId/messages", wrap(async (req, res) => {
+  const cl = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId)));
   if (!cl) return res.status(404).json({ error: "client not found" });
   const b = req.body ?? {};
   const body = String(b.body ?? "").trim();
@@ -950,60 +950,60 @@ app.post("/api/inbox/:clientId/messages", wrap((req, res) => {
   const channel = CONV_CHANNELS.has(b.channel) ? b.channel : "note";
   let direction = ["inbound", "outbound"].includes(b.direction) ? b.direction : "outbound";
   if (channel === "system") direction = "system";
-  const conv = ensureConv(cl.id);
-  const m = appendMsg(conv.id, { channel, direction, author: b.author ?? req.actor ?? "You", body });
+  const conv = (await (ensureConv(cl.id)));
+  const m = (await (appendMsg(conv.id, { channel, direction, author: b.author ?? req.actor ?? "You", body })));
   touchInbox({ clientId: cl.id });
   res.status(201).json(rowMsg(m));
 }));
-app.post("/api/inbox/:clientId/handoff", wrap((req, res) => {
-  const cl = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId);
+app.post("/api/inbox/:clientId/handoff", wrap(async (req, res) => {
+  const cl = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.clientId)));
   if (!cl) return res.status(404).json({ error: "client not found" });
   const phone = waPhone(cl.phone);
   if (!phone) return res.status(400).json({ error: "client has no dialable phone number" });
   const b = req.body ?? {};
   const tpl = INBOX_TEMPLATES.find((x) => x.id === b.templateId);
-  const body = String(b.body ?? "").trim() || (tpl ? resolveTemplate(tpl, cl.id) : "");
+  const body = String(b.body ?? "").trim() || (tpl ? (await (resolveTemplate(tpl, cl.id))) : "");
   if (!body) return res.status(400).json({ error: "templateId or body required" });
   const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(body);
-  const conv = ensureConv(cl.id);
-  const m = appendMsg(conv.id, { channel: "whatsapp", direction: "outbound", author: b.author ?? req.actor ?? "You", body, meta: { handoff: url, template: tpl?.id ?? null } });
-  if (tpl) db.prepare("UPDATE conversations SET updated_at=?, last_at=? WHERE id=?").run(now(), now(), conv.id);
+  const conv = (await (ensureConv(cl.id)));
+  const m = (await (appendMsg(conv.id, { channel: "whatsapp", direction: "outbound", author: b.author ?? req.actor ?? "You", body, meta: { handoff: url, template: tpl?.id ?? null } })));
+  if (tpl) (await (db.prepare("UPDATE conversations SET updated_at=?, last_at=? WHERE id=?").run(now(), now(), conv.id)));
   touchInbox({ clientId: cl.id });
   res.json({ url, message: rowMsg(m) });
 }));
-app.patch("/api/inbox/conversations/:id", wrap((req, res) => {
-  const cv = db.prepare("SELECT * FROM conversations WHERE id=?").get(req.params.id);
+app.patch("/api/inbox/conversations/:id", wrap(async (req, res) => {
+  const cv = (await (db.prepare("SELECT * FROM conversations WHERE id=?").get(req.params.id)));
   if (!cv) return res.status(404).json({ error: "conversation not found" });
   const b = req.body ?? {};
   if (b.status !== undefined && !CONV_STATUS.has(b.status)) return res.status(400).json({ error: "status must be open|pending|resolved|snoozed" });
-  db.prepare("UPDATE conversations SET status=?, assignee=?, priority=?, unread=?, updated_at=? WHERE id=?").run(
+  (await (db.prepare("UPDATE conversations SET status=?, assignee=?, priority=?, unread=?, updated_at=? WHERE id=?").run(
     b.status ?? cv.status, b.assignee !== undefined ? (b.assignee ? String(b.assignee).slice(0, 40) : null) : cv.assignee,
-    b.priority !== undefined ? (b.priority ? 1 : 0) : cv.priority, Number.isFinite(Number(b.unread)) ? Math.max(0, Number(b.unread)) : cv.unread, now(), cv.id);
+    b.priority !== undefined ? (b.priority ? 1 : 0) : cv.priority, Number.isFinite(Number(b.unread)) ? Math.max(0, Number(b.unread)) : cv.unread, now(), cv.id)));
   touchInbox({ clientId: cv.client_id });
-  res.json(db.prepare("SELECT * FROM conversations WHERE id=?").get(cv.id));
+  res.json((await (db.prepare("SELECT * FROM conversations WHERE id=?").get(cv.id))));
 }));
 
 const xmlEsc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
-app.get("/sitemap.xml", wrap((req, res) => {
-  const base = (readTheme().siteUrl || "http://localhost:5174").replace(/\/+$/, "");
-  const rows = db.prepare("SELECT slug, updated_at FROM pages WHERE status='Published' ORDER BY updated_at DESC").all();
+app.get("/sitemap.xml", wrap(async (req, res) => {
+  const base = ((await (readTheme())).siteUrl || "http://localhost:5174").replace(/\/+$/, "");
+  const rows = (await (db.prepare("SELECT slug, updated_at FROM pages WHERE status='Published' ORDER BY updated_at DESC").all()));
   res.setHeader("content-type", "application/xml; charset=utf-8");
   res.end('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     rows.map((x) => `  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`).join("\n") +
-    "\n" + db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all()
+    "\n" + (await (db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all()))
       .map((x) => `  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`).join("\n") +
     "\n</urlset>\n");
 }));
-app.get("/robots.txt", wrap((req, res) => {
-  const base = (readTheme().siteUrl || "http://localhost:5174").replace(/\/+$/, "");
+app.get("/robots.txt", wrap(async (req, res) => {
+  const base = ((await (readTheme())).siteUrl || "http://localhost:5174").replace(/\/+$/, "");
   res.setHeader("content-type", "text/plain; charset=utf-8");
   res.end("User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: " + base + "/sitemap.xml\n");
 }));
 
-app.post("/api/target", wrap((req, res) => {
+app.post("/api/target", wrap(async (req, res) => {
   const v = Number(req.body?.value);
   if (!(v > 0)) return res.status(400).json({ error: "value must be > 0" });
-  db.prepare("INSERT INTO meta(key,value) VALUES('target',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(String(v));
+  (await (db.prepare("INSERT INTO meta(key,value) VALUES('target',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(String(v))));
   res.json({ target: v });
 }));
 
@@ -1012,21 +1012,21 @@ const totalsFrom = (items, { discount = 0, tax = 0, shipping = 0 }) => {
   const subtotal = items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
   return { subtotal, total: Math.max(0, subtotal - discount + tax + shipping) };
 };
-const insertInvoice = ({ ref, quoteId, orderId, customer, items, discount, tax, shipping, total, due, notes }) => {
+const insertInvoice = async ({ ref, quoteId, orderId, customer, items, discount, tax, shipping, total, due, notes }) => {
   const t = now();
-  const info = db.prepare(`INSERT INTO invoices(ref,quote_id,order_id,customer,items,subtotal,discount,tax,shipping,total,status,due,notes,created_at,updated_at)
+  const info = (await (db.prepare(`INSERT INTO invoices(ref,quote_id,order_id,customer,items,subtotal,discount,tax,shipping,total,status,due,notes,created_at,updated_at)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ref, quoteId ?? null, orderId ?? null, customer, JSON.stringify(items),
-    subtotalOf(items), discount ?? 0, tax ?? 0, shipping ?? 0, total, "Issued", due ?? null, notes ?? null, t, t);
-  return db.prepare("SELECT * FROM invoices WHERE id=?").get(info.lastInsertRowid);
+    subtotalOf(items), discount ?? 0, tax ?? 0, shipping ?? 0, total, "Issued", due ?? null, notes ?? null, t, t)));
+  return (await (db.prepare("SELECT * FROM invoices WHERE id=?").get(info.lastInsertRowid)));
 };
 const subtotalOf = (items) => items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
-const nextRef = (table, prefix, floor = 0) => { // MAX-based: survives row deletion (QA TODO-3)
-  const m = db.prepare("SELECT MAX(CAST(substr(ref, ?) AS INTEGER)) v FROM " + table).get(prefix.length + 1).v ?? 0;
+const nextRef = async (table, prefix, floor = 0) => { // MAX-based: survives row deletion (QA TODO-3)
+  const m = (await (db.prepare("SELECT MAX(CAST(substr(ref, ?) AS INTEGER)) v FROM " + table).get(prefix.length + 1))).v ?? 0;
   return prefix + String(Math.max(m, floor) + 1);
 };
 
-app.get("/api/invoices", wrap((req, res) => {
-  let rows = db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC").all().map(decorateInvoice);
+app.get("/api/invoices", wrap(async (req, res) => {
+  let rows = (await (db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC").all())).map(decorateInvoice);
   const f = req.query.status;
   if (f === "open") rows = rows.filter((r) => ["Issued", "Partially Paid", "Overdue"].includes(r.status));
   else if (f) rows = rows.filter((r) => r.status === f);
@@ -1035,168 +1035,175 @@ app.get("/api/invoices", wrap((req, res) => {
     outstanding: rows.reduce((n, r) => n + (r.status === "Cancelled" ? 0 : r.balance), 0),
     items: rows });
 }));
-app.get("/api/invoices/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+app.get("/api/invoices/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
-  const payments = db.prepare("SELECT * FROM payments WHERE invoice_id=? ORDER BY datetime(created_at) DESC").all(r.id);
+  const payments = (await (db.prepare("SELECT * FROM payments WHERE invoice_id=? ORDER BY datetime(created_at) DESC").all(r.id)));
   res.json({ ...decorateInvoice(r), payments });
 }));
-app.post("/api/invoices", wrap((req, res) => {
+app.post("/api/invoices", wrap(async (req, res) => {
   const b = req.body ?? {};
   let { customer, items } = b;
   let quoteId = null, orderId = null;
-  if (b.quote_id) { const q = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(b.quote_id, b.quote_id);
+  if (b.quote_id) { const q = (await (db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(b.quote_id, b.quote_id)));
     if (!q) return res.status(400).json({ error: "quote not found" });
     customer = customer || q.customer; items = items ?? JSON.parse(q.items); quoteId = q.id; }
-  else if (b.order_id) { const o = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(b.order_id, b.order_id);
+  else if (b.order_id) { const o = (await (db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(b.order_id, b.order_id)));
     if (!o) return res.status(400).json({ error: "order not found" });
     customer = customer || o.customer; items = items ?? JSON.parse(o.items); orderId = o.id; }
   if (!customer || !Array.isArray(items) || !items.length) return res.status(400).json({ error: "customer+items or quote_id/order_id required" });
   const { subtotal: _st, total } = totalsFrom(items, b);
-  const r = insertInvoice({ ref: nextRef("invoices", "INV-26-", 1001), quoteId, orderId, customer, items,
+  const r = (await (insertInvoice({ ref: (await (nextRef("invoices", "INV-26-", 1001))), quoteId, orderId, customer, items,
     discount: b.discount, tax: b.tax, shipping: b.shipping, total: typeof b.total === "number" ? b.total : total,
-    due: b.due, notes: b.notes });
-  if (quoteId) db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
+    due: b.due, notes: b.notes })));
+  if (quoteId) (await (db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
     JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued", time: now() },
-      ...JSON.parse(db.prepare("SELECT audit FROM quotes WHERE id=?").get(quoteId)?.audit || "[]")]), now(), quoteId);
+      ...JSON.parse((await (db.prepare("SELECT audit FROM quotes WHERE id=?").get(quoteId)))?.audit || "[]")]), now(), quoteId)));
   emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
 }));
-app.post("/api/quotes/:id/invoice", wrapTx((req, res) => {
-  const q = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+app.post("/api/quotes/:id/invoice", wrapTx(async (req, res) => {
+  const q = (await (db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!q) return res.status(404).json({ error: "quote not found" });
   const items = JSON.parse(q.items || "[]");
   const b = req.body ?? {};
   const { total } = totalsFrom(items, b);
-  const r = insertInvoice({ ref: nextRef("invoices", "INV-26-", 1001), quoteId: q.id, orderId: null,
+  const r = (await (insertInvoice({ ref: (await (nextRef("invoices", "INV-26-", 1001))), quoteId: q.id, orderId: null,
     customer: q.customer, items, discount: b.discount, tax: b.tax, shipping: b.shipping,
-    total: typeof b.total === "number" ? b.total : total, due: b.due, notes: b.notes });
-  db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
+    total: typeof b.total === "number" ? b.total : total, due: b.due, notes: b.notes })));
+  (await (db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
     JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued from quote", time: now() },
-      ...JSON.parse(q.audit || "[]")]), now(), q.id);
-  { const cl = db.prepare("SELECT id AS c FROM clients WHERE lower(name)=lower(?) AND merged_into IS NULL").get(r.customer);
-    if (cl) linkClient(cl.c, "invoice", r.id); }
+      ...JSON.parse(q.audit || "[]")]), now(), q.id)));
+  { const cl = (await (db.prepare("SELECT id AS c FROM clients WHERE lower(name)=lower(?) AND merged_into IS NULL").get(r.customer)));
+    if (cl) (await (linkClient(cl.c, "invoice", r.id))); }
   emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
 }));
-app.patch("/api/invoices/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+app.patch("/api/invoices/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const b = req.body ?? {};
   emit("invoices", { title: "Invoice " + r.ref + " → " + (b.status ?? r.status), who: r.customer });
-  db.prepare("UPDATE invoices SET status=?, due=?, notes=?, discount=?, tax=?, shipping=?, total=?, updated_at=? WHERE id=?").run(
+  (await (db.prepare("UPDATE invoices SET status=?, due=?, notes=?, discount=?, tax=?, shipping=?, total=?, updated_at=? WHERE id=?").run(
     b.status ?? r.status, b.due ?? r.due, b.notes ?? r.notes,
     b.discount ?? r.discount, b.tax ?? r.tax, b.shipping ?? r.shipping,
     b.total ?? (b.discount != null || b.tax != null || b.shipping != null
       ? Math.max(0, r.subtotal - (b.discount ?? r.discount) + (b.tax ?? r.tax) + (b.shipping ?? r.shipping)) : r.total),
-    now(), r.id);
-  res.json(rowInvoice(db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)));
+    now(), r.id)));
+  res.json(rowInvoice((await (db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)))));
 }));
-app.post("/api/invoices/:id/payments", wrapTx((req, res) => {
-  const r = db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+app.post("/api/invoices/:id/payments", wrapTx(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const amount = Number(req.body?.amount);
   if (!(amount > 0)) return res.status(400).json({ error: "amount must be > 0" });
   const t = now();
-  db.prepare("INSERT INTO payments(invoice_id,amount,method,reference,note,created_at) VALUES(?,?,?,?,?,?)")
-    .run(r.id, amount, req.body?.method ?? "Bank transfer", req.body?.reference ?? null, req.body?.note ?? null, t);
+  (await (db.prepare("INSERT INTO payments(invoice_id,amount,method,reference,note,created_at) VALUES(?,?,?,?,?,?)")
+    .run(r.id, amount, req.body?.method ?? "Bank transfer", req.body?.reference ?? null, req.body?.note ?? null, t)));
   const paid = r.paid + amount;
   const status = paid >= r.total ? "Paid" : "Partially Paid";
-  db.prepare("UPDATE invoices SET paid=?, status=?, updated_at=? WHERE id=?").run(paid, status, t, r.id);
+  (await (db.prepare("UPDATE invoices SET paid=?, status=?, updated_at=? WHERE id=?").run(paid, status, t, r.id)));
   emit("invoices", { title: "Payment " + (amount >= r.balance ? "" : "partial ") + fmtMoney(amount) + " on " + r.ref, who: r.customer });
   emit("payments", { amount, invoiceId: r.id, method: req.body?.method ?? "Bank transfer" });
-  res.status(201).json({ ...rowInvoice(db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)),
-    payments: db.prepare("SELECT * FROM payments WHERE invoice_id=? ORDER BY datetime(created_at) DESC").all(r.id) });
+  res.status(201).json({ ...rowInvoice((await (db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)))),
+    payments: (await (db.prepare("SELECT * FROM payments WHERE invoice_id=? ORDER BY datetime(created_at) DESC").all(r.id))) });
 }));
 
 const RETURN_STATES = ["Requested", "Inspecting", "Refunding", "Closed"];
-app.get("/api/returns", wrap((req, res) => {
-  let rows = db.prepare("SELECT * FROM returns ORDER BY datetime(created_at) DESC").all().map(rowReturn);
+app.get("/api/returns", wrap(async (req, res) => {
+  let rows = (await (db.prepare("SELECT * FROM returns ORDER BY datetime(created_at) DESC").all())).map(rowReturn);
   if (req.query.state) rows = rows.filter((r) => r.state === req.query.state);
   res.json({ total: rows.length, open: rows.filter((r) => r.state !== "Closed").length, items: rows });
 }));
-app.post("/api/returns", wrapTx((req, res) => {
+app.post("/api/returns", wrapTx(async (req, res) => {
   const b = req.body ?? {};
   let customer = b.customer; let orderId = null;
-  if (b.order_id || b.order_ref) { const o = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(b.order_id ?? b.order_ref, b.order_ref ?? b.order_id);
-    if (!o) return res.status(400).json({ error: "order not found" }); customer = customer || o.customer; orderId = o.id; }
+  if (b.order_id || b.order_ref) {
+    const o = b.order_id != null
+      ? (await (db.prepare("SELECT * FROM orders WHERE id=?").get(b.order_id)))
+      : (await (db.prepare("SELECT * FROM orders WHERE ref=?").get(b.order_ref)));
+    if (!o) return res.status(400).json({ error: "order not found" }); customer = customer || o.customer; orderId = o.id;
+  }
   if (!customer || !b.reason) return res.status(400).json({ error: "customer (or order_ref) and reason required" });
   const t = now();
-  const info = db.prepare("INSERT INTO returns(ref,order_id,customer,item,reason,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
-    .run(nextRef("returns", "RMA-", 201), orderId, customer, b.item ?? null, b.reason, "Requested", t, t);
-  const retOut = rowReturn(db.prepare("SELECT * FROM returns WHERE id=?").get(info.lastInsertRowid));
+  const info = (await (db.prepare("INSERT INTO returns(ref,order_id,customer,item,reason,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+    .run((await (nextRef("returns", "RMA-", 201))), orderId, customer, b.item ?? null, b.reason, "Requested", t, t)));
+  const retOut = rowReturn((await (db.prepare("SELECT * FROM returns WHERE id=?").get(info.lastInsertRowid))));
   emit("returns", { title: "RMA opened for " + customer, who: customer, context: b.reason });
   res.status(201).json(retOut);
 }));
-app.patch("/api/returns/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM returns WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+app.patch("/api/returns/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM returns WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const b = req.body ?? {};
-  db.prepare("UPDATE returns SET state=?, refund_amount=?, resolution=?, updated_at=? WHERE id=?").run(
-    b.state ?? r.state, b.refund_amount ?? b.refundAmount ?? r.refund_amount, b.resolution ?? r.resolution, now(), r.id);
-  const rOut = rowReturn(db.prepare("SELECT * FROM returns WHERE id=?").get(r.id));
+  (await (db.prepare("UPDATE returns SET state=?, refund_amount=?, resolution=?, updated_at=? WHERE id=?").run(
+    b.state ?? r.state, b.refund_amount ?? b.refundAmount ?? r.refund_amount, b.resolution ?? r.resolution, now(), r.id)));
+  const rOut = rowReturn((await (db.prepare("SELECT * FROM returns WHERE id=?").get(r.id))));
   if (b.state) emit("returns", { title: "RMA " + r.ref + " → " + b.state, who: r.customer });
   res.json(rOut);
 }));
 
 /* Public order tracking (storefront /order-status) — ref is the capability, no auth */
-app.get("/api/orders/lookup", wrap((req, res) => {
+app.get("/api/orders/lookup", wrap(async (req, res) => {
   const ref = String(req.query.ref || "").trim();
   if (!ref) return res.status(400).json({ error: "ref required" });
-  const o = db.prepare("SELECT * FROM orders WHERE ref=? OR ref=?").get(ref, ref.toUpperCase());
+  const o = (await (db.prepare("SELECT * FROM orders WHERE ref=? OR ref=?").get(ref, ref.toUpperCase())));
   if (!o) return res.status(404).json({ error: "no order with that reference" });
   const stages = ["production", "qc", "dispatch", "delivery", "installation"];
-  const inv = o.invoice_ref ? db.prepare("SELECT * FROM invoices WHERE ref=?").get(o.invoice_ref) :
-    db.prepare("SELECT * FROM invoices WHERE order_id=? ORDER BY id DESC LIMIT 1").get(o.id);
-  const rms = db.prepare("SELECT * FROM returns WHERE order_id=? ORDER BY id DESC").all(o.id).map(rowReturn);
+  const inv = o.invoice_ref ? (await (db.prepare("SELECT * FROM invoices WHERE ref=?").get(o.invoice_ref))) :
+    (await (db.prepare("SELECT * FROM invoices WHERE order_id=? ORDER BY id DESC LIMIT 1").get(o.id)));
+  const rms = (await (db.prepare("SELECT * FROM returns WHERE order_id=? ORDER BY id DESC").all(o.id))).map(rowReturn);
   res.json({ ref: o.ref, customer: o.customer, status: o.status, stage: o.stage, stages,
     stageIndex: stages.indexOf(o.stage), total: o.total, due: o.due, placedAt: o.created_at,
     items: JSON.parse(o.items), invoice: inv ? decorateInvoice(inv) : null, returns: rms });
 }));
 
-app.get("/api/stats", wrap((req, res) => {
-  const n = (q) => db.prepare(q).get().n;
-  const byStatus = (table) => {
-    const rows = db.prepare(`SELECT status, COUNT(*) c, COALESCE(SUM(total),0) s FROM ${table} GROUP BY status`).all();
+app.get("/api/stats", wrap(async (req, res) => {
+  const hotLeadRows = (await (db.prepare("SELECT * FROM leads ORDER BY datetime(updated_at) DESC LIMIT 60").all())).map(rowLead);
+  const hotLeadScores = (await Promise.all(hotLeadRows.map(async (l) => (await (scoreLead(l))))));
+  const hotLeads = hotLeadScores.filter((x) => x.score >= 55).length;
+  const n = async (q) => (await (db.prepare(q).get())).n;
+  const byStatus = async (table) => {
+    const rows = (await (db.prepare(`SELECT status, COUNT(*) c, COALESCE(SUM(total),0) s FROM ${table} GROUP BY status`).all()));
     return Object.fromEntries(rows.map((r) => [r.status, { count: r.c, value: r.s }]));
   };
-  const leadBy = Object.fromEntries(db.prepare("SELECT status, COUNT(*) c FROM leads GROUP BY status").all().map((r) => [r.status, r.c]));
-  const rec = (table, type) => db.prepare(`SELECT * FROM ${table} ORDER BY datetime(created_at) DESC LIMIT 3`).all().map((r) => {
+  const leadBy = Object.fromEntries((await (db.prepare("SELECT status, COUNT(*) c FROM leads GROUP BY status").all())).map((r) => [r.status, r.c]));
+  const rec = async (table, type) => (await (db.prepare(`SELECT * FROM ${table} ORDER BY datetime(created_at) DESC LIMIT 3`).all())).map((r) => {
     if (table === "leads") return { type, title: type === "lead" ? "New lead captured" : r.name, who: r.name, context: r.interest ?? "", time: r.created_at };
     return { type, title: `${table === "quotes" ? "Quotation" : "Order"} ${r.ref} · ${r.status}`, who: r.customer, context: `${(JSON.parse(r.items)).length} line items`, time: r.created_at };
   });
-  const revenue = db.prepare("SELECT COALESCE(SUM(total),0) v FROM orders WHERE stage IN ('delivery','installation')").get().v;
+  const revenue = (await (db.prepare("SELECT COALESCE(SUM(total),0) v FROM orders WHERE stage IN ('delivery','installation')").get())).v;
   res.json({
-    products: { total: n("SELECT COUNT(*) n FROM products"), inStock: n("SELECT COUNT(*) n FROM products WHERE in_stock=1"), avgPrice: db.prepare("SELECT AVG(price) v FROM products").get().v },
-    leads: { total: n("SELECT COUNT(*) n FROM leads"), byStatus: leadBy },
-    quotes: { total: n("SELECT COUNT(*) n FROM quotes"), byStatus: byStatus("quotes"), pipelineValue: db.prepare("SELECT COALESCE(SUM(total),0) v FROM quotes WHERE status NOT IN ('Rejected','Expired')").get().v },
-    orders: { total: n("SELECT COUNT(*) n FROM orders"), byStage: byStatus("orders"), revenue },
-    invoices: { total: n("SELECT COUNT(*) n FROM invoices"),
-      collected: db.prepare("SELECT COALESCE(SUM(paid),0) v FROM invoices").get().v,
-      outstanding: db.prepare("SELECT COALESCE(SUM(total-paid),0) v FROM invoices WHERE status NOT IN ('Paid','Cancelled')").get().v,
-      byStatus: byStatus("invoices") },
-    returns: { total: n("SELECT COUNT(*) n FROM returns"), open: n("SELECT COUNT(*) n FROM returns WHERE state != 'Closed'") },
-    recent: [...rec("leads", "lead"), ...rec("quotes", "quote"), ...rec("orders", "production"),
-      ...db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC LIMIT 2").all().map((r) => ({ type: "invoice", title: `Invoice ${r.ref} · ${r.status}`, who: r.customer, context: "finance", time: r.created_at })),
-      ...db.prepare("SELECT * FROM returns ORDER BY datetime(created_at) DESC LIMIT 1").all().map((r) => ({ type: "return", title: `Return ${r.ref} · ${r.state}`, who: r.customer, context: r.reason ?? "", time: r.created_at }))].slice(0, 8),
-    finance: (() => {
-      const delivered = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(total),0) v FROM orders WHERE stage IN ('delivery','installation')").get();
-      const target = Number(db.prepare("SELECT value FROM meta WHERE key='target'").get()?.value ?? 10000000);
-      const won = n("SELECT COUNT(*) n FROM quotes WHERE status='Approved'");
-      const open = n("SELECT COUNT(*) n FROM quotes WHERE status NOT IN ('Approved','Rejected','Expired')");
+    products: { total: (await (n("SELECT COUNT(*) n FROM products"))), inStock: (await (n("SELECT COUNT(*) n FROM products WHERE in_stock=1"))), avgPrice: (await (db.prepare("SELECT AVG(price) v FROM products").get())).v },
+    leads: { total: (await (n("SELECT COUNT(*) n FROM leads"))), byStatus: leadBy },
+    quotes: { total: (await (n("SELECT COUNT(*) n FROM quotes"))), byStatus: (await (byStatus("quotes"))), pipelineValue: (await (db.prepare("SELECT COALESCE(SUM(total),0) v FROM quotes WHERE status NOT IN ('Rejected','Expired')").get())).v },
+    orders: { total: (await (n("SELECT COUNT(*) n FROM orders"))), byStage: (await (byStatus("orders"))), revenue },
+    invoices: { total: (await (n("SELECT COUNT(*) n FROM invoices"))),
+      collected: (await (db.prepare("SELECT COALESCE(SUM(paid),0) v FROM invoices").get())).v,
+      outstanding: (await (db.prepare("SELECT COALESCE(SUM(total-paid),0) v FROM invoices WHERE status NOT IN ('Paid','Cancelled')").get())).v,
+      byStatus: (await (byStatus("invoices"))) },
+    returns: { total: (await (n("SELECT COUNT(*) n FROM returns"))), open: (await (n("SELECT COUNT(*) n FROM returns WHERE state != 'Closed'"))) },
+    recent: [...(await (rec("leads", "lead"))), ...(await (rec("quotes", "quote"))), ...(await (rec("orders", "production"))),
+      ...(await (db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC LIMIT 2").all())).map((r) => ({ type: "invoice", title: `Invoice ${r.ref} · ${r.status}`, who: r.customer, context: "finance", time: r.created_at })),
+      ...(await (db.prepare("SELECT * FROM returns ORDER BY datetime(created_at) DESC LIMIT 1").all())).map((r) => ({ type: "return", title: `Return ${r.ref} · ${r.state}`, who: r.customer, context: r.reason ?? "", time: r.created_at }))].slice(0, 8),
+    finance: (await ((async () => {
+      const delivered = (await (db.prepare("SELECT COUNT(*) n, COALESCE(SUM(total),0) v FROM orders WHERE stage IN ('delivery','installation')").get()));
+      const target = Number((await (db.prepare("SELECT value FROM meta WHERE key='target'").get()))?.value ?? 10000000);
+      const won = (await (n("SELECT COUNT(*) n FROM quotes WHERE status='Approved'")));
+      const open = (await (n("SELECT COUNT(*) n FROM quotes WHERE status NOT IN ('Approved','Rejected','Expired')")));
       const agg = {};
-      for (const o of db.prepare("SELECT items FROM orders").all()) for (const it of JSON.parse(o.items)) {
+      for (const o of (await (db.prepare("SELECT items FROM orders").all()))) for (const it of JSON.parse(o.items)) {
         const k = it.name || "Item"; const a = (agg[k] ??= { name: k, qty: 0, value: 0 });
         a.qty += it.qty || 1; a.value += (it.price || 0) * (it.qty || 1);
       }
       const topProducts = Object.values(agg).sort((x, y) => y.value - x.value).slice(0, 5);
-      const sources = db.prepare("SELECT COALESCE(source,'Other') k, COUNT(*) c FROM leads GROUP BY 1 ORDER BY c DESC").all();
+      const sources = (await (db.prepare("SELECT COALESCE(source,'Other') k, COUNT(*) c FROM leads GROUP BY 1 ORDER BY c DESC").all()));
       const totalLeads = Math.max(1, sources.reduce((n_, r) => n_ + r.c, 0));
-      const payments = db.prepare(`SELECT p.amount, p.method, p.reference, p.created_at, i.ref inv FROM payments p JOIN invoices i ON i.id=p.invoice_id ORDER BY datetime(p.created_at) DESC LIMIT 5`).all();
+      const payments = (await (db.prepare(`SELECT p.amount, p.method, p.reference, p.created_at, i.ref inv FROM payments p JOIN invoices i ON i.id=p.invoice_id ORDER BY datetime(p.created_at) DESC LIMIT 5`).all()));
       const months = []; const d = new Date();
       for (let i = 5; i >= 0; i--) { const t = new Date(d.getFullYear(), d.getMonth() - i, 1); months.push(t.toISOString().slice(0, 7)); }
-      const monthly = months.map((m) => ({ month: m,
-        revenue: db.prepare("SELECT COALESCE(SUM(total),0) v FROM orders WHERE substr(created_at,1,7)=? AND stage IN ('delivery','installation')").get(m).v }));
+      const monthly = (await Promise.all(months.map(async (m) => ({ month: m,
+        revenue: (await (db.prepare("SELECT COALESCE(SUM(total),0) v FROM orders WHERE substr(created_at,1,7)=? AND stage IN ('delivery','installation')").get(m))).v }))));
       return {
         aov: delivered.n ? Math.round(delivered.v / delivered.n) : 0,
         target: { value: target, pct: Math.min(100, Math.round((delivered.v / target) * 100)) },
@@ -1205,20 +1212,22 @@ app.get("/api/stats", wrap((req, res) => {
         sources: sources.map((r) => ({ name: r.k, count: r.c, pct: Math.round((r.c / totalLeads) * 100) })),
         payments, monthly,
       };
-    })(),
-    site: { pages: n("SELECT COUNT(*) n FROM pages"), published: n("SELECT COUNT(*) n FROM pages WHERE status='Published'"), sections: n("SELECT COUNT(*) n FROM saved_sections") },
+    })())),
+    site: { pages: (await (n("SELECT COUNT(*) n FROM pages"))), published: (await (n("SELECT COUNT(*) n FROM pages WHERE status='Published'"))), sections: (await (n("SELECT COUNT(*) n FROM saved_sections"))) },
     crm: {
-      clients: n("SELECT COUNT(*) n FROM clients WHERE merged_into IS NULL"),
-      review: (() => { let c = 0; for (const key of ["email_norm", "phone_norm"]) c += db.prepare(`SELECT COUNT(*) n FROM (SELECT ${key} k FROM clients WHERE merged_into IS NULL AND ${key} IS NOT NULL GROUP BY ${key} HAVING COUNT(*)>1)`).get().n; return c; })(),
-      tasksDue: n("SELECT COUNT(*) n FROM tasks WHERE done=0 AND (due IS NULL OR due<=date('now'))"),
-      hotLeads: db.prepare("SELECT * FROM leads ORDER BY datetime(updated_at) DESC LIMIT 60").all().map(rowLead).filter((l) => scoreLead(l).score >= 55).length,
+      clients: (await (n("SELECT COUNT(*) n FROM clients WHERE merged_into IS NULL"))),
+      review: (await ((async () => { let c = 0; for (const key of ["email_norm", "phone_norm"]) c += (await (db.prepare(`SELECT COUNT(*) n FROM (SELECT ${key} k FROM clients WHERE merged_into IS NULL AND ${key} IS NOT NULL GROUP BY ${key} HAVING COUNT(*)>1)`).get())).n; return c; })())),
+      tasksDue: (await (n("SELECT COUNT(*) n FROM tasks WHERE done=0 AND (due IS NULL OR due<=CAST(CURRENT_DATE AS TEXT))"))),
+      hotLeads,
     },
-    seededAt: db.prepare("SELECT value FROM meta WHERE key='seeded_at'").get()?.value ?? null,
+    seededAt: (await (db.prepare("SELECT value FROM meta WHERE key='seeded_at'").get()))?.value ?? null,
   });
 }));
 
-const pageCols = db.prepare("PRAGMA table_info(pages)").all().map((c) => c.name);
-if (!pageCols.includes("theme")) db.exec("ALTER TABLE pages ADD COLUMN theme TEXT");
+const pageCols = db.kind === "sqlite"
+  ? (await db.prepare("PRAGMA table_info(pages)").all()).map((c) => c.name)
+  : (await db.prepare("SELECT column_name AS name FROM information_schema.columns WHERE table_name='pages'").all()).map((c) => c.name);
+if (!pageCols.includes("theme") && db.kind === "sqlite") await db.exec("ALTER TABLE pages ADD COLUMN theme TEXT");
 
 /* ---- P7/P8 Website CMS: typed block registry, pages, publish, versions ---- */
 const BLOCKS = {
@@ -1251,38 +1260,38 @@ const BLOCKS = {
     { k: "heading", t: "text", req: true }, { k: "sub", t: "textarea" },
     { k: "submit_label", t: "text" }, { k: "consent", t: "textarea" } ] },
 };
-const rowSection = (r) => ({ id: r.id, name: r.name, category: r.category, tags: JSON.parse(r.tags || "[]"),
-  block: JSON.parse(r.block), usage: sectionUsage(r.id), createdAt: r.created_at, updatedAt: r.updated_at });
-app.get("/api/saved-sections", wrap((req, res) => {
-  const rows = db.prepare("SELECT * FROM saved_sections ORDER BY datetime(updated_at) DESC").all();
-  res.json({ total: rows.length, items: rows.map(rowSection) });
+const rowSection = async (r) => ({ id: r.id, name: r.name, category: r.category, tags: JSON.parse(r.tags || "[]"),
+  block: JSON.parse(r.block), usage: (await (sectionUsage(r.id))), createdAt: r.created_at, updatedAt: r.updated_at });
+app.get("/api/saved-sections", wrap(async (req, res) => {
+  const rows = (await (db.prepare("SELECT * FROM saved_sections ORDER BY datetime(updated_at) DESC").all()));
+  res.json({ total: rows.length, items: (await Promise.all(rows.map(rowSection))) });
 }));
-app.post("/api/saved-sections", wrap((req, res) => {
+app.post("/api/saved-sections", wrap(async (req, res) => {
   const { name, category, block } = req.body ?? {};
   if (!name || !block?.type || !BLOCKS[block.type]) return res.status(400).json({ error: "name + valid block required" });
   const t = now();
-  const info = db.prepare("INSERT INTO saved_sections(name,category,tags,block,created_at,updated_at) VALUES(?,?,?,?,?,?)")
-    .run(name, category || "Custom", JSON.stringify(req.body?.tags ?? []), JSON.stringify({ type: block.type, props: block.props ?? {} }), t, t);
-  const out = rowSection(db.prepare("SELECT * FROM saved_sections WHERE id=?").get(info.lastInsertRowid));
+  const info = (await (db.prepare("INSERT INTO saved_sections(name,category,tags,block,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+    .run(name, category || "Custom", JSON.stringify(req.body?.tags ?? []), JSON.stringify({ type: block.type, props: block.props ?? {} }), t, t)));
+  const out = (await (rowSection((await (db.prepare("SELECT * FROM saved_sections WHERE id=?").get(info.lastInsertRowid))))));
   emit("sections", { title: "Section saved: " + name, who: category || "Custom" });
   res.status(201).json(out);
 }));
-app.patch("/api/saved-sections/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM saved_sections WHERE id=?").get(req.params.id);
+app.patch("/api/saved-sections/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM saved_sections WHERE id=?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
-  db.prepare("UPDATE saved_sections SET name=?, category=?, tags=?, block=?, updated_at=? WHERE id=?").run(
+  (await (db.prepare("UPDATE saved_sections SET name=?, category=?, tags=?, block=?, updated_at=? WHERE id=?").run(
     req.body?.name ?? r.name, req.body?.category ?? r.category,
     req.body?.tags ? JSON.stringify(req.body.tags) : r.tags,
-    req.body?.block ? JSON.stringify({ type: req.body.block.type, props: req.body.block.props ?? {} }) : r.block, now(), r.id);
-  emit("sections", { title: "Section updated: " + r.name, who: "fans out to " + sectionUsage(r.id) + " page(s)" });
-  res.json(rowSection(db.prepare("SELECT * FROM saved_sections WHERE id=?").get(r.id)));
+    req.body?.block ? JSON.stringify({ type: req.body.block.type, props: req.body.block.props ?? {} }) : r.block, now(), r.id)));
+  emit("sections", { title: "Section updated: " + r.name, who: "fans out to " + (await (sectionUsage(r.id))) + " page(s)" });
+  res.json((await (rowSection((await (db.prepare("SELECT * FROM saved_sections WHERE id=?").get(r.id)))))));
 }));
-app.delete("/api/saved-sections/:id", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM saved_sections WHERE id=?").get(req.params.id);
+app.delete("/api/saved-sections/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM saved_sections WHERE id=?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
-  const usage = sectionUsage(r.id);
+  const usage = (await (sectionUsage(r.id)));
   if (usage > 0) return res.status(409).json({ error: `in use on ${usage} page${usage > 1 ? "s" : ""} — detach references first` });
-  db.prepare("DELETE FROM saved_sections WHERE id=?").run(r.id);
+  (await (db.prepare("DELETE FROM saved_sections WHERE id=?").run(r.id)));
   res.json({ deleted: r.id });
 }));
 
@@ -1290,15 +1299,15 @@ app.get("/api/blocks", (req, res) => res.json({ registry: BLOCKS }));
 const MEDIA = () => fs.readdirSync(path.join(HERE, "public/img")).filter((f) => /\.(jpg|jpeg|png|webp)$/i.test(f));
 app.get("/api/media", (req, res) => res.json({ items: MEDIA().slice(0, 96) }));
 
-const rowPage = (r, blocks) => ({ id: r.id, slug: r.slug, title: r.title, status: r.status,
+const rowPage = async (r, blocks) => ({ id: r.id, slug: r.slug, title: r.title, status: r.status,
   seoTitle: r.seo_title, seoDesc: r.seo_desc, createdAt: r.created_at, updatedAt: r.updated_at,
-  blocks: blocks ?? pageBlocks(r.id),
+  blocks: blocks ?? (await (pageBlocks(r.id))),
   theme: r.theme ? JSON.parse(r.theme) : null });
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
-function validatePage(title, blocks) {
+async function validatePage(title, blocks) {
   const errs = [];
   if (!blocks.length) errs.push({ block: -1, msg: "Page has no blocks yet." });
-  blocks.forEach((b, i) => {
+  (await Promise.all(blocks.map(async (b, i) => {
     const spec = BLOCKS[b.type];
     if (!spec) return errs.push({ block: i, msg: `Unknown block type “${b.type}”.` });
     for (const f of spec.fields) {
@@ -1309,33 +1318,33 @@ function validatePage(title, blocks) {
     }
     if (b.type === "cta-band" && (b.props.primary_label && !b.props.primary_href)) errs.push({ block: i, msg: "CTA band: primary button needs a link." });
     if (b.type === "global-section") { const sid = Number(b.props.section_id);
-      if (!sid || !db.prepare("SELECT id FROM saved_sections WHERE id=?").get(sid)) errs.push({ block: i, msg: "Global section points to a missing source (re-detach or pick a section)." }); }
-  });
+      if (!sid || !(await (db.prepare("SELECT id FROM saved_sections WHERE id=?").get(sid)))) errs.push({ block: i, msg: "Global section points to a missing source (re-detach or pick a section)." }); }
+  })));
   if (!title || !title.trim()) errs.push({ block: -1, msg: "Page title is required." });
   return errs;
 }
 
-const rowBlock = (b) => { const props = JSON.parse(b.props || "{}");
-  if (b.type === "global-section") { const sec = db.prepare("SELECT * FROM saved_sections WHERE id=?").get(Number(props.section_id));
+const rowBlock = async (b) => { const props = JSON.parse(b.props || "{}");
+  if (b.type === "global-section") { const sec = (await (db.prepare("SELECT * FROM saved_sections WHERE id=?").get(Number(props.section_id))));
     if (sec) return { type: b.type, props: { ...props, sectionLabel: sec.name, section: { type: JSON.parse(sec.block).type, props: JSON.parse(sec.block).props } } }; }
   return { type: b.type, props }; };
-const pageBlocks = (pid) => db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(pid).map(rowBlock);
-const sectionUsage = (sid) => db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE type='global-section' AND props LIKE ?").get(`%"section_id":"${sid}"%`).n
-  + db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE type='global-section' AND props LIKE ?").get(`%"section_id":${sid}%`).n;
-app.get("/api/pages", wrap((req, res) => {
-  let rows = db.prepare("SELECT * FROM pages ORDER BY datetime(updated_at) DESC").all();
+const pageBlocks = async (pid) => (await Promise.all((await (db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(pid))).map(rowBlock)));
+const sectionUsage = async (sid) => (await (db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE type='global-section' AND props LIKE ?").get(`%"section_id":"${sid}"%`))).n
+  + (await (db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE type='global-section' AND props LIKE ?").get(`%"section_id":${sid}%`))).n;
+app.get("/api/pages", wrap(async (req, res) => {
+  let rows = (await (db.prepare("SELECT * FROM pages ORDER BY datetime(updated_at) DESC").all()));
   if (req.query.status) rows = rows.filter((r) => r.status === req.query.status);
   res.json({ total: rows.length, published: rows.filter((r) => r.status === "Published").length,
-    items: rows.map((r) => ({ ...rowPage(r, []), blockCount: db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE page_id=?").get(r.id).n,
-      views: db.prepare("SELECT COUNT(*) n FROM track_events WHERE page_id=? AND kind='view'").get(r.id).n,
-      ctas: db.prepare("SELECT COUNT(*) n FROM track_events WHERE page_id=? AND kind='cta'").get(r.id).n })) });
+    items: (await Promise.all(rows.map(async (r) => ({ ...(await (rowPage(r, []))), blockCount: (await (db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE page_id=?").get(r.id))).n,
+      views: (await (db.prepare("SELECT COUNT(*) n FROM track_events WHERE page_id=? AND kind='view'").get(r.id))).n,
+      ctas: (await (db.prepare("SELECT COUNT(*) n FROM track_events WHERE page_id=? AND kind='cta'").get(r.id))).n })))) });
 }));
-app.post("/api/pages", wrap((req, res) => {
+app.post("/api/pages", wrap(async (req, res) => {
   const { slug, title, template } = req.body ?? {};
   if (!slug || !SLUG_RE.test(slug)) return res.status(400).json({ error: "slug must be lowercase letters/numbers/dashes (2-61)" });
-  if (db.prepare("SELECT id FROM pages WHERE slug=?").get(slug)) return res.status(409).json({ error: "slug already exists" });
+  if ((await (db.prepare("SELECT id FROM pages WHERE slug=?").get(slug)))) return res.status(409).json({ error: "slug already exists" });
   const t = now();
-  const info = db.prepare("INSERT INTO pages(slug,title,status,created_at,updated_at) VALUES(?,?,?,?,?)").run(slug, title || slug, "Draft", t, t);
+  const info = (await (db.prepare("INSERT INTO pages(slug,title,status,created_at,updated_at) VALUES(?,?,?,?,?)").run(slug, title || slug, "Draft", t, t)));
   const pid = info.lastInsertRowid;
   const packs = {
     "sale-landing": [
@@ -1349,15 +1358,15 @@ app.post("/api/pages", wrap((req, res) => {
       { type: "faq", props: { heading: "Common questions", items: "Do you deliver nationwide? | Yes — flat-rate cargo, assembly included in Lahore and Karachi.\nIs there a warranty? | 5 years on frames, 2 years on mechanisms." } },
     ],
   };
-  for (const [i, b] of ((packs[template] ?? []).entries())) db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props), i);
-  const r = db.prepare("SELECT * FROM pages WHERE id=?").get(pid);
+  for (const [i, b] of ((packs[template] ?? []).entries())) (await (db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props), i)));
+  const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(pid)));
   emit("pages", { title: "Page created: /" + r.slug, who: r.title });
-  res.status(201).json(rowPage(r));
+  res.status(201).json((await (rowPage(r))));
 }));
-app.get("/api/pages/:key", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.key, req.params.key);
+app.get("/api/pages/:key", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.key, req.params.key)));
   if (!r) return res.status(404).json({ error: "page not found" });
-  res.json(rowPage(r));
+  res.json((await (rowPage(r))));
 }));
 const PREVIEW_SECRET = crypto.randomBytes(32).toString("hex"); // restart rotates → old links die with it
 const previewSig = (slug, exp) => crypto.createHmac("sha256", PREVIEW_SECRET).update(slug + "." + exp).digest("base64url").slice(0, 40);
@@ -1366,89 +1375,89 @@ const previewSigOk = (slug, exp, sig) => {
   const a = Buffer.from(previewSig(slug, exp)), b = Buffer.from(String(sig).slice(0, 64));
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
-const bearerValid = (req) => {
+const bearerValid = async (req) => {
   const t = String(req.headers.authorization ?? "").replace(/^Bearer\s+/i, "") || String(req.query.token ?? "");
   if (!t) return false;
-  const u = db.prepare("SELECT u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(t);
+  const u = (await (db.prepare("SELECT u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(t)));
   return !!u && !!u.active && String(u.expires_at) >= now();
 };
-app.post("/api/pages/:id/preview-link", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.id, req.params.id);
+app.post("/api/pages/:id/preview-link", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "page not found" });
   const exp = Date.now() + 15 * 60e3; // 15-minute preview window (TODO-1)
   res.json({ url: "/p/" + r.slug + "?draft=1&exp=" + exp + "&sig=" + previewSig(r.slug, exp), expiresAt: new Date(exp).toISOString() });
 }));
-app.get("/api/pages/:key/public", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM pages WHERE slug=?").get(req.params.key);
+app.get("/api/pages/:key/public", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM pages WHERE slug=?").get(req.params.key)));
   if (!r) return res.status(404).json({ error: "no page at that address" });
   const wantDraft = req.query.draft === "1";
-  if (r.status !== "Published" && !(wantDraft && (previewSigOk(r.slug, req.query.exp, req.query.sig) || bearerValid(req))))
+  if (r.status !== "Published" && !(wantDraft && (previewSigOk(r.slug, req.query.exp, req.query.sig) || (await (bearerValid(req))))))
     return res.status(404).json({ error: "page is not published" }); // TODO-1: drafts need a valid sig or a session — ?draft=1 alone no longer opens
   res.json({ slug: r.slug, title: r.title, status: r.status, seoTitle: r.seo_title, seoDesc: r.seo_desc,
     publishedAt: r.updated_at,
-    blocks: pageBlocks(r.id), theme: r.theme ? JSON.parse(r.theme) : null });
+    blocks: (await (pageBlocks(r.id))), theme: r.theme ? JSON.parse(r.theme) : null });
 }));
-app.put("/api/pages/:id/blocks", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
+app.put("/api/pages/:id/blocks", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const rewrite = Array.isArray(req.body?.blocks);
   if (rewrite) {
-    db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id);
-    req.body.blocks.forEach((b, i) => db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
-      .run(r.id, String(b.type), JSON.stringify(b.props ?? {}), i));
+    (await (db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id)));
+    (await Promise.all(req.body.blocks.map(async (b, i) => (await (db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
+      .run(r.id, String(b.type), JSON.stringify(b.props ?? {}), i))))));
   }
   const { title, seoTitle, seoDesc, theme } = req.body ?? {};
-  db.prepare("UPDATE pages SET title=COALESCE(?,title), seo_title=COALESCE(?,seo_title), seo_desc=COALESCE(?,seo_desc), theme=COALESCE(?,theme), updated_at=? WHERE id=?")
-    .run(title ?? null, seoTitle ?? null, seoDesc ?? null, theme ? JSON.stringify(theme) : null, now(), r.id);
-  res.json({ ...rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)),
-    validation: validatePage(req.body?.title ?? r.title,
-      rewrite ? req.body.blocks : db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id).map((x) => ({ type: x.type, props: JSON.parse(x.props || "{}") }))) });
+  (await (db.prepare("UPDATE pages SET title=COALESCE(?,title), seo_title=COALESCE(?,seo_title), seo_desc=COALESCE(?,seo_desc), theme=COALESCE(?,theme), updated_at=? WHERE id=?")
+    .run(title ?? null, seoTitle ?? null, seoDesc ?? null, theme ? JSON.stringify(theme) : null, now(), r.id)));
+  res.json({ ...(await (rowPage((await (db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)))))),
+    validation: (await (validatePage(req.body?.title ?? r.title,
+      rewrite ? req.body.blocks : (await (db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id))).map((x) => ({ type: x.type, props: JSON.parse(x.props || "{}") }))))) });
 }));
-app.post("/api/pages/:id/publish", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
+app.post("/api/pages/:id/publish", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
-  const blocks = db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id).map((b) => ({ type: b.type, props: JSON.parse(b.props || "{}") }));
-  const errs = validatePage(req.body?.title ?? r.title, blocks);
+  const blocks = (await (db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id))).map((b) => ({ type: b.type, props: JSON.parse(b.props || "{}") }));
+  const errs = (await (validatePage(req.body?.title ?? r.title, blocks)));
   if (errs.length) return res.status(422).json({ error: "validation failed", validation: errs });
   const t = now();
-  db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)")
-    .run(r.id, JSON.stringify({ blocks, seo: { title: r.seo_title, desc: r.seo_desc } }), req.body?.note ?? "published", req.actor ?? "You", t);
-  db.prepare("UPDATE pages SET status='Published', updated_at=? WHERE id=?").run(t, r.id);
+  (await (db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)")
+    .run(r.id, JSON.stringify({ blocks, seo: { title: r.seo_title, desc: r.seo_desc } }), req.body?.note ?? "published", req.actor ?? "You", t)));
+  (await (db.prepare("UPDATE pages SET status='Published', updated_at=? WHERE id=?").run(t, r.id)));
   emit("pages", { title: "Page published: /" + r.slug, who: r.title });
-  res.json({ ...rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)), versions: db.prepare("SELECT COUNT(*) n FROM page_versions WHERE page_id=?").get(r.id).n });
+  res.json({ ...(await (rowPage((await (db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)))))), versions: (await (db.prepare("SELECT COUNT(*) n FROM page_versions WHERE page_id=?").get(r.id))).n });
 }));
-app.post("/api/pages/:id/unpublish", wrap((req, res) => {
-  const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
+app.post("/api/pages/:id/unpublish", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
-  db.prepare("UPDATE pages SET status='Draft', updated_at=? WHERE id=?").run(now(), r.id);
+  (await (db.prepare("UPDATE pages SET status='Draft', updated_at=? WHERE id=?").run(now(), r.id)));
   emit("pages", { title: "Page unpublished: /" + r.slug, who: r.title });
-  res.json(rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)));
+  res.json((await (rowPage((await (db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)))))));
 }));
-app.get("/api/pages/:id/versions", wrap((req, res) => {
-  const rows = db.prepare("SELECT id, note, who, created_at, snapshot FROM page_versions WHERE page_id=? ORDER BY id DESC").all(req.params.id);
+app.get("/api/pages/:id/versions", wrap(async (req, res) => {
+  const rows = (await (db.prepare("SELECT id, note, who, created_at, snapshot FROM page_versions WHERE page_id=? ORDER BY id DESC").all(req.params.id)));
   res.json({ items: rows.map((v) => ({ id: v.id, note: v.note, who: v.who, createdAt: v.created_at,
     blocks: JSON.parse(v.snapshot).blocks.length })) });
 }));
-app.post("/api/pages/:id/rollback", wrap((req, res) => {
+app.post("/api/pages/:id/rollback", wrap(async (req, res) => {
   const vid = Number(req.body?.version_id);
   if (!vid) return res.status(400).json({ error: "version_id required" });
-  const v = db.prepare("SELECT * FROM page_versions WHERE id=? AND page_id=?").get(vid, req.params.id);
+  const v = (await (db.prepare("SELECT * FROM page_versions WHERE id=? AND page_id=?").get(vid, req.params.id)));
   if (!v) return res.status(404).json({ error: "version not found" });
   const snap = JSON.parse(v.snapshot);
-  db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(req.params.id);
-  (snap.blocks ?? []).forEach((b, i) => db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
-    .run(req.params.id, b.type, JSON.stringify(b.props ?? {}), i));
-  db.prepare("UPDATE pages SET updated_at=? WHERE id=?").run(now(), req.params.id);
+  (await (db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(req.params.id)));
+  (await Promise.all((snap.blocks ?? []).map(async (b, i) => (await (db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
+    .run(req.params.id, b.type, JSON.stringify(b.props ?? {}), i))))));
+  (await (db.prepare("UPDATE pages SET updated_at=? WHERE id=?").run(now(), req.params.id)));
   emit("pages", { title: "Version rolled back on page " + req.params.id, who: req.actor ?? "You" });
-  res.json(rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
+  res.json((await (rowPage((await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)))))));
 }));
 
-function ensureSiteDemo() {
-  if (db.prepare("SELECT COUNT(*) n FROM pages").get().n > 0) return;
+async function ensureSiteDemo() {
+  if ((await (db.prepare("SELECT COUNT(*) n FROM pages").get())).n > 0) return;
   const t = now();
-  const info = db.prepare("INSERT INTO pages(slug,title,status,seo_title,seo_desc,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+  const info = (await (db.prepare("INSERT INTO pages(slug,title,status,seo_title,seo_desc,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
     .run("ramadan-workspace-sale", "Ramadan Workspace Sale", "Published",
-      "Ramadan Workspace Sale — Woodex Furniture", "Up to 30% off desks & ergonomic chairs. Quotation + installation in 48h.", t, t);
+      "Ramadan Workspace Sale — Woodex Furniture", "Up to 30% off desks & ergonomic chairs. Quotation + installation in 48h.", t, t)));
   const pid = info.lastInsertRowid;
   const demo = [
     { type: "hero", props: { kicker: "Ramadan offer · Lahore & nationwide", heading: "Your workspace, upgraded for PKR under 150,000", sub: "Solid-wood desks, ergonomic chairs and silent soft-close storage — warehouse stock, delivered and installed before Eid.", image: "office-desk-setup.jpg", cta_label: "Request a quotation", cta_href: "/quotation", cta2: "Browse the catalog" } },
@@ -1459,15 +1468,15 @@ function ensureSiteDemo() {
     { type: "lead-form", props: { heading: "Reserve your offer slot", sub: "Share your requirement — we confirm stock and install date within one working day.", submit_label: "Send to sales", consent: "By sending you agree to be contacted on WhatsApp about this offer." } },
     { type: "cta-band", props: { heading: "Need 10+ desks?", sub: "Bulk floor plans get dedicated pricing and staged delivery.", primary_label: "Talk to B2B desk", primary_href: "/b2b" } },
   ];
-  for (const [i, b] of demo.entries()) db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props), i);
-  const si = db.prepare("INSERT INTO saved_sections(name,category,tags,block,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+  for (const [i, b] of demo.entries()) (await (db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props), i)));
+  const si = (await (db.prepare("INSERT INTO saved_sections(name,category,tags,block,created_at,updated_at) VALUES(?,?,?,?,?,?)")
     .run("Trust strip", "Social proof", JSON.stringify(["woodex", "reusable"]),
-      JSON.stringify({ type: "text-section", props: { kicker: "Why Woodex", heading: "12 years · 4,100+ rooms · 5-year frame warranty", body: "Own Johar Town workshop, seasoned Sheesham & Grade-A hardware, delivery with customer sign-off checklist.", bullets: "4.9 average rating across 860 reviews\nFactory-direct pricing, no showroom loading\nFree 3D preview for bulk orders" } }), t, t);
+      JSON.stringify({ type: "text-section", props: { kicker: "Why Woodex", heading: "12 years · 4,100+ rooms · 5-year frame warranty", body: "Own Johar Town workshop, seasoned Sheesham & Grade-A hardware, delivery with customer sign-off checklist.", bullets: "4.9 average rating across 860 reviews\nFactory-direct pricing, no showroom loading\nFree 3D preview for bulk orders" } }), t, t)));
   const globalRef = { type: "global-section", props: { section_id: String(si.lastInsertRowid) } };
-  db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, globalRef.type, JSON.stringify(globalRef.props), 1);
-  const shifted = db.prepare("SELECT id, sort FROM page_blocks WHERE page_id=? AND sort>=1 ORDER BY sort DESC").all(pid);
-  for (const row of shifted) db.prepare("UPDATE page_blocks SET sort=sort+1 WHERE id=?").run(row.id);
-  db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)").run(pid, JSON.stringify({ blocks: demo }), "seeded", "System", t);
+  (await (db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, globalRef.type, JSON.stringify(globalRef.props), 1)));
+  const shifted = (await (db.prepare("SELECT id, sort FROM page_blocks WHERE page_id=? AND sort>=1 ORDER BY sort DESC").all(pid)));
+  for (const row of shifted) (await (db.prepare("UPDATE page_blocks SET sort=sort+1 WHERE id=?").run(row.id)));
+  (await (db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)").run(pid, JSON.stringify({ blocks: demo }), "seeded", "System", t)));
   console.log("[seed] site demo: 1 published landing page (7 blocks)");
 }
 
@@ -1478,23 +1487,23 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 await seed();
 /* P10 demo threads — boot-guarded, runs even after the main seed() short-circuits */
 try {
-  if (db.prepare("SELECT COUNT(*) n FROM conversations").get().n === 0) {
+  if ((await (db.prepare("SELECT COUNT(*) n FROM conversations").get())).n === 0) {
     const seeds = [
       { n: -5, msgs: [["inbound", "whatsapp", "Hassan", "Salam, do you have the L-shaped desk in walnut? Need 4 for a new office by Eid."], ["outbound", "whatsapp", "Usman", "Walaikum salam! Yes — 6 in stock at Gulberg. I'll send prices + 3D layout options today."], ["inbound", "whatsapp", "Hassan", "Great, also do you install in DHA?"]] },
       { n: -2, msgs: [["inbound", "email", "Bilal Traders", "Following up on quote Q-1042 — can we move to 40% advance?"], ["outbound", "note", "Ayesha", "Owner asked for payment plan — approved 40/60 per finance, updating quote."]] },
       { n: -1, msgs: [["inbound", "phone", "Sana", "Call: wants 3 executive tables delivered before the 20th, meeting room chairs too."], ["outbound", "whatsapp", "Usman", "Confirmed stock + slot on 19th. Sending delivery address form shortly."]] },
     ];
     for (const [i, sp] of seeds.entries()) {
-      const cl = db.prepare("SELECT id FROM clients WHERE merged_into IS NULL ORDER BY id LIMIT 1 OFFSET ?").get(i);
+      const cl = (await (db.prepare("SELECT id FROM clients WHERE merged_into IS NULL ORDER BY id LIMIT 1 OFFSET ?").get(i)));
       if (!cl) break;
       const t = new Date(Date.now() + sp.n * 864e5).toISOString();
-      const info = db.prepare("INSERT INTO conversations(client_id,status,assignee,unread,last_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
-        .run(cl.id, "open", i === 1 ? "Ayesha" : "Usman", i === 2 ? 1 : 0, t, t, t);
+      const info = (await (db.prepare("INSERT INTO conversations(client_id,status,assignee,unread,last_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+        .run(cl.id, "open", i === 1 ? "Ayesha" : "Usman", i === 2 ? 1 : 0, t, t, t)));
       let k = 0;
       for (const [dir, ch, au, body] of sp.msgs) {
         k += 19 * 60 * 1000;
-        db.prepare("INSERT INTO messages(conversation_id,channel,direction,author,body,created_at) VALUES(?,?,?,?,?,?)")
-          .run(info.lastInsertRowid, ch, dir, au, body, new Date(Date.parse(t) + k).toISOString());
+        (await (db.prepare("INSERT INTO messages(conversation_id,channel,direction,author,body,created_at) VALUES(?,?,?,?,?,?)")
+          .run(info.lastInsertRowid, ch, dir, au, body, new Date(Date.parse(t) + k).toISOString())));
       }
     }
     console.log("[woodex-api] P10 inbox demo threads seeded");
@@ -1502,15 +1511,15 @@ try {
 } catch (e) { console.error("[woodex-api] inbox seed skipped:", e.message); }
 /* Foundation: admin/admin simple login — migrate the legacy owner row once */
 try {
-  if (!db.prepare("SELECT id FROM users WHERE email='admin@woodex.pk'").get()) {
-    const legacy = db.prepare("SELECT id FROM users WHERE email='usman@woodex.pk'").get();
+  if (!(await (db.prepare("SELECT id FROM users WHERE email='admin@woodex.pk'").get()))) {
+    const legacy = (await (db.prepare("SELECT id FROM users WHERE email='usman@woodex.pk'").get()));
     if (legacy) {
       const { salt, hash } = hashPass("admin");
-      db.prepare("UPDATE users SET email='admin@woodex.pk', name='Admin', role='owner', pass_salt=?, pass_hash=?, active=1, updated_at=? WHERE id=?").run(salt, hash, now(), legacy.id);
-      db.prepare("DELETE FROM sessions WHERE user_id=?").run(legacy.id); // old pw's tokens invalid
+      (await (db.prepare("UPDATE users SET email='admin@woodex.pk', name='Admin', role='owner', pass_salt=?, pass_hash=?, active=1, updated_at=? WHERE id=?").run(salt, hash, now(), legacy.id)));
+      (await (db.prepare("DELETE FROM sessions WHERE user_id=?").run(legacy.id))); // old pw's tokens invalid
     } else {
       const { salt, hash } = hashPass("admin");
-      db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run("admin@woodex.pk", "Admin", "owner", salt, hash, now(), now());
+      (await (db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run("admin@woodex.pk", "Admin", "owner", salt, hash, now(), now())));
     }
     console.log("[woodex-api] login: admin / admin");
   }
@@ -1526,14 +1535,15 @@ try {
       ["guest@woodex.pk", "Guest (View only)", "viewer"],
     ];
     for (const [email, name, role] of team) {
-      if (db.prepare("SELECT id FROM users WHERE email=?").get(email)) continue;
+      if ((await (db.prepare("SELECT id FROM users WHERE email=?").get(email)))) continue;
       const { salt, hash } = hashPass("woodex123");
-      db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run(email, name, role, salt, hash, t, t);
+      (await (db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run(email, name, role, salt, hash, t, t)));
     }
     console.log("[woodex-api] team ensure-complete · demo password 'woodex123'");
   }
 } catch (e) { console.error("[woodex-api] users seed skipped:", e.message); }
-ensureFinanceDemo();
-ensureCrmDemo();
-ensureSiteDemo();
-app.listen(PORT, "0.0.0.0", () => console.log(`[woodex-api] http://localhost:${PORT} · db=data/woodex.db`));
+(await (ensureFinanceDemo()));
+(await (ensureCrmDemo()));
+(await (ensureSiteDemo()));
+const httpServer = app.listen(PORT, "0.0.0.0", () => console.log(`[woodex-api] http://localhost:${httpServer.address()?.port ?? PORT} · driver=${db.kind}`));
+export { app, db, httpServer };
