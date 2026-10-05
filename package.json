@@ -9,6 +9,7 @@
     "apps/storefront"
   ],
   "scripts": {
+    "qa": "node scripts/qa-full.mjs",
     "dev:api": "npm -w @woodex/api run dev",
     "dev:dashboard": "npm -w @woodex/dashboard run dev",
     "dev:storefront": "npm -w @woodex/storefront run dev",

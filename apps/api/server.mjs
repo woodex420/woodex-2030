@@ -330,7 +330,7 @@ const loginBucket = new Map();
 
 app.get("/api/health", wrap((req, res) => {
   const c = (t) => db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n;
-  res.json({ ok: true, db: "sqlite", ts: now(), counts: { products: c("products"), leads: c("leads"), quotes: c("quotes"), orders: c("orders") } });
+  res.json({ ok: true, db: "sqlite", ts: now(), counts: { products: c("products"), leads: c("leads"), quotes: c("quotes"), orders: c("orders"), users: c("users"), invoices: c("invoices") } });
 }));
 
 app.get("/api/products", wrap((req, res) => {
@@ -419,7 +419,11 @@ app.patch("/api/quotes/:id", wrap((req, res) => {
 
 /* Leads — contact form → CRM */
 app.get("/api/leads", wrap((req, res) => {
-  const rows = db.prepare("SELECT * FROM leads ORDER BY datetime(created_at) DESC").all();
+  let rows = db.prepare("SELECT * FROM leads ORDER BY datetime(created_at) DESC").all();
+  const fs = String(req.query.status ?? "").trim();
+  if (fs) rows = rows.filter((r) => String(r.status).toLowerCase() === fs.toLowerCase());
+  const fq = String(req.query.q ?? "").trim().toLowerCase();
+  if (fq) rows = rows.filter((r) => [r.name, r.company, r.interest, r.contact, r.ref].some((v) => String(v ?? "").toLowerCase().includes(fq)));
   const items = rows.map((r) => { const l = rowLead(r); const sc = scoreLead(l);
     const link = db.prepare("SELECT client_id c FROM client_links WHERE entity='lead' AND entity_id=?").get(l.id);
     return { ...l, score: sc.score, scoreWhy: sc.why, clientId: link?.c ?? null }; });
@@ -492,8 +496,9 @@ app.post("/api/orders", wrap((req, res) => {
   if (!customer || !items.length) return res.status(400).json({ error: "customer and items are required" });
   const t = now();
   const sum = typeof total === "number" ? total : items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
+  const ref = "WX-" + (4300 + db.prepare("SELECT COUNT(*) n FROM orders").get().n); // was inline → later bare `ref` threw → 500 after insert
   const info = db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-    .run("WX-" + (4300 + db.prepare("SELECT COUNT(*) n FROM orders").get().n), customer, JSON.stringify(items), sum,
+    .run(ref, customer, JSON.stringify(items), sum,
       "Pending", "production", source || "Showroom", "TBD", t, t);
   const oLed = rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid));
   { const m = matchOrCreateClient({ name: customer, contact: req.body?.contact, source: "checkout" }); linkClient(m.client.id, "order", oLed.id);
@@ -1055,7 +1060,7 @@ app.post("/api/quotes/:id/invoice", wrap((req, res) => {
   db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
     JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued from quote", time: now() },
       ...JSON.parse(q.audit || "[]")]), now(), q.id);
-  { const cl = db.prepare("SELECT client_id c FROM clients WHERE lower(name)=lower(?) AND merged_into IS NULL").get(r.customer);
+  { const cl = db.prepare("SELECT id AS c FROM clients WHERE lower(name)=lower(?) AND merged_into IS NULL").get(r.customer);
     if (cl) linkClient(cl.c, "invoice", r.id); }
   emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
@@ -1391,7 +1396,9 @@ app.get("/api/pages/:id/versions", wrap((req, res) => {
     blocks: JSON.parse(v.snapshot).blocks.length })) });
 }));
 app.post("/api/pages/:id/rollback", wrap((req, res) => {
-  const v = db.prepare("SELECT * FROM page_versions WHERE id=? AND page_id=?").get(req.body?.version_id, req.params.id);
+  const vid = Number(req.body?.version_id);
+  if (!vid) return res.status(400).json({ error: "version_id required" });
+  const v = db.prepare("SELECT * FROM page_versions WHERE id=? AND page_id=?").get(vid, req.params.id);
   if (!v) return res.status(404).json({ error: "version not found" });
   const snap = JSON.parse(v.snapshot);
   db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(req.params.id);
