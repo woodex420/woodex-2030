@@ -45,6 +45,12 @@ export async function syncOverrides(): Promise<number> {
 export function startRuntimeSync(intervalMs = 15000) {
   void syncOverrides();
   window.setInterval(() => void syncOverrides(), intervalMs);
+  // P3: dashboard edits land instantly via SSE instead of waiting for the next poll
+  try {
+    const es = new EventSource("/api/events");
+    es.addEventListener("products", () => void syncOverrides());
+    es.addEventListener("invoices", () => void syncOverrides());
+  } catch { /* EventSource unsupported — polling covers us */ }
 }
 
 /** Re-render wrapper: bumps on `woodex:runtime` so catalog price/stock stay live. */

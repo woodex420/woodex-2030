@@ -10,7 +10,10 @@ import {
   ActivityFeed,
   KpiRow,
   OperationsStatusRow,
+  PaymentsStrip,
   QuotationPipelineCard,
+  SourcesCard,
+  TopProductsCard,
   WorkspaceContextBar,
 } from "@/components/dashboard";
 import { compact, money } from "@/lib/cn";
@@ -113,7 +116,7 @@ export default function Dashboard() {
               { name: "Revenue", color: "#4F9D21", values: revenueSeries.revenue, area: true },
               { name: "Orders", color: "#3578B8", values: revenueSeries.orders },
             ]}
-            valueFormat={(n) => "$" + compact(n)}
+            valueFormat={(n) => "PKR " + compact(n)}
           />
           <div className="mt-2 flex items-center gap-4 border-t border-line pt-3 text-caption text-muted">
             <span className="inline-flex items-center gap-1.5">
@@ -133,8 +136,14 @@ export default function Dashboard() {
           <RecentLeads />
         </Card>
 
+        {/* Vireo row: payments + sources */}
+        <SourcesCard />
+
         {/* §8.5 Activity */}
         <ActivityFeed />
+
+        <PaymentsStrip />
+        <TopProductsCard />
       </div>
 
       {/* §8.4 Production & delivery */}

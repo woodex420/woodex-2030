@@ -30,6 +30,7 @@ fs.mkdirSync(DB_DIR, { recursive: true });
 const db = new DatabaseSync(path.join(DB_DIR, "woodex.db"));
 
 const now = () => new Date().toISOString();
+const fmtMoney = (n) => "PKR " + Math.round(n).toLocaleString("en-PK");
 
 /* ---------------- schema ---------------- */
 db.exec(`
@@ -257,7 +258,7 @@ app.post("/api/quotes", wrap((req, res) => {
   const info = db.prepare("INSERT INTO quotes(ref,customer,contact,items,total,status,source,note,audit,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
     .run(ref, customer, contact ?? null, JSON.stringify(items), sum, "Draft", source, note ?? null,
       JSON.stringify([{ who: source === "storefront" ? customer : "You", action: "requested quotation via " + source, time: t }]), t, t);
-  res.status(201).json(rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid)));
+  emit("quotes", { title: "Quotation " + ref + " requested", who: customer }); res.status(201).json(rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid)));
 }));
 app.patch("/api/quotes/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
@@ -269,7 +270,9 @@ app.patch("/api/quotes/:id", wrap((req, res) => {
   db.prepare("UPDATE quotes SET status=?, note=?, customer=?, contact=?, audit=?, updated_at=? WHERE id=?").run(
     status ?? r.status, note ?? r.note, customer ?? r.customer, contact ?? r.contact, JSON.stringify(audit), now(), r.id
   );
-  res.json(rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(r.id)));
+  const out = rowQuote(db.prepare("SELECT * FROM quotes WHERE id=?").get(r.id));
+  if (status) emit("quotes", { title: "Quotation " + r.ref + " → " + status, who: r.customer });
+  res.json(out);
 }));
 
 /* Leads — contact form → CRM */
@@ -284,14 +287,16 @@ app.post("/api/leads", wrap((req, res) => {
   const ref = "L-" + (1100 + db.prepare("SELECT COUNT(*) n FROM leads").get().n);
   const info = db.prepare("INSERT INTO leads(ref,name,company,interest,source,contact,status,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
     .run(ref, name, company ?? null, interest ?? "General inquiry", source, contact ?? null, "New", note ?? null, t, t);
-  res.status(201).json(rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid)));
+  emit("leads", { title: "New lead " + name, who: name, context: interest ?? "" }); res.status(201).json(rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid)));
 }));
 app.patch("/api/leads/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM leads WHERE id=? OR ref=?").get(req.params.id, req.params.id);
   if (!r) return res.status(404).json({ error: "not found" });
   const { status, owner } = req.body ?? {};
   db.prepare("UPDATE leads SET status=?, owner=?, updated_at=? WHERE id=?").run(status ?? r.status, owner ?? r.owner, now(), r.id);
-  res.json(rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(r.id)));
+  const leadOut = rowLead(db.prepare("SELECT * FROM leads WHERE id=?").get(r.id));
+  emit("leads", { title: "Lead " + r.ref + " → " + (req.body?.status ?? r.status), who: r.name });
+  res.json(leadOut);
 }));
 
 /* Orders — checkout → operations */
@@ -306,7 +311,7 @@ app.post("/api/orders", wrap((req, res) => {
   const info = db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
     .run("WX-" + (4300 + db.prepare("SELECT COUNT(*) n FROM orders").get().n), customer, JSON.stringify(items), sum,
       "Pending", "production", source || "Showroom", "TBD", t, t);
-  res.status(201).json(rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid)));
+  emit("orders", { title: "Order " + ref + " placed", who: customer }); res.status(201).json(rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid)));
 }));
 app.patch("/api/orders/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(req.params.id, req.params.id);
@@ -315,10 +320,33 @@ app.patch("/api/orders/:id", wrap((req, res) => {
   db.prepare("UPDATE orders SET status=?, stage=?, owner=?, due=?, updated_at=? WHERE id=?").run(
     status ?? r.status, stage ?? r.stage, owner ?? r.owner, due ?? r.due, now(), r.id
   );
-  res.json(rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(r.id)));
+  const oOut = rowOrder(db.prepare("SELECT * FROM orders WHERE id=?").get(r.id));
+  if (req.body?.stage || req.body?.status) emit("orders", { title: "Order " + r.ref + " → " + (req.body?.stage ? req.body.stage + " · " : "") + (req.body?.status ?? r.status), who: r.customer });
+  res.json(oOut);
 }));
 
 /* Dashboard rollup */
+/* ---- P3 realtime: Server-Sent Events bus ---- */
+const sseClients = new Set();
+const emit = (type, payload = {}) => {
+  const json = JSON.stringify({ type, at: now(), ...payload });
+  for (const c of sseClients) { try { c.write(`event: ${type}\ndata: ${json}\n\n`); } catch { sseClients.delete(c); } }
+};
+app.get("/api/events", (req, res) => {
+  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
+  res.write("retry: 3000\n\n");
+  res.write(`event: hello\ndata: ${JSON.stringify({ type: "hello", at: now() })}\n\n`);
+  sseClients.add(res);
+  req.on("close", () => sseClients.delete(res));
+});
+
+app.post("/api/target", wrap((req, res) => {
+  const v = Number(req.body?.value);
+  if (!(v > 0)) return res.status(400).json({ error: "value must be > 0" });
+  db.prepare("INSERT INTO meta(key,value) VALUES('target',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(String(v));
+  res.json({ target: v });
+}));
+
 /* ---- P5 finance: invoices, payments, returns, public lookup ---- */
 const totalsFrom = (items, { discount = 0, tax = 0, shipping = 0 }) => {
   const subtotal = items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
@@ -368,6 +396,7 @@ app.post("/api/invoices", wrap((req, res) => {
   if (quoteId) db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
     JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued", time: now() },
       ...JSON.parse(db.prepare("SELECT audit FROM quotes WHERE id=?").get(quoteId)?.audit || "[]")]), now(), quoteId);
+  emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
 }));
 app.post("/api/quotes/:id/invoice", wrap((req, res) => {
@@ -382,12 +411,14 @@ app.post("/api/quotes/:id/invoice", wrap((req, res) => {
   db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
     JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued from quote", time: now() },
       ...JSON.parse(q.audit || "[]")]), now(), q.id);
+  emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
 }));
 app.patch("/api/invoices/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id);
   if (!r) return res.status(404).json({ error: "not found" });
   const b = req.body ?? {};
+  emit("invoices", { title: "Invoice " + r.ref + " → " + (b.status ?? r.status), who: r.customer });
   db.prepare("UPDATE invoices SET status=?, due=?, notes=?, discount=?, tax=?, shipping=?, total=?, updated_at=? WHERE id=?").run(
     b.status ?? r.status, b.due ?? r.due, b.notes ?? r.notes,
     b.discount ?? r.discount, b.tax ?? r.tax, b.shipping ?? r.shipping,
@@ -407,6 +438,8 @@ app.post("/api/invoices/:id/payments", wrap((req, res) => {
   const paid = r.paid + amount;
   const status = paid >= r.total ? "Paid" : "Partially Paid";
   db.prepare("UPDATE invoices SET paid=?, status=?, updated_at=? WHERE id=?").run(paid, status, t, r.id);
+  emit("invoices", { title: "Payment " + (amount >= r.balance ? "" : "partial ") + fmtMoney(amount) + " on " + r.ref, who: r.customer });
+  emit("payments", { amount, invoiceId: r.id, method: req.body?.method ?? "Bank transfer" });
   res.status(201).json({ ...rowInvoice(db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)),
     payments: db.prepare("SELECT * FROM payments WHERE invoice_id=? ORDER BY datetime(created_at) DESC").all(r.id) });
 }));
@@ -426,7 +459,9 @@ app.post("/api/returns", wrap((req, res) => {
   const t = now();
   const info = db.prepare("INSERT INTO returns(ref,order_id,customer,item,reason,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
     .run(nextRef("returns", "RMA-", 201), orderId, customer, b.item ?? null, b.reason, "Requested", t, t);
-  res.status(201).json(rowReturn(db.prepare("SELECT * FROM returns WHERE id=?").get(info.lastInsertRowid)));
+  const retOut = rowReturn(db.prepare("SELECT * FROM returns WHERE id=?").get(info.lastInsertRowid));
+  emit("returns", { title: "RMA opened for " + customer, who: customer, context: b.reason });
+  res.status(201).json(retOut);
 }));
 app.patch("/api/returns/:id", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM returns WHERE id=? OR ref=?").get(req.params.id, req.params.id);
@@ -434,7 +469,9 @@ app.patch("/api/returns/:id", wrap((req, res) => {
   const b = req.body ?? {};
   db.prepare("UPDATE returns SET state=?, refund_amount=?, resolution=?, updated_at=? WHERE id=?").run(
     b.state ?? r.state, b.refund_amount ?? b.refundAmount ?? r.refund_amount, b.resolution ?? r.resolution, now(), r.id);
-  res.json(rowReturn(db.prepare("SELECT * FROM returns WHERE id=?").get(r.id)));
+  const rOut = rowReturn(db.prepare("SELECT * FROM returns WHERE id=?").get(r.id));
+  if (b.state) emit("returns", { title: "RMA " + r.ref + " → " + b.state, who: r.customer });
+  res.json(rOut);
 }));
 
 /* Public order tracking (storefront /order-status) — ref is the capability, no auth */
@@ -477,6 +514,33 @@ app.get("/api/stats", wrap((req, res) => {
     recent: [...rec("leads", "lead"), ...rec("quotes", "quote"), ...rec("orders", "production"),
       ...db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC LIMIT 2").all().map((r) => ({ type: "invoice", title: `Invoice ${r.ref} · ${r.status}`, who: r.customer, context: "finance", time: r.created_at })),
       ...db.prepare("SELECT * FROM returns ORDER BY datetime(created_at) DESC LIMIT 1").all().map((r) => ({ type: "return", title: `Return ${r.ref} · ${r.state}`, who: r.customer, context: r.reason ?? "", time: r.created_at }))].slice(0, 8),
+    finance: (() => {
+      const delivered = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(total),0) v FROM orders WHERE stage IN ('delivery','installation')").get();
+      const target = Number(db.prepare("SELECT value FROM meta WHERE key='target'").get()?.value ?? 10000000);
+      const won = n("SELECT COUNT(*) n FROM quotes WHERE status='Approved'");
+      const open = n("SELECT COUNT(*) n FROM quotes WHERE status NOT IN ('Approved','Rejected','Expired')");
+      const agg = {};
+      for (const o of db.prepare("SELECT items FROM orders").all()) for (const it of JSON.parse(o.items)) {
+        const k = it.name || "Item"; const a = (agg[k] ??= { name: k, qty: 0, value: 0 });
+        a.qty += it.qty || 1; a.value += (it.price || 0) * (it.qty || 1);
+      }
+      const topProducts = Object.values(agg).sort((x, y) => y.value - x.value).slice(0, 5);
+      const sources = db.prepare("SELECT COALESCE(source,'Other') k, COUNT(*) c FROM leads GROUP BY 1 ORDER BY c DESC").all();
+      const totalLeads = Math.max(1, sources.reduce((n_, r) => n_ + r.c, 0));
+      const payments = db.prepare(`SELECT p.amount, p.method, p.reference, p.created_at, i.ref inv FROM payments p JOIN invoices i ON i.id=p.invoice_id ORDER BY datetime(p.created_at) DESC LIMIT 5`).all();
+      const months = []; const d = new Date();
+      for (let i = 5; i >= 0; i--) { const t = new Date(d.getFullYear(), d.getMonth() - i, 1); months.push(t.toISOString().slice(0, 7)); }
+      const monthly = months.map((m) => ({ month: m,
+        revenue: db.prepare("SELECT COALESCE(SUM(total),0) v FROM orders WHERE substr(created_at,1,7)=? AND stage IN ('delivery','installation')").get(m).v }));
+      return {
+        aov: delivered.n ? Math.round(delivered.v / delivered.n) : 0,
+        target: { value: target, pct: Math.min(100, Math.round((delivered.v / target) * 100)) },
+        deals: { won, open },
+        topProducts,
+        sources: sources.map((r) => ({ name: r.k, count: r.c, pct: Math.round((r.c / totalLeads) * 100) })),
+        payments, monthly,
+      };
+    })(),
     seededAt: db.prepare("SELECT value FROM meta WHERE key='seeded_at'").get()?.value ?? null,
   });
 }));

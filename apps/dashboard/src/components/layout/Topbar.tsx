@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { cn } from "@/lib/cn";
 import { buttonCls } from "@/components/ui/Button";
@@ -11,7 +11,8 @@ import {
   DropdownLabel,
 } from "@/components/ui/Dropdown";
 import { useToast } from "@/components/ui/Toast";
-import { notifications } from "@/data/mock";
+import { useApi, timeAgo, useRealtime, useRealtimeStatus, type ApiStats, type RtEvent } from "@/lib/api";
+import { CommandPalette } from "@/components/CommandPalette";
 import {
   Bell,
   Check,
@@ -19,10 +20,17 @@ import {
   FileText,
   LogOut,
   Menu,
+  Search,
   Settings,
   ShoppingBag,
   User,
 } from "@/icons";
+
+type Note = { id: string; title: string; desc: string; time: string; tone: keyof typeof chipTone };
+
+const TONE_BY_TYPE: Record<string, Note["tone"]> = {
+  leads: "info", quotes: "primary", orders: "warning", invoices: "success", payments: "success", returns: "danger", products: "muted",
+};
 
 export function Topbar({
   onOpenMobile,
@@ -33,21 +41,36 @@ export function Topbar({
   collapsed: boolean;
   onExpand: () => void;
 }) {
-  const searchRef = useRef<HTMLInputElement>(null);
-  const [unread, setUnread] = useState(notifications.length);
+  const [palette, setPalette] = useState(false);
+  const [liveNotes, setLiveNotes] = useState<Note[]>([]);
+  const [unread, setUnread] = useState(0);
+  const rt = useRealtimeStatus();
+  const { data: stats } = useApi<ApiStats>("/api/stats", 60000);
   const { push } = useToast();
 
-  /* ⌘K / Ctrl+K focuses global search — §05 "command/search shortcut" */
+  /* ⌘K / Ctrl+K opens the command palette — §05 "command/search shortcut" */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        searchRef.current?.focus();
+        setPalette((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  /* SSE events land at the top of the notification stack */
+  useRealtime(/leads|quotes|orders|invoices|payments|returns|products/, (ev: RtEvent) => {
+    setLiveNotes((prev) => [{ id: ev.type + Date.now(), title: ev.title ?? "Update", desc: [ev.who, ev.context].filter(Boolean).join(" · ") || "changed in the shared backend", time: "just now", tone: TONE_BY_TYPE[ev.type] ?? "neutral" }, ...prev].slice(0, 14));
+    setUnread((u) => u + 1);
+  });
+
+  const recentNotes: Note[] = (stats?.recent ?? []).slice(0, 8).map((r, i) => ({
+    id: "r" + i, title: r.title, desc: [r.who, r.context].filter(Boolean).join(" · "),
+    time: r.time ? timeAgo(r.time) : "just now", tone: TONE_BY_TYPE[r.type] ?? "neutral",
+  }));
+  const notes = [...liveNotes, ...recentNotes.filter((n) => !liveNotes.some((l) => l.title === n.title))];
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-line bg-white px-4 lg:gap-3 lg:px-6">
@@ -68,42 +91,38 @@ export function Topbar({
         </button>
       )}
 
-      {/* Global search */}
-      <div className="relative hidden max-w-md flex-1 md:block">
-        <label className="sr-only" htmlFor="global-search">
-          Global search
-        </label>
-        <input
-          id="global-search"
-          ref={searchRef}
-          type="search"
-          placeholder="Search leads, quotations, projects…"
-          className="h-10 w-full rounded-control border border-line-strong bg-slate-50 pr-14 pl-9 text-small text-ink transition-colors placeholder:text-subtle focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:outline-none"
-        />
-        <svg
-          className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-subtle"
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          aria-hidden
-        >
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.8-3.8" />
-        </svg>
+      {/* Command palette trigger (styled like the global search) */}
+      <button
+        onClick={() => setPalette(true)}
+        aria-label="Open command palette"
+        className="group relative hidden max-w-md flex-1 items-center md:flex"
+      >
+        <span className="flex h-10 w-full items-center gap-2 rounded-control border border-line-strong bg-slate-50 pr-14 pl-9 text-left text-small text-subtle transition-colors group-hover:border-slate-400 group-hover:bg-white">
+          <Search size={14} className="-ml-5 text-subtle" />
+          Search leads, quotes, orders, invoices, products…
+        </span>
         <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border border-line bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-subtle">
           ⌘K
         </kbd>
-      </div>
+      </button>
 
-      <div className="flex-1 md:hidden" />
+      <span className="flex-1 md:hidden" />
 
       {/* Right cluster */}
       <div className="flex items-center gap-1.5 lg:gap-2">
-        {/* Notifications */}
+        {/* Realtime status */}
+        <span
+          title={rt === "live" ? "Live sync connected (SSE)" : rt === "down" ? "Live sync down — 60s polling keeps data fresh" : "Connecting…"}
+          className={cn(
+            "hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide sm:inline-flex",
+            rt === "live" ? "bg-success-soft text-success-strong" : rt === "down" ? "bg-danger-soft text-danger-strong" : "bg-slate-100 text-slate-500"
+          )}
+        >
+          <span className={cn("h-1.5 w-1.5 rounded-full", rt === "live" ? "animate-pulse bg-success" : rt === "down" ? "bg-danger" : "bg-slate-400")} />
+          {rt === "live" ? "live" : rt === "down" ? "reconnecting" : "connect…"}
+        </span>
+
+        {/* Notifications — live events on top */}
         <Dropdown
           align="right"
           panelClassName="w-[min(92vw,360px)]"
@@ -128,36 +147,31 @@ export function Topbar({
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
               <p className="text-bodylg font-semibold text-ink">Notifications</p>
               <button
-                onClick={() => {
-                  setUnread(0);
-                  push({ tone: "primary", title: "All notifications marked as read" });
-                }}
+                onClick={() => { setUnread(0); push({ tone: "primary", title: "All notifications marked as read" }); }}
                 className="inline-flex items-center gap-1 text-caption font-medium text-primary-600 hover:text-primary-700"
               >
                 <Check size={13} /> Mark all read
               </button>
             </div>
             <ul className="max-h-[320px] divide-y divide-slate-100 overflow-y-auto scrollbar-slim">
-              {notifications.map((n) => (
+              {notes.length === 0 && <li className="px-4 py-6 text-center text-caption text-subtle">Quiet right now — events from the storefront and the board land here.</li>}
+              {notes.map((n) => (
                 <li key={n.id}>
-                  <Link
-                    to="/analytics"
-                    className="flex gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
-                  >
+                  <span className="flex gap-3 px-4 py-3 transition-colors">
                     <span className={cn("mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full", chipTone[n.tone])}>
-                      <span className={cn("h-1.5 w-1.5 rounded-full", `bg-current`, "opacity-70")} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-small font-semibold text-ink">{n.title}</span>
                       <span className="block truncate text-caption text-muted">{n.desc}</span>
                     </span>
                     <span className="shrink-0 text-caption whitespace-nowrap text-subtle">{n.time}</span>
-                  </Link>
+                  </span>
                 </li>
               ))}
             </ul>
             <div className="border-t border-line px-4 py-2.5 text-center">
-              <span className="text-caption font-medium text-primary-600">View all activity</span>
+              <Link to="/analytics" className="text-caption font-medium text-primary-600 hover:underline">View all activity</Link>
             </div>
           </div>
         </Dropdown>
@@ -171,7 +185,7 @@ export function Topbar({
           <ShoppingBag size={19} />
           <span className="absolute -top-0.5 -right-0.5">
             <Badge tone="primary" dot={false} className="px-1.5 py-0 text-[9px]">
-              3
+              {stats?.finance.deals.open ?? 0}
             </Badge>
           </span>
         </Link>
@@ -222,7 +236,7 @@ export function Topbar({
           </div>
           <DropdownDivider />
           <DropdownLabel>Account</DropdownLabel>
-          <DropdownItem onClick={() => push({ tone: "info", title: "Profile editor (Phase 3)" })}>
+          <DropdownItem onClick={() => push({ tone: "info", title: "Profile editor arrives with RBAC (P2 auth)" })}>
             <User size={15} className="text-slate-500" /> My profile
           </DropdownItem>
           <DropdownItem>
@@ -236,6 +250,8 @@ export function Topbar({
           </DropdownItem>
         </Dropdown>
       </div>
+
+      <CommandPalette open={palette} onClose={() => setPalette(false)} />
     </header>
   );
 }

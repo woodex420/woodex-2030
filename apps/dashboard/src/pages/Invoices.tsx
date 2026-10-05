@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -57,6 +58,8 @@ export default function Invoices() {
   const [detail, setDetail] = useState<ApiInvoiceDetail | null>(null);
   const [pay, setPay] = useState({ amount: "", method: "Bank transfer", reference: "" });
   const [issueOpen, setIssueOpen] = useState(false);
+  const [params] = useSearchParams();
+  useEffect(() => { if (params.get("issue") === "1") setIssueOpen(true); }, [params]);
   const [busy, setBusy] = useState(false);
   const quotesApi = useApi<{ items: ApiQuote[] }>("/api/quotes", 30000);
   const issuable = (quotesApi.data?.items ?? []).filter((q) => ["Approved", "Sent", "Viewed", "Negotiation", "Revised"].includes(q.status));

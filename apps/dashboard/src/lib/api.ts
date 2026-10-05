@@ -76,6 +76,13 @@ export type ApiStats = {
   quotes: { total: number; pipelineValue: number; byStatus: Record<string, { count: number; value: number }> };
   orders: { total: number; revenue: number; byStage: Record<string, { count: number; value: number }> };
   recent: { type: string; title: string; who: string; context: string; time: string }[];
+  invoices: { total: number; collected: number; outstanding: number; byStatus: Record<string, { count: number; value: number }> };
+  returns: { total: number; open: number };
+  finance: { aov: number; target: { value: number; pct: number }; deals: { won: number; open: number };
+    topProducts: { name: string; qty: number; value: number }[];
+    sources: { name: string; count: number; pct: number }[];
+    payments: { amount: number; method: string; reference: string | null; created_at: string; inv: string }[];
+    monthly: { month: string; revenue: number }[] };
   seededAt?: string | null;
 };
 
@@ -118,9 +125,15 @@ export function useApi<T>(path: string | null, intervalMs = 0) {
     alive.current = true;
     load();
     const id = intervalMs > 0 ? window.setInterval(load, intervalMs) : undefined;
+    // P3: any live mutation refreshes every polling consumer within ~400ms
+    let deb: number | undefined;
+    const onRt = () => { window.clearTimeout(deb); deb = window.setTimeout(load, 400); };
+    if (intervalMs > 0) addEventListener("woodex:rt-refresh", onRt);
     return () => {
       alive.current = false;
       if (id) window.clearInterval(id);
+      window.clearTimeout(deb);
+      removeEventListener("woodex:rt-refresh", onRt);
     };
   }, [load, intervalMs]);
 
@@ -147,3 +160,55 @@ export type ApiPayment = { id: number; invoice_id: number; amount: number; metho
 export type ApiInvoiceDetail = ApiInvoice & { payments: ApiPayment[] };
 export type ApiReturn = { id: number; ref: string; orderId: number | null; customer: string; item: string | null;
   reason: string; state: string; refundAmount: number; resolution: string | null; createdAt: string; updatedAt: string };
+
+/* ---------- P3 realtime core (SSE) ---------- */
+export type RtEvent = { type: string; at?: string; title?: string; who?: string; context?: string };
+let es: EventSource | null = null;
+let rtStatus: "connecting" | "live" | "down" = "connecting";
+const statusListeners = new Set<(v: "connecting" | "live" | "down") => void>();
+
+function setStatus(v: typeof rtStatus) {
+  rtStatus = v;
+  statusListeners.forEach((f) => f(v));
+}
+
+/** One shared EventSource; every message is re-dispatched as `woodex:rt`. */
+export function initRealtime() {
+  if (es || typeof EventSource === "undefined") return;
+  es = new EventSource("/api/events");
+  es.onopen = () => setStatus("live");
+  es.onerror = () => { setStatus("down"); }; // EventSource auto-retries (3s)
+  es.onmessage = () => {}; // unnamed events land here; named ones below
+  const bump = (e: MessageEvent) => {
+    setStatus("live");
+    try {
+      dispatchEvent(new CustomEvent<RtEvent>("woodex:rt", { detail: JSON.parse(e.data) as RtEvent }));
+      dispatchEvent(new CustomEvent<string>("woodex:rt-refresh", { detail: e.type }));
+    } catch { /* noop */ }
+  };
+  for (const t of ["leads", "quotes", "orders", "products", "invoices", "payments", "returns", "hello"]) es.addEventListener(t, bump as EventListener);
+}
+
+/** Subscribe to realtime events; filter by regex, e.g. /invoices|payments/. */
+export function useRealtime(types: RegExp, handler: (ev: RtEvent) => void) {
+  useEffect(() => {
+    initRealtime();
+    const h = (e: Event) => {
+      const d = (e as CustomEvent<RtEvent>).detail;
+      if (d && types.test(d.type)) handler(d);
+    };
+    addEventListener("woodex:rt", h);
+    return () => removeEventListener("woodex:rt", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [types.source]);
+}
+
+export function useRealtimeStatus() {
+  const [v, setV] = useState(rtStatus);
+  useEffect(() => {
+    initRealtime();
+    statusListeners.add(setV);
+    return () => { statusListeners.delete(setV); };
+  }, []);
+  return v;
+}

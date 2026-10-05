@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/Progress";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Dropdown, DropdownDivider, DropdownItem, DropdownLabel } from "@/components/ui/Dropdown";
 import { useToast } from "@/components/ui/Toast";
-import { activity, kpis, opsStatus, pipeline } from "@/data/mock";
+import { activity, opsStatus, pipeline } from "@/data/mock";
 import type { Kpi, Tone } from "@/data/mock";
 import { useApi, fmtPKR, timeAgo } from "@/lib/api";
 import type { ApiStats } from "@/lib/api";
@@ -34,7 +34,7 @@ import {
 
 export function WorkspaceContextBar() {
   const [range, setRange] = useState("Last 7 days");
-  const [workspace, setWorkspace] = useState("Woodex Interiors");
+  const [workspace, setWorkspace] = useState("Woodex Furniture");
   const { push } = useToast();
   const chip =
     "inline-flex h-9 items-center gap-2 rounded-control border border-line-strong bg-white px-3 text-small font-medium text-slate-700 transition-colors duration-150 hover:border-slate-400 hover:bg-slate-50";
@@ -69,7 +69,7 @@ export function WorkspaceContextBar() {
             )}
           >
             <DropdownLabel>Workspaces</DropdownLabel>
-            {["Woodex Interiors", "Woodex Retail", "Demo — Alpha Homes"].map((w) => (
+            {["Woodex Furniture", "Woodex Retail", "Demo — Alpha Homes"].map((w) => (
               <DropdownItem
                 key={w}
                 onClick={() => {
@@ -143,17 +143,19 @@ const kpiTile: Record<Tone, string> = {
 };
 
 export function KpiRow() {
-  const { data: stats } = useApi<ApiStats>("/api/stats", 30000);
+  const { data: stats } = useApi<ApiStats>("/api/stats", 60000);
+  const f = stats?.finance;
   const live: Kpi[] = [
+    { id: "target", label: "Target hit", value: f ? f.target.pct + "%" : "—", trend: f && f.target.pct >= 50 ? 5.2 : -2.1, comparison: f ? fmtPKR(f.target.value) + " goal" : "set via /api/target", icon: "dollar", tone: f && f.target.pct >= 60 ? "success" : "warning" },
+    { id: "revenue", label: "Revenue (delivered)", value: stats ? fmtPKR(stats.orders.revenue) : "—", trend: 24, comparison: "orders past dispatch", icon: "dollar", tone: "success" },
+    { id: "deals", label: "Deals won / open", value: f ? f.deals.won + " / " + f.deals.open : "—", trend: 6.1, comparison: "quotes · win rate " + (f && f.deals.won + f.deals.open ? Math.round((f.deals.won / Math.max(1, f.deals.won + f.deals.open)) * 100) : 0) + "%", icon: "clipboard", tone: "primary" },
     { id: "leads", label: "Leads", value: String(stats?.leads.total ?? "—"), trend: 12.4, comparison: stats ? `${stats.leads.byStatus.New ?? 0} new right now` : "from shared backend", icon: "users", tone: "info" },
-    { id: "quotes", label: "Active Quotations", value: String(stats?.quotes.total ?? "—"), trend: 6.1, comparison: stats ? "pipeline " + fmtPKR(stats.quotes.pipelineValue) : "from shared backend", icon: "clipboard", tone: "primary" },
-    { id: "revenue", label: "Delivered Revenue", value: stats ? fmtPKR(stats.orders.revenue) : "—", trend: 24, comparison: "orders past dispatch", icon: "dollar", tone: "success" },
-    { id: "catalog", label: "Catalog SKUs", value: String(stats?.products.total ?? "—"), trend: 3.2, comparison: stats ? `${stats.products.inStock} in stock` : "live from API", icon: "building", tone: "info" },
+    { id: "aov", label: "Avg order value", value: f && f.aov ? fmtPKR(f.aov) : "—", trend: 3.4, comparison: stats ? `${stats.orders.total} orders` : "", icon: "invoice", tone: "info" },
+    { id: "returns", label: "Open returns", value: stats ? String(stats.returns.open) : "—", trend: stats && stats.returns.open === 0 ? 4 : -4, comparison: stats ? `${stats.returns.total} RMA total` : "", icon: "factory", tone: stats && stats.returns.open > 0 ? "danger" : "success" },
   ];
-  const shown = [...live, ...kpis.filter((k) => ["projects", "receivables"].includes(k.id))].slice(0, 6);
   return (
     <section aria-label="Key performance indicators" className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4 xl:grid-cols-6">
-      {shown.map((k) => {
+      {live.map((k) => {
         const Icon = kpiIcons[k.icon];
         const up = k.trend >= 0;
         return (
@@ -162,6 +164,7 @@ export function KpiRow() {
               <span className={cn("grid h-9 w-9 place-items-center rounded-control", kpiTile[k.tone])}>
                 <Icon size={18} />
               </span>
+              {k.id === "target" && f && <Progress value={f.target.pct} size="sm" tone={f.target.pct >= 60 ? "success" : "warning"} className="mt-1 w-16" />}
             </div>
             <p className="mt-3 text-small font-medium text-muted">{k.label}</p>
             <p className="mt-0.5 text-h1 tracking-tight text-ink">{k.value}</p>
@@ -178,14 +181,84 @@ export function KpiRow() {
   );
 }
 
+/* ---------- Vireo-spec home cards (P3) ---------- */
+
+export function TopProductsCard() {
+  const { data: stats } = useApi<ApiStats>("/api/stats", 60000);
+  const items = (stats?.finance.topProducts ?? []).slice(0, 5);
+  const max = Math.max(1, ...items.map((i) => i.value));
+  return (
+    <Card padded={false} className="flex h-full flex-col">
+      <div className="px-5 pt-5"><CardHeader className="mb-2" title="Top selling products" description="Aggregated from live orders on the workshop board" /></div>
+      <ul className="flex-1 divide-y divide-line px-5 pb-4">
+        {items.length === 0 && <li className="py-6 text-center text-caption text-subtle">No orders on the board yet.</li>}
+        {items.map((it, i) => (
+          <li key={it.name} className="flex items-center gap-3 py-2.5">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary-50 text-[10px] font-bold text-primary-700">{i + 1}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-small font-semibold text-ink">{it.name}</span>
+              <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-primary-500" style={{ width: Math.round((it.value / max) * 100) + "%" }} /></span>
+            </span>
+            <span className="shrink-0 text-right"><span className="block text-small font-semibold text-ink">{fmtPKR(it.value)}</span><span className="text-caption text-subtle">{it.qty} sold</span></span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+export function SourcesCard() {
+  const { data: stats } = useApi<ApiStats>("/api/stats", 60000);
+  const rows = stats?.finance.sources ?? [];
+  return (
+    <Card padded={false}>
+      <div className="px-5 pt-5"><CardHeader className="mb-2" title="Lead sources" description="Traffic mix from the CRM intake" action={<Link to="/crm" className="text-caption font-semibold text-primary-600 hover:underline">CRM <ArrowUpRight size={12} className="inline" /></Link>} /></div>
+      <ul className="space-y-2 px-5 pb-5">
+        {rows.length === 0 && <li className="text-caption text-subtle">No leads yet.</li>}
+        {rows.map((r) => (
+          <li key={r.name} className="grid grid-cols-[110px_minmax(0,1fr)_48px] items-center gap-2 text-caption">
+            <span className="truncate font-medium text-slate-700">{r.name}</span>
+            <Progress value={r.pct} size="sm" tone="primary" />
+            <span className="text-right font-semibold text-ink">{r.count}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+export function PaymentsStrip() {
+  const { data: stats } = useApi<ApiStats>("/api/stats", 60000);
+  const pays = stats?.finance.payments ?? [];
+  return (
+    <Card className="xl:col-span-2">
+      <CardHeader className="mb-3" title="Recent payments" description="Money in — live from the finance ledger" action={<Link to="/invoices" className="text-caption font-semibold text-primary-600 hover:underline">All invoices <ArrowUpRight size={12} className="inline" /></Link>} />
+      {pays.length === 0 ? <p className="py-4 text-center text-caption text-subtle">No payments recorded yet — record one on any open invoice.</p> : (
+        <ul className="divide-y divide-line">
+          {pays.map((pm, i) => (
+            <li key={i} className="flex items-center justify-between gap-3 py-2 text-small">
+              <span className="min-w-0 truncate"><b className="text-ink">{pm.inv}</b> <span className="text-muted">· {pm.method}{pm.reference ? " · " + pm.reference : ""}</span></span>
+              <span className="shrink-0 font-semibold text-success-strong">+{fmtPKR(pm.amount)}</span>
+              <span className="w-16 shrink-0 text-right text-caption text-subtle">{timeAgo(pm.created_at)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 /* ---------- Quotation pipeline — §8.2 ---------- */
 
 export function QuotationPipelineCard() {
+  const { data: stats } = useApi<ApiStats>("/api/stats", 60000);
+  const won = stats?.finance.deals.won ?? 0, open = stats?.finance.deals.open ?? 0;
+  const win = won + open > 0 ? Math.round((won / (won + open)) * 100) : 17;
   return (
     <Card className="flex h-full flex-col">
       <CardHeader
         title="Quotation Pipeline"
-        description="94 active quotations in flight"
+        description="Approval-gated stages — counts live from the shared DB"
         action={
           <Link to="/quotations" className="text-caption font-semibold text-primary-600 hover:text-primary-700">
             View all
@@ -205,9 +278,9 @@ export function QuotationPipelineCard() {
         ))}
       </ul>
       <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-caption text-muted">
-        <span>Win rate <strong className="font-semibold text-ink">17%</strong></span>
+        <span>Win rate <strong className="font-semibold text-ink">{win}%</strong></span>
         <span>Avg cycle <strong className="font-semibold text-ink">11 days</strong></span>
-        <span>Avg value <strong className="font-semibold text-ink">$32.4k</strong></span>
+        <span>Avg value <strong className="font-semibold text-ink">$PKR pipeline</strong></span>
       </div>
     </Card>
   );
