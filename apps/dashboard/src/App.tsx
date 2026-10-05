@@ -7,6 +7,7 @@ import Dashboard from "@/pages/Dashboard";
 import Crm from "@/pages/Crm";
 import { QuotationsList, QuotationBuilder } from "@/pages/Quotations";
 import Catalog from "@/pages/Catalog";
+import Invoices from "@/pages/Invoices";
 import Projects from "@/pages/Projects";
 import Operations from "@/pages/Operations";
 import Analytics from "@/pages/Analytics";
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/quotations" element={<QuotationsList />} />
             <Route path="/quotations/new" element={<QuotationBuilder />} />
             <Route path="/catalog" element={<Catalog />} />
+            <Route path="/invoices" element={<Invoices />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/operations" element={<Operations />} />
             <Route path="/operations/:stage" element={<Operations />} />

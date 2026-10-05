@@ -68,6 +68,7 @@ const Footer = () => {
                 { label: "Blog", href: "/blog" },
                 { label: "Careers", href: "/contact" },
                 { label: "Contact", href: "/contact" },
+                { label: "Track My Order", href: "/order-status" },
                 { label: "Showrooms", href: "/showrooms" },
                 { label: "Series", href: "/series" },
                 { label: "B2B / Markets", href: "/b2b" },

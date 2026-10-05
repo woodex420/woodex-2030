@@ -13,7 +13,8 @@
     "dev:dashboard": "npm -w @woodex/dashboard run dev",
     "dev:storefront": "npm -w @woodex/storefront run dev",
     "build": "npm -w @woodex/dashboard run build && npm -w @woodex/storefront run build",
-    "typecheck": "npm -w @woodex/dashboard run build"
+    "typecheck": "npm -w @woodex/dashboard run build",
+    "secret-scan": "node scripts/secret-scan.mjs"
   },
   "engines": {
     "node": ">=22.5"

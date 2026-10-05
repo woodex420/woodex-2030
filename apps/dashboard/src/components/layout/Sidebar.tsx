@@ -19,6 +19,7 @@ import {
   Users,
   Wrench,
   X,
+  Receipt,
 } from "@/icons";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
@@ -37,6 +38,7 @@ const groups: NavGroup[] = [
     items: [
       { label: "CRM", to: "/crm", icon: Users },
       { label: "Sales & Quotations", to: "/quotations", icon: ClipboardList },
+      { label: "Invoices & Payments", to: "/invoices", icon: Receipt },
       { label: "Ecommerce", to: "/ecommerce", icon: Store },
       { label: "Website / CMS", to: "/website", icon: Globe },
       { label: "Marketing", to: "/marketing", icon: Megaphone },

@@ -66,8 +66,8 @@ const Checkout = () => {
             </div>
             <h1 className="text-3xl font-bold mb-3">Order Placed Successfully!</h1>
             <p className="text-muted-foreground mb-2">
-              Thank you for your order. Our team will contact you within 24 hours to confirm delivery details.
-            </p>
+              Thank you for your order. Our team will contact you within 24 hours to confirm delivery details.</p>
+            <p className="mt-4 text-sm"><Link to="/order-status" className="font-bold text-primary underline-offset-4 hover:underline">Track this order live →</Link></p>
             <p className="text-sm text-muted-foreground mb-8">
               {paymentMethod === "cod"
                 ? "Payment will be collected on delivery."

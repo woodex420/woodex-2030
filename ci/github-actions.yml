@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+    branches: [main, "arena/**"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22          # node:sqlite requires 22.5+
+      - run: npm install --legacy-peer-deps
+      - name: Secret scan (PRD §18)
+        run: node scripts/secret-scan.mjs
+      - name: API syntax + boot smoke
+        run: |
+          node --check apps/api/server.mjs
+          (cd apps/api && node server.mjs &) ; sleep 3
+          curl -fsS http://127.0.0.1:3001/api/health | grep -q ok
+          curl -fsS http://127.0.0.1:3001/api/stats | grep -q invoices
+      - name: Dashboard build (tsc strict + vite)
+        run: npm run build --workspace apps/dashboard
+      - name: Storefront build
+        run: npm run build --workspace apps/storefront
+      - name: E2E finance loop
+        run: |
+          curl -fsS -X POST http://127.0.0.1:3001/api/leads -H 'content-type: application/json' \
+            -d '{"name":"CI smoke","interest":"chair","source":"CI"}' | grep -q '"status":"New"'
+          curl -fsS http://127.0.0.1:3001/api/invoices | grep -q outstanding
+          curl -fsS "http://127.0.0.1:3001/api/orders/lookup?ref=WX-4210" | grep -q stageIndex

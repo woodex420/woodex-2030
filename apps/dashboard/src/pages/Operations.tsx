@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/Progress";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { useApi, mutate, fmtPKR, type ApiOrder } from "@/lib/api";
+import { ReturnsPanel } from "@/components/ReturnsPanel";
 import { AlertTriangle, ArrowRight, ClipboardCheck, Download, Factory, ShieldCheck, Store, Truck, Wrench } from "@/icons";
 
 const STAGES = [
@@ -192,6 +193,8 @@ export default function Operations() {
           <EmptyState icon={<Truck size={20} />} title="No orders yet" description="Complete a checkout in the storefront or seed demo orders — the board updates in ~15s." action={<Button onClick={reload}>Refresh</Button>} />
         </Card>
       )}
+
+      <ReturnsPanel />
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
         <Card className="py-4">

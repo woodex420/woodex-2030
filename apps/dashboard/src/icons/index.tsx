@@ -405,3 +405,30 @@ export const Settings2 = (p: IconProps) => (
     <circle cx="7" cy="7" r="3" />
   </Icon>
 );
+
+export const Receipt = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+    <path d="M8 8h8M8 12h8M8 16h5" />
+  </Icon>
+);
+export const Printer = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 9V2h12v7" />
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <path d="M6 14h12v8H6z" />
+  </Icon>
+);
+export const Banknote = (p: IconProps) => (
+  <Icon {...p}>
+    <rect width="20" height="12" x="2" y="6" rx="2" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M6 12h.01M18 12h.01" />
+  </Icon>
+);
+export const Undo2 = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+  </Icon>
+);

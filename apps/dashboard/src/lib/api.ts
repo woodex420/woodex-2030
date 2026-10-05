@@ -137,3 +137,13 @@ export async function mutate<T = unknown>(path: string, body?: unknown, method =
   if (!res.ok) throw new Error((j as { error?: string }).error || "HTTP " + res.status);
   return j as T;
 }
+
+/* P5 finance */
+export type ApiInvoice = { id: number; ref: string; quoteId: number | null; orderId: number | null;
+  customer: string; items: { name?: string; price?: number; qty?: number }[];
+  subtotal: number; discount: number; tax: number; shipping: number; total: number; paid: number; balance: number;
+  status: string; due: string | null; notes: string | null; createdAt: string; updatedAt: string };
+export type ApiPayment = { id: number; invoice_id: number; amount: number; method: string; reference: string | null; note: string | null; created_at: string };
+export type ApiInvoiceDetail = ApiInvoice & { payments: ApiPayment[] };
+export type ApiReturn = { id: number; ref: string; orderId: number | null; customer: string; item: string | null;
+  reason: string; state: string; refundAmount: number; resolution: string | null; createdAt: string; updatedAt: string };

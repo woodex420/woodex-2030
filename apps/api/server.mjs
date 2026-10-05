@@ -11,6 +11,9 @@
  *   GET/POST/PATCH /api/quotes       storefront quote requests + dashboard pipeline
  *   GET/POST/PATCH /api/leads        contact form → CRM kanban
  *   GET/POST/PATCH /api/orders       checkout → operations board
+ *   GET  /api/invoices[?status=open|...] · GET/PATCH /api/invoices/:id · POST /api/invoices (from quote_id/order_id or raw)
+ *   POST /api/invoices/:id/payments  · GET/POST /api/returns · PATCH /api/returns/:id
+ *   GET  /api/orders/lookup?ref=     public order tracking for storefront
  *   GET  /api/stats                  KPI + activity rollup for the dashboard
  *   GET  /img/:file                  shared product photography
  */
@@ -53,6 +56,19 @@ CREATE TABLE IF NOT EXISTS orders(
   total REAL NOT NULL DEFAULT 0, status TEXT DEFAULT 'In Progress', stage TEXT DEFAULT 'production',
   owner TEXT DEFAULT 'Faisal', due TEXT, created_at TEXT, updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS invoices(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, quote_id INTEGER, order_id INTEGER,
+  customer TEXT NOT NULL, items TEXT NOT NULL DEFAULT '[]',
+  subtotal REAL NOT NULL DEFAULT 0, discount REAL NOT NULL DEFAULT 0, tax REAL NOT NULL DEFAULT 0,
+  shipping REAL NOT NULL DEFAULT 0, total REAL NOT NULL DEFAULT 0, paid REAL NOT NULL DEFAULT 0,
+  status TEXT DEFAULT 'Issued', due TEXT, notes TEXT, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS payments(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER NOT NULL, amount REAL NOT NULL,
+  method TEXT DEFAULT 'Bank transfer', reference TEXT, note TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS returns(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, order_id INTEGER, customer TEXT,
+  item TEXT, reason TEXT, state TEXT DEFAULT 'Requested', refund_amount REAL DEFAULT 0,
+  resolution TEXT, created_at TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -127,8 +143,30 @@ async function seed() {
       ["Faisal", "Hira", "Logistics", "Kamran"][i % 4],
       ["Oct 08", "Oct 12", "Oct 15", "Oct 18"][i % 4], t, t);
   });
+  ensureFinanceDemo();
   db.prepare("INSERT INTO meta(key,value) VALUES('seeded_at',?)").run(now());
   console.log(`[seed] ${products.length} products, ${materials.length} materials, ${services.length} services, ${seedLeads.length} leads, ${seedQuotes.length} quotes, 8 orders`);
+}
+
+function ensureFinanceDemo() {
+  if (db.prepare("SELECT COUNT(*) n FROM invoices").get().n > 0) return;
+  const orders = db.prepare("SELECT * FROM orders ORDER BY id LIMIT 2").all();
+  const t = now();
+  orders.forEach((o, i) => {
+    const items = JSON.parse(o.items);
+    const subtotal = items.reduce((n, x) => n + (x.price || 0) * (x.qty || 1), 0);
+    const total = Math.round(subtotal * 1.05);
+    const info = db.prepare(`INSERT INTO invoices(ref,order_id,customer,items,subtotal,total,status,due,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?)`).run("INV-26-" + (1001 + i), o.id, o.customer, o.items, subtotal, total,
+      i === 0 ? "Issued" : "Partially Paid", new Date(Date.now() + 864e5 * 14).toISOString().slice(0, 10), t, t);
+    if (i === 1) { const paid = Math.round(total * 0.5);
+      db.prepare("INSERT INTO payments(invoice_id,amount,method,reference,created_at) VALUES(?,?,?,?,?)")
+        .run(info.lastInsertRowid, paid, "50% advance — Bank transfer", "TRX-88231", t);
+      db.prepare("UPDATE invoices SET paid=? WHERE id=?").run(paid, info.lastInsertRowid); }
+  });
+  db.prepare("INSERT INTO returns(ref,order_id,customer,item,reason,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+    .run("RMA-0201", orders[1]?.id ?? null, orders[1]?.customer ?? "Walk-in", "Fabric swatch mismatch", "Color differs from configurator preview", "Requested", t, t);
+  console.log("[seed] finance demo: 2 invoices, 1 payment, 1 return");
 }
 
 /* ---------------- helpers ---------------- */
@@ -136,6 +174,15 @@ const rowProduct = (r) => ({ ...JSON.parse(r.json), price: r.price, inStock: !!r
 const rowQuote = (r) => ({ id: r.id, ref: r.ref, customer: r.customer, contact: r.contact, items: JSON.parse(r.items), total: r.total, status: r.status, source: r.source, note: r.note, audit: JSON.parse(r.audit || "[]"), createdAt: r.created_at, updatedAt: r.updated_at });
 const rowLead = (r) => ({ id: r.id, ref: r.ref, name: r.name, interest: r.interest, source: r.source, contact: r.contact, status: r.status, owner: r.owner, note: r.note, createdAt: r.created_at, updatedAt: r.updated_at });
 const rowOrder = (r) => ({ id: r.id, ref: r.ref, customer: r.customer, items: JSON.parse(r.items), total: r.total, status: r.status, stage: r.stage, owner: r.owner, due: r.due, createdAt: r.created_at, updatedAt: r.updated_at });
+const rowInvoice = (r) => ({ id: r.id, ref: r.ref, quoteId: r.quote_id, orderId: r.order_id, customer: r.customer,
+  items: JSON.parse(r.items || "[]"), subtotal: r.subtotal, discount: r.discount, tax: r.tax, shipping: r.shipping,
+  total: r.total, paid: r.paid, balance: Math.max(0, r.total - r.paid), status: r.status, due: r.due, notes: r.notes,
+  createdAt: r.created_at, updatedAt: r.updated_at });
+const decorateInvoice = (r) => { const j = rowInvoice(r);
+  if (j.due && j.balance > 0 && ["Issued", "Partially Paid"].includes(j.status) && j.due < now().slice(0, 10)) j.status = "Overdue";
+  return j; };
+const rowReturn = (r) => ({ id: r.id, ref: r.ref, orderId: r.order_id, customer: r.customer, item: r.item, reason: r.reason,
+  state: r.state, refundAmount: r.refund_amount, resolution: r.resolution, createdAt: r.created_at, updatedAt: r.updated_at });
 const wrap = (fn) => (req, res) => { try { fn(req, res); } catch (e) { res.status(500).json({ error: String(e.message || e) }); } };
 
 /* ---------------- app ---------------- */
@@ -272,6 +319,139 @@ app.patch("/api/orders/:id", wrap((req, res) => {
 }));
 
 /* Dashboard rollup */
+/* ---- P5 finance: invoices, payments, returns, public lookup ---- */
+const totalsFrom = (items, { discount = 0, tax = 0, shipping = 0 }) => {
+  const subtotal = items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
+  return { subtotal, total: Math.max(0, subtotal - discount + tax + shipping) };
+};
+const insertInvoice = ({ ref, quoteId, orderId, customer, items, discount, tax, shipping, total, due, notes }) => {
+  const t = now();
+  const info = db.prepare(`INSERT INTO invoices(ref,quote_id,order_id,customer,items,subtotal,discount,tax,shipping,total,status,due,notes,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ref, quoteId ?? null, orderId ?? null, customer, JSON.stringify(items),
+    subtotalOf(items), discount ?? 0, tax ?? 0, shipping ?? 0, total, "Issued", due ?? null, notes ?? null, t, t);
+  return db.prepare("SELECT * FROM invoices WHERE id=?").get(info.lastInsertRowid);
+};
+const subtotalOf = (items) => items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
+const nextRef = (table, prefix, pad) => prefix + String(db.prepare("SELECT COUNT(*) n FROM " + table).get().n + pad).padStart(4, "0");
+
+app.get("/api/invoices", wrap((req, res) => {
+  let rows = db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC").all().map(decorateInvoice);
+  const f = req.query.status;
+  if (f === "open") rows = rows.filter((r) => ["Issued", "Partially Paid", "Overdue"].includes(r.status));
+  else if (f) rows = rows.filter((r) => r.status === f);
+  res.json({ total: rows.length,
+    collected: rows.reduce((n, r) => n + r.paid, 0),
+    outstanding: rows.reduce((n, r) => n + (r.status === "Cancelled" ? 0 : r.balance), 0),
+    items: rows });
+}));
+app.get("/api/invoices/:id", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const payments = db.prepare("SELECT * FROM payments WHERE invoice_id=? ORDER BY datetime(created_at) DESC").all(r.id);
+  res.json({ ...decorateInvoice(r), payments });
+}));
+app.post("/api/invoices", wrap((req, res) => {
+  const b = req.body ?? {};
+  let { customer, items } = b;
+  let quoteId = null, orderId = null;
+  if (b.quote_id) { const q = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(b.quote_id, b.quote_id);
+    if (!q) return res.status(400).json({ error: "quote not found" });
+    customer = customer || q.customer; items = items ?? JSON.parse(q.items); quoteId = q.id; }
+  else if (b.order_id) { const o = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(b.order_id, b.order_id);
+    if (!o) return res.status(400).json({ error: "order not found" });
+    customer = customer || o.customer; items = items ?? JSON.parse(o.items); orderId = o.id; }
+  if (!customer || !Array.isArray(items) || !items.length) return res.status(400).json({ error: "customer+items or quote_id/order_id required" });
+  const { subtotal: _st, total } = totalsFrom(items, b);
+  const r = insertInvoice({ ref: nextRef("invoices", "INV-26-", 1001), quoteId, orderId, customer, items,
+    discount: b.discount, tax: b.tax, shipping: b.shipping, total: typeof b.total === "number" ? b.total : total,
+    due: b.due, notes: b.notes });
+  if (quoteId) db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
+    JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued", time: now() },
+      ...JSON.parse(db.prepare("SELECT audit FROM quotes WHERE id=?").get(quoteId)?.audit || "[]")]), now(), quoteId);
+  res.status(201).json(rowInvoice(r));
+}));
+app.post("/api/quotes/:id/invoice", wrap((req, res) => {
+  const q = db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!q) return res.status(404).json({ error: "quote not found" });
+  const items = JSON.parse(q.items || "[]");
+  const b = req.body ?? {};
+  const { total } = totalsFrom(items, b);
+  const r = insertInvoice({ ref: nextRef("invoices", "INV-26-", 1001), quoteId: q.id, orderId: null,
+    customer: q.customer, items, discount: b.discount, tax: b.tax, shipping: b.shipping,
+    total: typeof b.total === "number" ? b.total : total, due: b.due, notes: b.notes });
+  db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
+    JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued from quote", time: now() },
+      ...JSON.parse(q.audit || "[]")]), now(), q.id);
+  res.status(201).json(rowInvoice(r));
+}));
+app.patch("/api/invoices/:id", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const b = req.body ?? {};
+  db.prepare("UPDATE invoices SET status=?, due=?, notes=?, discount=?, tax=?, shipping=?, total=?, updated_at=? WHERE id=?").run(
+    b.status ?? r.status, b.due ?? r.due, b.notes ?? r.notes,
+    b.discount ?? r.discount, b.tax ?? r.tax, b.shipping ?? r.shipping,
+    b.total ?? (b.discount != null || b.tax != null || b.shipping != null
+      ? Math.max(0, r.subtotal - (b.discount ?? r.discount) + (b.tax ?? r.tax) + (b.shipping ?? r.shipping)) : r.total),
+    now(), r.id);
+  res.json(rowInvoice(db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)));
+}));
+app.post("/api/invoices/:id/payments", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const amount = Number(req.body?.amount);
+  if (!(amount > 0)) return res.status(400).json({ error: "amount must be > 0" });
+  const t = now();
+  db.prepare("INSERT INTO payments(invoice_id,amount,method,reference,note,created_at) VALUES(?,?,?,?,?,?)")
+    .run(r.id, amount, req.body?.method ?? "Bank transfer", req.body?.reference ?? null, req.body?.note ?? null, t);
+  const paid = r.paid + amount;
+  const status = paid >= r.total ? "Paid" : "Partially Paid";
+  db.prepare("UPDATE invoices SET paid=?, status=?, updated_at=? WHERE id=?").run(paid, status, t, r.id);
+  res.status(201).json({ ...rowInvoice(db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)),
+    payments: db.prepare("SELECT * FROM payments WHERE invoice_id=? ORDER BY datetime(created_at) DESC").all(r.id) });
+}));
+
+const RETURN_STATES = ["Requested", "Inspecting", "Refunding", "Closed"];
+app.get("/api/returns", wrap((req, res) => {
+  let rows = db.prepare("SELECT * FROM returns ORDER BY datetime(created_at) DESC").all().map(rowReturn);
+  if (req.query.state) rows = rows.filter((r) => r.state === req.query.state);
+  res.json({ total: rows.length, open: rows.filter((r) => r.state !== "Closed").length, items: rows });
+}));
+app.post("/api/returns", wrap((req, res) => {
+  const b = req.body ?? {};
+  let customer = b.customer; let orderId = null;
+  if (b.order_id || b.order_ref) { const o = db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(b.order_id ?? b.order_ref, b.order_ref ?? b.order_id);
+    if (!o) return res.status(400).json({ error: "order not found" }); customer = customer || o.customer; orderId = o.id; }
+  if (!customer || !b.reason) return res.status(400).json({ error: "customer (or order_ref) and reason required" });
+  const t = now();
+  const info = db.prepare("INSERT INTO returns(ref,order_id,customer,item,reason,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+    .run(nextRef("returns", "RMA-", 201), orderId, customer, b.item ?? null, b.reason, "Requested", t, t);
+  res.status(201).json(rowReturn(db.prepare("SELECT * FROM returns WHERE id=?").get(info.lastInsertRowid)));
+}));
+app.patch("/api/returns/:id", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM returns WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const b = req.body ?? {};
+  db.prepare("UPDATE returns SET state=?, refund_amount=?, resolution=?, updated_at=? WHERE id=?").run(
+    b.state ?? r.state, b.refund_amount ?? b.refundAmount ?? r.refund_amount, b.resolution ?? r.resolution, now(), r.id);
+  res.json(rowReturn(db.prepare("SELECT * FROM returns WHERE id=?").get(r.id)));
+}));
+
+/* Public order tracking (storefront /order-status) — ref is the capability, no auth */
+app.get("/api/orders/lookup", wrap((req, res) => {
+  const ref = String(req.query.ref || "").trim();
+  if (!ref) return res.status(400).json({ error: "ref required" });
+  const o = db.prepare("SELECT * FROM orders WHERE ref=? OR ref=?").get(ref, ref.toUpperCase());
+  if (!o) return res.status(404).json({ error: "no order with that reference" });
+  const stages = ["production", "qc", "dispatch", "delivery", "installation"];
+  const inv = o.invoice_ref ? db.prepare("SELECT * FROM invoices WHERE ref=?").get(o.invoice_ref) :
+    db.prepare("SELECT * FROM invoices WHERE order_id=? ORDER BY id DESC LIMIT 1").get(o.id);
+  const rms = db.prepare("SELECT * FROM returns WHERE order_id=? ORDER BY id DESC").all(o.id).map(rowReturn);
+  res.json({ ref: o.ref, customer: o.customer, status: o.status, stage: o.stage, stages,
+    stageIndex: stages.indexOf(o.stage), total: o.total, due: o.due, placedAt: o.created_at,
+    items: JSON.parse(o.items), invoice: inv ? decorateInvoice(inv) : null, returns: rms });
+}));
+
 app.get("/api/stats", wrap((req, res) => {
   const n = (q) => db.prepare(q).get().n;
   const byStatus = (table) => {
@@ -289,7 +469,14 @@ app.get("/api/stats", wrap((req, res) => {
     leads: { total: n("SELECT COUNT(*) n FROM leads"), byStatus: leadBy },
     quotes: { total: n("SELECT COUNT(*) n FROM quotes"), byStatus: byStatus("quotes"), pipelineValue: db.prepare("SELECT COALESCE(SUM(total),0) v FROM quotes WHERE status NOT IN ('Rejected','Expired')").get().v },
     orders: { total: n("SELECT COUNT(*) n FROM orders"), byStage: byStatus("orders"), revenue },
-    recent: [...rec("leads", "lead"), ...rec("quotes", "quote"), ...rec("orders", "production")].slice(0, 6),
+    invoices: { total: n("SELECT COUNT(*) n FROM invoices"),
+      collected: db.prepare("SELECT COALESCE(SUM(paid),0) v FROM invoices").get().v,
+      outstanding: db.prepare("SELECT COALESCE(SUM(total-paid),0) v FROM invoices WHERE status NOT IN ('Paid','Cancelled')").get().v,
+      byStatus: byStatus("invoices") },
+    returns: { total: n("SELECT COUNT(*) n FROM returns"), open: n("SELECT COUNT(*) n FROM returns WHERE state != 'Closed'") },
+    recent: [...rec("leads", "lead"), ...rec("quotes", "quote"), ...rec("orders", "production"),
+      ...db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC LIMIT 2").all().map((r) => ({ type: "invoice", title: `Invoice ${r.ref} · ${r.status}`, who: r.customer, context: "finance", time: r.created_at })),
+      ...db.prepare("SELECT * FROM returns ORDER BY datetime(created_at) DESC LIMIT 1").all().map((r) => ({ type: "return", title: `Return ${r.ref} · ${r.state}`, who: r.customer, context: r.reason ?? "", time: r.created_at }))].slice(0, 8),
     seededAt: db.prepare("SELECT value FROM meta WHERE key='seeded_at'").get()?.value ?? null,
   });
 }));
@@ -299,4 +486,5 @@ app.use("/img", express.static(path.join(HERE, "public/img"), { maxAge: "1h" }))
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 await seed();
+ensureFinanceDemo();
 app.listen(PORT, "0.0.0.0", () => console.log(`[woodex-api] http://localhost:${PORT} · db=data/woodex.db`));
