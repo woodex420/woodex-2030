@@ -1,7 +1,8 @@
-# WOODEX Agency OS — Master System Plan **v3.0**
+# WOODEX Agency OS — Master System Plan **v3.1**
 
-**Product: Woodex FURNITURE** (Lahore, PKR) · Prepared 2026-10-05 · **Status: DO NOT CODE YET — reply “approve v3” (or edits) to open the implementation gate.**
-Supersedes `AGENCY-GRADE-DASHBOARD-MASTER-PLAN.md` v2.0. Companion evidence: `docs/PHASE0-AUDIT-AND-PLAN-V2.md` (live clones, 5 Oct) and `docs/PLAN-FURNITURE-TRACK-v2.1.md` (boundary fix).
+**Product: Woodex FURNITURE** (Lahore, PKR) · Prepared 2026-10-05 · **Status: DO NOT CODE YET — approval question issued per PRD §27.**
+Supersedes v2.0 dashboard plan and this doc's v3.0 draft. Companion evidence: `docs/AGENCY_OS_MASTER_SYSTEM_PRD_PROMPT.md` (**official PRD, saved verbatim — source-of-truth #1**), `docs/PHASE0-AUDIT-REPORT.md` (PRD §27 20-item output), `docs/PLAN-FURNITURE-TRACK-v2.1.md` (boundary fix), `docs/PHASE0-AUDIT-AND-PLAN-V2.md` (initial audit).
+**v3.1 changelog:** ① PRD §22’s 14 phases replace my interim numbering (§9 rewritten; nothing silently replaced per §02). ② Interiors admin dashboard (WoodexAdmin v2, user-pasted + code-verified) adopted as the **proven IA blueprint**, furniture-translated (§5). ③ Vireo sales.html studied live → KPI hierarchy spec for Overview/Sales (§5). ④ Builder feasibility evidence: their whole Elementor-style editor = **2.6k LOC vanilla** with a 148-line CSS-class-allowlisted block registry → custom typed-block builder confirmed viable; comparator risk downgraded (§4.5). ⑤ Resource audit statuses recorded incl. two `BLOCKED` refs (woodex420/woodex = secrets policy; woodex-ai-suite = 404) with the corrected-request protocol.
 
 ## 0. Changelog vs v2.0
 
@@ -71,8 +72,16 @@ Structure: section, container, columns, grid, spacer, divider, tabs, accordion �
 ### 4.6 Real-time data access
 Blocks bound to typed read models (`products`, `categories/series`, `materials`, `services`, `projects`, `testimonials`, `faqs`) — allowlist, server-scoped, never raw SQL. Dashboard & storefront share today’s 15 s override polling; SSE replaces polling in P3; builder canvas refreshes < 1 s on data edit via same channel.
 
-## 5. Dashboard IA (audit-improved)
-Groups: **Dashboard · Sales (CRM, Quotations, Invoices) · Operations (Orders/production board, Delivery, Returns) · Website (Pages, Builder, Media, Redirects) · Content · Marketing (Campaigns, WhatsApp hub) · Settings (single tabbed page: General·Business info·Integrations·Users & roles·Security·Backups·Files·Activity log·System check)** + one **WhatsApp page with tabs** (Inbox·Templates·Automation·Connection). Global search/command palette, notifications, role switcher (mock), density toggle, dark/RTL.
+## 5. Dashboard IA — modeled on the proven Interiors admin (WoodexAdmin v2), furniture-translated
+Menu skeleton verified against their live code (30 `admin-*.js` modules) and the user-pasted menu — the structure works in production for an agency; we rebuild it original (no code reuse):
+- **Dashboard** — Vireo-spec KPI home: greeting+period narrative + CTA pair (`Create invoice`/`View pipeline` equivalents) → metric row **Target-hit · Deals won/open · Revenue · Customers · AOV · Refund-rate** → revenue chart w/ week-month-year toggle → **Top selling products** → lead-source traffic mix → recent transactions → activity feed → command palette (`⌘K`, esc to close, ↑↓↵).
+- **Sales** — Enquiries & leads · Pipeline · **Bookings → Showroom visits / Design consults** · Clients (single client record + timeline) · Quotations · Invoices · **Transactions** (payment ledger) · Quote templates (block-order + PDF preview wired live).
+- **Projects & WhatsApp** — Projects (production stages) · WhatsApp offers · WhatsApp automation — one WhatsApp hub page with tabs (Inbox · Offers · Automation · Templates · Connection).
+- **Support** — Inbox · Client updates (order-status notifications = our `/order-status`) · **Train AI** (knowledge/tones editor; drafts stay human-approved).
+- **Website → Pages & builder**: All pages · Page builder · Section library · Header & footer · Redirects. **Content**: Blog & insights · Page templates · **Estimator → furniture configurator quote-estimator** · Forms · **Portfolio → Projects lookbook** · **Service pages → Categories/collections** · **City pages → Showroom & delivery-zone pages (Lahore, Karachi…)** · FAQ groups · Testimonials · Team. + Media library (WebP, unused finder, alt, cache-bust `?v=`).
+- **Marketing** — SEO (bulk audit) · Speed · Site health (broken links, image weight, 404 log).
+- **Settings** — ONE tabbed page: General · Integrations & APIs · Business info · Users & roles · Activity log · Backups · Maintenance & error pages (coming-soon with staff bypass) · File manager · Database · System check · + My security (separate sidebar item).
+Global: workspace/site switcher, role simulation (mock), density, light/dark, RTL, notification bell. All groups permission-aware via capability names (`invoice.issue`, `page.publish`, `wa.send`…).
 
 ## 6. CRM & Sales (Furniture)
 - **Single Client Record**: identity resolution by normalized phone/email over leads, chats, WhatsApp, quotes, invoices, orders, returns, projects; ambiguous matches → human merge queue, never silent merge (Interiors P19 lesson + v2.0 §6.2).
@@ -87,6 +96,11 @@ Live: `products·materials·services·leads·quotes·orders·meta` → **P4 adds
 No service-role keys in browser/commit/chat; preflight JSON review before ANY Supabase apply; anon-key-only frontend; cross-tenant denial tests with ≥2 users + signed-out visitor; **pre-commit secret scan enforced on all Woodex repos**; rotate exposed keys in the sister brand’s public repo (owner action, tracked here, not ours to perform).
 
 ## 9. 14 phases × acceptance gates
+**Official roadmap = PRD §22 verbatim** (P0 Discovery&Audit → P1 Product Architecture → P2 Foundation → P3 Dashboard+Design-System → P4 CRM → P5 Sales+Finance → P6 Ecommerce → P7 CMS+Theme-Engine → P8 Visual Builder → P9 Marketing+Social → P10 Omnichannel → P11 Automation → P12 AI+MCP → P13 Woodex Business Pack → P14 Production Hardening; gate per phase as written in the PRD). Status after Phase 0: **P0 ✅** (audit report); P1 = approval of master-plan §3/§19 architecture; P2/P3 **prepaid in part** (monorepo, proxy API, tokens design system shipped; missing: NestJS/Postgres/Redis, auth, RBAC, packages layout, CI/tests, command palette, Vireo-KPI home); P4 partially prepaid (leads kanban + stats live; missing: contacts/companies/opportunities/tasks/scoring/dedupe).
+The build sequence below is **an execution order mapped onto PRD phases** — it does not redefine them: P2→(P3 polish)→P4→P5 run as the first wave (money loop on live data), then P7→P8 (CMS + builder flagship), then P9–P14. Every phase follows the PRD §01 A–G doc structure and §26 acceptance standard.
+Mapping for this doc's original table rows: sales-loop = **P5**, CMS/builder v1 = **P7+P8**, Theme Studio = **P7**, inbox/WhatsApp = **P10**, automation = **P11**, AI = **P12**, MCP = **P12**, packs = **P13–P6**, analytics = **P9/P14**, realtime = cross-cutting **P3+P5**, infra = **P2**.
+
+<details><summary>Interim execution detail (v3.0 table, kept for continuity — numbering follows the mapping above)</summary>
 
 | Ph | Scope | Exit gate |
 |---|---|---|
@@ -106,17 +120,22 @@ No service-role keys in browser/commit/chat; preflight JSON review before ANY Su
 | **13** | Analytics warehouse: `analytics_daily` rollups, source attribution, funnel/SLA/win-rate/return-rate, exports | 30-day real-data exec dashboard |
 | **14** | Hardening & go-live: backups/restore, media cache-busting, 404/coming-soon/maintenance, perf budgets in CI, docs site | full acceptance suite §10 green |
 
+</details>
+
+**v3.1 amendment to §4.5 (from Builder-map evidence):** the Interiors team ships a real Elementor-style editor at ~2.6k LOC vanilla (148-line block registry, CSS-class allowlist) — our typed-block custom path is de-risked; GrapesJS/Puck move from “decision” to **bounded comparator only**.
+
 ## 10. Acceptance baseline
 v2.0 §10 **in full** (UI/UX bar, Builder, CRM/channels, Data/security) **plus** the P19-derived QA list: modal drafts persist; toggles reflect in preview instantly; replaced media cache-busted; coming-soon bypass for logged-in staff; stale-date fields use created vs last-activity; AI down → fallback auto-reply state shown; every list has real empty/error/stale states.
 
 ## 11. AI coding-agent rules (project standing)
 Research→inspect→recommend→**approval**→build→test→document · never copy/commit credentials; reference-only for unlicensed/TailAdmin assets · no service-role keys browser-side · PKR labels · improve existing modules, don’t overwrite (their P19 rule — adopted) · mock sign-in stays isolated from live auth · each phase ends with demo + exit-criteria review.
 
-## 12. Decisions needed from you before “start” (then I begin P1→P4 sequence)
-1. **Approve v3** (or mark edits) — includes §2 reuses, §9 ordering, QA gates.
-2. Preline license posture: **A** patterns-only + original wrappers (zero legal risk, default) or **B** you’ll obtain written clearance before any code-level use.
-3. MarketingWoodex ownership: confirms **patterns/data-model inspiration only** (as scoped) — and who rotates the public-repo keys (their owner? us?).
-4. “All industries v1” = **starter UI packs, WOODEX-first live data** interpretation: yes/no.
-5. Supabase: send ref + anon key + preflight JSON now (→ I fold into P1), or stay on local Postgres/Docker with Supabase later.
+## 12. Decisions needed from you before “start” (PRD §27 gate)
+1. **Approve v3.1 + §19 target architecture** (official roadmap = PRD §22 phases; first wave P2→P3→P4→P5) — reply “approve” or mark edits.
+2. Preline posture: **A** patterns + original wrappers (zero risk, default) or **B** written license clearance before any code-level use?
+3. Interiors (MarketingWoodex) repo: **patterns/data-model only** confirmed — their admin menu (§5 blueprint) adopted as structure, no code/content/data crosses over? And their public-repo leaked keys: rotated by their owner?
+4. Blocked resources (per §03, no invented findings): ① `woodex420/woodex` — provide a **sanitized source-only ZIP** (no .env/credentials) or approve selective read-only fetches of specific paths; ② `woodex-ai-suite` — corrected URL or ZIP, else struck from PRD references.
+5. “All industries v1” = starter UI packs with Woodex Furniture the only live data integration — yes/no?
+6. Supabase: send project ref + anon key + preflight JSON now, or run Phase 2 on local Docker Postgres and cut over later?
 
-*Answers 1–5 constitute the Phase-0 sign-off; on receipt I start Phase 1 immediately, then Phase 4 sales loop first visible feature (builder P5/P6 after).*
+*Answers 1–6 = Phase-0 sign-off. On receipt I begin Phase 1/2 immediately — sales loop (P5: invoices/payments/returns) first visible feature, builder (P7/P8) next. RESEARCH → INSPECT → RECOMMEND → **APPROVE** → BUILD → TEST → DOCUMENT → REPEAT.*
