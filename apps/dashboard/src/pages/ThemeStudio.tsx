@@ -13,7 +13,7 @@ import { Check, Eye, Moon, Sparkles, Sun } from "@/icons";
 type SiteTheme = {
   brand: string; darkBrand: string | null; radius: number;
   font: "sans" | "serif"; mode: "light" | "dark" | "auto";
-  tintNav: boolean; announce: { text: string; href: string | null } | null;
+  tintNav: boolean; announce: { text: string; href: string | null } | null; siteUrl?: string | null;
 };
 const DEFAULTS: SiteTheme = { brand: "#16A34A", darkBrand: null, radius: 4, font: "sans", mode: "light", tintNav: false, announce: null };
 const SWATCHES = ["#16A34A", "#1D4ED8", "#7C3AED", "#B45309", "#E11D48", "#0D9488", "#334155", "#9A3412"];
@@ -122,6 +122,12 @@ export default function ThemeStudio() {
                 <Button size="sm" variant="secondary" onClick={() => set({ announce: { text: "Free installation in Lahore — this month only", href: "/shop" } })}><Eye size={12} /> Add announcement</Button>
               )}
               <p className="mt-2 text-[10px] text-subtle">Landing pages with their own theme announcement override this on /p/* (verified via wx-pagebar).</p>
+            </Card>
+
+            <Card className="p-4">
+              <p className="mb-2 text-caption font-bold uppercase tracking-wide text-subtle">SEO plumbing</p>
+              <Field label="Public site URL" hint="Used for sitemap.xml <loc>, robots.txt and canonical/OG urls"><Input value={d.siteUrl ?? ""} placeholder="https://woodexfurniture.pk" onChange={(e) => set({ siteUrl: e.target.value || null })} /></Field>
+              <p className="mt-2 text-[10px] text-subtle">After applying: <a className="font-semibold text-primary-600 hover:underline" href="/sitemap.xml" target="_blank" rel="noreferrer">/sitemap.xml ↗</a> and <a className="font-semibold text-primary-600 hover:underline" href="/robots.txt" target="_blank" rel="noreferrer">/robots.txt ↗</a> serve every published landing automatically.</p>
             </Card>
           </div>
 

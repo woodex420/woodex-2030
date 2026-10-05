@@ -12,6 +12,8 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:3001",
       "/img": "http://localhost:3001",
+      "/sitemap.xml": "http://localhost:3001",
+      "/robots.txt": "http://localhost:3001",
     },
   },
   plugins: [react()],

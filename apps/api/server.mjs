@@ -94,6 +94,13 @@ CREATE TABLE IF NOT EXISTS page_versions(
 CREATE TABLE IF NOT EXISTS saved_sections(
   id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, category TEXT DEFAULT 'Custom',
   tags TEXT DEFAULT '[]', block TEXT NOT NULL, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS track_events(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, page_id INTEGER, slug TEXT NOT NULL,
+  kind TEXT NOT NULL, label TEXT, href TEXT, cid TEXT, ref TEXT,
+  utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, pct INTEGER,
+  created_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_track_slug ON track_events(slug, kind, created_at);
+CREATE INDEX IF NOT EXISTS idx_track_page ON track_events(page_id, kind, created_at);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -587,7 +594,7 @@ app.get("/api/events", (req, res) => {
 });
 
 /* ---- P6 Theme Engine: site-wide tokens, persisted in meta['site_theme'] ---- */
-const THEME_DEFAULTS = { brand: "#16A34A", darkBrand: null, radius: 4, font: "sans", mode: "light", tintNav: false, announce: null };
+const THEME_DEFAULTS = { brand: "#16A34A", darkBrand: null, radius: 4, font: "sans", mode: "light", tintNav: false, announce: null, siteUrl: null };
 const readTheme = () => {
   const raw = db.prepare("SELECT value FROM meta WHERE key='site_theme'").get();
   let saved = {};
@@ -604,6 +611,7 @@ app.put("/api/theme", wrap((req, res) => {
   if (b.radius !== undefined && (!Number.isFinite(Number(b.radius)) || Number(b.radius) < 0 || Number(b.radius) > 28)) errs.push("radius must be 0–28 (px)");
   if (b.font !== undefined && !["sans", "serif"].includes(b.font)) errs.push("font must be sans|serif");
   if (b.mode !== undefined && !["light", "dark", "auto"].includes(b.mode)) errs.push("mode must be light|dark|auto");
+  if (b.siteUrl !== undefined && b.siteUrl !== null && !/^https?:\/\/[^\s"']+$/.test(String(b.siteUrl).trim())) errs.push("siteUrl must be a full http(s) URL or null");
   let announce;
   if (b.announce !== undefined) {
     if (b.announce === null || b.announce === "") announce = null;
@@ -622,10 +630,109 @@ app.put("/api/theme", wrap((req, res) => {
     mode: b.mode ?? cur.mode,
     tintNav: b.tintNav !== undefined ? !!b.tintNav : cur.tintNav,
     announce: announce !== undefined ? announce : (cur.announce ?? null),
+    siteUrl: (b.siteUrl !== undefined ? (b.siteUrl ? String(b.siteUrl).trim() : null) : (cur.siteUrl ?? null)) ?? null,
   };
   db.prepare("INSERT INTO meta(key,value) VALUES('site_theme',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify(next));
   emit("theme", {});
   res.json(next);
+}));
+
+/* ---- P9 marketing: first-party event pixel + analytics + sitemap ---- */
+const TRACK_KINDS = new Set(["view", "cta", "scroll"]);
+app.post("/api/track", wrap((req, res) => {
+  const b = req.body ?? {};
+  const kind = String(b.kind ?? "");
+  if (!TRACK_KINDS.has(kind)) return res.status(400).json({ error: "kind must be view|cta|scroll" });
+  const slug = String(b.slug ?? "").slice(0, 80);
+  if (!SLUG_RE.test(slug)) return res.status(400).json({ error: "bad slug" });
+  let pct = null;
+  if (kind === "scroll") { pct = Math.round(Number(b.pct)); if (pct !== 50 && pct !== 90) return res.status(400).json({ error: "pct must be 50 or 90" }); }
+  const clip = (v, n) => (v == null ? null : String(v).slice(0, n));
+  const page = db.prepare("SELECT id FROM pages WHERE slug=?").get(slug);
+  db.prepare("INSERT INTO track_events(page_id,slug,kind,label,href,cid,ref,utm_source,utm_medium,utm_campaign,pct,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run(page?.id ?? null, slug, kind, clip(b.label, 60), clip(b.href, 300), clip(b.cid, 64), clip(b.ref, 300),
+      clip(b.utm?.source, 40), clip(b.utm?.medium, 40), clip(b.utm?.campaign, 60), pct, now());
+  emit("track", { slug, kind });
+  res.status(201).json({ ok: true });
+}));
+
+const mkSince = (days) => new Date(Date.now() - (days - 1) * 864e5).toISOString().slice(0, 10);
+app.get("/api/marketing/stats", wrap((req, res) => {
+  const days = Math.min(60, Math.max(1, Number(req.query.days) || 14));
+  const since = mkSince(days);
+  const dayKey = (iso) => String(iso).slice(0, 10);
+  const bump = (map, k, f = "c") => { if (k >= since) map[k] = (map[k] ?? 0) + f; };
+  const dViews = {}, dCtas = {}, dLeads = {};
+  for (const r of db.prepare("SELECT substr(created_at,1,10) d, kind, COUNT(*) c FROM track_events WHERE kind IN ('view','cta') GROUP BY d, kind").all()) {
+    bump(dViews, r.d, r.kind === "view" ? r.c : 0); bump(dCtas, r.d, r.kind === "cta" ? r.c : 0);
+  }
+  const leadsSql = "SELECT substr(created_at,1,10) d, COUNT(*) c FROM leads WHERE source LIKE 'Landing:%' GROUP BY d";
+  let leadTotals = { c: 0 };
+  for (const r of db.prepare(leadsSql).all()) { if (r.d >= since) { dLeads[r.d] = (dLeads[r.d] ?? 0) + r.c; leadTotals = { c: leadTotals.c + r.c }; } }
+  const totalsRow = db.prepare("SELECT kind, COUNT(*) c, COUNT(DISTINCT CASE WHEN kind='view' THEN cid END) u, MAX(CASE WHEN kind='scroll' AND pct=50 THEN 1 ELSE 0 END) s50 FROM track_events WHERE substr(created_at,1,10)>=? GROUP BY kind").all(since);
+  const g = {}; for (const r of totalsRow) g[r.kind] = r;
+  const views = g.view?.c ?? 0, ctas = g.cta?.c ?? 0;
+  const daily = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
+    daily.push({ date: d, views: dViews[d] ?? 0, ctas: dCtas[d] ?? 0, leads: dLeads[d] ?? 0 });
+  }
+  const pages = db.prepare(`SELECT p.id, p.slug, p.title, p.status,
+      (SELECT COUNT(*) FROM track_events t WHERE t.page_id=p.id AND t.kind='view') views,
+      (SELECT COUNT(*) FROM track_events t WHERE t.page_id=p.id AND t.kind='cta') ctas,
+      (SELECT COUNT(DISTINCT t.cid) FROM track_events t WHERE t.page_id=p.id AND t.kind='view') uniques,
+      (SELECT COUNT(*) FROM leads l WHERE l.source = 'Landing: ' || p.slug) leads
+    FROM pages p ORDER BY views DESC, p.updated_at DESC`).all();
+  const refs = {};
+  for (const r of db.prepare("SELECT ref, COUNT(*) c FROM track_events WHERE kind='view' GROUP BY ref ORDER BY c DESC LIMIT 16").all()) {
+    let host = "direct / typed";
+    if (r.ref) { try { host = new URL(r.ref).hostname; } catch { host = "other"; } }
+    refs[host] = (refs[host] ?? 0) + r.c;
+  }
+  const utms = db.prepare("SELECT utm_source s, utm_medium m, utm_campaign camp, COUNT(*) c FROM track_events WHERE kind='view' AND utm_source IS NOT NULL GROUP BY s, m, camp ORDER BY c DESC LIMIT 8").all();
+  const feed = db.prepare("SELECT slug, kind, label, created_at FROM track_events ORDER BY id DESC LIMIT 12").all();
+  res.json({ days, since, totals: { views, ctas, unique: g.view?.u ?? 0, scroll50: g.scroll?.c ?? 0,
+    ctr: views ? +((ctas / views) * 100).toFixed(1) : 0, leads: leadTotals.c,
+    convPct: views ? +((leadTotals.c / views) * 100).toFixed(1) : 0 },
+    daily, pages, refs: Object.entries(refs).map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n).slice(0, 8),
+    utms, feed });
+}));
+app.get("/api/pages/:key/analytics", wrap((req, res) => {
+  const r = db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.key, req.params.key);
+  if (!r) return res.status(404).json({ error: "page not found" });
+  const days = Math.min(60, Math.max(1, Number(req.query.days) || 14));
+  const since = mkSince(days);
+  const daily = {};
+  for (const x of db.prepare("SELECT substr(created_at,1,10) d, kind, COUNT(*) c FROM track_events WHERE page_id=? GROUP BY d, kind").all(r.id)) {
+    if (x.d < since) continue;
+    (daily[x.d] ??= { date: x.d, views: 0, ctas: 0, scrolls: 0 })[x.kind === "view" ? "views" : x.kind === "cta" ? "ctas" : "scrolls"] += x.c;
+  }
+  const topCtas = db.prepare("SELECT COALESCE(label,'(unlabeled)') label, COUNT(*) c FROM track_events WHERE page_id=? AND kind='cta' GROUP BY label ORDER BY c DESC LIMIT 8").all(r.id);
+  const totals = db.prepare("SELECT COUNT(*) c, SUM(kind='view') v, SUM(kind='cta') k FROM track_events WHERE page_id=?").get(r.id);
+  const leads = db.prepare("SELECT COUNT(*) c FROM leads WHERE source = 'Landing: ' || ?").get(r.slug).c;
+  res.json({ page: { id: r.id, slug: r.slug, title: r.title, status: r.status }, totals: { events: totals.c, views: totals.v ?? 0, ctas: totals.k ?? 0, leads },
+    daily: Object.values(daily).sort((a, b) => a.date.localeCompare(b.date)), topCtas });
+}));
+app.delete("/api/track", wrap((req, res) => {
+  const conds = []; const args = [];
+  if (req.query.slug) { conds.push("slug=?"); args.push(String(req.query.slug).slice(0, 80)); }
+  if (req.query.before) { conds.push("created_at<?"); args.push(String(req.query.before) + (String(req.query.before).length === 10 ? "T23:59:59.999Z" : "")); }
+  const info = conds.length ? db.prepare("DELETE FROM track_events WHERE " + conds.join(" AND ")).run(...args) : db.prepare("DELETE FROM track_events").run();
+  res.json({ deleted: info.changes });
+}));
+const xmlEsc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
+app.get("/sitemap.xml", wrap((req, res) => {
+  const base = (readTheme().siteUrl || "http://localhost:5174").replace(/\/+$/, "");
+  const rows = db.prepare("SELECT slug, updated_at FROM pages WHERE status='Published' ORDER BY updated_at DESC").all();
+  res.setHeader("content-type", "application/xml; charset=utf-8");
+  res.end('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    rows.map((x) => `  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`).join("\n") +
+    "\n</urlset>\n");
+}));
+app.get("/robots.txt", wrap((req, res) => {
+  const base = (readTheme().siteUrl || "http://localhost:5174").replace(/\/+$/, "");
+  res.setHeader("content-type", "text/plain; charset=utf-8");
+  res.end("User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: " + base + "/sitemap.xml\n");
 }));
 
 app.post("/api/target", wrap((req, res) => {
@@ -951,7 +1058,9 @@ app.get("/api/pages", wrap((req, res) => {
   let rows = db.prepare("SELECT * FROM pages ORDER BY datetime(updated_at) DESC").all();
   if (req.query.status) rows = rows.filter((r) => r.status === req.query.status);
   res.json({ total: rows.length, published: rows.filter((r) => r.status === "Published").length,
-    items: rows.map((r) => ({ ...rowPage(r, []), blockCount: db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE page_id=?").get(r.id).n })) });
+    items: rows.map((r) => ({ ...rowPage(r, []), blockCount: db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE page_id=?").get(r.id).n,
+      views: db.prepare("SELECT COUNT(*) n FROM track_events WHERE page_id=? AND kind='view'").get(r.id).n,
+      ctas: db.prepare("SELECT COUNT(*) n FROM track_events WHERE page_id=? AND kind='cta'").get(r.id).n })) });
 }));
 app.post("/api/pages", wrap((req, res) => {
   const { slug, title, template } = req.body ?? {};

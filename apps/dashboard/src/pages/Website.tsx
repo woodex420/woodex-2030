@@ -21,7 +21,7 @@ type Block = { type: string; props: Record<string, unknown> };
 type SavedSection = { id: number; name: string; category: string; block: Block; usage: number; updatedAt: string };
 type Theme = { primary?: string; ink?: string; bg?: string; font?: "sans" | "serif"; announce?: string };
 type PageDoc = { id: number; slug: string; title: string; status: string; seoTitle?: string | null; seoDesc?: string | null;
-  updatedAt: string; blockCount?: number; blocks?: Block[]; theme?: Theme | null };
+  updatedAt: string; blockCount?: number; blocks?: Block[]; theme?: Theme | null; views?: number; ctas?: number };
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
 const PRESETS: { name: string; t: Theme }[] = [
@@ -424,6 +424,7 @@ export default function Website() {
         <span><Link to={`/website/edit/${r.id}`} className="block text-small font-semibold text-ink hover:underline">{r.title}</Link>
         <span className="block text-caption text-subtle">/p/{r.slug} · {r.blockCount} blocks</span></span></span>) },
     { key: "s", header: "Status", cell: (r) => <StatusBadge status={r.status} /> },
+    { key: "v", header: "Traffic", align: "right", cell: (r) => <span className="text-caption"><b className={cn((r.views ?? 0) > 0 ? "text-ink" : "text-subtle")}>{r.views ?? 0}</b><span className="text-subtle"> · ⚡{r.ctas ?? 0}</span></span> },
     { key: "u", header: "Updated", cell: (r) => <span className="text-caption text-muted">{timeAgo(r.updatedAt)}</span> },
     { key: "a", header: "", align: "right", cell: (r) => (
       <span className="flex justify-end gap-1.5">

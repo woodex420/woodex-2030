@@ -10,6 +10,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ArrowRight, CheckCircle2, Star, Send, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { Link2, MessageCircle } from "lucide-react";
+import { attachTrackers, trackPage } from "@/lib/track";
 
 type Block = { type: string; props: Record<string, unknown> };
 type Theme = { primary?: string; ink?: string; bg?: string; font?: "sans" | "serif"; announce?: string };
@@ -48,7 +50,7 @@ function LeadForm({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
       <Input placeholder="Your name *" value={f.name} onChange={(e) => setF((x) => ({ ...x, name: e.target.value }))} />
       <Input placeholder="Phone or email" value={f.contact} onChange={(e) => setF((x) => ({ ...x, contact: e.target.value }))} />
       <Input className="sm:col-span-2" placeholder="What do you need? e.g. 6-seater dining in Sheesham" value={f.need} onChange={(e) => setF((x) => ({ ...x, need: e.target.value }))} />
-      <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-3" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}>
+      <Button type="submit" data-wx-cta="lead-form-submit" className="bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-3" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}>
         <Send className="mr-1.5 h-4 w-4" /> {S(b, "submit_label") || "Send to sales"}
       </Button>
       {S(b, "consent") && <p className="text-[11px] text-muted-foreground sm:col-span-3">{S(b, "consent")}</p>}
@@ -68,7 +70,7 @@ function ProductGrid({ b }: { b: Block }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {list.map((p) => (
-        <Link key={p.id} to={"/shop/" + p.id} className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
+        <Link key={p.id} to={"/shop/" + p.id} data-wx-cta={"product:" + p.id} className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
           <div className="relative aspect-[4/3] overflow-hidden bg-muted">
             {p.images[0] && <img src={p.images[0]} alt={p.name} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />}
             {!p.inStock && <Badge className="absolute top-2 left-2 bg-destructive text-destructive-foreground">Out of stock</Badge>}
@@ -97,8 +99,8 @@ function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
               <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">{S(b, "heading")}</h1>
               {S(b, "sub") && <p className="mt-4 max-w-lg text-muted-foreground">{S(b, "sub")}</p>}
               <div className="mt-6 flex flex-wrap gap-3">
-                {S(b, "cta_label") && <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}><Link to={S(b, "cta_href") || "/shop"}>{S(b, "cta_label")} <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>}
-                {S(b, "cta2") && <Button asChild variant="outline"><Link to="/shop">{S(b, "cta2")}</Link></Button>}
+                {S(b, "cta_label") && <Button asChild data-wx-cta="hero-cta" className="bg-primary text-primary-foreground hover:bg-primary/90" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}><Link to={S(b, "cta_href") || "/shop"}>{S(b, "cta_label")} <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>}
+                {S(b, "cta2") && <Button asChild data-wx-cta="hero-secondary" variant="outline"><Link to="/shop">{S(b, "cta2")}</Link></Button>}
               </div>
             </div>
             {S(b, "image") && <img src={imgSrc(S(b, "image"))} alt={S(b, "heading")} className="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg" />}
@@ -131,7 +133,7 @@ function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
             <h2 className="text-2xl font-black">{S(b, "heading") || p.name}</h2>
             <p className="mt-2 text-muted-foreground">{S(b, "body") || p.shortDescription}</p>
             <p className="mt-4 text-2xl font-black text-primary" style={th?.primary ? { color: th.primary } : undefined}>{pkr(p.price)}</p>
-            <Button asChild className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}><Link to={"/shop/" + p.id}>View product <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>
+            <Button asChild data-wx-cta={"product-feature:" + p.id} className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}><Link to={"/shop/" + p.id}>View product <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>
           </div>
         </section>
       );
@@ -211,8 +213,8 @@ function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-primary px-8 py-10 text-primary-foreground" style={th?.primary ? { background: th.primary } : undefined}>
           <div><h2 className="text-2xl font-black text-white">{S(b, "heading")}</h2>{S(b, "sub") && <p className="mt-1 max-w-md text-sm text-white/80">{S(b, "sub")}</p>}</div>
           <span className="flex gap-3">
-            {S(b, "primary_label") && <Button asChild className="bg-white text-primary hover:bg-white/90"><Link to={S(b, "primary_href") || "/contact"}>{S(b, "primary_label")}</Link></Button>}
-            {S(b, "secondary_label") && <Button asChild variant="outline" className="border-white/40 bg-transparent text-white hover:bg-white/10"><Link to={S(b, "secondary_href") || "/shop"}>{S(b, "secondary_label")}</Link></Button>}
+            {S(b, "primary_label") && <Button asChild data-wx-cta="cta-band-primary" className="bg-white text-primary hover:bg-white/90"><Link to={S(b, "primary_href") || "/contact"}>{S(b, "primary_label")}</Link></Button>}
+            {S(b, "secondary_label") && <Button asChild data-wx-cta="cta-band-secondary" variant="outline" className="border-white/40 bg-transparent text-white hover:bg-white/10"><Link to={S(b, "secondary_href") || "/shop"}>{S(b, "secondary_label")}</Link></Button>}
           </span>
         </section>
       );
@@ -241,9 +243,34 @@ export default function PublishedPage() {
         let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
         if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
         if (j.seoDesc) meta.content = j.seoDesc;
+        /* P9: Open Graph + Twitter + canonical for shareable landings */
+        const setM = (attr: "property" | "name", k: string, v: string) => {
+          let m = document.querySelector<HTMLMetaElement>(`meta[${attr}="${k}"]`);
+          if (!m) { m = document.createElement("meta"); m.setAttribute(attr, k); document.head.appendChild(m); }
+          m.content = v;
+        };
+        const hero = j.blocks.find((x) => x.type === "hero" || (x.props.section as Block | undefined)?.type === "hero");
+        const rawImg = hero ? String(hero.props.image ?? (hero.props.section as Block | undefined)?.props.image ?? "") : "";
+        const ogImg = rawImg ? (rawImg.startsWith("http") || rawImg.startsWith("/img/") ? rawImg : "/img/" + rawImg) : "";
+        const url = location.origin + "/p/" + j.slug;
+        setM("property", "og:title", j.seoTitle || j.title);
+        setM("property", "og:description", j.seoDesc || "");
+        setM("property", "og:type", "website");
+        setM("property", "og:url", url);
+        if (ogImg) setM("property", "og:image", ogImg);
+        setM("name", "twitter:card", ogImg ? "summary_large_image" : "summary");
+        let can = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+        if (!can) { can = document.createElement("link"); can.rel = "canonical"; document.head.appendChild(can); }
+        can.href = url;
       } catch { setErr("Tracking service unreachable — try again"); }
     })();
   }, [slug, draft]);
+
+  useEffect(() => {
+    if (!doc) return;
+    trackPage(doc.slug);
+    return attachTrackers(doc.slug);
+  }, [doc]);
 
   return (
     <div className="min-h-screen bg-background" style={doc?.theme ? { background: doc.theme.bg, color: doc.theme.ink } : undefined}>
@@ -272,6 +299,21 @@ export default function PublishedPage() {
             )}
             <div className="space-y-10">
               {doc.blocks.map((b, i) => <BlockView key={i} b={b} slug={doc.slug} th={doc.theme ?? undefined} />)}
+            </div>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-2 text-[12px]">
+              <span className="mr-1 font-black uppercase tracking-wider text-muted-foreground">Share this</span>
+              <a data-wx-cta="share:whatsapp" href={"https://wa.me/?text=" + encodeURIComponent(doc.title + " " + location.href)} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold transition-colors hover:bg-accent hover:text-white">
+                <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+              </a>
+              <a data-wx-cta="share:facebook" href={"https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(location.href)} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold transition-colors hover:bg-accent hover:text-white">
+                Facebook
+              </a>
+              <button type="button" data-wx-cta="share:copy" onClick={() => { void navigator.clipboard?.writeText(location.href).then(() => toast("Link copied — paste anywhere.")); }}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold transition-colors hover:bg-accent hover:text-white">
+                <Link2 className="h-3.5 w-3.5" /> Copy link
+              </button>
             </div>
             {doc.publishedAt && <p className="mt-10 text-center text-[11px] text-muted-foreground">Published {new Date(doc.publishedAt).toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric" })} · prices in PKR, live from our catalog</p>}
           </>

@@ -10,13 +10,14 @@ import Catalog from "@/pages/Catalog";
 import Clients from "@/pages/Clients";
 import Website, { PageEditor } from "@/pages/Website";
 import ThemeStudio from "@/pages/ThemeStudio";
+import Marketing from "@/pages/Marketing";
 import Invoices from "@/pages/Invoices";
 import Projects from "@/pages/Projects";
 import Operations from "@/pages/Operations";
 import Analytics from "@/pages/Analytics";
 import Settings from "@/pages/Settings";
 import { Placeholder } from "@/pages/Placeholder";
-import { Megaphone, MessagesSquare, Package, Store } from "@/icons";
+import { MessagesSquare, Package, Store } from "@/icons";
 
 function NotFound() {
   return (
@@ -70,20 +71,7 @@ export default function App() {
             <Route path="/website" element={<Website />} />
             <Route path="/website/theme" element={<ThemeStudio />} />
             <Route path="/website/edit/:id" element={<PageEditor />} />
-            <Route
-              path="/marketing"
-              element={
-                <Placeholder
-                  crumbs={["Digital", "Marketing"]}
-                  title="Marketing"
-                  description="Campaigns, automations and AI-assisted drafts behind review gates."
-                  icon={<Megaphone size={20} />}
-                  planned="Phase 4"
-                  to="/analytics"
-                  targetLabel="Campaign analytics (live)"
-                />
-              }
-            />
+            <Route path="/marketing" element={<Marketing />} />
             <Route
               path="/omnichannel"
               element={
