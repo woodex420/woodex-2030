@@ -9,6 +9,34 @@ import CartDrawer from "@/components/CartDrawer";
 import megaOfficeImg from "@/assets/hero-slide-1.jpg";
 import megaHomeImg from "@/assets/hero-slide-3.jpg";
 
+import { Moon, Sun } from "lucide-react";
+import { setModeOverride, useSiteTheme } from "@/lib/theme";
+
+/* P6 — site-level announcement (hidden on /p pages that ship their own via wx-pagebar) */
+function SiteAnnounce() {
+  const { theme } = useSiteTheme();
+  if (!theme.announce?.text) return null;
+  const inner = <span className="mx-auto block max-w-6xl truncate px-4 text-center text-[12px] font-bold tracking-wide">{theme.announce.text} {theme.announce.href && <span className="underline decoration-white/50 underline-offset-2">→</span>}</span>;
+  const cls = "block w-full bg-accent py-1.5 text-white transition-opacity hover:opacity-90";
+  return theme.announce.href
+    ? <a id="wx-sitebar" href={theme.announce.href} className={cls}>{inner}</a>
+    : <div id="wx-sitebar" className={cls}>{inner}</div>;
+}
+
+function ModeToggle() {
+  const { resolved } = useSiteTheme();
+  return (
+    <button
+      onClick={() => setModeOverride(resolved === "dark" ? "light" : "dark")}
+      title={resolved === "dark" ? "Switch to light" : "Switch to dark"}
+      className="inline-flex h-5 w-5 items-center justify-center rounded text-utility-text transition-colors hover:text-white"
+      aria-label="Toggle dark mode"
+    >
+      {resolved === "dark" ? <Sun size={13} /> : <Moon size={13} />}
+    </button>
+  );
+}
+
 const megaMenuProducts = {
   office: {
     title: "Office Furniture",
@@ -123,6 +151,7 @@ const Header = () => {
     <>
       <QuoteBasket />
       <header className="w-full sticky top-0 z-40 shadow-sm">
+        <SiteAnnounce />
         {/* Utility Bar */}
         <div className="bg-utility-bar">
           <div className="container mx-auto px-4">
@@ -138,6 +167,8 @@ const Header = () => {
                 <span className="hover:text-white cursor-pointer transition-colors">English</span>
                 <span className="text-utility-text/30">|</span>
                 <span className="hover:text-white cursor-pointer transition-colors">PKR</span>
+                <span className="text-utility-text/30">|</span>
+                <ModeToggle />
               </div>
             </div>
           </div>

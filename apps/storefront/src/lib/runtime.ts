@@ -1,3 +1,4 @@
+import { refreshTheme } from "./theme";
 import { Fragment, createElement, useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { products } from "@/data/products";
@@ -50,6 +51,7 @@ export function startRuntimeSync(intervalMs = 15000) {
     const es = new EventSource("/api/events");
     es.addEventListener("products", () => void syncOverrides());
     es.addEventListener("invoices", () => void syncOverrides());
+    es.addEventListener("theme", () => void refreshTheme());
   } catch { /* EventSource unsupported — polling covers us */ }
 }
 

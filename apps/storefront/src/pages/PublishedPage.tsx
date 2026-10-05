@@ -229,12 +229,14 @@ export default function PublishedPage() {
 
   useEffect(() => {
     setDoc(null); setErr(null);
+    document.documentElement.classList.remove("wx-pagebar");
     void (async () => {
       try {
         const res = await fetch("/api/pages/" + encodeURIComponent(slug ?? "") + "/public" + (draft ? "?draft=1" : ""));
         if (!res.ok) { setErr((await res.json().catch(() => ({}))).error ?? "Page not found"); return; }
         const j = (await res.json()) as PageDoc;
         setDoc(j);
+        document.documentElement.classList.toggle("wx-pagebar", !!(j.theme as { announce?: unknown } | null | undefined)?.announce);
         document.title = j.seoTitle || j.title + " — Woodex Furniture";
         let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
         if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }

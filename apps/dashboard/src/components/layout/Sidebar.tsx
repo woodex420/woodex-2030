@@ -3,24 +3,7 @@ import type { ComponentType } from "react";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
 import { Logo } from "@/components/layout/Logo";
-import {
-  BarChart,
-  Building,
-  ChevronDown,
-  ClipboardList,
-  FolderKanban,
-  Globe,
-  LayoutDashboard,
-  Megaphone,
-  MessagesSquare,
-  Settings,
-  Store,
-  Truck,
-  Users,
-  Wrench,
-  X,
-  Receipt,
-} from "@/icons";
+import {BarChart, Building, ChevronDown, ClipboardList, FolderKanban, Globe, LayoutDashboard, Megaphone, MessagesSquare, Settings, Store, Truck, Users, Wrench, X, Receipt, Sparkles} from "@/icons";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
@@ -42,6 +25,7 @@ const groups: NavGroup[] = [
       { label: "Invoices & Payments", to: "/invoices", icon: Receipt },
       { label: "Ecommerce", to: "/ecommerce", icon: Store },
       { label: "Website / CMS", to: "/website", icon: Globe },
+      { label: "Theme Studio", to: "/website/theme", icon: Sparkles },
       { label: "Marketing", to: "/marketing", icon: Megaphone },
       { label: "Omnichannel", to: "/omnichannel", icon: MessagesSquare },
     ],

@@ -586,6 +586,48 @@ app.get("/api/events", (req, res) => {
   req.on("close", () => sseClients.delete(res));
 });
 
+/* ---- P6 Theme Engine: site-wide tokens, persisted in meta['site_theme'] ---- */
+const THEME_DEFAULTS = { brand: "#16A34A", darkBrand: null, radius: 4, font: "sans", mode: "light", tintNav: false, announce: null };
+const readTheme = () => {
+  const raw = db.prepare("SELECT value FROM meta WHERE key='site_theme'").get();
+  let saved = {};
+  try { saved = raw ? JSON.parse(raw.value) : {}; } catch { /* corrupt row → defaults */ }
+  return { ...THEME_DEFAULTS, ...saved };
+};
+const isHex = (v) => /^#[0-9a-f]{6}$/i.test(String(v ?? "").trim());
+app.get("/api/theme", wrap((req, res) => res.json(readTheme())));
+app.put("/api/theme", wrap((req, res) => {
+  const b = req.body ?? {};
+  const errs = [];
+  if (b.brand !== undefined && !isHex(b.brand)) errs.push("brand must be #rrggbb hex");
+  if (b.darkBrand !== undefined && b.darkBrand !== null && !isHex(b.darkBrand)) errs.push("darkBrand must be hex or null");
+  if (b.radius !== undefined && (!Number.isFinite(Number(b.radius)) || Number(b.radius) < 0 || Number(b.radius) > 28)) errs.push("radius must be 0–28 (px)");
+  if (b.font !== undefined && !["sans", "serif"].includes(b.font)) errs.push("font must be sans|serif");
+  if (b.mode !== undefined && !["light", "dark", "auto"].includes(b.mode)) errs.push("mode must be light|dark|auto");
+  let announce;
+  if (b.announce !== undefined) {
+    if (b.announce === null || b.announce === "") announce = null;
+    else if (typeof b.announce === "object" && typeof b.announce.text === "string" && b.announce.text.trim() && b.announce.text.length <= 160) {
+      if (b.announce.href != null && !/^(\/|https?:\/\/)/.test(String(b.announce.href))) errs.push("announce.href must start with / or http(s)");
+      announce = { text: b.announce.text.trim(), href: b.announce.href != null ? String(b.announce.href) : null };
+    } else errs.push("announce needs text (1–160 chars) or null to clear");
+  }
+  if (errs.length) return res.status(400).json({ error: [...new Set(errs)].join("; ") });
+  const cur = readTheme();
+  const next = {
+    brand: isHex(b.brand ?? cur.brand) ? String(b.brand ?? cur.brand).trim() : cur.brand,
+    darkBrand: (b.darkBrand !== undefined ? b.darkBrand : cur.darkBrand) ?? null,
+    radius: Number.isFinite(Number(b.radius)) ? Math.round(Number(b.radius)) : cur.radius,
+    font: b.font ?? cur.font,
+    mode: b.mode ?? cur.mode,
+    tintNav: b.tintNav !== undefined ? !!b.tintNav : cur.tintNav,
+    announce: announce !== undefined ? announce : (cur.announce ?? null),
+  };
+  db.prepare("INSERT INTO meta(key,value) VALUES('site_theme',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify(next));
+  emit("theme", {});
+  res.json(next);
+}));
+
 app.post("/api/target", wrap((req, res) => {
   const v = Number(req.body?.value);
   if (!(v > 0)) return res.status(400).json({ error: "value must be > 0" });

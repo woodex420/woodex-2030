@@ -9,6 +9,7 @@ import { QuotationsList, QuotationBuilder } from "@/pages/Quotations";
 import Catalog from "@/pages/Catalog";
 import Clients from "@/pages/Clients";
 import Website, { PageEditor } from "@/pages/Website";
+import ThemeStudio from "@/pages/ThemeStudio";
 import Invoices from "@/pages/Invoices";
 import Projects from "@/pages/Projects";
 import Operations from "@/pages/Operations";
@@ -67,6 +68,7 @@ export default function App() {
               }
             />
             <Route path="/website" element={<Website />} />
+            <Route path="/website/theme" element={<ThemeStudio />} />
             <Route path="/website/edit/:id" element={<PageEditor />} />
             <Route
               path="/marketing"
