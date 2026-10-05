@@ -1,0 +1,1 @@
+- MCP tools read `src/lib/mcp/data.json` (regenerate with `bun --preload ./scripts/stub-assets.ts scripts/mcp-snapshot.ts`) — the MCP bundle cannot import frontend image assets.

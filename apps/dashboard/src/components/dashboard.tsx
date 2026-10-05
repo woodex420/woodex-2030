@@ -8,6 +8,8 @@ import { Dropdown, DropdownDivider, DropdownItem, DropdownLabel } from "@/compon
 import { useToast } from "@/components/ui/Toast";
 import { activity, kpis, opsStatus, pipeline } from "@/data/mock";
 import type { Kpi, Tone } from "@/data/mock";
+import { useApi, fmtPKR, timeAgo } from "@/lib/api";
+import type { ApiStats } from "@/lib/api";
 import {
   ArrowUpRight,
   Building,
@@ -141,9 +143,17 @@ const kpiTile: Record<Tone, string> = {
 };
 
 export function KpiRow() {
+  const { data: stats } = useApi<ApiStats>("/api/stats", 30000);
+  const live: Kpi[] = [
+    { id: "leads", label: "Leads", value: String(stats?.leads.total ?? "—"), trend: 12.4, comparison: stats ? `${stats.leads.byStatus.New ?? 0} new right now` : "from shared backend", icon: "users", tone: "info" },
+    { id: "quotes", label: "Active Quotations", value: String(stats?.quotes.total ?? "—"), trend: 6.1, comparison: stats ? "pipeline " + fmtPKR(stats.quotes.pipelineValue) : "from shared backend", icon: "clipboard", tone: "primary" },
+    { id: "revenue", label: "Delivered Revenue", value: stats ? fmtPKR(stats.orders.revenue) : "—", trend: 24, comparison: "orders past dispatch", icon: "dollar", tone: "success" },
+    { id: "catalog", label: "Catalog SKUs", value: String(stats?.products.total ?? "—"), trend: 3.2, comparison: stats ? `${stats.products.inStock} in stock` : "live from API", icon: "building", tone: "info" },
+  ];
+  const shown = [...live, ...kpis.filter((k) => ["projects", "receivables"].includes(k.id))].slice(0, 6);
   return (
     <section aria-label="Key performance indicators" className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4 xl:grid-cols-6">
-      {kpis.map((k) => {
+      {shown.map((k) => {
         const Icon = kpiIcons[k.icon];
         const up = k.trend >= 0;
         return (
@@ -268,13 +278,23 @@ const activityIcons: Record<string, { icon: typeof Users; tile: string }> = {
 };
 
 export function ActivityFeed() {
+  const { data: stats } = useApi<ApiStats>("/api/stats", 30000);
+  const live = (stats?.recent ?? []).map((r, i) => ({
+    id: "live-" + i,
+    type: r.type,
+    title: r.title,
+    who: r.who,
+    context: r.context,
+    time: r.time ? timeAgo(r.time) : "just now",
+  }));
+  const feed = [...live, ...activity.map((a) => ({ id: "m" + a.id, type: a.type, title: a.title, who: a.who, context: a.context, time: a.time }))].slice(0, 7);
   return (
     <Card className="flex h-full flex-col" padded={false}>
       <div className="px-5 pt-5 lg:px-6 lg:pt-6">
         <CardHeader
           className="mb-3"
           title="Recent Activity"
-          description="Across CRM, sales & operations"
+          description="Live events from storefront + operations"
           action={
             <span className="inline-flex h-6 items-center gap-1 rounded-full bg-primary-50 px-2 text-caption font-medium text-primary-700">
               <Send size={11} /> live
@@ -283,10 +303,10 @@ export function ActivityFeed() {
         />
       </div>
       <ul className="scrollbar-slim min-h-0 flex-1 overflow-y-auto px-5 pb-5 lg:px-6 lg:pb-6">
-        {activity.map((a, i) => {
+        {feed.map((a, i) => {
           const meta = activityIcons[a.type] ?? activityIcons.lead;
           const Icon = meta.icon;
-          const last = i === activity.length - 1;
+          const last = i === feed.length - 1;
           return (
             <li key={a.id} className="relative flex gap-3 pb-4 last:pb-0">
               <span className={cn("z-10 mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full", meta.tile)}>

@@ -1,64 +1,74 @@
-# Woodex Agency OS — Frontend
+# Woodex Agency OS — Monorepo
 
-Dashboard application UI implementing **design.md v1.0** (Woodex Agency OS + Woodex Business Pack).
-TailAdmin is a UX reference only (§32) — this codebase contains **no cloned TailAdmin source, assets, or branding**.
+Frontend + backend platform per `design.md` v1.0 and the MASTER-PLAN: a reimagined
+storefront, an operational agency dashboard, and a shared runtime API — one repo,
+one SQLite database, live data in both directions.
 
-## Stack
+```
+                    ┌────────────────────────────┐
+  customer ───────▶ │ apps/storefront  :5174      │  woodex-reimagined (23 routes)
+                    │  • catalog + configurator   │  quote request / lead / checkout
+                    │  • runtime sync (overrides) │──────┐
+                    └────────────────────────────┘      ▼
+                    ┌────────────────────────────┐   ┌──────────────┐
+  operator ───────▶ │ apps/dashboard   :5173      │◀─▶│ apps/api     │
+                    │  design-system shell + 7    │   │ Express +    │
+                    │  screens, kanban, approval  │   │ node:sqlite  │
+                    │  gates, live ops board      │   │ :3001        │
+                    └────────────────────────────┘   └──────┬───────┘
+                                                            │
+                            data/woodex.db  ◀── single source of truth
+                            148 products · 16 materials · 7 services
+                            leads · quotes · orders (persisted, live-polled)
+```
 
-- React 19 + TypeScript (strict) + Vite 8
-- Tailwind CSS v4 via `@tailwindcss/vite` — design tokens live in `src/index.css` under `@theme`
-- `react-router` (client routing) — no UI kit, no chart library (dependency-free SVG charts)
-
-## Design system mapping
-
-| Spec | Implementation |
-|---|---|
-| §02 palette | `@theme` tokens: `primary-500 #4F9D21`, charcoal, slate, semantic colors (+`-strong`/`-soft` variants for accessible text) |
-| §03 typography | Inter + token scale `text-display / h1 / h2 / h3 / bodylg / small / caption` |
-| §04/§05 shell | `AppShell` → dark `Sidebar` (12 nav modules, collapsible, groups, workspace chip, brand footer) + white `Topbar` (⌘K search, notifications, cart, **E-Quotation CTA**, user menu) |
-| §06 workspace context | `WorkspaceContextBar`: greeting, workspace switcher, website link, date range |
-| §07/§08 dashboard | KPI row (6), revenue/orders chart with hover tooltip, quotation pipeline, recent leads table, production & delivery cards, activity feed |
-| §09 screens | `/crm` kanban (drag & drop), `/quotations/new` E-Quotation builder (lines, totals, approval bar, audit trail), `/catalog`, `/projects` (8-tab workspace incl. BOQ, milestones, sign-off), `/operations/:stage`, `/analytics` |
-| §13 tables | `DataTable` — sticky header, hover, 52px rows, pagination |
-| §14 status system | `StatusBadge` — single mapping for Lead / Quotation / Invoice / Operations states (dot + label, never color alone) |
-| §15/§16 | 8px grid utilities, `rounded-card` 10px / `rounded-panel` 12px |
-| §19 a11y | focus-visible rings, roles (`tablist`, `progressbar`, `switch`, `dialog`, `aria-live`), semantic landmarks, labeled controls |
-| §26 AI UX | AI actions are surfaced as *review-gated* suggestions (toast + audit note), never autonomous |
-| §27 states | `EmptyState`, `Skeleton/SkeletonRows`, `ErrorState` components + 404 + placeholder screens |
-
-## Run
+## Run (three terminals, or use the scripts)
 
 ```bash
-npm install
-npm run dev      # Vite dev server (binds 0.0.0.0:5173, allowed hosts incl. .e2b.app preview)
-npm run build    # tsc -b && vite build
+npm install --legacy-peer-deps     # once, at repo root (workspaces)
+npm run dev:api                    # :3001 — seeds DB on first boot from storefront data
+npm run dev:dashboard              # :5173 — proxy /api + /img → :3001
+npm run dev:storefront             # :5174 — proxy /api + /img → :3001
 ```
 
-## Layout
+Vite proxies make both apps same-origin for the browser — no CORS, works behind
+the preview host. `data/woodex.db` is git-ignored (delete it to re-seed).
 
-```
-src/
-  index.css              # design tokens (§21) — single source of truth
-  lib/cn.ts              # class merging + formatters
-  icons/                 # original Lucide-style outline icon set (§17)
-  data/mock.ts           # operational mock data + status maps
-  components/
-    ui/                  # Button, Card, Badge/StatusBadge, Field, Tabs, Dropdown,
-                         # Modal, Toast, DataTable, Progress, Avatar, Switch, States
-    charts/              # LineAreaChart, BarList, Donut (dependency-free SVG)
-    layout/              # Logo, Sidebar, Topbar, PageHeader, AppShell
-    dashboard.tsx        # KPI row, pipeline, ops cards, activity feed, context bar
-  pages/                 # Dashboard, Crm, Quotations, Catalog, Projects, Operations,
-                         # Analytics, Settings, Placeholder
-```
+## Runtime data flow
 
-Next phases per design.md §34: validate these 7 screens, then extend to Ecommerce, CMS, Marketing, Omnichannel, Automation, Support, Settings and the Visual Builder (§30).
+| Flow | Path |
+|---|---|
+| Storefront catalog | bundled `products.ts` (205-line source) **hydrated at boot + every 15 s** from `GET /api/products/overrides` — dashboard price/stock edits appear live |
+| Contact form | `POST /api/leads` → dashboard CRM kanban (15 s poll, drag = `PATCH`) |
+| Quote request | `POST /api/quotes` → dashboard quotation pipeline (Draft → Review → Approval → Sent, audit trail) |
+| Checkout | `POST /api/orders` → dashboard operations board (stage advance = `PATCH`) |
+| Catalog management | dashboard `PATCH /api/products/:id` → storefront sees overrides |
 
-## Data import — 2026-10-05
+Seed: first API boot bundles `apps/storefront/src/data/{products,materials,services}.ts`
+via esbuild (asset imports → image basenames) and inserts them + demo leads/quotes/orders.
 
-Live catalog imported from `blackibexofficial-blip/woodex-reimagined` (per MASTER-PLAN):
-`src/data/products.ts` (205 SKUs, PKR pricing, images, colors, specs, ratings),
-`src/data/materials.ts` (16 material textures) and `src/data/services.ts` — powering the
-Catalog screen and the E-Quotation "From Catalog" product picker. Product/material assets
-live in `src/assets/`. Storefront runs separately on port 5174 (its own clone, with the
-documented lockfile + Lovable tooling fixes applied locally).
+## Notable fixes applied to the storefront (per MASTER-PLAN)
+
+- lockfile removed (was pinned to an unreachable private npm cache)
+- Lovable dev-only tooling (`@lovable.dev/mcp-js`, `lovable-tagger`) removed from config
+- Google-Fonts `@import` moved before `@tailwind` directives (was silently dropped)
+- `server.allowedHosts` for the Arena preview proxy
+
+## Dashboard design system
+
+Implements `design.md` v1.0 (TailAdmin-inspired patterns, original code — §32).
+Tokens in `apps/dashboard/src/index.css @theme`; screens: Overview, CRM kanban,
+E-Quotation builder + approval workflow, Catalog, Projects workspace, Operations,
+Analytics, Settings. Status system (§14) shared: dot + label, never color alone.
+
+## Supabase path (later)
+
+The API mirrors a PostgREST-style shape. When the exact project ref + anon key +
+safe preflight are confirmed (see PRD §13), point `apps/api` at Postgres (or run the
+browser directly against Supabase) without touching dashboard/storefront pages.
+
+## Security
+
+No secrets in this repo. Never commit `sbp_` tokens, service-role keys or Stripe keys;
+the public `woodex420/woodex` repo leak (MASTER-PLAN §10) must be rotated before any
+live integration.

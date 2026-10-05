@@ -14,11 +14,12 @@ import {
   WorkspaceContextBar,
 } from "@/components/dashboard";
 import { compact, money } from "@/lib/cn";
-import { recentLeads, revenueSeries, revenueSummary } from "@/data/mock";
-import type { Lead } from "@/data/mock";
+import { revenueSeries, revenueSummary } from "@/data/mock";
+import { useApi, timeAgo, type ApiLead } from "@/lib/api";
+import { SkeletonRows } from "@/components/ui/States";
 import { ArrowRight, Plus } from "@/icons";
 
-type LeadRow = Lead & { id: string };
+type LeadRow = Omit<ApiLead, "id"> & { id: string };
 
 const leadColumns: Column<LeadRow>[] = [
   {
@@ -31,17 +32,39 @@ const leadColumns: Column<LeadRow>[] = [
         </span>
         <span>
           <span className="block text-small font-semibold text-ink">{r.name}</span>
-          <span className="block text-caption text-subtle">{r.id}</span>
+          <span className="block text-caption text-subtle">{r.ref}</span>
         </span>
       </span>
     ),
   },
-  { key: "interest", header: "Interest", cell: (r) => <span className="text-small text-slate-700">{r.interest}</span> },
+  { key: "interest", header: "Interest", cell: (r) => <span className="text-small text-slate-700">{r.interest ?? "—"}</span> },
   { key: "source", header: "Source", cell: (r) => <span className="text-caption text-muted">{r.source}</span> },
-  { key: "value", header: "Est. value", align: "right", cell: (r) => <span className="text-small font-semibold text-ink">{r.value}</span> },
-  { key: "date", header: "Date", cell: (r) => <span className="text-caption text-muted">{r.date}</span> },
+  { key: "value", header: "Note", align: "right", cell: (r) => <span className="text-small font-semibold text-ink">{r.note ?? "—"}</span> },
+  { key: "date", header: "Received", cell: (r) => <span className="text-caption text-muted">{timeAgo(r.createdAt)}</span> },
   { key: "status", header: "Status", cell: (r) => <StatusBadge status={r.status} /> },
 ];
+
+function RecentLeads() {
+  const { data, loading } = useApi<{ items: ApiLead[] }>("/api/leads", 20000);
+  const rows: LeadRow[] = (data?.items ?? []).slice(0, 6).map((l) => ({ ...l, id: String(l.id) }));
+  return (
+    <>
+      <div className="px-5 pt-5 lg:px-6 lg:pt-6">
+        <CardHeader
+          className="mb-1"
+          title="Recent Leads"
+          description="Inbound from the storefront contact form + CRM — live from the shared DB"
+          action={
+            <Link to="/crm" className="inline-flex items-center gap-1 text-caption font-semibold text-primary-600 hover:text-primary-700">
+              Open CRM <ArrowRight size={13} />
+            </Link>
+          }
+        />
+      </div>
+      {loading ? <div className="px-5 pb-6"><SkeletonRows rows={4} /></div> : <DataTable rows={rows} columns={leadColumns} />}
+    </>
+  );
+}
 
 export default function Dashboard() {
   return (
@@ -105,24 +128,9 @@ export default function Dashboard() {
         {/* §8.2 Quotation pipeline */}
         <QuotationPipelineCard />
 
-        {/* §8.3 Recent leads */}
+        {/* §8.3 Recent leads — live from shared backend */}
         <Card padded={false} className="xl:col-span-2">
-          <div className="px-5 pt-5 lg:px-6 lg:pt-6">
-            <CardHeader
-              className="mb-1"
-              title="Recent Leads"
-              description="Newest inbound opportunities across all channels"
-              action={
-                <Link
-                  to="/crm"
-                  className="inline-flex items-center gap-1 text-caption font-semibold text-primary-600 hover:text-primary-700"
-                >
-                  Open CRM <ArrowRight size={13} />
-                </Link>
-              }
-            />
-          </div>
-          <DataTable rows={recentLeads} columns={leadColumns} />
+          <RecentLeads />
         </Card>
 
         {/* §8.5 Activity */}

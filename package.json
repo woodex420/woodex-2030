@@ -1,0 +1,21 @@
+{
+  "name": "woodex-platform",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "apps/api",
+    "apps/dashboard",
+    "apps/storefront"
+  ],
+  "scripts": {
+    "dev:api": "npm -w @woodex/api run dev",
+    "dev:dashboard": "npm -w @woodex/dashboard run dev",
+    "dev:storefront": "npm -w @woodex/storefront run dev",
+    "build": "npm -w @woodex/dashboard run build && npm -w @woodex/storefront run build",
+    "typecheck": "npm -w @woodex/dashboard run build"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}

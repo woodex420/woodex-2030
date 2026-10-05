@@ -1,5 +1,5 @@
 {
-  "name": "woodex-agency-os",
+  "name": "@woodex/dashboard",
   "private": true,
   "version": "0.1.0",
   "type": "module",

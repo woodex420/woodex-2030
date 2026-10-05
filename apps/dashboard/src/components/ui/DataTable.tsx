@@ -13,7 +13,7 @@ export type Column<T> = {
 };
 
 /** Table — §13: sticky header, row hover, 52–60px rows, pagination. */
-export function DataTable<T extends { id: string }>({
+export function DataTable<T extends { id: string | number }>({
   rows,
   columns,
   perPage = 0,
@@ -62,7 +62,7 @@ export function DataTable<T extends { id: string }>({
           <tbody>
             {view.map((r) => (
               <tr
-                key={r.id}
+                key={String(r.id)}
                 onClick={onRowClick ? () => onRowClick(r) : undefined}
                 className={cn(
                   "border-b border-slate-100 transition-colors duration-150 last:border-0 hover:bg-primary-50/50",

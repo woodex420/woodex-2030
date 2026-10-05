@@ -14,5 +14,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     allowedHosts: [".e2b.app", "localhost"],
+    proxy: {
+      "/api": "http://localhost:3001",
+      "/img": "http://localhost:3001",
+    },
   },
 });

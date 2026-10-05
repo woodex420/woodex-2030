@@ -397,3 +397,11 @@ export const TreePine = (p: IconProps) => (
     <path d="M8 16h8l-3-3 2.5-.5L12 8l3 1-5-6-5 6 3-1-3.5 4.5L5.5 13 2 16Z" />
   </Icon>
 );
+
+export const Settings2 = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 7h-9M14 17H5" />
+    <circle cx="17" cy="17" r="3" />
+    <circle cx="7" cy="7" r="3" />
+  </Icon>
+);
