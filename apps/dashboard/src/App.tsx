@@ -37,7 +37,17 @@ function NotFound() {
   );
 }
 
+import Login from "@/pages/Login";
+import { restoreSession, useAuth } from "@/lib/auth";
+
 export default function App() {
+  const { status } = useAuth();
+  if (status === "loading")
+    return (
+      <div className="grid min-h-screen place-items-center bg-surface-secondary">
+        <button onClick={() => void restoreSession()} className="rounded-card border border-hairline bg-white px-5 py-3 text-caption font-bold text-muted shadow-card hover:text-ink">Connecting to workspace… (tap to retry)</button>
+      </div>);
+  if (status === "out") return <Login />;
   return (
     <ToastProvider>
       <BrowserRouter>

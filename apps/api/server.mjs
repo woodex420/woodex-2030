@@ -20,6 +20,7 @@
  *   GET  /img/:file                  shared product photography
  */
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
@@ -110,6 +111,11 @@ CREATE TABLE IF NOT EXISTS messages(
   channel TEXT NOT NULL, direction TEXT DEFAULT 'outbound', author TEXT,
   body TEXT NOT NULL, meta TEXT, created_at TEXT);
 CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conversation_id, id);
+CREATE TABLE IF NOT EXISTS users(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'viewer', pass_salt TEXT, pass_hash TEXT,
+  active INTEGER DEFAULT 1, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, created_at TEXT, expires_at TEXT);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -266,6 +272,62 @@ const wrap = (fn) => (req, res) => { try { fn(req, res); } catch (e) { res.statu
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
+/* ---- Foundation: session auth + RBAC (bearer token; no cookies) ---- */
+const ROLE_CAPS = {
+  owner: ["*"],
+  editor: ["page.manage", "theme.manage", "catalog.manage"],
+  sales: ["crm.manage", "quote.manage", "order.manage"],
+  finance: ["finance.manage", "quote.view-move", "order.view-move"],
+  viewer: [],
+};
+const ROLES = Object.keys(ROLE_CAPS);
+const capsFor = (m, path) => {
+  if (path.startsWith("/api/auth")) return "auth";
+  if (path.startsWith("/api/users")) return "users.manage";
+  if (path === "/api/track") return "purge";
+  if (path.startsWith("/api/pages") || path.startsWith("/api/saved-sections") || path.startsWith("/api/media")) return "page.manage";
+  if (path.startsWith("/api/theme") || path.startsWith("/api/target")) return "theme.manage";
+  if (path.startsWith("/api/leads") || path.startsWith("/api/clients") || path.startsWith("/api/inbox") || path.startsWith("/api/tasks")) return "crm.manage";
+  if (path.startsWith("/api/quotes")) return "quote.manage";
+  if (path.startsWith("/api/orders")) return "order.manage";
+  if (path.startsWith("/api/invoices") || path.startsWith("/api/payments") || path.startsWith("/api/returns")) return "finance.manage";
+  if (path.startsWith("/api/products") || path.startsWith("/api/materials") || path.startsWith("/api/services") || path.startsWith("/api/categories") || path.startsWith("/api/collections")) return "catalog.manage";
+  return "owner-only";
+};
+const isPublic = (m, p) =>
+  m === "GET" && (
+    p === "/api/health" || p === "/api/events" || p === "/api/theme" ||
+    /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
+    /^\/api\/orders\/lookup$/.test(p) || /^\/api\/pages\/[^/]+\/public$/.test(p) ||
+    p.startsWith("/img/") || p === "/uploads" || /^\/(uploads|img)\//.test(p) ||
+    p === "/sitemap.xml" || p === "/robots.txt"
+  ) || (m === "POST" && /^\/api\/(track|leads|quotes|orders|auth\/login)$/.test(p));
+app.use((req, res, next) => {
+  if (isPublic(req.method, req.path)) return next();
+  const auth = String(req.headers.authorization ?? "");
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : String(req.query.token ?? "");
+  if (!token) return res.status(401).json({ error: "sign in required", code: "no_token" });
+  const u = db.prepare("SELECT u.id, u.email, u.name, u.role, u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(token);
+  if (!u) return res.status(401).json({ error: "session expired — sign in again", code: "bad_token" });
+  if (String(u.expires_at) < now()) { db.prepare("DELETE FROM sessions WHERE token=?").run(token); return res.status(401).json({ error: "session expired", code: "expired" }); }
+  if (!u.active) return res.status(403).json({ error: "account disabled" });
+  req.user = u; req.actor = u.name;
+  const caps = ROLE_CAPS[u.role] ?? [];
+  if (req.path.startsWith("/api/users") && req.method === "GET" && !caps.includes("*") && !caps.includes("users.manage"))
+    return res.status(403).json({ error: "role '" + u.role + "' may not view the team roster — owners only", need: "users.manage" });
+  if (req.method !== "GET") {
+    const need = capsFor(req.method, req.path);
+    const moveOnly = (need === "quote.manage" && caps.includes("quote.view-move")) || (need === "order.manage" && caps.includes("order.view-move"));
+    if (!caps.includes("*") && !caps.includes(need) && !moveOnly)
+      return res.status(403).json({ error: `role '${u.role}' may not ${need} — an owner can grant it`, need });
+  }
+  next();
+});
+const hashPass = (pw, salt = crypto.randomBytes(8).toString("hex")) =>
+  ({ salt, hash: crypto.scryptSync(String(pw), salt, 32).toString("hex") });
+const loginBucket = new Map();
+
+
 app.get("/api/health", wrap((req, res) => {
   const c = (t) => db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n;
   res.json({ ok: true, db: "sqlite", ts: now(), counts: { products: c("products"), leads: c("leads"), quotes: c("quotes"), orders: c("orders") } });
@@ -343,8 +405,8 @@ app.patch("/api/quotes/:id", wrap((req, res) => {
   if (!r) return res.status(404).json({ error: "not found" });
   const { status, note, customer, contact } = req.body ?? {};
   const audit = JSON.parse(r.audit || "[]");
-  if (status) audit.unshift({ who: "You", action: "moved to " + status, time: now() });
-  if (note) audit.unshift({ who: "You", action: "noted: " + note, time: now() });
+  if (status) audit.unshift({ who: req.actor ?? "You", action: "moved to " + status, time: now() });
+  if (note) audit.unshift({ who: req.actor ?? "You", action: "noted: " + note, time: now() });
   db.prepare("UPDATE quotes SET status=?, note=?, customer=?, contact=?, audit=?, updated_at=? WHERE id=?").run(
     status ?? r.status, note ?? r.note, customer ?? r.customer, contact ?? r.contact, JSON.stringify(audit), now(), r.id
   );
@@ -536,6 +598,70 @@ function clientFull(c) {
 }
 const rowTask = (r) => ({ id: r.id, clientId: r.client_id, leadId: r.lead_id, quoteId: r.quote_id, orderId: r.order_id,
   title: r.title, due: r.due, owner: r.owner, priority: r.priority, done: !!r.done, createdAt: r.created_at, updatedAt: r.updated_at });
+
+/* ---- auth endpoints + team management ---- */
+const rowUserLite = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, active: !!u.active, updatedAt: u.updated_at });
+app.post("/api/auth/login", wrap((req, res) => {
+  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  const pw = String(req.body?.password ?? "");
+  const rl = loginBucket.get(email) ?? { n: 0, t: Date.now() };
+  if (Date.now() - rl.t > 60_000) { rl.n = 0; rl.t = Date.now(); }
+  if (rl.n >= 5) { res.set("retry-after", "60"); return res.status(429).json({ error: "too many attempts — wait a minute" }); }
+  const u = db.prepare("SELECT * FROM users WHERE email=?").get(email);
+  const guess = u ? hashPass(pw, u.pass_salt) : hashPass("x", "00");
+  if (!u || !crypto.timingSafeEqual(Buffer.from(guess.hash, "hex"), Buffer.from(u.pass_hash, "hex"))) {
+    rl.n += 1; loginBucket.set(email, rl);
+    return res.status(401).json({ error: "wrong email or password" });
+  }
+  if (!u.active) return res.status(403).json({ error: "account disabled — ask an owner" });
+  loginBucket.delete(email);
+  const token = crypto.randomBytes(32).toString("hex");
+  const t = now();
+  db.prepare("INSERT INTO sessions(token,user_id,created_at,expires_at) VALUES(?,?,?,?)").run(token, u.id, t, new Date(Date.now() + 7 * 864e5).toISOString());
+  emit("users", { title: u.name + " signed in", who: u.name });
+  res.json({ token, user: rowUserLite(u), caps: ROLE_CAPS[u.role], roles: ROLES });
+}));
+app.get("/api/auth/me", wrap((req, res) => res.json({ user: rowUserLite(req.user), caps: ROLE_CAPS[req.user.role], roles: ROLES })));
+app.post("/api/auth/logout", wrap((req, res) => {
+  const auth = String(req.headers.authorization ?? "");
+  if (auth.startsWith("Bearer ")) db.prepare("DELETE FROM sessions WHERE token=?").run(auth.slice(7));
+  res.json({ ok: true });
+}));
+app.get("/api/users", wrap((req, res) => res.json({ items: db.prepare("SELECT * FROM users ORDER BY id").all().map(rowUserLite), roles: ROLES, caps: ROLE_CAPS })));
+app.post("/api/users", wrap((req, res) => {
+  const { email, name, role, password } = req.body ?? {};
+  const em = String(email ?? "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(em)) return res.status(400).json({ error: "valid email required" });
+  if (!name || String(name).length > 60) return res.status(400).json({ error: "name required (≤60)" });
+  if (!ROLES.includes(role)) return res.status(400).json({ error: "role must be " + ROLES.join("|") });
+  if (String(password ?? "").length < 6) return res.status(400).json({ error: "password ≥6 chars" });
+  if (db.prepare("SELECT id FROM users WHERE email=?").get(em)) return res.status(409).json({ error: "email exists" });
+  const { salt, hash } = hashPass(password);
+  const t = now();
+  const info = db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run(em, String(name), role, salt, hash, t, t);
+  emit("users", { title: "Team member added: " + name, who: req.actor });
+  res.status(201).json(rowUserLite(db.prepare("SELECT * FROM users WHERE id=?").get(info.lastInsertRowid)));
+}));
+app.patch("/api/users/:id", wrap((req, res) => {
+  const u = db.prepare("SELECT * FROM users WHERE id=?").get(req.params.id);
+  if (!u) return res.status(404).json({ error: "user not found" });
+  const { role, active, password, name } = req.body ?? {};
+  if (role !== undefined && !ROLES.includes(role)) return res.status(400).json({ error: "bad role" });
+  if (u.id === req.user.id && active === false) return res.status(400).json({ error: "can't disable your own account" });
+  if (u.role === "owner" && role !== undefined && role !== "owner" && db.prepare("SELECT COUNT(*) n FROM users WHERE role='owner' AND active=1").get().n <= 1)
+    return res.status(400).json({ error: "last active owner stays owner" });
+  const t = now();
+  db.prepare("UPDATE users SET role=?, active=?, name=?, updated_at=? WHERE id=?").run(
+    role ?? u.role, active !== undefined ? (active ? 1 : 0) : u.active, name ? String(name).slice(0, 60) : u.name, t, u.id);
+  if (password !== undefined) {
+    if (String(password).length < 6) return res.status(400).json({ error: "password ≥6 chars" });
+    const { salt, hash } = hashPass(password);
+    db.prepare("UPDATE users SET pass_salt=?, pass_hash=? WHERE id=?").run(salt, hash, u.id);
+  }
+  if (active === false || password !== undefined) db.prepare("DELETE FROM sessions WHERE user_id=?").run(u.id);
+  emit("users", { title: "Team update: " + u.name, who: req.actor });
+  res.json(rowUserLite(db.prepare("SELECT * FROM users WHERE id=?").get(u.id)));
+}));
 
 /* ---- P3 realtime: Server-Sent Events bus ---- */
 const sseClients = new Set();
@@ -810,7 +936,7 @@ app.post("/api/inbox/:clientId/messages", wrap((req, res) => {
   let direction = ["inbound", "outbound"].includes(b.direction) ? b.direction : "outbound";
   if (channel === "system") direction = "system";
   const conv = ensureConv(cl.id);
-  const m = appendMsg(conv.id, { channel, direction, author: b.author ?? "You", body });
+  const m = appendMsg(conv.id, { channel, direction, author: b.author ?? req.actor ?? "You", body });
   touchInbox({ clientId: cl.id });
   res.status(201).json(rowMsg(m));
 }));
@@ -825,7 +951,7 @@ app.post("/api/inbox/:clientId/handoff", wrap((req, res) => {
   if (!body) return res.status(400).json({ error: "templateId or body required" });
   const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(body);
   const conv = ensureConv(cl.id);
-  const m = appendMsg(conv.id, { channel: "whatsapp", direction: "outbound", author: b.author ?? "You", body, meta: { handoff: url, template: tpl?.id ?? null } });
+  const m = appendMsg(conv.id, { channel: "whatsapp", direction: "outbound", author: b.author ?? req.actor ?? "You", body, meta: { handoff: url, template: tpl?.id ?? null } });
   if (tpl) db.prepare("UPDATE conversations SET updated_at=?, last_at=? WHERE id=?").run(now(), now(), conv.id);
   touchInbox({ clientId: cl.id });
   res.json({ url, message: rowMsg(m) });
@@ -1225,15 +1351,18 @@ app.get("/api/pages/:key/public", wrap((req, res) => {
 app.put("/api/pages/:id/blocks", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
   if (!r) return res.status(404).json({ error: "not found" });
-  const blocks = Array.isArray(req.body?.blocks) ? req.body.blocks : [];
-  db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id);
-  blocks.forEach((b, i) => db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
-    .run(r.id, String(b.type), JSON.stringify(b.props ?? {}), i));
+  const rewrite = Array.isArray(req.body?.blocks);
+  if (rewrite) {
+    db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id);
+    req.body.blocks.forEach((b, i) => db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
+      .run(r.id, String(b.type), JSON.stringify(b.props ?? {}), i));
+  }
   const { title, seoTitle, seoDesc, theme } = req.body ?? {};
   db.prepare("UPDATE pages SET title=COALESCE(?,title), seo_title=COALESCE(?,seo_title), seo_desc=COALESCE(?,seo_desc), theme=COALESCE(?,theme), updated_at=? WHERE id=?")
     .run(title ?? null, seoTitle ?? null, seoDesc ?? null, theme ? JSON.stringify(theme) : null, now(), r.id);
   res.json({ ...rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)),
-    validation: validatePage(req.body?.title ?? r.title, blocks) });
+    validation: validatePage(req.body?.title ?? r.title,
+      rewrite ? req.body.blocks : db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id).map((x) => ({ type: x.type, props: JSON.parse(x.props || "{}") }))) });
 }));
 app.post("/api/pages/:id/publish", wrap((req, res) => {
   const r = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
@@ -1242,8 +1371,8 @@ app.post("/api/pages/:id/publish", wrap((req, res) => {
   const errs = validatePage(req.body?.title ?? r.title, blocks);
   if (errs.length) return res.status(422).json({ error: "validation failed", validation: errs });
   const t = now();
-  db.prepare("INSERT INTO page_versions(page_id,snapshot,note,created_at) VALUES(?,?,?,?)")
-    .run(r.id, JSON.stringify({ blocks, seo: { title: r.seo_title, desc: r.seo_desc } }), req.body?.note ?? "published", t);
+  db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)")
+    .run(r.id, JSON.stringify({ blocks, seo: { title: r.seo_title, desc: r.seo_desc } }), req.body?.note ?? "published", req.actor ?? "You", t);
   db.prepare("UPDATE pages SET status='Published', updated_at=? WHERE id=?").run(t, r.id);
   emit("pages", { title: "Page published: /" + r.slug, who: r.title });
   res.json({ ...rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)), versions: db.prepare("SELECT COUNT(*) n FROM page_versions WHERE page_id=?").get(r.id).n });
@@ -1268,7 +1397,7 @@ app.post("/api/pages/:id/rollback", wrap((req, res) => {
   (snap.blocks ?? []).forEach((b, i) => db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
     .run(req.params.id, b.type, JSON.stringify(b.props ?? {}), i));
   db.prepare("UPDATE pages SET updated_at=? WHERE id=?").run(now(), req.params.id);
-  emit("pages", { title: "Version rolled back on page " + req.params.id, who: "You" });
+  emit("pages", { title: "Version rolled back on page " + req.params.id, who: req.actor ?? "You" });
   res.json(rowPage(db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
 }));
 
@@ -1329,6 +1458,25 @@ try {
     console.log("[woodex-api] P10 inbox demo threads seeded");
   }
 } catch (e) { console.error("[woodex-api] inbox seed skipped:", e.message); }
+/* Foundation: demo team (password: woodex123 for all) */
+try {
+  {
+    const t = now();
+    const team = [
+      ["usman@woodex.pk", "Usman (Owner)", "owner"],
+      ["ayesha@woodex.pk", "Ayesha (Content)", "editor"],
+      ["bilal@woodex.pk", "Bilal (Sales)", "sales"],
+      ["farhan@woodex.pk", "Farhan (Finance)", "finance"],
+      ["guest@woodex.pk", "Guest (View only)", "viewer"],
+    ];
+    for (const [email, name, role] of team) {
+      if (db.prepare("SELECT id FROM users WHERE email=?").get(email)) continue;
+      const { salt, hash } = hashPass("woodex123");
+      db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run(email, name, role, salt, hash, t, t);
+    }
+    console.log("[woodex-api] team ensure-complete · demo password 'woodex123'");
+  }
+} catch (e) { console.error("[woodex-api] users seed skipped:", e.message); }
 ensureFinanceDemo();
 ensureCrmDemo();
 ensureSiteDemo();

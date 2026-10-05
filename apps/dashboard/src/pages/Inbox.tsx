@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Field";
 import { SkeletonRows, EmptyState } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { useApi, useRealtime, timeAgo } from "@/lib/api";
+import { can } from "@/lib/auth";
 import { ArrowRight, Eye, MessagesSquare, Phone, Search, Send, User } from "@/icons";
 
 type LastMsg = { body: string; channel: string; direction: string; author: string } | null;
@@ -211,7 +212,7 @@ export default function Inbox() {
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                     className="min-h-0 flex-1 resize-none rounded-control border border-line-strong bg-white px-3 py-2 text-caption focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
                   <div className="flex flex-col gap-1">
-                    <Button size="sm" onClick={() => void send()}><Send size={12} /> Send</Button>
+                    <Button size="sm" onClick={() => void send()} disabled={!can("crm.manage")} title={can("crm.manage") ? undefined : "crm.manage role required to reply"}><Send size={12} /> Send</Button>
                     {th.wa && conv?.wa && <Button size="sm" variant="secondary" onClick={() => void openHandoff()}>WA →</Button>}
                   </div>
                 </div>

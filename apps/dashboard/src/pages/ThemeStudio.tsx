@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { SkeletonRows } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { useApi, useRealtime } from "@/lib/api";
+import { can } from "@/lib/auth";
 import { Check, Eye, Moon, Sparkles, Sun } from "@/icons";
 
 type SiteTheme = {
@@ -50,7 +51,7 @@ export default function ThemeStudio() {
         description="Site-wide design tokens for the public storefront — brand color, radius, typeface, dark mode and announcement bar. Saved once, applied everywhere (P6)."
         actions={<>
           <Button variant="secondary" onClick={() => { setD(DEFAULTS); setDirty(true); }}>Reset defaults</Button>
-          <Button onClick={() => void save()} disabled={!dirty}><Check size={14} /> Apply to site</Button>
+          <Button onClick={() => void save()} disabled={!dirty || !can("theme.manage")} title={can("theme.manage") ? undefined : "theme.manage needed — ask an owner"}><Check size={14} /> Apply to site</Button>
         </>}
       />
       {loading || !data ? <SkeletonRows rows={5} /> : (

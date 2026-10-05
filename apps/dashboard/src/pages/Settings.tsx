@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { TeamCard } from "@/components/TeamCard";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Switch } from "@/components/ui/Switch";
@@ -38,7 +39,8 @@ export default function Settings() {
       />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card>
+<TeamCard />
+                <Card>
           <CardHeader title="Workspace" description="Multi-tenant site context (§33)" />
           <div className="grid grid-cols-2 gap-4">
             <Field label="Workspace name">

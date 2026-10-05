@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { cn } from "@/lib/cn";
+import { logout, useAuth } from "@/lib/auth";
 import { buttonCls } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge, chipTone } from "@/components/ui/Badge";
@@ -31,6 +32,23 @@ type Note = { id: string; title: string; desc: string; time: string; tone: keyof
 const TONE_BY_TYPE: Record<string, Note["tone"]> = {
   leads: "info", quotes: "primary", orders: "warning", invoices: "success", payments: "success", returns: "danger", products: "muted", clients: "primary", tasks: "neutral",
 };
+
+function UserChip() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return (
+    <span className="flex items-center gap-1.5 rounded-full border border-line bg-white py-0.5 pr-1 pl-0.5" title={user.email + " · role " + user.role}>
+      <span className="grid h-7 w-7 place-items-center rounded-full bg-primary-600 text-[10px] font-black text-white">{user.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+      <span className="hidden text-left md:block">
+        <span className="block max-w-28 truncate text-[11px] font-bold leading-tight text-ink">{user.name}</span>
+        <span className="block text-[9px] font-semibold uppercase tracking-wide text-subtle">{user.role}</span>
+      </span>
+      <button onClick={() => void logout()} aria-label="Sign out" className="grid h-7 w-7 place-items-center rounded-full text-slate-500 transition-colors hover:bg-danger-soft hover:text-danger-strong">
+        <LogOut size={13} />
+      </button>
+    </span>
+  );
+}
 
 export function Topbar({
   onOpenMobile,
@@ -110,6 +128,8 @@ export function Topbar({
 
       {/* Right cluster */}
       <div className="flex items-center gap-1.5 lg:gap-2">
+        <UserChip />
+
         {/* Realtime status */}
         <span
           title={rt === "live" ? "Live sync connected (SSE)" : rt === "down" ? "Live sync down — 60s polling keeps data fresh" : "Connecting…"}

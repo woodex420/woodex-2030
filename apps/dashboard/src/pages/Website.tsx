@@ -12,6 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SkeletonRows, EmptyState, ErrorState } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { useApi, useRealtime, timeAgo, img } from "@/lib/api";
+import { can } from "@/lib/auth";
 import { ArrowRight, Check, Eye, FileText, Globe, Lock, Plus, Save, Trash2, Undo2 } from "@/icons";
 
 /* ---------- types ---------- */
@@ -213,7 +214,7 @@ export function PageEditor() {
         actions={<>
           <Button variant="secondary" onClick={() => setPreviewKey((k) => k + 1)}><Eye size={14} /> Reload preview</Button>
           <Button onClick={() => void persist()}><Save size={14} /> Save</Button>
-          <Button onClick={() => void publish()} disabled={busy}><Globe size={14} /> {page.status === "Published" ? "Re-publish" : "Publish"}</Button>
+          <Button onClick={() => void publish()} disabled={busy || !can("page.manage")} title={can("page.manage") ? undefined : "Your role can’t publish — an owner can grant page.manage"}><Globe size={14} /> {page.status === "Published" ? "Re-publish" : "Publish"}</Button>
         </>}
       />
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">

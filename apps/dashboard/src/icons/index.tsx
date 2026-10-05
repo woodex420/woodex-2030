@@ -470,3 +470,10 @@ export const RefreshCw = (p: IconProps) => (
     <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
   </Icon>
 );
+
+export const Shield = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3l7 3v5c0 4.6-3 8.2-7 10-4-1.8-7-5.4-7-10V6l7-3Z" />
+    <path d="M9.5 12l1.8 1.8 3.4-3.6" />
+  </Icon>
+);
