@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes } from "react-router";
+import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorState } from "@/components/ui/States";
@@ -96,6 +96,10 @@ export default function App() {
                 />
               }
             />
+            {/* legacy/stray entry paths (old bookmarks, wx_return leftovers) → Overview */}
+            {["/login", "/signin", "/dashboard", "/home", "/overview"].map((p) => (
+              <Route key={p} path={p} element={<Navigate to="/" replace />} />
+            ))}
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

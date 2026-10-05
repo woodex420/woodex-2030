@@ -29,6 +29,9 @@ export async function login(email: string, password: string) {
   const j = await r.json().catch(() => ({} as { token?: string; user?: User; caps?: string[] }));
   if (!r.ok) throw new Error(j.error ?? "login failed");
   persistToken(j.token ?? null);
+  // the gate can mount on a non-route URL (e.g. /dashboard from an old tab); steer home first,
+  // then let a real saved return-path (from a 401 bounce) take precedence below.
+  if (/^\/(login|signin|dashboard|home|overview)$/.test(location.pathname)) history.replaceState(null, "", "/");
   takeReturn(); // land back where an expired session yanked us from
   set({ status: "in", user: j.user, caps: j.caps ?? [] });
   return j.user as User;
