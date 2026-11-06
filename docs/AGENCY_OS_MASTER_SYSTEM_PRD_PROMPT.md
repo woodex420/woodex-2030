@@ -1,6 +1,6 @@
 # AGENCY OS — MASTER SYSTEM PRD PROMPT
 
-> Saved verbatim from the user's directive, 2026-10-05. This file is the source of truth for requirements (§02 hierarchy rule 1). Master plan: `docs/AGENCY-OS-MASTER-PLAN-v3.md`. Phase-0 audit: `docs/PHASE0-AUDIT-REPORT.md`.
+> Saved verbatim from the user's directive, 2026-10-05. This file remains the source of truth for requirements (§02 hierarchy rule 1). Canonical plan: `docs/AGENCY-OS-MASTER-PLAN-V2.md`. Historical phase-0 audit: `docs/PHASE0-AUDIT-REPORT.md`.
 
 ## Agency OS Core + Woodex Business Pack
 

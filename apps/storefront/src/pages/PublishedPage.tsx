@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { products } from "@/data/products";
 import { materials } from "@/data/materials";
-import { submitLead } from "@/lib/runtime";
+import { submitLead, useRuntimeRevision } from "@/lib/runtime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +58,8 @@ function LeadForm({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
   );
 }
 
-function ProductGrid({ b }: { b: Block }) {
+function ProductGrid({ b, th }: { b: Block; th?: Theme }) {
+  const catalogRevision = useRuntimeRevision();
   const list = useMemo(() => {
     const ids = S(b, "ids").split(",").map((x) => x.trim()).filter(Boolean);
     const limit = Number(S(b, "limit")) || 4;
@@ -66,7 +67,7 @@ function ProductGrid({ b }: { b: Block }) {
     const words = S(b, "match").toLowerCase().split(/\s+/).filter(Boolean);
     const pool = words.length ? products.filter((p) => words.some((w) => (p.name + " " + p.category + " " + (p.series ?? "")).toLowerCase().includes(w))) : products;
     return pool.sort((x, y) => Number(!!y.isBestSeller) - Number(!!x.isBestSeller)).slice(0, limit);
-  }, [b]);
+  }, [b, catalogRevision]);
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {list.map((p) => (
@@ -85,6 +86,38 @@ function ProductGrid({ b }: { b: Block }) {
         </Link>
       ))}
     </div>
+  );
+}
+
+function FaqBlock({ b }: { b: Block }) {
+  const [openI, setOpenI] = useState<number | null>(0);
+  const id = useId();
+
+  return (
+    <section className="mx-auto max-w-2xl py-4">
+      <h2 className="mb-4 text-2xl font-black">{S(b, "heading") || "FAQ"}</h2>
+      <div className="divide-y rounded-2xl border bg-card">
+        {L(b, "items").map((row, i) => {
+          const [q, a] = row.split("|").map((x) => x.trim());
+          const open = openI === i;
+          const answerId = `${id}-faq-answer-${i}`;
+          return (
+            <div key={i}>
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={answerId}
+                onClick={() => setOpenI(open ? null : i)}
+                className="flex w-full items-center justify-between gap-3 p-4 text-left text-sm font-bold"
+              >
+                {q}<ChevronDown className={"h-4 w-4 shrink-0 text-muted-foreground transition-transform " + (open ? "rotate-180" : "")} />
+              </button>
+              {open && <p id={answerId} className="px-4 pb-4 text-sm text-muted-foreground">{a}</p>}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -122,7 +155,7 @@ function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
         </section>
       );
     case "product-grid":
-      return <section className="py-4"><h2 className="mb-4 text-2xl font-black">{S(b, "heading") || "From the catalog"}</h2><ProductGrid b={b} /></section>;
+      return <section className="py-4"><h2 className="mb-4 text-2xl font-black">{S(b, "heading") || "From the catalog"}</h2><ProductGrid b={b} th={th} /></section>;
     case "product-feature": {
       const p = products.find((x) => x.id === S(b, "productId") || x.name.toLowerCase().includes(S(b, "productId").toLowerCase()));
       if (!p) return null;
@@ -181,28 +214,7 @@ function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
           </div>
         </section>
       );
-    case "faq": {
-      const [openI, setOpenI] = useState<number | null>(0);
-      return (
-        <section className="mx-auto max-w-2xl py-4">
-          <h2 className="mb-4 text-2xl font-black">{S(b, "heading") || "FAQ"}</h2>
-          <div className="divide-y rounded-2xl border bg-card">
-            {L(b, "items").map((row, i) => {
-              const [q, a] = row.split("|").map((x) => x.trim());
-              const open = openI === i;
-              return (
-                <div key={i}>
-                  <button onClick={() => setOpenI(open ? null : i)} className="flex w-full items-center justify-between gap-3 p-4 text-left text-sm font-bold">
-                    {q}<ChevronDown className={"h-4 w-4 shrink-0 text-muted-foreground transition-transform " + (open ? "rotate-180" : "")} />
-                  </button>
-                  {open && <p className="px-4 pb-4 text-sm text-muted-foreground">{a}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      );
-    }
+    case "faq": return <FaqBlock b={b} />;
     case "global-section": {
       const inner = b.props.section as Block | undefined;
       return inner ? <BlockView b={inner} slug={slug} th={th} /> : null;
@@ -265,7 +277,7 @@ export default function PublishedPage() {
         can.href = url;
       } catch { setErr("Tracking service unreachable — try again"); }
     })();
-  }, [slug, draft]);
+  }, [slug, draft, sig, exp]);
 
   useEffect(() => {
     if (!doc) return;

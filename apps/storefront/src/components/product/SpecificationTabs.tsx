@@ -122,7 +122,7 @@ const SpecificationTabs = ({ product }: SpecificationTabsProps) => {
                   {product.specifications.find(s => s.label === "Warranty")?.value || "Standard Warranty"}
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  This product comes with a comprehensive warranty covering manufacturing defects and normal wear. 
+                  This product comes with a comprehensive warranty covering manufacturing defects and normal wear.
                   Our warranty includes free repair or replacement of defective parts.
                 </p>
               </div>

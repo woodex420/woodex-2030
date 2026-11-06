@@ -153,3 +153,19 @@
 .scrollbar-slim::-webkit-scrollbar-track {
   background: transparent;
 }
+
+@media print {
+  @page { margin: 16mm; }
+  body * { visibility: hidden !important; }
+  #quote-print, #quote-print * { visibility: visible !important; }
+  #quote-print {
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    background: white !important;
+    color: #1f2937 !important;
+    box-shadow: none !important;
+  }
+}

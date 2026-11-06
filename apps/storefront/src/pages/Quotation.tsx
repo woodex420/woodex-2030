@@ -1,4 +1,4 @@
-import { submitQuoteRequest } from "@/lib/runtime";
+import { getLeadAttribution, logManualWhatsAppHandoff, submitLead, submitQuoteRequest, useRuntimeRevision } from "@/lib/runtime";
 import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle, Clock, Shield, Users, Headphones, Trash2, Minus, Plus, ShoppingBag, Search, Download, Send, MessageCircle, FileText, ArrowRight, SlidersHorizontal } from "lucide-react";
@@ -25,48 +25,162 @@ const benefits = [
 
 const Quotation = () => {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
+  const catalogRevision = useRuntimeRevision();
   const { items, removeItem, updateQuantity, totalPrice, totalItems, addItem } = useQuote();
   const printRef = useRef<HTMLDivElement>(null);
 
   // Client info state
-  const [clientInfo, setClientInfo] = useState<ClientInfo>({ name: "", location: "", contactNumber: "", whatsapp: "" });
+  const [clientInfo, setClientInfo] = useState<ClientInfo & { contactConsent: boolean }>({ name: "", location: "", contactNumber: "", whatsapp: "", contactConsent: false });
   const [showClientDialog, setShowClientDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<"print" | "email" | "whatsapp" | null>(null);
+  const [manualHandoff, setManualHandoff] = useState<{ leadId: number; ref: string; interest: string } | null>(null);
+  const [manualHandoffUrl, setManualHandoffUrl] = useState("");
+  const [handoffBusy, setHandoffBusy] = useState(false);
 
   const searchResults = useMemo(() => {
     if (!productSearch.trim()) return [];
     const q = productSearch.toLowerCase();
     return products.filter(p => p.name.toLowerCase().includes(q) || p.shortDescription.toLowerCase().includes(q)).slice(0, 8);
-  }, [productSearch]);
+  }, [productSearch, catalogRevision]);
 
   useEffect(() => {
     document.title = "Get E-Quotation — WOODEX Pakistan | Free Quote Request";
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // → shared backend: lands in the dashboard quotation pipeline as a Draft
-    await submitQuoteRequest({
-      customer: clientInfo.name,
-      contact: clientInfo.whatsapp || clientInfo.contactNumber,
-      items: items.map((i) => ({ name: i.name, price: i.price, qty: i.quantity ?? 1, material: i.color })),
-      source: "storefront",
-      note: `Location: ${clientInfo.location}`,
-    });
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 5000);
+    const fd = new FormData(e.currentTarget);
+    const name = String(fd.get("name") || "").trim();
+    const company = String(fd.get("company") || "").trim();
+    const email = String(fd.get("email") || "").trim();
+    const phone = String(fd.get("phone") || "").trim();
+    const projectType = String(fd.get("projectType") || "General quotation request").trim();
+    const contactConsent = fd.get("contactConsent") === "on";
+    const preferredChannel = String(fd.get("preferredChannel") || "email");
+    const contact = [email, phone].filter(Boolean).join(" · ");
+    const attribution = getLeadAttribution();
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const result = items.length > 0
+        ? await submitQuoteRequest({
+            customer: name,
+            company,
+            email,
+            phone,
+            contact,
+            items: items.map((i) => ({ name: i.name, price: i.price, qty: i.quantity ?? 1, material: i.color })),
+            source: "storefront",
+            leadSource: "E-Quotation Form",
+            captureLead: true,
+            interest: projectType,
+            contactConsent,
+            preferredChannel,
+            note: projectType,
+            ...attribution,
+          })
+        : await submitLead({
+            name,
+            company,
+            email,
+            phone,
+            contact,
+            interest: projectType,
+            source: "E-Quotation Form",
+            contactConsent,
+            preferredChannel,
+            note: "Quote request submitted without a product basket.",
+            ...attribution,
+          });
+      if (!result) throw new Error("The request could not be saved. Please try again.");
+      const leadId = Number(result.leadId ?? result.id);
+      if (preferredChannel === "whatsapp" && Number.isSafeInteger(leadId) && leadId > 0) {
+        setManualHandoff({ leadId, ref: String(result.ref ?? ""), interest: projectType });
+        setManualHandoffUrl("");
+      } else {
+        setManualHandoff(null);
+        setManualHandoffUrl("");
+      }
+      setSubmitted(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The request could not be saved. Please try again.";
+      setSubmitError(message);
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const isClientInfoValid = clientInfo.name.trim() && clientInfo.location.trim() && clientInfo.contactNumber.trim() && clientInfo.whatsapp.trim();
+
+  const buildManualWhatsAppHref = (ref: string, interest: string) => {
+    const message = encodeURIComponent(`Hello Woodex, I submitted quote request${ref ? ` ${ref}` : ""}${interest ? ` about ${interest}` : ""}. Please follow up with me.`);
+    return `https://wa.me/923224000768?text=${message}`;
+  };
+
+  const openLoggedWhatsApp = async (handoff: { leadId: number; ref: string; interest: string }) => {
+    const popup = window.open("about:blank", "_blank");
+    setHandoffBusy(true);
+    try {
+      const logged = await logManualWhatsAppHandoff(handoff.leadId);
+      if (!logged?.logged || logged.delivery !== "manual_handoff_not_sent")
+        throw new Error("The handoff could not be logged. Please retry before opening WhatsApp.");
+      const url = buildManualWhatsAppHref(handoff.ref, handoff.interest);
+      setManualHandoffUrl(url);
+      if (popup) { popup.opener = null; popup.location.href = url; }
+      toast.success("Handoff logged. Review and send the message yourself in WhatsApp; Woodex did not send it.");
+    } catch (error) {
+      popup?.close();
+      toast.error(error instanceof Error ? error.message : "The handoff could not be logged.");
+    } finally { setHandoffBusy(false); }
+  };
+
+  const createAndOpenBuilderHandoff = async () => {
+    if (!clientInfo.contactConsent) {
+      toast.error("Please confirm permission for follow-up before opening WhatsApp.");
+      return;
+    }
+    const popup = window.open("about:blank", "_blank");
+    setHandoffBusy(true);
+    try {
+      let handoff = manualHandoff;
+      if (!handoff) {
+        const interest = `Quotation request: ${items.map((item) => item.name).slice(0, 6).join(", ")}`;
+        const result = await submitQuoteRequest({
+          customer: clientInfo.name, contact: [clientInfo.contactNumber, clientInfo.whatsapp].filter(Boolean).join(" · "),
+          phone: clientInfo.whatsapp, siteAddress: clientInfo.location, source: "storefront", leadSource: "E-Quotation Builder",
+          captureLead: true, interest, note: interest, preferredChannel: "whatsapp", contactConsent: true,
+          ...getLeadAttribution(),
+          items: items.map((item) => ({ name: item.name, price: item.price, qty: item.quantity ?? 1, material: item.color })),
+        });
+        const leadId = Number(result?.leadId);
+        if (!result || !Number.isSafeInteger(leadId) || leadId < 1) throw new Error("The quotation request could not be saved.");
+        handoff = { leadId, ref: String(result.ref ?? ""), interest };
+        setManualHandoff(handoff);
+      }
+      const logged = await logManualWhatsAppHandoff(handoff.leadId);
+      if (!logged?.logged || logged.delivery !== "manual_handoff_not_sent")
+        throw new Error("The request was saved but its WhatsApp handoff could not be logged. Retry the handoff.");
+      const url = buildManualWhatsAppHref(handoff.ref, handoff.interest);
+      setManualHandoffUrl(url);
+      if (popup) { popup.opener = null; popup.location.href = url; }
+      toast.success("Handoff logged. Review and send the message yourself in WhatsApp; Woodex did not send it.");
+    } catch (error) {
+      popup?.close();
+      toast.error(error instanceof Error ? error.message : "Could not prepare the WhatsApp handoff.");
+    } finally { setHandoffBusy(false); }
+  };
 
   const requestAction = (action: "print" | "email" | "whatsapp") => {
     if (items.length === 0) {
       toast.error("Please add at least one product to your quote basket first.");
       return;
     }
-    if (!isClientInfoValid) {
+    if (!isClientInfoValid || (action === "whatsapp" && !clientInfo.contactConsent)) {
       setPendingAction(action);
       setShowClientDialog(true);
     } else {
@@ -79,25 +193,24 @@ const Quotation = () => {
       window.print();
     } else if (action === "email") {
       const subject = encodeURIComponent(`WOODEX Quotation Request — ${clientInfo.name}`);
-      const itemsList = items.map((item, i) => `${i + 1}. ${item.name} x${item.quantity} — ${formatPKR(item.price * item.quantity)}`).join("%0A");
+      const itemsList = items.map((item, i) => `${i + 1}. ${item.name} x${item.quantity} — ${formatPKR(item.price * item.quantity)}`).join("\n");
       const body = encodeURIComponent(
-        `Quotation Request\n\nClient: ${clientInfo.name}\nLocation: ${clientInfo.location}\nContact: ${clientInfo.contactNumber}\nWhatsApp: ${clientInfo.whatsapp}\n\nProducts:\n${decodeURIComponent(itemsList)}\n\nEstimated Total: ${formatPKR(totalPrice)}\nAdvance (75%): ${formatPKR(Math.round(totalPrice * 0.75))}\nBalance Due: ${formatPKR(Math.round(totalPrice * 0.25))}\n\nPlease confirm this quotation.`
+        `Quotation Request\n\nClient: ${clientInfo.name}\nLocation: ${clientInfo.location}\nContact: ${clientInfo.contactNumber}\nWhatsApp: ${clientInfo.whatsapp}\n\nProducts:\n${itemsList}\n\nEstimated Total: ${formatPKR(totalPrice)}\nFinal payment terms will be included in formal quotation.`
       );
       window.open(`mailto:info@woodex.pk?subject=${subject}&body=${body}`, "_blank");
-      toast.success("Email client opened with quotation details!");
+      toast.success("Email draft opened. Review and send it yourself; Woodex did not send it automatically.");
     } else if (action === "whatsapp") {
-      const itemsList = items.map((item, i) => `${i + 1}. ${item.name} x${item.quantity} — ${formatPKR(item.price * item.quantity)}`).join("\n");
-      const message = encodeURIComponent(
-        `*WOODEX Quotation Request*\n\n*Client:* ${clientInfo.name}\n*Location:* ${clientInfo.location}\n*Contact:* ${clientInfo.contactNumber}\n\n*Products:*\n${itemsList}\n\n*Estimated Total:* ${formatPKR(totalPrice)}\n*Advance (75%):* ${formatPKR(Math.round(totalPrice * 0.75))}\n*Balance Due:* ${formatPKR(Math.round(totalPrice * 0.25))}\n\nPlease confirm this quotation.`
-      );
-      window.open(`https://wa.me/923224000768?text=${message}`, "_blank");
-      toast.success("WhatsApp opened with quotation details!");
+      void createAndOpenBuilderHandoff();
     }
   };
 
   const handleClientDialogSubmit = () => {
     if (!isClientInfoValid) {
       toast.error("Please fill in all client details.");
+      return;
+    }
+    if (pendingAction === "whatsapp" && !clientInfo.contactConsent) {
+      toast.error("Please confirm permission for Woodex to follow up using WhatsApp.");
       return;
     }
     setShowClientDialog(false);
@@ -118,7 +231,7 @@ const Quotation = () => {
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Free Service</p>
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Get an E-Quotation</h1>
             <p className="text-primary-foreground/75 max-w-xl">
-              Fast, transparent pricing for all your office furniture needs. Fill out the form and 
+              Fast, transparent pricing for all your office furniture needs. Fill out the form and
               receive a detailed quote within 24 hours.
             </p>
           </div>
@@ -213,15 +326,15 @@ const Quotation = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Button variant="outline" size="sm" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground gap-2" onClick={() => requestAction("print")}>
                     <Download className="h-4 w-4" />
-                    Download PDF
+                    Print / Save PDF
                   </Button>
-                  <Button variant="outline" size="sm" className="border-green-600 text-green-700 hover:bg-green-600 hover:text-white gap-2" onClick={() => requestAction("whatsapp")}>
+                  <Button variant="outline" size="sm" disabled={handoffBusy} className="border-green-600 text-green-700 hover:bg-green-600 hover:text-white gap-2" onClick={() => requestAction("whatsapp")}>
                     <MessageCircle className="h-4 w-4" />
-                    Send WhatsApp
+                    Log &amp; open WhatsApp
                   </Button>
                   <Button variant="outline" size="sm" className="border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white gap-2" onClick={() => requestAction("email")}>
                     <Send className="h-4 w-4" />
-                    Send Email
+                    Draft Email
                   </Button>
                 </div>
               </div>
@@ -263,17 +376,9 @@ const Quotation = () => {
                     <span className="font-bold">Estimated Total</span>
                     <span className="text-xl font-black text-accent">{formatPKR(totalPrice)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>Advance Payment (75%)</span>
-                    <span className="font-semibold text-foreground">{formatPKR(Math.round(totalPrice * 0.75))}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>Balance Due (25%)</span>
-                    <span className="font-semibold text-foreground">{formatPKR(Math.round(totalPrice * 0.25))}</span>
-                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">Final payment terms will be included in formal quotation.</p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-3">* Final pricing may vary based on customization, delivery location, and quantity discounts.</p>
             </div>
           </section>
         )}
@@ -363,8 +468,17 @@ const Quotation = () => {
                       </div>
                       <h3 className="text-2xl font-bold mb-2">Quote Request Submitted!</h3>
                       <p className="text-muted-foreground max-w-sm mx-auto">
-                        Thank you! Our team will review your requirements and get back to you within 24 business hours.
+                        Thank you! Our team will review your requirements and follow up through your selected contact method.
                       </p>
+                      {manualHandoff && (
+                        <div className="mx-auto mt-5 max-w-sm space-y-2">
+                          <p className="text-xs text-muted-foreground">WhatsApp is a manual handoff. This click is logged in the CRM inbox; Woodex does not send or receive a message automatically.</p>
+                          <Button type="button" disabled={handoffBusy} onClick={() => void openLoggedWhatsApp(manualHandoff)} className="bg-accent hover:bg-hon-green-dark text-accent-foreground">
+                            <MessageCircle className="mr-2 h-4 w-4" /> {handoffBusy ? "Logging handoff…" : "Log & open WhatsApp"}
+                          </Button>
+                          {manualHandoffUrl && <a href={manualHandoffUrl} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-accent underline">Open WhatsApp manually</a>}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <form onSubmit={handleSubmit} className="space-y-5">
@@ -378,32 +492,47 @@ const Quotation = () => {
                       <div className="grid md:grid-cols-2 gap-5">
                         <div className="space-y-1.5">
                           <Label htmlFor="name">Full Name *</Label>
-                          <Input id="name" placeholder="John Doe" required />
+                          <Input id="name" name="name" autoComplete="name" placeholder="John Doe" required />
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="company">Company Name *</Label>
-                          <Input id="company" placeholder="Company Inc." required />
+                          <Input id="company" name="company" autoComplete="organization" placeholder="Company Inc." required />
                         </div>
                       </div>
                       <div className="grid md:grid-cols-2 gap-5">
                         <div className="space-y-1.5">
                           <Label htmlFor="email">Email Address *</Label>
-                          <Input id="email" type="email" placeholder="john@company.com" required />
+                          <Input id="email" name="email" type="email" autoComplete="email" placeholder="john@company.com" required />
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="phone">Phone Number *</Label>
-                          <Input id="phone" type="tel" placeholder="+92 300 1234567" required />
+                          <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+92 300 1234567" required />
                         </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="project-type">Project Type *</Label>
-                        <Input id="project-type" placeholder="e.g., New office setup, Office renovation" required />
+                      <div className="grid md:grid-cols-2 gap-5">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="project-type">Project Type *</Label>
+                          <Input id="project-type" name="projectType" placeholder="e.g., New office setup, Office renovation" required />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="preferred-channel">Preferred contact method *</Label>
+                          <select id="preferred-channel" name="preferredChannel" defaultValue="email" className="h-10 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm">
+                            <option value="email">Email</option>
+                            <option value="phone">Phone call</option>
+                            <option value="whatsapp">WhatsApp</option>
+                          </select>
+                        </div>
                       </div>
-                      <Button type="submit" size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 gap-2 uppercase tracking-wider text-xs">
-                        <ArrowRight className="h-4 w-4" /> Download Quote!
+                      <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                        <input name="contactConsent" type="checkbox" required className="mt-1 accent-[hsl(var(--accent))]" />
+                        <span>I agree that WOODEX may contact me about this quote request using my selected method.</span>
+                      </label>
+                      {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
+                      <Button type="submit" size="lg" disabled={submitting} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 gap-2 uppercase tracking-wider text-xs">
+                        <ArrowRight className="h-4 w-4" /> {submitting ? "Submitting…" : "Submit Quote Request"}
                       </Button>
                       <p className="text-xs text-muted-foreground">
-                        By submitting this form, you agree to our privacy policy. We'll only use your information to provide the requested quotation.
+                        We'll use your details only to respond to this project enquiry. Selecting WhatsApp records your preference but does not send a WhatsApp message automatically.
                       </p>
                     </form>
                   )}
@@ -432,7 +561,7 @@ const Quotation = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Client Information Required</DialogTitle>
-            <DialogDescription>Please enter client details to include on the quotation.</DialogDescription>
+            <DialogDescription>{pendingAction === "whatsapp" ? "Enter details and consent to log a manual WhatsApp handoff. Woodex will not send a message automatically." : "Please enter client details to include on the quotation."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
@@ -451,6 +580,12 @@ const Quotation = () => {
               <Label htmlFor="client-whatsapp">WhatsApp Number *</Label>
               <Input id="client-whatsapp" type="tel" placeholder="+92 322 4000768" value={clientInfo.whatsapp} onChange={(e) => setClientInfo(prev => ({ ...prev, whatsapp: e.target.value }))} />
             </div>
+            {pendingAction === "whatsapp" && (
+              <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                <input type="checkbox" checked={clientInfo.contactConsent} onChange={(e) => setClientInfo((prev) => ({ ...prev, contactConsent: e.target.checked }))} className="mt-1 accent-[hsl(var(--accent))]" />
+                <span>I agree that Woodex may follow up about this quotation using WhatsApp. I will review and send the opened message myself.</span>
+              </label>
+            )}
             <Button onClick={handleClientDialogSubmit} className="w-full bg-accent hover:bg-hon-green-dark text-accent-foreground font-semibold">
               Continue
             </Button>

@@ -119,7 +119,10 @@ export async function refreshTheme() {
 }
 export function setModeOverride(m: "light" | "dark" | null) {
   override = m;
-  try { m ? localStorage.setItem("wx-mode", m) : localStorage.removeItem("wx-mode"); } catch { /* noop */ }
+  try {
+    if (m) localStorage.setItem("wx-mode", m);
+    else localStorage.removeItem("wx-mode");
+  } catch { /* noop */ }
   publish();
 }
 

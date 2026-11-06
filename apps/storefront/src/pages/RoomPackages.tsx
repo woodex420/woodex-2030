@@ -95,7 +95,7 @@ const RoomPackages = () => {
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Bundled Solutions</p>
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Room Packages</h1>
             <p className="text-primary-foreground/75 max-w-xl">
-              Complete office solutions with bundled savings. Each package includes coordinated furniture 
+              Complete office solutions with bundled savings. Each package includes coordinated furniture
               pieces designed to work together seamlessly.
             </p>
           </div>
@@ -180,7 +180,7 @@ const RoomPackages = () => {
               <div className="w-12 h-1 bg-accent mx-auto mb-5" />
               <h2 className="text-3xl font-bold mb-3">Need a Custom Package?</h2>
               <p className="text-muted-foreground text-lg mb-7">
-                Our team can create a tailored solution that perfectly matches your requirements and budget. 
+                Our team can create a tailored solution that perfectly matches your requirements and budget.
                 Just tell us what you need.
               </p>
               <div className="flex flex-wrap gap-4 justify-center">

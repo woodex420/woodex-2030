@@ -1,5 +1,7 @@
 # PHASE 0 — DISCOVERY & AUDIT REPORT (PRD §27 output)
 
+> **Historical audit snapshot (2026-10-05), not the current product status.** Use [`docs/AGENCY-OS-MASTER-PLAN-V2.md`](AGENCY-OS-MASTER-PLAN-V2.md) for the canonical plan and 2026-10-15 baseline. External-repository observations are reference-only; no sister-product code, content or records are imported.
+
 **Date:** 2026-10-05 · **Method:** live clones (this session), GitHub API metadata, site fetches. Nothing invented — inaccessible resources are marked `AUDIT STATUS: BLOCKED` per §03.
 
 ## 1. Resource inventory

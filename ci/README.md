@@ -1,7 +1,5 @@
-# CI
+The browser-capable workflow is `.github/workflows/ci.yml`; `ci/github-actions.yml` is its maintained source copy. CI installs Node 24 and dependencies, scans tracked files for secrets, builds the exact combined Storefront/Dashboard output used by Vercel, installs Chromium, then runs `scripts/ci-test.mjs`.
 
-GitHub blocks workflow-file pushes from this sandbox's app (missing `workflows` permission).
-**To enable:** copy `github-actions.yml` into `.github/workflows/ci.yml` via the GitHub UI — it runs:
-secret-scan → API boot smoke → dashboard build → storefront build → e2e finance curls.
+The test orchestrator creates fresh temporary SQLite and PGlite databases under the OS temp directory. It does not read or alter `data/woodex.db`, inherit a hosted `DATABASE_URL`, or migrate customer data. It runs the full API/security QA battery and four Playwright browser journeys (login/logout, Storefront-to-CRM, quotation template, and Page Builder). Temporary databases and server processes are removed when the run ends. CI is not evidence of a live deployment or production-data verification.
 
-Local equivalent right now: `npm run secret-scan` + build each workspace.
+This sandbox has not run GitHub Actions. The workflow only runs after it is pushed; check the PR's actual GitHub status before treating it as passed. For local work, `npm run qa:pg` uses a fresh isolated fixture, `npm run qa` needs an API server, and `npm run vercel:build` builds the combined static output. Browser E2E requires Chromium; use `node scripts/ci-test.mjs` for the fully isolated local suite. If ports 3001/5173/5174 are occupied, set `CI_API_PORT`, `CI_DASHBOARD_PORT`, and `CI_STOREFRONT_PORT` to free ports.

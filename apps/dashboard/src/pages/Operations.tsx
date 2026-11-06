@@ -11,7 +11,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { useApi, mutate, fmtPKR, type ApiOrder } from "@/lib/api";
 import { ReturnsPanel } from "@/components/ReturnsPanel";
-import { AlertTriangle, ArrowRight, ClipboardCheck, Download, Factory, ShieldCheck, Store, Truck, Wrench } from "@/icons";
+import { AlertTriangle, ArrowRight, ClipboardCheck, Download, Eye, Factory, ShieldCheck, Store, Truck, Wrench } from "@/icons";
 
 const STAGES = [
   { key: "production", label: "Production", icon: Factory },
@@ -165,7 +165,7 @@ export default function Operations() {
                         <Button size="sm" className="flex-1" onClick={() => advance(o)}>
                           {s.key === "installation" ? "Complete" : "Move to " + STAGES[STAGES.findIndex((x) => x.key === s.key) + 1]?.label}
                         </Button>
-                        <Button variant="secondary" size="sm" aria-label={"Actions for " + o.ref} onClick={() => push({ tone: "info", title: o.ref + " · " + o.customer, desc: "Assign / reschedule — full ops tooling lands in Phase 4." })}>⋯</Button>
+                        <Button variant="secondary" size="sm" aria-label={`Open details for ${o.ref}`} onClick={() => navigate(`/orders/${o.id}`)}><Eye size={13} /> Details</Button>
                       </div>
                     </li>
                   );

@@ -78,8 +78,9 @@ export function Topbar({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  /* SSE events land at the top of the notification stack */
+  /* Poll refreshes data; only explicit server events create notification cards. */
   useRealtime(/leads|quotes|orders|invoices|payments|returns|products|clients|tasks/, (ev: RtEvent) => {
+    if (ev.type === "poll") return;
     setLiveNotes((prev) => [{ id: ev.type + Date.now(), title: ev.title ?? "Update", desc: [ev.who, ev.context].filter(Boolean).join(" · ") || "changed in the shared backend", time: "just now", tone: TONE_BY_TYPE[ev.type] ?? "neutral" }, ...prev].slice(0, 14));
     setUnread((u) => u + 1);
   });
@@ -132,14 +133,14 @@ export function Topbar({
 
         {/* Realtime status */}
         <span
-          title={rt === "live" ? "Live sync connected (SSE)" : rt === "down" ? "Live sync down — 60s polling keeps data fresh" : "Connecting…"}
+          title={rt === "polling" ? "Dashboard data refreshes every 15 seconds" : rt === "down" ? "Dashboard refresh is unavailable" : "Connecting…"}
           className={cn(
             "hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide sm:inline-flex",
-            rt === "live" ? "bg-success-soft text-success-strong" : rt === "down" ? "bg-danger-soft text-danger-strong" : "bg-slate-100 text-slate-500"
+            rt === "polling" ? "bg-success-soft text-success-strong" : rt === "down" ? "bg-danger-soft text-danger-strong" : "bg-slate-100 text-slate-500"
           )}
         >
-          <span className={cn("h-1.5 w-1.5 rounded-full", rt === "live" ? "animate-pulse bg-success" : rt === "down" ? "bg-danger" : "bg-slate-400")} />
-          {rt === "live" ? "live" : rt === "down" ? "reconnecting" : "connect…"}
+          <span className={cn("h-1.5 w-1.5 rounded-full", rt === "polling" ? "bg-success" : rt === "down" ? "bg-danger" : "bg-slate-400")} />
+          {rt === "polling" ? "15s refresh" : rt === "down" ? "offline" : "connect…"}
         </span>
 
         {/* Notifications — live events on top */}

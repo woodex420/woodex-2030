@@ -36,38 +36,145 @@ export type ApiLead = {
   interest?: string;
   source?: string;
   contact?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  preferredChannel?: "email" | "phone" | "whatsapp" | null;
+  contactConsent?: boolean | null;
+  returning?: boolean | null;
+  identityReview?: boolean | null;
+  consentAt?: string | null;
+  consentVersion?: string | null;
+  landingPath?: string | null;
+  referrer?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
   status: string;
   owner?: string | null;
   note?: string | null;
+  clientId?: number | null;
+  score?: number;
+  scoreWhy?: string[];
   createdAt: string;
   updatedAt: string;
 };
 
+export type ApiSiteVisit = {
+  id: number;
+  ref: string;
+  leadId: number;
+  clientId: number;
+  leadName: string | null;
+  leadRef: string | null;
+  scheduledAt: string;
+  timezone: string;
+  address: string;
+  owner: string;
+  status: "Scheduled" | "Confirmed" | "Completed" | "Cancelled";
+  notes: string | null;
+  outcome: string | null;
+  reminderAt: string | null;
+  reminderTaskId: number | null;
+  audit: { who: string; action: string; fields: string[]; time: string }[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiQuoteItem = {
+  id?: string;
+  productId?: string;
+  name: string;
+  category?: string;
+  series?: string;
+  price: number;
+  qty: number;
+  lineTotal?: number;
+  material?: string;
+  finish?: string;
+  width?: number;
+  height?: number;
+  depth?: number;
+  dimensionUnit?: "mm" | "cm" | "in" | string;
+  customNotes?: string;
+};
+export type ApiQuoteTemplateBlockType = "brand" | "title" | "meta" | "customer" | "terms" | "payment-note" | "contact" | "custom";
+export type ApiQuoteTemplateBlock = {
+  id: string;
+  type: ApiQuoteTemplateBlockType;
+  label: string;
+  content?: string;
+  visible: boolean;
+};
+export type ApiQuoteTemplate = {
+  id: string;
+  name: string;
+  brandColor: string;
+  logoText?: string;
+  companyName: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
+  header: ApiQuoteTemplateBlock[];
+  footer: ApiQuoteTemplateBlock[];
+  updatedAt?: string;
+};
+export type ApiQuoteDetails = {
+  company?: string;
+  email?: string;
+  phone?: string;
+  siteAddress?: string;
+  quoteTemplateId?: string;
+  quoteTemplateSnapshot?: ApiQuoteTemplate;
+  issueDate?: string;
+  validUntil?: string;
+  currency?: "PKR" | string;
+  discountPercent?: number;
+  taxPercent?: number;
+  shipping?: number;
+  terms?: string;
+  calculation?: { currency: string; subtotal: number; discount: number; tax: number; shipping: number; total: number };
+};
+export type ApiQuoteVersion = {
+  id: number;
+  quoteId: number;
+  version: number;
+  snapshot: Pick<ApiQuote, "customer" | "contact" | "items" | "total" | "source" | "note" | "details" | "leadId">;
+  actor: string | null;
+  action: string | null;
+  createdAt: string;
+};
 export type ApiQuote = {
   id: number;
   ref: string;
   customer: string;
   contact?: string | null;
-  items: { name: string; price: number; qty: number; material?: string }[];
+  leadId?: number | null;
+  clientId?: number | null;
+  items: ApiQuoteItem[];
   total: number;
   status: string;
   source: string;
   note?: string | null;
+  details: ApiQuoteDetails;
+  version: number;
   audit: { who: string; action: string; time: string }[];
   createdAt: string;
   updatedAt: string;
 };
 
+export type ApiOrderItem = { id?: string; productId?: string; name?: string; price?: number; qty?: number; color?: string; image?: string };
 export type ApiOrder = {
   id: number;
   ref: string;
   customer: string;
-  items: { name?: string; price?: number; qty?: number }[];
+  items: ApiOrderItem[];
   total: number;
   status: string;
   stage: string;
   owner: string;
   due: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type ApiStats = {
@@ -87,7 +194,11 @@ export type ApiStats = {
   seededAt?: string | null;
 };
 
-export const img = (file?: string) => (file ? "/img/" + file : "");
+export const img = (file?: string) => {
+  if (!file) return "";
+  if (/^(https?:|data:)/i.test(file) || file.startsWith("/")) return file;
+  return "/img/" + file;
+};
 
 export const fmtPKR = (n: number) => "PKR " + Math.round(n).toLocaleString("en-PK");
 
@@ -161,55 +272,63 @@ export type ApiPayment = { id: number; invoice_id: number; amount: number; metho
 export type ApiInvoiceDetail = ApiInvoice & { payments: ApiPayment[] };
 export type ApiReturn = { id: number; ref: string; orderId: number | null; customer: string; item: string | null;
   reason: string; state: string; refundAmount: number; resolution: string | null; createdAt: string; updatedAt: string };
+export type ApiOrderTask = { id: number; title: string; due: string | null; owner: string; priority: string; done: boolean };
+export type ApiOrderClient = { id: number; name: string; company?: string | null; email?: string | null; phone?: string | null; city?: string | null };
+export type ApiOrderDetail = ApiOrder & {
+  client: ApiOrderClient | null;
+  invoices: ApiInvoiceDetail[];
+  returns: ApiReturn[];
+  tasks: ApiOrderTask[];
+};
 
-/* ---------- P3 realtime core (SSE) ---------- */
+/* ---------- Serverless-compatible realtime refresh (short polling) ---------- */
 export type RtEvent = { type: string; at?: string; title?: string; who?: string; context?: string };
-let es: EventSource | null = null;
-let rtStatus: "connecting" | "live" | "down" = "connecting";
-const statusListeners = new Set<(v: "connecting" | "live" | "down") => void>();
+type RtStatus = "connecting" | "polling" | "down";
+let rtStatus: RtStatus = "connecting";
+let pollTimer: number | null = null;
+const statusListeners = new Set<(value: RtStatus) => void>();
+const REFRESH_MS = 15_000;
 
-function setStatus(v: typeof rtStatus) {
-  rtStatus = v;
-  statusListeners.forEach((f) => f(v));
+function setStatus(value: RtStatus) {
+  rtStatus = value;
+  statusListeners.forEach((listener) => listener(value));
 }
 
-/** One shared EventSource; every message is re-dispatched as `woodex:rt`. */
+/** Vercel function instances do not share an in-memory SSE bus. Refresh consumers on a short poll instead. */
 export function initRealtime() {
-  if (es || typeof EventSource === "undefined") return;
-  es = new EventSource("/api/events");
-  es.onopen = () => setStatus("live");
-  es.onerror = () => { setStatus("down"); }; // EventSource auto-retries (3s)
-  es.onmessage = () => {}; // unnamed events land here; named ones below
-  const bump = (e: MessageEvent) => {
-    setStatus("live");
-    try {
-      dispatchEvent(new CustomEvent<RtEvent>("woodex:rt", { detail: JSON.parse(e.data) as RtEvent }));
-      dispatchEvent(new CustomEvent<string>("woodex:rt-refresh", { detail: e.type }));
-    } catch { /* noop */ }
-  };
-  for (const t of ["leads", "quotes", "orders", "products", "invoices", "payments", "returns", "hello"]) es.addEventListener(t, bump as EventListener);
+  if (pollTimer !== null || typeof window === "undefined") return;
+  setStatus("polling");
+  pollTimer = window.setInterval(() => {
+    const event: RtEvent = { type: "poll", at: new Date().toISOString() };
+    window.dispatchEvent(new CustomEvent<RtEvent>("woodex:rt", { detail: event }));
+    window.dispatchEvent(new CustomEvent<string>("woodex:rt-refresh", { detail: "poll" }));
+  }, REFRESH_MS);
 }
 
-/** Subscribe to realtime events; filter by regex, e.g. /invoices|payments/. */
-export function useRealtime(types: RegExp, handler: (ev: RtEvent) => void) {
+/** Subscribe to refresh signals; the serverless deployment uses 15-second polling, not public SSE. */
+export function useRealtime(types: RegExp, handler: (event: RtEvent) => void) {
   useEffect(() => {
     initRealtime();
-    const h = (e: Event) => {
-      const d = (e as CustomEvent<RtEvent>).detail;
-      if (d && types.test(d.type)) handler(d);
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<RtEvent>).detail;
+      if (detail && detail.type !== "poll" && types.test(detail.type)) handler(detail);
     };
-    addEventListener("woodex:rt", h);
-    return () => removeEventListener("woodex:rt", h);
+    addEventListener("woodex:rt", listener);
+    const timer = window.setInterval(() => handler({ type: "poll", at: new Date().toISOString() }), REFRESH_MS);
+    return () => {
+      window.clearInterval(timer);
+      removeEventListener("woodex:rt", listener);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [types.source]);
 }
 
 export function useRealtimeStatus() {
-  const [v, setV] = useState(rtStatus);
+  const [value, setValue] = useState(rtStatus);
   useEffect(() => {
     initRealtime();
-    statusListeners.add(setV);
-    return () => { statusListeners.delete(setV); };
+    statusListeners.add(setValue);
+    return () => { statusListeners.delete(setValue); };
   }, []);
-  return v;
+  return value;
 }

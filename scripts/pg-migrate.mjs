@@ -26,8 +26,8 @@ const truncate = args.includes("--truncate");
 if (!dsn && !pgliteDir) { console.error("usage: --dsn <postgres-url> | --pglite <dir> [--truncate]"); process.exit(2); }
 if (!dsn && !fs) process.exit(2);
 
-const TABLES = ["products","materials","services","leads","quotes","orders","invoices","payments","returns",
-  "clients","client_links","tasks","pages","page_blocks","page_versions","saved_sections","track_events",
+const TABLES = ["products","materials","services","leads","quotes","quote_versions","quote_templates","orders","invoices","payments","returns",
+  "clients","client_links","tasks","site_visits","pages","page_blocks","page_versions","saved_sections","track_events",
   "conversations","messages","users","sessions","meta"];
 const PK = { products:"id", materials:"id", services:"id", sessions:"token", meta:"key" }; // TEXT-PK tables (also pages.slug unique — id ordered fine)
 
@@ -52,7 +52,15 @@ const canon = (rows, cols) => JSON.stringify(rows.map((r) => JSON.stringify(cols
 }))).sort()); // order-independent: sidesteps SQLite vs PG collation drift
 const digest = (s) => crypto.createHash("md5").update(s).digest("hex").slice(0, 10);
 
-const src = new DatabaseSync(path.join(ROOT, "data/woodex.db"));
+const sqliteSource = process.env.WOODEX_SQLITE_SOURCE
+  ? path.resolve(process.env.WOODEX_SQLITE_SOURCE)
+  : path.join(ROOT, "data/woodex.db");
+const src = new DatabaseSync(sqliteSource);
+// Backward-compatible SQLite source migration for quotation-template persistence.
+src.exec(`CREATE TABLE IF NOT EXISTS quote_templates(
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, template TEXT NOT NULL,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+)`);
 const tgt = await makeBackend();
 console.log("[migrate] source: data/woodex.db · target:", tgt.name);
 

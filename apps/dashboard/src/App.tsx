@@ -7,6 +7,11 @@ import Dashboard from "@/pages/Dashboard";
 import Crm from "@/pages/Crm";
 import { QuotationsList, QuotationBuilder } from "@/pages/Quotations";
 import Catalog from "@/pages/Catalog";
+import ProductEditor from "@/pages/ProductEditor";
+import ProductDetail from "@/pages/ProductDetail";
+import Ecommerce from "@/pages/Ecommerce";
+import Orders from "@/pages/Orders";
+import OrderDetail from "@/pages/OrderDetail";
 import Clients from "@/pages/Clients";
 import Website, { PageEditor } from "@/pages/Website";
 import ThemeStudio from "@/pages/ThemeStudio";
@@ -16,17 +21,19 @@ import Invoices from "@/pages/Invoices";
 import Projects from "@/pages/Projects";
 import Operations from "@/pages/Operations";
 import Analytics from "@/pages/Analytics";
+import Tasks from "@/pages/Tasks";
+import UIComponents from "@/pages/UIComponents";
 import Settings from "@/pages/Settings";
 import { Placeholder } from "@/pages/Placeholder";
-import { Package, Store } from "@/icons";
+import { Package } from "@/icons";
 
 function NotFound() {
   return (
     <div className="mx-auto max-w-xl py-16">
       <ErrorState
         title="404 — Screen not found"
-        description="That route doesn't exist in this workspace. The navigation covers the seven Phase-3 priority screens."
-        debug="design.md §34 — initial screen priority"
+        description="That route doesn't exist in this workspace. Use the navigation to open a module, or return to Overview."
+        debug="Check the URL or choose a screen from the workspace navigation."
       />
       <div className="mt-4 text-center">
         <Link to="/" className={buttonCls("primary", "md")}>
@@ -40,6 +47,8 @@ function NotFound() {
 import Login from "@/pages/Login";
 import { restoreSession, useAuth } from "@/lib/auth";
 
+const dashboardBasename = import.meta.env.BASE_URL.replace(/\/+$/, "") || "/";
+
 export default function App() {
   const { status } = useAuth();
   if (status === "loading")
@@ -50,7 +59,7 @@ export default function App() {
   if (status === "out") return <Login />;
   return (
     <ToastProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={dashboardBasename}>
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<Dashboard />} />
@@ -59,26 +68,20 @@ export default function App() {
             <Route path="/quotations" element={<QuotationsList />} />
             <Route path="/quotations/new" element={<QuotationBuilder />} />
             <Route path="/catalog" element={<Catalog />} />
+            <Route path="/catalog/new" element={<ProductEditor />} />
+            <Route path="/catalog/:id/edit" element={<ProductEditor />} />
+            <Route path="/catalog/:id" element={<ProductDetail />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/ui-components" element={<UIComponents />} />
             <Route path="/operations" element={<Operations />} />
             <Route path="/operations/:stage" element={<Operations />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
-            <Route
-              path="/ecommerce"
-              element={
-                <Placeholder
-                  crumbs={["Sales", "Ecommerce"]}
-                  title="Ecommerce"
-                  description="Storefront orders, marketplace sync and commerce operations."
-                  icon={<Store size={20} />}
-                  planned="Phase 4"
-                  to="/catalog"
-                  targetLabel="Open Catalog (built)"
-                />
-              }
-            />
+            <Route path="/ecommerce" element={<Ecommerce />} />
             <Route path="/website" element={<Website />} />
             <Route path="/website/theme" element={<ThemeStudio />} />
             <Route path="/website/edit/:id" element={<PageEditor />} />

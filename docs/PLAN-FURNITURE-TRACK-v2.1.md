@@ -53,4 +53,4 @@
 
 1. Schema migration + endpoints → 2. Dashboard/Storefront UI → 3. e2e curl suite + build checks → 4. commit/push → 5. demo walkthrough notes. Each track gates the next.
 
-> Superseded as planning authority by `docs/AGENCY-OS-MASTER-PLAN-v3.md` (same day); tracks A/B here are now phases 4–5 of v3.
+> Superseded as planning authority by `docs/AGENCY-OS-MASTER-PLAN-V2.md`; tracks A/B here are historical execution notes, mapped to the current PRD phases in V2.

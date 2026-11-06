@@ -1,9 +1,9 @@
 import { defineTool, ToolError } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import data from "../data.json";
-const products = data.products as any[];
-const categories = data.categories as any[];
-const seriesList = data.series as any[];
+const products = data.products;
+const categories = data.categories;
+const seriesList = data.series;
 
 const toProductJson = (p: (typeof products)[number]) => ({
   id: p.id,
@@ -70,7 +70,7 @@ export const listCategories = defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: () => {
     const data = {
-      categories: categories.map((c: any) => ({ id: String(c.id), name: String(c.name ?? c.label ?? c.id) })),
+      categories: categories.map((c) => ({ id: String(c.id), name: String(c.name ?? c.id) })),
       series: seriesList.map((s) => ({ id: s.id, name: s.name, tagline: s.tagline, description: s.description })),
     };
     return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data };

@@ -11,7 +11,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 
 const RETURN_ID_TABLES = new Set([
-  "leads", "quotes", "orders", "invoices", "payments", "returns", "clients", "tasks",
+  "leads", "quotes", "quote_versions", "orders", "invoices", "payments", "returns", "clients", "tasks", "site_visits",
   "pages", "page_blocks", "page_versions", "saved_sections", "track_events",
   "conversations", "messages", "users",
 ]);
@@ -154,7 +154,13 @@ export async function createDb({ sqliteFile, databaseUrl = "" }) {
   // node-postgres exposes int8 as strings by default; all app BIGINT ids/counts
   // are within JS's safe integer range, matching node:sqlite's number values.
   pg.types.setTypeParser(20, (value) => Number(value));
-  const pool = new pg.Pool({ connectionString: url, max: Number(process.env.PG_POOL_MAX || 10) });
+  const pool = new pg.Pool({
+    connectionString: url,
+    max: Number(process.env.PG_POOL_MAX || (process.env.VERCEL === "1" ? 1 : 10)),
+    connectionTimeoutMillis: 5_000,
+    idleTimeoutMillis: 10_000,
+    allowExitOnIdle: process.env.VERCEL === "1",
+  });
   await pool.query("SELECT 1");
   const query = async (sql, params = []) => {
     const client = als.getStore();

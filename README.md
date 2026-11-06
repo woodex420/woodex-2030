@@ -1,25 +1,20 @@
 # Woodex Agency OS — Monorepo
 
-Frontend + backend platform per `design.md` v1.0 and the MASTER-PLAN: a reimagined
-storefront, an operational agency dashboard, and a shared runtime API — one repo,
-one SQLite database, live data in both directions.
+Woodex 2030 is a full-stack monorepo for the Storefront, operations Dashboard,
+and shared API. The canonical product plan is `docs/AGENCY-OS-MASTER-PLAN-V2.md`.
+Local development uses SQLite; the Vercel target uses persistent PostgreSQL.
 
 ```
-                    ┌────────────────────────────┐
-  customer ───────▶ │ apps/storefront  :5174      │  woodex-reimagined (23 routes)
-                    │  • catalog + configurator   │  quote request / lead / checkout
-                    │  • runtime sync (overrides) │──────┐
-                    └────────────────────────────┘      ▼
-                    ┌────────────────────────────┐   ┌──────────────┐
-  operator ───────▶ │ apps/dashboard   :5173      │◀─▶│ apps/api     │
-                    │  design-system shell + 7    │   │ Express +    │
-                    │  screens, kanban, approval  │   │ node:sqlite  │
-                    │  gates, live ops board      │   │ :3001        │
-                    └────────────────────────────┘   └──────┬───────┘
-                                                            │
-                            data/woodex.db  ◀── single source of truth
-                            148 products · 16 materials · 7 services
-                            leads · quotes · orders (persisted, live-polled)
+                 Single Vercel project · woodex-2030
+  customer ───▶ /                 Storefront (Vite static build)
+  operator ───▶ /dashboard/*      Dashboard (Vite static build)
+                 /api/*           Express API (Node serverless functions)
+                                       │
+                                       ▼
+                              PostgreSQL (DATABASE_URL)
+
+  Local development: Storefront + Dashboard + Express API → SQLite
+  Shared source of truth: catalog, CRM, quotations, orders and operations
 ```
 
 ## Run (three terminals, or use the scripts)
@@ -34,6 +29,20 @@ npm run dev:storefront             # :5174 — proxy /api + /img → :3001
 Vite proxies make both apps same-origin for the browser — no CORS, works behind
 the preview host. `data/woodex.db` is git-ignored (delete it to re-seed).
 
+### Dashboard preview on port 3001
+
+To expose the operator app directly on Arena's preview port `3001`, keep the API
+on `3002` so it does not conflict with Vite. Run these in three terminals:
+
+```bash
+npm run dev:preview:api         # API :3002
+npm run dev:preview:dashboard   # Dashboard :3001 → API :3002
+npm run dev:preview:storefront  # Storefront :5174 → API :3002
+```
+
+The dashboard's signed page preview switches to the storefront sibling preview
+host; both Vite proxy targets remain configurable through `API_PROXY_TARGET`.
+
 ## Runtime data flow
 
 | Flow | Path |
@@ -44,8 +53,10 @@ the preview host. `data/woodex.db` is git-ignored (delete it to re-seed).
 | Checkout | `POST /api/orders` → dashboard operations board (stage advance = `PATCH`) |
 | Catalog management | dashboard `PATCH /api/products/:id` → storefront sees overrides |
 
-Seed: first API boot bundles `apps/storefront/src/data/{products,materials,services}.ts`
-via esbuild (asset imports → image basenames) and inserts them + demo leads/quotes/orders.
+Local development seed: the API bundles `apps/storefront/src/data/{products,materials,services}.ts`
+via esbuild (asset imports → image basenames) and inserts the catalog plus local-only demo records.
+Vercel production does not create demo customers, orders, invoices, or demo logins; it only
+idempotently inserts repository-owned public catalog rows into the configured PostgreSQL DB.
 
 ## Notable fixes applied to the storefront (per MASTER-PLAN)
 
@@ -61,11 +72,23 @@ Tokens in `apps/dashboard/src/index.css @theme`; screens: Overview, CRM kanban,
 E-Quotation builder + approval workflow, Catalog, Projects workspace, Operations,
 Analytics, Settings. Status system (§14) shared: dot + label, never color alone.
 
-## Supabase path (later)
+## Vercel deployment
 
-The API mirrors a PostgREST-style shape. When the exact project ref + anon key +
-safe preflight are confirmed (see PRD §13), point `apps/api` at Postgres (or run the
-browser directly against Supabase) without touching dashboard/storefront pages.
+The single Vercel project `woodex-2030` serves the Storefront at `/`, the Dashboard
+at `/dashboard`, and the Express API at `/api/*`. `vercel.json` and the project
+settings use the combined `npm run vercel:build` output (`dist`); see
+[`docs/VERCEL-FULLSTACK-RUNBOOK-2026-11-06.md`](docs/VERCEL-FULLSTACK-RUNBOOK-2026-11-06.md)
+for the database, bootstrap-owner, and release gates.
+
+Vercel is connected to `woodex420/woodex-2030` with `main` as the production
+branch. The project build settings are configured, but a persistent PostgreSQL
+provider and Vercel environment variables are still required before the serverless
+API can start. Production uses PostgreSQL only; it fails closed rather than using
+an ephemeral SQLite file. No hosted database has been connected and no Production
+deployment was made as part of this setup.
+
+The canonical product plan is [`docs/AGENCY-OS-MASTER-PLAN-V2.md`](docs/AGENCY-OS-MASTER-PLAN-V2.md);
+`docs/AGENCY-OS-MASTER-PLAN-v3.md` is retained as superseded historical traceability.
 
 ## Security
 

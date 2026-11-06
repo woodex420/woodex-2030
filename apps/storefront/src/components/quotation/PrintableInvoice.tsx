@@ -117,31 +117,15 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
         {/* Totals */}
         <div className="invoice-totals">
           <div className="invoice-totals-left">
-            <p className="totals-note">Transportation: Outstation charges depend on city, quantity and load</p>
-            <p className="totals-note">* Prices are in Pakistani Rupees (PKR). Final pricing may vary based on customization.</p>
+            <p className="totals-note">Transportation and delivery terms will be confirmed in the formal quotation.</p>
+            <p className="totals-note">* This enquiry estimate is shown in Pakistani Rupees (PKR).</p>
           </div>
           <div className="invoice-totals-right">
             <table className="totals-table">
               <tbody>
-                <tr>
-                  <td>SUBTOTAL</td>
-                  <td>{formatPKR(totalPrice)}</td>
-                </tr>
-                <tr>
-                  <td>DISCOUNT</td>
-                  <td>Rs: 0</td>
-                </tr>
                 <tr className="totals-highlight">
-                  <td>TOTAL</td>
+                  <td>ESTIMATED TOTAL</td>
                   <td>{formatPKR(totalPrice)}</td>
-                </tr>
-                <tr>
-                  <td>ADVANCE (75%)</td>
-                  <td>{formatPKR(Math.round(totalPrice * 0.75))}</td>
-                </tr>
-                <tr className="totals-balance">
-                  <td>BALANCE DUE</td>
-                  <td>{formatPKR(Math.round(totalPrice * 0.25))}</td>
                 </tr>
               </tbody>
             </table>
@@ -161,8 +145,7 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
             <span>✉ info@woodex.pk</span>
           </div>
           <div className="invoice-footer-terms">
-            <strong>Payment Terms:</strong> 75% advance with order confirmation, 25% balance before delivery.
-            Warranty as per product category. This quotation is valid for 30 days from the date of issue.
+            This is an enquiry estimate, not a formal quotation. Final payment terms will be included in formal quotation; final pricing, validity, delivery and warranty terms will also be provided there.
           </div>
           <div className="invoice-footer-brand">
             WOODEX — Premium Office & Home Furniture | Made in Pakistan

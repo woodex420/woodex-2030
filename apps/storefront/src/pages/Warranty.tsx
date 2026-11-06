@@ -87,7 +87,7 @@ const Warranty = () => {
               </div>
             </div>
             <p className="text-primary-foreground/75 max-w-xl mt-4">
-              Every WOODEX product is backed by a comprehensive warranty. We stand behind our craftsmanship — 
+              Every WOODEX product is backed by a comprehensive warranty. We stand behind our craftsmanship —
               if something's wrong, we'll make it right.
             </p>
           </div>

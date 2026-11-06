@@ -39,7 +39,7 @@ const ProductDetail = () => {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const product = getProductById(productId || "");
-  
+
   const [selectedColor, setSelectedColor] = useState(product?.colors[0]);
   const [quantity, setQuantity] = useState(1);
   const [addedToQuote, setAddedToQuote] = useState(false);
@@ -101,7 +101,7 @@ const ProductDetail = () => {
   }
 
   const categoryName = categories.find(c => c.id === product.category)?.name || product.category;
-  
+
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
@@ -118,7 +118,7 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <main className="flex-1">
         {/* Breadcrumb */}
         <div className="container mx-auto px-4 py-4">
@@ -355,7 +355,7 @@ const ProductDetail = () => {
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-2xl font-bold mb-4">Need Help Choosing?</h2>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-              Our experts are here to help you find the perfect furniture for your workspace. 
+              Our experts are here to help you find the perfect furniture for your workspace.
               Get personalized recommendations and bulk pricing.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
@@ -369,7 +369,7 @@ const ProductDetail = () => {
           </div>
         </section>
       </main>
-      
+
       <Footer />
     </div>
   );

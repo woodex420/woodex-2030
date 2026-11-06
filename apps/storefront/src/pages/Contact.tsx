@@ -1,4 +1,4 @@
-import { submitLead } from "@/lib/runtime";
+import { getLeadAttribution, submitLead } from "@/lib/runtime";
 import { useState, useEffect } from "react";
 import { Mail, Phone, MapPin, Clock, Send, MessageCircle, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,26 +25,47 @@ const faqs = [
 
 const Contact = () => {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [preferredChannel, setPreferredChannel] = useState("email");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
     document.title = "Contact Us — WOODEX Pakistan | Showrooms in Lahore, Karachi, Islamabad";
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget as HTMLFormElement;
+    const form = e.currentTarget;
     const fd = new FormData(form);
-    // → shared backend: becomes a live lead in the dashboard CRM kanban
-    await submitLead({
-      name: String(fd.get("name") || "Website visitor"),
-      contact: [fd.get("email"), fd.get("phone")].filter(Boolean).join(" / "),
-      interest: String(fd.get("subject") || "General inquiry"),
-      source: "Contact Form",
-      note: String(fd.get("message") || "").slice(0, 160),
-    });
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 4000);
+    const email = String(fd.get("email") || "").trim();
+    const phone = String(fd.get("phone") || "").trim();
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const result = await submitLead({
+        name: String(fd.get("name") || "").trim(),
+        company: String(fd.get("company") || "").trim(),
+        email,
+        phone,
+        contact: [email, phone].filter(Boolean).join(" · "),
+        preferredChannel: String(fd.get("preferredChannel") || "email"),
+        contactConsent: fd.get("contactConsent") === "on",
+        interest: String(fd.get("subject") || "General inquiry").trim(),
+        source: "Contact Form",
+        note: String(fd.get("message") || "").trim().slice(0, 2000),
+        ...getLeadAttribution(),
+      });
+      if (!result) throw new Error("The request could not be saved. Please try again.");
+      form.reset();
+      setPreferredChannel("email");
+      setSubmitted(true);
+      window.setTimeout(() => setSubmitted(false), 5000);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "The request could not be saved. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -103,37 +124,62 @@ const Contact = () => {
                         <div className="w-16 h-16 rounded-full bg-hon-green-pale flex items-center justify-center mx-auto mb-4">
                           <Send className="h-8 w-8 text-accent" />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">Message Sent!</h3>
-                        <p className="text-muted-foreground">We'll get back to you within 24 hours.</p>
+                        <h3 className="text-xl font-bold mb-2">Request Received!</h3>
+                        <p className="text-muted-foreground">Your request is in our sales inbox. We'll follow up within one business day using your selected contact method.</p>
                       </div>
                     ) : (
                       <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="grid md:grid-cols-2 gap-5">
                           <div className="space-y-1.5">
                             <Label htmlFor="name">Full Name *</Label>
-                            <Input id="name" placeholder="Muhammad Ali" required />
+                            <Input id="name" name="name" autoComplete="name" placeholder="Muhammad Ali" required />
                           </div>
                           <div className="space-y-1.5">
-                            <Label htmlFor="email">Email *</Label>
-                            <Input id="email" type="email" placeholder="your@email.com" required />
+                            <Label htmlFor="company">Company</Label>
+                            <Input id="company" name="company" autoComplete="organization" placeholder="Company name (optional)" />
                           </div>
                         </div>
                         <div className="grid md:grid-cols-2 gap-5">
                           <div className="space-y-1.5">
-                            <Label htmlFor="phone">Phone</Label>
-                            <Input id="phone" type="tel" placeholder="+92 300 1234567" />
+                            <Label htmlFor="email">Email *</Label>
+                            <Input id="email" name="email" type="email" autoComplete="email" placeholder="your@email.com" required />
                           </div>
                           <div className="space-y-1.5">
+                            <Label htmlFor="phone">Phone / WhatsApp</Label>
+                            <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+92 300 1234567" required={preferredChannel !== "email"} />
+                          </div>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-5">
+                          <div className="space-y-1.5">
                             <Label htmlFor="subject">Subject</Label>
-                            <Input id="subject" placeholder="Product inquiry" />
+                            <Input id="subject" name="subject" placeholder="Product inquiry" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor="preferredChannel">Preferred contact method *</Label>
+                            <select
+                              id="preferredChannel"
+                              name="preferredChannel"
+                              value={preferredChannel}
+                              onChange={(event) => setPreferredChannel(event.target.value)}
+                              className="h-10 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="email">Email</option>
+                              <option value="phone">Phone call</option>
+                              <option value="whatsapp">WhatsApp</option>
+                            </select>
                           </div>
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="message">Message *</Label>
-                          <Textarea id="message" placeholder="Tell us about your project..." className="min-h-[140px]" required />
+                          <Textarea id="message" name="message" placeholder="Tell us about your project..." className="min-h-[140px]" required />
                         </div>
-                        <Button type="submit" className="w-full bg-accent hover:bg-hon-green-dark text-accent-foreground font-semibold">
-                          Send Message
+                        <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                          <input name="contactConsent" type="checkbox" required className="mt-1 accent-[hsl(var(--accent))]" />
+                          <span>I agree that WOODEX may contact me about this enquiry using my selected method.</span>
+                        </label>
+                        {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
+                        <Button type="submit" disabled={submitting} className="w-full bg-accent hover:bg-hon-green-dark text-accent-foreground font-semibold">
+                          {submitting ? "Sending…" : "Send Message"}
                         </Button>
                       </form>
                     )}

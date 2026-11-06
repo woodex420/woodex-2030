@@ -73,7 +73,7 @@ export default function Marketing() {
       <PageHeader
         crumbs={[{ label: "Digital" }, { label: "Marketing" }]}
         title="Campaign analytics"
-        description="First-party pixel on published landings — views, CTA taps, scroll depth, referrers and UTM mix, live over SSE. 14-day window shown."
+        description="First-party pixel on published landings — views, CTA taps, scroll depth, referrers and UTM mix. Data refreshes automatically about every 15 seconds; 14-day window shown."
         actions={<Button variant="secondary" onClick={reload}><RefreshCw size={14} /> Refresh</Button>}
       />
       {loading || !data ? (
@@ -132,8 +132,8 @@ export default function Marketing() {
                   </li>))}</ul>)}
             </Card>
             <Card className="p-4">
-              <p className="mb-2 flex items-center justify-between text-caption font-bold uppercase tracking-wide text-subtle">Live feed <span className="inline-flex items-center gap-1 text-[9px] font-semibold normal-case text-primary-700"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" />SSE</span></p>
-              {data.feed.length === 0 ? <p className="text-caption text-subtle">Quiet so far — events appear the moment a visitor lands.</p> : (
+              <p className="mb-2 flex items-center justify-between text-caption font-bold uppercase tracking-wide text-subtle">Recent activity <span className="inline-flex items-center gap-1 text-[9px] font-semibold normal-case text-primary-700"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" />Auto-refresh · 15s</span></p>
+              {data.feed.length === 0 ? <p className="text-caption text-subtle">Quiet so far — this list refreshes periodically.</p> : (
                 <ul className="space-y-1">{data.feed.map((f, i) => (
                   <li key={i} className="flex items-center gap-1.5 text-caption">
                     <span className="w-4 text-center">{f.kind === "view" ? "👁" : f.kind === "cta" ? "⚡" : "↕"}</span>

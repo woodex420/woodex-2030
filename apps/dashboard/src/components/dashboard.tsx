@@ -26,7 +26,7 @@ import {
   Truck,
   Users,
   ClipboardCheck,
-  Send,
+  RefreshCw,
   Sparkles,
 } from "@/icons";
 
@@ -368,10 +368,10 @@ export function ActivityFeed() {
         <CardHeader
           className="mb-3"
           title="Recent Activity"
-          description="Live events from storefront + operations"
+          description="Recent activity from storefront + operations"
           action={
             <span className="inline-flex h-6 items-center gap-1 rounded-full bg-primary-50 px-2 text-caption font-medium text-primary-700">
-              <Send size={11} /> live
+              <RefreshCw size={11} /> 30s refresh
             </span>
           }
         />

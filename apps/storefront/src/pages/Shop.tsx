@@ -11,6 +11,7 @@ import { Search, Grid3X3, LayoutList, SlidersHorizontal, ChevronDown, ChevronRig
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getCategorySeo } from "@/data/seoContent";
+import { useRuntimeRevision } from "@/lib/runtime";
 
 interface CategoryNode {
   label: string;
@@ -106,6 +107,7 @@ const Shop = () => {
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["office-tables", "bedroom"]);
+  const catalogRevision = useRuntimeRevision();
 
   const seo = getCategorySeo(selectedCategory);
 
@@ -136,7 +138,7 @@ const Shop = () => {
       );
     }
     return sortProducts(result, sortBy);
-  }, [selectedCategory, searchQuery, sortBy]);
+  }, [selectedCategory, searchQuery, sortBy, catalogRevision]);
 
   const toggleExpand = (id: string) => {
     setExpandedCategories((prev) =>

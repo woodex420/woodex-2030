@@ -31,7 +31,7 @@
     /* Accent = HON signature green */
     --accent: 88 62% 37%;
     --accent-foreground: 0 0% 100%;
-    
+
     /* HON green variants */
     --hon-green: 88 62% 37%;
     --hon-green-light: 88 50% 48%;
@@ -48,12 +48,12 @@
     /* Utility bar (HON uses top links bar) */
     --utility-bar: 210 11% 15%;
     --utility-text: 0 0% 75%;
-    
+
     --hero-overlay: 210 11% 10%;
-    
+
     --badge-success: 88 62% 37%;
     --badge-success-foreground: 0 0% 100%;
-    
+
     /* HON section backgrounds */
     --section-light: 0 0% 97%;
     --section-mid: 210 11% 92%;
@@ -89,15 +89,15 @@
     --border: 210 11% 25%;
     --input: 210 11% 25%;
     --ring: 88 62% 42%;
-    
+
     --utility-bar: 210 11% 8%;
     --utility-text: 0 0% 60%;
-    
+
     --hero-overlay: 210 11% 5%;
-    
+
     --badge-success: 88 62% 42%;
     --badge-success-foreground: 0 0% 100%;
-    
+
     --section-light: 210 11% 13%;
     --section-mid: 210 11% 18%;
   }
@@ -115,7 +115,7 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Inter', sans-serif;
     font-weight: 700;
@@ -463,4 +463,3 @@
     margin-top: 4px;
   }
 }
-

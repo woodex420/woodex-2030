@@ -16,7 +16,7 @@ const ColorSwatches = ({ colors, selectedColor, onColorChange }: ColorSwatchesPr
         <span className="text-sm font-medium">Color</span>
         <span className="text-sm text-muted-foreground">{selectedColor.name}</span>
       </div>
-      
+
       <div className="flex flex-wrap gap-3">
         {colors.map((color, index) => (
           <button
@@ -34,7 +34,7 @@ const ColorSwatches = ({ colors, selectedColor, onColorChange }: ColorSwatchesPr
           >
             {selectedColor.hex === color.hex && (
               <span className="absolute inset-0 flex items-center justify-center">
-                <Check 
+                <Check
                   className={cn(
                     "h-5 w-5",
                     // Use white check for dark colors, dark check for light colors

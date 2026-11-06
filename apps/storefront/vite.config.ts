@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+const apiTarget = process.env.API_PROXY_TARGET ?? "http://localhost:3001";
+
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
@@ -9,11 +11,13 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     allowedHosts: [".e2b.app", "localhost"],
+    // Arena terminates TLS at its preview proxy; ordinary local/CI E2E uses Vite's direct websocket port.
+    hmr: process.env.ARENA_PREVIEW === "1" ? { clientPort: 443 } : undefined,
     proxy: {
-      "/api": "http://localhost:3001",
-      "/img": "http://localhost:3001",
-      "/sitemap.xml": "http://localhost:3001",
-      "/robots.txt": "http://localhost:3001",
+      "/api": apiTarget,
+      "/img": apiTarget,
+      "/sitemap.xml": apiTarget,
+      "/robots.txt": apiTarget,
     },
   },
   plugins: [react()],

@@ -1,5 +1,7 @@
 # Phase 0 — Discovery & Audit + PRD Plan v2
 
+> **HISTORICAL / SUPERSEDED as a plan.** The canonical plan is [`docs/AGENCY-OS-MASTER-PLAN-V2.md`](AGENCY-OS-MASTER-PLAN-V2.md). Some recommendations in this historical file about importing sister-product schemas/data or combining products were not approved; no cross-product code, content, customer data or database records may be moved under this plan.
+
 **Date:** 2026-10-05 · **Status: RESEARCH → INSPECT → RECOMMEND complete — DO NOT CODE YET (awaiting approval gate)**
 **Auditor:** Arena agent · **Inputs:** live clones + GitHub API metadata (this session)
 
@@ -88,4 +90,4 @@ Global header/footer = section refs (edit once, fan out on publish) — exactly 
 3. Preline Fair-Use — never ship their templates verbatim as a product; wrappers + NOTICE file only.
 4. P19 shows their bug backlog touches chat/coming-soon/PDF blocks — import their QA list into our P5/P9 acceptance tests.
 
-> **Update (same day):** scope corrected for Woodex Furniture — see `docs/PLAN-FURNITURE-TRACK-v2.1.md`; interiors-brand migration items in §5 P13 are OUT of this product.
+> **Historical scope correction:** this plan is superseded by canonical `docs/AGENCY-OS-MASTER-PLAN-V2.md`. The MarketingWoodex migration items in §5 P13 are out of this product; no code, content, customer records or other data may cross the sister-product boundary without a separate approved migration plan.

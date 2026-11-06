@@ -3,46 +3,59 @@ import type { ComponentType } from "react";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
 import { Logo } from "@/components/layout/Logo";
-import {BarChart, Building, ChevronDown, ClipboardList, FolderKanban, Globe, LayoutDashboard, Megaphone, MessagesSquare, Settings, Store, Truck, Users, Wrench, X, Receipt, Sparkles} from "@/icons";
+import { BarChart, Building, ChevronDown, ClipboardList, FolderKanban, Globe, Kanban, LayoutDashboard, Megaphone, MessagesSquare, Package, Settings, Settings2, ShoppingBag, Store, Users, Wrench, X, Receipt, Sparkles } from "@/icons";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
 type NavItem = { label: string; to: string; icon: IconType };
 type NavGroup = { label: string; items: NavItem[] };
 
-/* Primary navigation — design.md §4.2 (12 modules, exact order). */
+/* Business-funnel navigation. Existing route URLs remain stable. */
 const groups: NavGroup[] = [
   {
     label: "Workspace",
     items: [{ label: "Overview", to: "/", icon: LayoutDashboard }],
   },
   {
-    label: "Sales",
+    label: "Capture & Relationships",
     items: [
-      { label: "CRM", to: "/crm", icon: Users },
-      { label: "Clients", to: "/clients", icon: Building },
-      { label: "Sales & Quotations", to: "/quotations", icon: ClipboardList },
+      { label: "Shared Inbox", to: "/omnichannel", icon: MessagesSquare },
+      { label: "Leads & Pipeline", to: "/crm", icon: Users },
+      { label: "Clients & Companies", to: "/clients", icon: Building },
+      { label: "Tasks & Follow-ups", to: "/tasks", icon: Kanban },
+    ],
+  },
+  {
+    label: "Quote & Collect",
+    items: [
+      { label: "Quotations", to: "/quotations", icon: ClipboardList },
       { label: "Invoices & Payments", to: "/invoices", icon: Receipt },
-      { label: "Ecommerce", to: "/ecommerce", icon: Store },
+    ],
+  },
+  {
+    label: "Commerce & Fulfilment",
+    items: [
+      { label: "Commerce Overview", to: "/ecommerce", icon: Store },
+      { label: "Product Catalog", to: "/catalog", icon: Package },
+      { label: "Orders", to: "/orders", icon: ShoppingBag },
+      { label: "Operations", to: "/operations", icon: Wrench },
+      { label: "Projects (Prototype)", to: "/projects", icon: FolderKanban },
+    ],
+  },
+  {
+    label: "Website & Growth",
+    items: [
       { label: "Website / CMS", to: "/website", icon: Globe },
       { label: "Theme Studio", to: "/website/theme", icon: Sparkles },
-      { label: "Marketing", to: "/marketing", icon: Megaphone },
-      { label: "Omnichannel", to: "/omnichannel", icon: MessagesSquare },
+      { label: "Landing Analytics", to: "/marketing", icon: Megaphone },
     ],
   },
   {
-    label: "Delivery",
+    label: "Insights & Admin",
     items: [
-      { label: "Projects", to: "/projects", icon: FolderKanban },
-      { label: "Production", to: "/operations/production", icon: Wrench },
-      { label: "Delivery", to: "/operations/delivery", icon: Truck },
-    ],
-  },
-  {
-    label: "Insights",
-    items: [
-      { label: "Analytics", to: "/analytics", icon: BarChart },
-      { label: "Settings", to: "/settings", icon: Settings },
+      { label: "Business Analytics", to: "/analytics", icon: BarChart },
+      { label: "Workspace Settings", to: "/settings", icon: Settings },
+      { label: "UI Components (Dev)", to: "/ui-components", icon: Settings2 },
     ],
   },
 ];

@@ -1,8 +1,8 @@
 import { defineTool, ToolError } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import data from "../data.json";
-const services = data.services as any[];
-const blogPosts = data.blogPosts as any[];
+const services = data.services;
+const blogPosts = data.blogPosts;
 
 export const listServices = defineTool({
   name: "list_services",

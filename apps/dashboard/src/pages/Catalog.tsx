@@ -3,15 +3,15 @@ import { Link } from "react-router";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonCls } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState, Skeleton } from "@/components/ui/States";
 import { ErrorState } from "@/components/ui/States";
 import { Select, SearchInput, Field, Input } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { useApi, mutate, img, fmtPKR, type ApiProduct, type ApiMaterial } from "@/lib/api";
-import { ArrowRight, Check, Package, Settings2 } from "@/icons";
+import { useApi, useRealtime, mutate, img, fmtPKR, type ApiProduct, type ApiMaterial } from "@/lib/api";
+import { ArrowRight, Check, Package, Plus, Settings2 } from "@/icons";
 
 type SortKey = "featured" | "price-asc" | "price-desc" | "rating";
 const star = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
@@ -31,6 +31,7 @@ export default function Catalog() {
   // Live data from the shared backend (same SQLite both apps read/write)
   const products = useApi<{ total: number; items: ApiProduct[] }>("/api/products", 30000);
   const mats = useApi<ApiMaterial[]>("/api/materials");
+  useRealtime(/products/, () => products.reload());
 
   const list = products.data?.items ?? [];
 
@@ -110,9 +111,10 @@ export default function Catalog() {
             : `${products.data?.total ?? 0} SKUs · live from API · edits sync to the storefront at runtime`
         }
         actions={
-          <Link to="/quotations/new" className="inline-flex">
-            <Button>Build quotation from catalog</Button>
-          </Link>
+          <>
+            <Link to="/catalog/new" className={buttonCls("primary", "md")}><Plus size={15} /> New product</Link>
+            <Link to="/quotations/new" className={buttonCls("secondary", "md")}>Build quotation</Link>
+          </>
         }
       />
 
@@ -212,7 +214,7 @@ export default function Catalog() {
                 </button>
               </div>
               <div className="flex flex-1 flex-col p-4">
-                <h3 className="line-clamp-1 text-bodylg font-semibold text-ink" title={p.name}>{p.name}</h3>
+                <h3 className="line-clamp-1 text-bodylg font-semibold text-ink" title={p.name}><Link to={`/catalog/${encodeURIComponent(p.id)}`} className="transition-colors hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">{p.name}</Link></h3>
                 <p className="mt-1 line-clamp-2 flex-1 text-caption leading-relaxed text-muted">{p.shortDescription}</p>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-caption" aria-label={`Rated ${p.rating} out of 5`}>
@@ -235,6 +237,10 @@ export default function Catalog() {
                   <span className={cn("text-caption font-medium", p.inStock ? "text-success-strong" : "text-danger-strong")}>
                     {p.inStock ? (<span className="inline-flex items-center gap-1"><Check size={12} /> {p.stockQty ?? "In"} in stock</span>) : "Made to order"}
                   </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Link to={`/catalog/${encodeURIComponent(p.id)}`} className={buttonCls("secondary", "sm")}>Details</Link>
+                  <Link to={`/catalog/${encodeURIComponent(p.id)}/edit`} className={buttonCls("ghost", "sm")}>Edit</Link>
                 </div>
               </div>
             </li>

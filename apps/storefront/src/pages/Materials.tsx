@@ -84,7 +84,7 @@ const Materials = () => {
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Finishes & Fabrics</p>
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Materials & Colors</h1>
             <p className="text-primary-foreground/75 max-w-xl">
-              Every WOODEX piece is available in a range of premium finishes and fabric options. 
+              Every WOODEX piece is available in a range of premium finishes and fabric options.
               Explore our materials and customize your furniture to match your space.
             </p>
           </div>

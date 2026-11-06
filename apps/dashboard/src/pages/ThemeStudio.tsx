@@ -35,7 +35,7 @@ export default function ThemeStudio() {
     try {
       const res = await fetch("/api/theme", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
       if (!res.ok) throw new Error((await res.json()).error);
-      push({ tone: "success", title: "Site theme live", desc: "Storefronts re-tokenize instantly via SSE — no rebuild." });
+      push({ tone: "success", title: "Theme saved", desc: "The storefront refreshes shared theme settings automatically (up to about 60 seconds)." });
       reload();
     } catch (e) { push({ tone: "danger", title: "Rejected", desc: e instanceof Error ? e.message : String(e) }); }
   };

@@ -23,9 +23,16 @@ type Block = { type: string; props: Record<string, unknown> };
 type SavedSection = { id: number; name: string; category: string; block: Block; usage: number; updatedAt: string };
 type Theme = { primary?: string; ink?: string; bg?: string; font?: "sans" | "serif"; announce?: string };
 type PageDoc = { id: number; slug: string; title: string; status: string; seoTitle?: string | null; seoDesc?: string | null;
-  updatedAt: string; blockCount?: number; blocks?: Block[]; theme?: Theme | null; views?: number; ctas?: number };
+  updatedAt: string; publishedAt?: string | null; hasUnpublishedChanges?: boolean;
+  blockCount?: number; blocks?: Block[]; theme?: Theme | null; views?: number; ctas?: number };
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
+function indexAfterMove(index: number, from: number, to: number) {
+  if (index === from) return to;
+  if (from < to && index > from && index <= to) return index - 1;
+  if (to < from && index >= to && index < from) return index + 1;
+  return index;
+}
 const PRESETS: { name: string; t: Theme }[] = [
   { name: "Woodex Green", t: { primary: "#16A34A", ink: "#182230", bg: "#FFFFFF", font: "sans" } },
   { name: "Charcoal Lux", t: { primary: "#0F172A", ink: "#F8FAFC", bg: "#111827", font: "serif" } },
@@ -141,8 +148,14 @@ export function PageEditor() {
   const [over, setOver] = useState<number | null>(null);
   const [locked, setLocked] = useState<Set<number>>(new Set());
   const [previewKey, setPreviewKey] = useState(0);
-  const [prevUrl, setPrevUrl] = useState<string | null>(null); // TODO-1: signed draft preview from the store origin
-  useEffect(() => { if (page) void previewHref(page).then(setPrevUrl); else setPrevUrl(null); }, [page?.id, page?.status, previewKey]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [forceDraftPreview, setForceDraftPreview] = useState(false);
+  const [prevUrl, setPrevUrl] = useState<string | null>(null); // signed preview URL from the store origin
+  useEffect(() => {
+    if (page) void previewHref(page, forceDraftPreview).then(setPrevUrl);
+    else setPrevUrl(null);
+  }, [page?.id, page?.status, page?.hasUnpublishedChanges, previewKey, forceDraftPreview]);
   const saveTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => { if (page) { setBlocks(page.blocks ?? []); setTitle(page.title); setTheme(page.theme ?? null); setSeo({ seoTitle: page.seoTitle ?? "", seoDesc: page.seoDesc ?? "" }); } }, [page]);
@@ -151,16 +164,40 @@ export function PageEditor() {
     if (!page) return;
     try {
       const res = await fetch(`/api/pages/${page.id}/blocks`, { method: "PUT", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ blocks, title, theme: theme ?? undefined, seoTitle: seo.seoTitle || undefined, seoDesc: seo.seoDesc || undefined }) });
+        body: JSON.stringify({ blocks, title, theme, seoTitle: seo.seoTitle, seoDesc: seo.seoDesc }) });
       if (!res.ok) throw new Error((await res.json()).error);
       const j = await res.json();
       if (!silent) push({ tone: "success", title: "Draft saved", desc: `${blocks.length} blocks · validation ${j.validation.length ? j.validation.length + " issue(s)" : "clean"}` });
-      setValid(j.validation); setDirty(false);
-    } catch (e) { if (!silent) push({ tone: "danger", title: "Save failed", desc: e instanceof Error ? e.message : String(e) }); }
-  }, [page, blocks, title, theme, seo, push]);
+      if (page.status === "Published") setForceDraftPreview(true);
+      setValid(j.validation); setDirty(false); reload(); setPreviewKey((key) => key + 1);
+    } catch (e) {
+      if (!silent) push({ tone: "danger", title: "Save failed", desc: e instanceof Error ? e.message : String(e) });
+      throw e;
+    }
+  }, [page, blocks, title, theme, seo, push, reload]);
 
-  useEffect(() => { if (!dirty) return; window.clearTimeout(saveTimer.current); saveTimer.current = window.setTimeout(() => void persist(true), 1200); return () => window.clearTimeout(saveTimer.current); }, [dirty, persist]);
+  useEffect(() => { if (!dirty) return; window.clearTimeout(saveTimer.current); saveTimer.current = window.setTimeout(() => { void persist(true).catch(() => undefined); }, 1200); return () => window.clearTimeout(saveTimer.current); }, [dirty, persist]);
   useRealtime(/sections/, () => sections.reload());
+
+  const openPreview = async () => {
+    if (!page) return;
+    const forceDraft = page.status === "Published" && (dirty || forceDraftPreview || Boolean(page.hasUnpublishedChanges));
+    window.clearTimeout(saveTimer.current);
+    setBusy(true);
+    try {
+      if (dirty) await persist(true);
+      setForceDraftPreview(forceDraft);
+      const href = await previewHref(page, forceDraft);
+      setPrevUrl(href);
+      setPreviewKey((key) => key + 1);
+      setPreviewDevice("desktop");
+      setPreviewOpen(true);
+    } catch (e) {
+      push({ tone: "danger", title: "Preview unavailable", desc: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const publish = async () => {
     if (!page) return;
@@ -170,6 +207,8 @@ export function PageEditor() {
       const res = await fetch(`/api/pages/${page.id}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ note: "published from studio", title }) });
       if (!res.ok) { const j = await res.json(); setValid(j.validation ?? []); throw new Error(j.error); }
       push({ tone: "success", title: "Published ✓", desc: "Revision saved — live at /p/" + page.slug });
+      setForceDraftPreview(false);
+      setPreviewKey((key) => key + 1);
       reload();
     } catch (e) { push({ tone: "danger", title: "Publish blocked", desc: e instanceof Error ? e.message : String(e) }); }
     finally { setBusy(false); }
@@ -181,9 +220,33 @@ export function PageEditor() {
     reload(); versions.reload();
   };
   const set = (i: number, props: Record<string, unknown>) => { setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, props } : b))); setDirty(true); };
-  const move = (i: number, d: -1 | 1) => { setBlocks((bs) => { const n = [...bs]; const j = i + d; if (!n[j]) return bs; [n[i], n[j]] = [n[j], n[i]]; return n; }); setDirty(true); };
-  const drop = (j: number) => { if (drag === null || drag === j) return; setBlocks((bs) => { const n = [...bs]; const [it] = n.splice(drag, 1); n.splice(j > drag ? j - 1 : j, 0, it); return n; }); setDrag(null); setOver(null); setDirty(true); };
-  const remove = (i: number) => { setBlocks((bs) => bs.filter((_, j) => j !== i)); setDirty(true); };
+  const move = (i: number, d: -1 | 1) => {
+    const j = i + d;
+    if (j < 0 || j >= blocks.length) return;
+    setBlocks((bs) => { const n = [...bs]; [n[i], n[j]] = [n[j], n[i]]; return n; });
+    setOpenIdx((idx) => idx === i ? j : idx === j ? i : idx);
+    setLocked((items) => new Set([...items].map((idx) => idx === i ? j : idx === j ? i : idx)));
+    setDirty(true);
+  };
+  const drop = (target: number) => {
+    if (drag === null) return;
+    const from = drag;
+    const to = target;
+    if (from !== to) {
+      setBlocks((bs) => { const n = [...bs]; const [item] = n.splice(from, 1); n.splice(to, 0, item); return n; });
+      setOpenIdx((idx) => idx === null ? null : indexAfterMove(idx, from, to));
+      setLocked((items) => new Set([...items].map((idx) => indexAfterMove(idx, from, to))));
+      setDirty(true);
+    }
+    setDrag(null);
+    setOver(null);
+  };
+  const remove = (i: number) => {
+    setBlocks((bs) => bs.filter((_, j) => j !== i));
+    setOpenIdx((idx) => idx === i ? null : idx !== null && idx > i ? idx - 1 : idx);
+    setLocked((items) => new Set([...items].filter((idx) => idx !== i).map((idx) => idx > i ? idx - 1 : idx)));
+    setDirty(true);
+  };
   const add = (type: string) => { setBlocks((bs) => [...bs, { type, props: {} }]); setLibOpen(false); setOpenIdx(blocks.length); setDirty(true); };
   const addRef = (sec: SavedSection) => { setBlocks((bs) => [...bs, { type: "global-section", props: { section_id: String(sec.id), sectionLabel: sec.name, section: sec.block } }]); setLibOpen(false); setDirty(true); };
   const addCopy = (sec: SavedSection) => { setBlocks((bs) => [...bs, { type: sec.block.type, props: { ...sec.block.props } }]); setLibOpen(false); setDirty(true); };
@@ -213,10 +276,11 @@ export function PageEditor() {
       <PageHeader
         crumbs={[{ label: "Website", to: "/website" }, { label: "Studio" }, { label: page.slug }]}
         title={title || page.slug}
-        description={`/p/${page.slug} — ${page.status} · updated ${timeAgo(page.updatedAt)}${dirty ? " · unsaved changes" : ""}`}
+        description={`/p/${page.slug} — ${page.status}${page.hasUnpublishedChanges ? " · saved draft pending publish" : ""} · updated ${timeAgo(page.updatedAt)}${dirty ? " · unsaved changes" : ""}`}
         actions={<>
           <Button variant="secondary" onClick={() => setPreviewKey((k) => k + 1)}><Eye size={14} /> Reload preview</Button>
-          <Button onClick={() => void persist()}><Save size={14} /> Save</Button>
+          <Button variant="secondary" onClick={() => void openPreview()} disabled={busy}><Eye size={14} /> Preview page</Button>
+          <Button onClick={() => void persist().catch(() => undefined)}><Save size={14} /> Save draft</Button>
           <Button onClick={() => void publish()} disabled={busy || !can("page.manage")} title={can("page.manage") ? undefined : "Your role can’t publish — an owner can grant page.manage"}><Globe size={14} /> {page.status === "Published" ? "Re-publish" : "Publish"}</Button>
         </>}
       />
@@ -248,11 +312,11 @@ export function PageEditor() {
                     {b.type === "global-section" && <Badge tone="primary" dot={false}>fans out</Badge>}
                   </span>
                   <span className="flex items-center gap-1">
-                    <button aria-label="lock" onClick={() => setLocked((ls) => { const n = new Set(ls); n.has(i) ? n.delete(i) : n.add(i); return n; })}
+                    <button aria-label={locked.has(i) ? "Unlock block" : "Lock block"} onClick={() => setLocked((ls) => { const n = new Set(ls); n.has(i) ? n.delete(i) : n.add(i); return n; })}
                       className={cn("rounded p-1 hover:bg-white", locked.has(i) ? "text-warning-strong" : "text-subtle hover:text-ink")}><Lock size={13} /></button>
                     <button aria-label="save as section" title="Save as reusable section" onClick={() => setSaveSec({ idx: i, name: "" })} className="rounded p-1 text-subtle hover:bg-white hover:text-ink"><Plus size={13} /></button>
-                    <button aria-label="move up" onClick={() => move(i, -1)} className="rounded p-1 text-subtle hover:bg-white hover:text-ink"><ArrowRight size={13} className="-rotate-90" /></button>
-                    <button aria-label="move down" onClick={() => move(i, 1)} className="rounded p-1 text-subtle hover:bg-white hover:text-ink"><ArrowRight size={13} className="rotate-90" /></button>
+                    <button aria-label="move up" disabled={i === 0} onClick={() => move(i, -1)} className="rounded p-1 text-subtle hover:bg-white hover:text-ink"><ArrowRight size={13} className="-rotate-90" /></button>
+                    <button aria-label="move down" disabled={i === blocks.length - 1} onClick={() => move(i, 1)} className="rounded p-1 text-subtle hover:bg-white hover:text-ink"><ArrowRight size={13} className="rotate-90" /></button>
                     <button aria-label="delete" onClick={() => remove(i)} className="rounded p-1 text-subtle hover:bg-white hover:text-danger-strong"><Trash2 size={13} /></button>
                     <Button size="sm" variant={openIdx === i ? "primary" : "secondary"} onClick={() => setOpenIdx(openIdx === i ? null : i)}>Edit</Button>
                   </span>
@@ -295,7 +359,8 @@ export function PageEditor() {
             <div className="mt-2 border-t border-hairline pt-2">
               <iframe key={previewKey} title="Page preview" src={prevUrl ?? storeUrl("/p/" + page.slug)}
                 className="h-40 w-full rounded-control border border-line bg-white" onLoad={() => void 0} />
-              <p className="mt-1 text-[10px] text-subtle">Live iframe — save publishes preview state; full page in new tab: <a className="font-semibold text-primary-600 hover:underline" href={prevUrl ?? storeUrl("/p/" + page.slug)} target="_blank" rel="noreferrer">/p/{page.slug}</a></p>
+              <p className="mt-1 text-[10px] text-subtle">Signed draft preview — saving updates this preview only; use Publish to change the public page. Full preview in new tab: <a className="font-semibold text-primary-600 hover:underline" href={prevUrl ?? storeUrl("/p/" + page.slug)} target="_blank" rel="noreferrer">/p/{page.slug}</a></p>
+              <Button size="sm" variant="secondary" className="mt-2 w-full" onClick={() => void openPreview()} disabled={busy}><Eye size={13} /> Open responsive preview</Button>
             </div>
           </Card>
 
@@ -344,6 +409,42 @@ export function PageEditor() {
           </Card>
         </div>
       </div>
+
+      <Modal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title="Responsive page preview"
+        description={forceDraftPreview || page.hasUnpublishedChanges || page.status !== "Published"
+          ? "Draft preview — saves update this draft only; publish to change the public page."
+          : "Published page — this is what visitors currently see."}
+        footer={null}
+        className="max-h-[94vh] max-w-7xl overflow-hidden"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Preview viewport">
+            {([
+              { key: "desktop", label: "Desktop", width: "1280px" },
+              { key: "tablet", label: "Tablet", width: "768px" },
+              { key: "mobile", label: "Mobile", width: "390px" },
+            ] as const).map((device) => (
+              <Button key={device.key} size="sm" variant={previewDevice === device.key ? "primary" : "secondary"}
+                aria-pressed={previewDevice === device.key} onClick={() => setPreviewDevice(device.key)}>
+                {device.label}<span className="text-[10px] opacity-75">{device.width}</span>
+              </Button>))}
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => setPreviewKey((key) => key + 1)}><Eye size={13} /> Refresh preview</Button>
+        </div>
+        <div className="mt-3 max-h-[74vh] overflow-auto rounded-control border border-line bg-surface-secondary p-3">
+          <div
+            data-preview-mode={previewDevice}
+            className="mx-auto shrink-0 transition-[width] duration-200"
+            style={{ width: previewDevice === "desktop" ? "100%" : previewDevice === "tablet" ? "768px" : "390px" }}
+          >
+            <iframe key={previewKey} title="Responsive page preview" src={prevUrl ?? storeUrl("/p/" + page.slug)}
+              className="w-full rounded-control border border-line bg-white" style={{ height: "min(68vh, 760px)" }} />
+          </div>
+        </div>
+      </Modal>
 
       {/* library with sections on top */}
       <Modal open={libOpen} onClose={() => setLibOpen(false)} title="Block & section library" description="Typed blocks — validated on publish. Insert sections as fan-out references or copies." footer={null} className="max-w-2xl">

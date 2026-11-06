@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { cn } from "@/lib/cn";
 import { fmtPKR, timeAgo, type ApiInvoice, type ApiLead, type ApiOrder, type ApiProduct, type ApiQuote } from "@/lib/api";
-import { Banknote, ClipboardList, FileText, Receipt, Search, Users } from "@/icons";
+import { Banknote, ClipboardList, FileText, Kanban, Package, Receipt, Search, Settings2, ShoppingBag, Store, Users } from "@/icons";
 
 type Item = { id: string; group: string; label: string; hint?: string; icon: ReactNode; to: string; kw?: string };
 
@@ -10,14 +10,19 @@ const NAV: Item[] = [
   { id: "n-ov", group: "Go to", label: "Overview", icon: <ClipboardList size={14} />, to: "/", kw: "home dashboard" },
   { id: "n-crm", group: "Go to", label: "CRM pipeline", icon: <Users size={14} />, to: "/crm", kw: "leads kanban" },
   { id: "n-cl", group: "Go to", label: "Clients & 360", icon: <Users size={14} />, to: "/clients", kw: "customer lifetime value merge review dedupe" },
+  { id: "n-tasks", group: "Go to", label: "Tasks & follow-ups", icon: <Kanban size={14} />, to: "/tasks", kw: "todo reminders due dates calendar board" },
   { id: "n-q", group: "Go to", label: "Sales & Quotations", icon: <FileText size={14} />, to: "/quotations", kw: "quotes e-quotation" },
   { id: "n-nq", group: "Actions", label: "New E-Quotation", hint: "opens the builder", icon: <FileText size={14} />, to: "/quotations/new", kw: "create quote draft" },
   { id: "n-inv", group: "Go to", label: "Invoices & Payments", icon: <Receipt size={14} />, to: "/invoices", kw: "finance receivables" },
+  { id: "n-commerce", group: "Go to", label: "Ecommerce overview", icon: <Store size={14} />, to: "/ecommerce", kw: "commerce shop sales" },
+  { id: "n-orders", group: "Go to", label: "Orders", icon: <ShoppingBag size={14} />, to: "/orders", kw: "checkout order details fulfillment" },
   { id: "n-nc", group: "Actions", label: "New client", hint: "opens form", icon: <Users size={14} />, to: "/clients?new=1", kw: "add customer create" },
+  { id: "n-np", group: "Actions", label: "New product", hint: "opens product editor", icon: <Package size={14} />, to: "/catalog/new", kw: "add create product sku" },
   { id: "n-ni", group: "Actions", label: "Invoice from quote", hint: "opens issuer", icon: <Banknote size={14} />, to: "/invoices?issue=1", kw: "create invoice bill" },
   { id: "n-cat", group: "Go to", label: "Catalog", icon: <Search size={14} />, to: "/catalog", kw: "products skus price stock" },
   { id: "n-ops", group: "Go to", label: "Operations board", icon: <ClipboardList size={14} />, to: "/operations", kw: "orders production delivery returns rma" },
   { id: "n-an", group: "Go to", label: "Analytics", icon: <Receipt size={14} />, to: "/analytics", kw: "reports charts" },
+  { id: "n-ui", group: "Go to", label: "UI Components", icon: <Settings2 size={14} />, to: "/ui-components", kw: "design system buttons badges forms catalogue" },
   { id: "n-set", group: "Go to", label: "Settings", icon: <Users size={14} />, to: "/settings", kw: "team integrations" },
 ];
 
@@ -48,7 +53,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       setRecords([
         ...leads.slice(0, 12).map((l) => ({ id: "l" + l.id, group: "Leads", label: `${l.name} · ${l.ref}`, hint: l.status + " · " + timeAgo(l.createdAt), icon: <Users size={14} />, to: "/crm", kw: (l.name + l.ref + (l.interest ?? "")).toLowerCase() })),
         ...quotes.slice(0, 12).map((x) => ({ id: "q" + x.id, group: "Quotations", label: `${x.ref} · ${x.customer}`, hint: x.status + " · " + fmtPKR(x.total), icon: <FileText size={14} />, to: "/quotations", kw: (x.ref + x.customer + x.status).toLowerCase() })),
-        ...orders.slice(0, 12).map((o) => ({ id: "o" + o.id, group: "Orders", label: `${o.ref} · ${o.customer}`, hint: o.stage + " · " + fmtPKR(o.total), icon: <ClipboardList size={14} />, to: "/operations", kw: (o.ref + o.customer + o.stage).toLowerCase() })),
+        ...orders.slice(0, 12).map((o) => ({ id: "o" + o.id, group: "Orders", label: `${o.ref} · ${o.customer}`, hint: o.stage + " · " + fmtPKR(o.total), icon: <ClipboardList size={14} />, to: "/orders/" + o.id, kw: (o.ref + o.customer + o.stage).toLowerCase() })),
         ...invoices.slice(0, 12).map((i) => ({ id: "i" + i.id, group: "Invoices", label: `${i.ref} · ${i.customer}`, hint: i.status + " · balance " + fmtPKR(i.balance), icon: <Receipt size={14} />, to: "/invoices", kw: (i.ref + i.customer + i.status).toLowerCase() })),
         ...products.slice(0, 40).map((p) => ({ id: "p" + p.id, group: "Products", label: p.name, hint: fmtPKR(p.price) + (p.inStock ? "" : " · out of stock"), icon: <Search size={14} />, to: "/catalog?q=" + encodeURIComponent(p.name), kw: (p.name + p.category + (p.series ?? "")).toLowerCase() })),
       ]);

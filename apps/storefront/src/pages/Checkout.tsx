@@ -1,6 +1,6 @@
 import { submitOrder } from "@/lib/runtime";
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,9 +21,11 @@ const cities = [
 
 const Checkout = () => {
   const { items, totalPrice, totalItems, clearCart } = useCart();
-  const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [orderRef, setOrderRef] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "", address: "", city: "Lahore", notes: "",
   });
@@ -41,18 +43,29 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // → shared backend: appears on the dashboard operations board
-    await submitOrder({
-      customer: formData.name || "Website checkout",
-      contact: formData.email,
-      items: items.map((i) => ({ name: (i as { name?: string }).name, price: i.price, qty: i.quantity })),
-      total: grandTotal,
-      source: "Storefront checkout",
-      note: `${formData.address}, ${formData.city}${formData.notes ? " — " + formData.notes : ""}`,
-    });
-    setOrderPlaced(true);
-    clearCart();
-    window.scrollTo(0, 0);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError("");
+    try {
+      const result = await submitOrder({
+        customer: formData.name || "Website checkout",
+        contact: [formData.email.trim(), formData.phone.trim()].filter(Boolean).join(" · "),
+        items: items.map((item) => ({ id: item.id, name: item.name, price: item.price, qty: item.quantity, color: item.color })),
+        total: grandTotal,
+        source: "Storefront checkout",
+        note: `${formData.address}, ${formData.city}${formData.notes ? " — " + formData.notes : ""}`,
+      });
+      const ref = typeof result?.ref === "string" ? result.ref.trim() : "";
+      if (!ref) throw new Error("We could not confirm that your order request was saved. Your cart is still here — please retry.");
+      setOrderRef(ref);
+      setOrderPlaced(true);
+      clearCart();
+      window.scrollTo(0, 0);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "We could not save your order request. Please retry.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (orderPlaced) {
@@ -64,15 +77,13 @@ const Checkout = () => {
             <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="h-10 w-10 text-accent" />
             </div>
-            <h1 className="text-3xl font-bold mb-3">Order Placed Successfully!</h1>
+            <h1 className="text-3xl font-bold mb-3">Order request received</h1>
             <p className="text-muted-foreground mb-2">
-              Thank you for your order. Our team will contact you within 24 hours to confirm delivery details.</p>
-            <p className="mt-4 text-sm"><Link to="/order-status" className="font-bold text-primary underline-offset-4 hover:underline">Track this order live →</Link></p>
-            <p className="text-sm text-muted-foreground mb-8">
-              {paymentMethod === "cod"
-                ? "Payment will be collected on delivery."
-                : "Our team will share bank details for transfer."}
+              Your request was saved. The Woodex team will confirm availability, delivery details, and payment terms before finalizing the order.
             </p>
+            {orderRef && <p className="mt-4 text-sm">Reference: <strong>{orderRef}</strong></p>}
+            <p className="mt-2 text-sm"><Link to={orderRef ? `/order-status?ref=${encodeURIComponent(orderRef)}` : "/order-status"} className="font-bold text-primary underline-offset-4 hover:underline">Check the latest order status →</Link></p>
+            <p className="text-sm text-muted-foreground mb-8">No payment was collected in this preview.</p>
             <div className="flex flex-wrap gap-3 justify-center">
               <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
                 <Link to="/shop">Continue Shopping</Link>
@@ -125,6 +136,9 @@ const Checkout = () => {
 
         <section className="py-10">
           <div className="container mx-auto px-4">
+            <p role="note" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              Order requests are not confirmed until the Woodex team checks availability and terms. This form does not collect payment; delivery addresses and payment preferences are not persisted.
+            </p>
             <form onSubmit={handleSubmit}>
               <div className="grid lg:grid-cols-3 gap-8">
                 {/* Left: Form */}
@@ -178,7 +192,7 @@ const Checkout = () => {
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-lg">
-                        <CreditCard className="h-5 w-5 text-accent" /> Payment Method
+                        <CreditCard className="h-5 w-5 text-accent" /> Payment Preference
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -187,19 +201,22 @@ const Checkout = () => {
                           <RadioGroupItem value="cod" id="cod" />
                           <Banknote className="h-5 w-5 text-accent" />
                           <div>
-                            <p className="font-semibold text-sm">Cash on Delivery (COD)</p>
-                            <p className="text-xs text-muted-foreground">Pay when your furniture is delivered & installed</p>
+                            <p className="font-semibold text-sm">Request cash on delivery</p>
+                            <p className="text-xs text-muted-foreground">Availability and terms must be confirmed by the Woodex team.</p>
                           </div>
                         </label>
                         <label className={`flex items-center gap-4 p-4 border rounded-sm cursor-pointer transition-colors ${paymentMethod === "bank" ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"}`}>
                           <RadioGroupItem value="bank" id="bank" />
                           <CreditCard className="h-5 w-5 text-accent" />
                           <div>
-                            <p className="font-semibold text-sm">Bank Transfer</p>
-                            <p className="text-xs text-muted-foreground">Transfer to WOODEX bank account — details will be shared after order</p>
+                            <p className="font-semibold text-sm">Request bank transfer</p>
+                            <p className="text-xs text-muted-foreground">Availability and instructions must be confirmed by the Woodex team.</p>
                           </div>
                         </label>
                       </RadioGroup>
+                      <p className="mt-4 text-xs text-muted-foreground">
+                        This preview does not collect payment or save your preference. The Woodex team must confirm the available arrangement.
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
@@ -256,8 +273,9 @@ const Checkout = () => {
                         <span className="font-bold text-xl text-accent">{formatPKR(grandTotal)}</span>
                       </div>
 
-                      <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base h-12">
-                        {paymentMethod === "cod" ? "Place Order — Cash on Delivery" : "Place Order — Bank Transfer"}
+                      {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
+                      <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base h-12 disabled:cursor-not-allowed disabled:opacity-60">
+                        {isSubmitting ? "Saving request…" : "Submit order request"}
                       </Button>
 
                       <div className="flex items-start gap-2 text-xs text-muted-foreground">

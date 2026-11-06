@@ -19,7 +19,7 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isZoomed || !imageRef.current) return;
-    
+
     const rect = imageRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -63,10 +63,7 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
           <img
             src={images[selectedIndex]}
             alt={`${productName} - View ${selectedIndex + 1}`}
-            className={cn(
-              "w-full h-full object-cover transition-transform duration-300",
-              is360Mode && `rotate-[${rotation}deg]`
-            )}
+            className="w-full h-full object-cover transition-transform duration-300"
             style={{
               transform: isZoomed
                 ? `scale(2) translate(${50 - zoomPosition.x}%, ${50 - zoomPosition.y}%)`
@@ -121,7 +118,7 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
             <RotateCcw className="h-4 w-4 mr-1" />
             360°
           </Button>
-          
+
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="secondary" size="sm" className="rounded-full shadow-lg">

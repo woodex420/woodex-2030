@@ -9,11 +9,12 @@
  *   PATCH/api/products/:id           {price?, inStock?, stockQty?}  → both apps see it live
  *   GET  /api/materials /api/services
  *   GET/POST/PATCH /api/quotes       storefront quote requests + dashboard pipeline
+ *   GET/POST/PATCH/DELETE /api/quote-templates reusable quotation layouts (quote.manage)
  *   GET/POST/PATCH /api/leads        contact form → CRM kanban
  *   GET/POST/PATCH /api/orders       checkout → operations board
  *   GET  /api/invoices[?status=open|...] · GET/PATCH /api/invoices/:id · POST /api/invoices (from quote_id/order_id or raw)
  *   POST /api/invoices/:id/payments  · GET/POST /api/returns · PATCH /api/returns/:id
- *   GET  /api/orders/lookup?ref=     public order tracking for storefront
+ *   POST /api/orders/lookup          public tracking with order reference + private code
  *   P4 CRM: GET/POST/PATCH /api/clients · /api/clients/review · /api/clients/:id/merge
  *           GET/POST/PATCH /api/tasks · leads now carry score + scoreWhy
  *   GET  /api/stats                  KPI + activity rollup for the dashboard
@@ -27,10 +28,18 @@ import express from "express";
 import { loadShopData, ROOT } from "./shop-data.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const DB_DIR = path.join(ROOT, "data");
-fs.mkdirSync(DB_DIR, { recursive: true });
+const IS_SERVERLESS = process.env.VERCEL === "1";
+const IS_PRODUCTION = process.env.VERCEL_ENV
+  ? process.env.VERCEL_ENV === "production"
+  : process.env.NODE_ENV === "production";
+const DATABASE_URL = String(process.env.DATABASE_URL ?? "").trim();
+if ((IS_SERVERLESS || IS_PRODUCTION) && !DATABASE_URL) {
+  throw new Error("DATABASE_URL is required for Vercel/production; SQLite is local-development only.");
+}
+const DB_DIR = process.env.WOODEX_DATA_DIR ? path.resolve(process.env.WOODEX_DATA_DIR) : path.join(ROOT, "data");
+if (!DATABASE_URL) fs.mkdirSync(DB_DIR, { recursive: true });
 const { createDb } = await import("./db-adapters.mjs");
-const db = await createDb({ sqliteFile: path.join(DB_DIR, "woodex.db"), databaseUrl: process.env.DATABASE_URL ?? "" });
+const db = await createDb({ sqliteFile: path.join(DB_DIR, "woodex.db"), databaseUrl: DATABASE_URL });
 console.log("[woodex-api] driver=" + db.kind);
 
 const now = () => new Date().toISOString();
@@ -48,18 +57,30 @@ CREATE TABLE IF NOT EXISTS services(id TEXT PRIMARY KEY, json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS leads(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, name TEXT NOT NULL, company TEXT,
   interest TEXT, source TEXT, contact TEXT, status TEXT DEFAULT 'New', owner TEXT,
-  note TEXT, created_at TEXT, updated_at TEXT
+  note TEXT, email TEXT, phone TEXT, preferred_channel TEXT, contact_consent INTEGER, is_returning INTEGER, identity_review INTEGER,
+  consent_at TEXT, consent_version TEXT, landing_path TEXT, referrer TEXT,
+  utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS quotes(
-  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, customer TEXT NOT NULL, contact TEXT,
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, customer TEXT NOT NULL, contact TEXT, lead_id INTEGER,
   items TEXT NOT NULL, total REAL NOT NULL DEFAULT 0, status TEXT DEFAULT 'Draft',
-  source TEXT DEFAULT 'storefront', note TEXT, audit TEXT DEFAULT '[]',
-  created_at TEXT, updated_at TEXT
+  source TEXT DEFAULT 'storefront', note TEXT, audit TEXT DEFAULT '[]', details TEXT NOT NULL DEFAULT '{}',
+  version INTEGER NOT NULL DEFAULT 1, created_at TEXT, updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS quote_versions(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, quote_id INTEGER NOT NULL, version INTEGER NOT NULL,
+  snapshot TEXT NOT NULL, actor TEXT, action TEXT, created_at TEXT,
+  UNIQUE(quote_id,version)
+);
+CREATE INDEX IF NOT EXISTS idx_quote_versions_quote ON quote_versions(quote_id, version);
+CREATE TABLE IF NOT EXISTS quote_templates(
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, template TEXT NOT NULL,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS orders(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, customer TEXT NOT NULL, items TEXT NOT NULL,
   total REAL NOT NULL DEFAULT 0, status TEXT DEFAULT 'In Progress', stage TEXT DEFAULT 'production',
-  owner TEXT DEFAULT 'Faisal', due TEXT, created_at TEXT, updated_at TEXT
+  owner TEXT DEFAULT 'Faisal', due TEXT, tracking_token_hash TEXT, created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS invoices(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, quote_id INTEGER, order_id INTEGER,
@@ -81,12 +102,19 @@ CREATE TABLE IF NOT EXISTS clients(
 CREATE TABLE IF NOT EXISTS client_links(client_id INTEGER NOT NULL, entity TEXT NOT NULL, entity_id INTEGER NOT NULL,
   UNIQUE(entity, entity_id));
 CREATE TABLE IF NOT EXISTS tasks(
-  id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, lead_id INTEGER, quote_id INTEGER, order_id INTEGER,
+  id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, lead_id INTEGER, quote_id INTEGER, order_id INTEGER, site_visit_id INTEGER,
   title TEXT NOT NULL, due TEXT, owner TEXT DEFAULT 'You', priority TEXT DEFAULT 'normal', done INTEGER DEFAULT 0,
   created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS site_visits(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT UNIQUE NOT NULL, lead_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
+  scheduled_at TEXT NOT NULL, timezone TEXT NOT NULL DEFAULT 'Asia/Karachi', address TEXT NOT NULL,
+  owner TEXT DEFAULT 'Unassigned', status TEXT NOT NULL DEFAULT 'Scheduled', notes TEXT, outcome TEXT,
+  reminder_at TEXT, reminder_task_id INTEGER, audit TEXT NOT NULL DEFAULT '[]', created_at TEXT, updated_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_site_visits_lead ON site_visits(lead_id, scheduled_at);
 CREATE TABLE IF NOT EXISTS pages(
   id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT UNIQUE NOT NULL, title TEXT NOT NULL,
-  status TEXT DEFAULT 'Draft', seo_title TEXT, seo_desc TEXT, created_at TEXT, updated_at TEXT);
+  status TEXT DEFAULT 'Draft', seo_title TEXT, seo_desc TEXT, created_at TEXT, updated_at TEXT,
+  published_snapshot TEXT);
 CREATE TABLE IF NOT EXISTS page_blocks(
   id INTEGER PRIMARY KEY AUTOINCREMENT, page_id INTEGER NOT NULL, type TEXT NOT NULL,
   props TEXT NOT NULL DEFAULT '{}', sort INTEGER NOT NULL DEFAULT 0);
@@ -120,6 +148,43 @@ CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id INTEGER NOT 
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
+
+// Keep older local SQLite files compatible with the expanded storefront intake record.
+if (db.kind === "sqlite") {
+  const leadColumns = new Set((await db.prepare("PRAGMA table_info(leads)").all()).map((column) => column.name));
+  const additions = [
+    ["email", "TEXT"], ["phone", "TEXT"], ["preferred_channel", "TEXT"],
+    ["contact_consent", "INTEGER"], ["is_returning", "INTEGER"], ["identity_review", "INTEGER"],
+    ["consent_at", "TEXT"], ["consent_version", "TEXT"],
+    ["landing_path", "TEXT"], ["referrer", "TEXT"], ["utm_source", "TEXT"],
+    ["utm_medium", "TEXT"], ["utm_campaign", "TEXT"],
+  ];
+  for (const [name, type] of additions) {
+    if (!leadColumns.has(name)) await db.exec(`ALTER TABLE leads ADD COLUMN ${name} ${type}`);
+  }
+
+  const quoteColumns = new Set((await db.prepare("PRAGMA table_info(quotes)").all()).map((column) => column.name));
+  const quoteAdditions = [["details", "TEXT NOT NULL DEFAULT '{}'"], ["version", "INTEGER NOT NULL DEFAULT 1"]];
+  for (const [name, type] of quoteAdditions) {
+    if (!quoteColumns.has(name)) await db.exec(`ALTER TABLE quotes ADD COLUMN ${name} ${type}`);
+  }
+  await db.exec(`CREATE TABLE IF NOT EXISTS quote_versions(
+    id INTEGER PRIMARY KEY AUTOINCREMENT, quote_id INTEGER NOT NULL, version INTEGER NOT NULL,
+    snapshot TEXT NOT NULL, actor TEXT, action TEXT, created_at TEXT,
+    UNIQUE(quote_id,version)
+  )`);
+  await db.exec("CREATE INDEX IF NOT EXISTS idx_quote_versions_quote ON quote_versions(quote_id, version)");
+
+  const taskColumns = new Set((await db.prepare("PRAGMA table_info(tasks)").all()).map((column) => column.name));
+  if (!taskColumns.has("site_visit_id")) await db.exec("ALTER TABLE tasks ADD COLUMN site_visit_id INTEGER");
+  await db.exec(`CREATE TABLE IF NOT EXISTS site_visits(
+    id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT UNIQUE NOT NULL, lead_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
+    scheduled_at TEXT NOT NULL, timezone TEXT NOT NULL DEFAULT 'Asia/Karachi', address TEXT NOT NULL,
+    owner TEXT DEFAULT 'Unassigned', status TEXT NOT NULL DEFAULT 'Scheduled', notes TEXT, outcome TEXT,
+    reminder_at TEXT, reminder_task_id INTEGER, audit TEXT NOT NULL DEFAULT '[]', created_at TEXT, updated_at TEXT
+  )`);
+  await db.exec("CREATE INDEX IF NOT EXISTS idx_site_visits_lead ON site_visits(lead_id, scheduled_at)");
+}
 
 /* ---------------- seed ---------------- */
 async function seed() {
@@ -255,8 +320,222 @@ async function ensureCrmDemo() {
 
 /* ---------------- helpers ---------------- */
 const rowProduct = (r) => ({ ...JSON.parse(r.json), price: r.price, inStock: !!r.in_stock, stockQty: r.stock_qty, updatedAt: r.updated_at });
-const rowQuote = (r) => ({ id: r.id, ref: r.ref, customer: r.customer, contact: r.contact, items: JSON.parse(r.items), total: r.total, status: r.status, source: r.source, note: r.note, audit: JSON.parse(r.audit || "[]"), createdAt: r.created_at, updatedAt: r.updated_at });
-const rowLead = (r) => ({ id: r.id, ref: r.ref, name: r.name, interest: r.interest, source: r.source, contact: r.contact, status: r.status, owner: r.owner, note: r.note, createdAt: r.created_at, updatedAt: r.updated_at });
+const safeJson = (value, fallback) => { try { return JSON.parse(value ?? ""); } catch { return fallback; } };
+const rowQuote = (r) => ({
+  id: r.id, ref: r.ref, customer: r.customer, contact: r.contact, leadId: r.lead_id ?? null,
+  items: safeJson(r.items, []), total: Number(r.total) || 0,
+  status: r.status, source: r.source, note: r.note, details: safeJson(r.details, {}), version: Number(r.version) || 1,
+  audit: safeJson(r.audit, []), createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowQuoteVersion = (r) => ({ id: r.id, quoteId: r.quote_id, version: r.version,
+  snapshot: safeJson(r.snapshot, {}), actor: r.actor, action: r.action, createdAt: r.created_at });
+const rowQuoteTemplate = (r) => ({
+  ...normalizeQuoteTemplate(safeJson(r.template, {}), r.id), updatedAt: r.updated_at,
+});
+const QUOTE_STATUSES = new Set(["Draft", "Review", "Approval", "Sent", "Viewed", "Negotiation", "Revised", "Accepted", "Approved", "Rejected", "Expired", "Cancelled"]);
+const quoteInputError = (message) => Object.assign(new Error(message), { statusCode: 400 });
+const roundMoney = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+const quoteText = (value, max = 240) => String(value ?? "").trim().slice(0, max);
+const lahoreToday = () => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date()).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+const quoteDate = (value, label, fallback = "") => {
+  const text = quoteText(value, 10);
+  if (!text) return fallback;
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(text) && !Number.isNaN(Date.parse(text + "T00:00:00Z"))
+    && new Date(text + "T00:00:00Z").toISOString().slice(0, 10) === text;
+  if (!valid) throw quoteInputError(`${label} must be a valid YYYY-MM-DD date`);
+  return text;
+};
+const quoteNumber = (value, label, { fallback = 0, min = 0, max = 1_000_000_000_000 } = {}) => {
+  if (value == null || value === "") return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < min || n > max) throw quoteInputError(`${label} must be between ${min} and ${max}`);
+  return n;
+};
+const QUOTE_TEMPLATE_PAYMENT_NOTE = "Final payment terms will be included in formal quotation.";
+const QUOTE_TEMPLATE_BLOCK_TYPES = new Set(["brand", "title", "meta", "customer", "terms", "payment-note", "contact", "custom"]);
+function normalizeQuoteTemplate(value, requestedId = "") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw quoteInputError("quotation template must be an object");
+  const id = quoteText(requestedId || value.id, 100);
+  const name = quoteText(value.name, 100);
+  if (!id) throw quoteInputError("quotation template id is required");
+  if (!name) throw quoteInputError("quotation template name is required");
+  const seen = new Set();
+  const normalizeBlocks = (input, region) => {
+    if (!Array.isArray(input)) return [];
+    if (input.length > 30) throw quoteInputError(`${region} may contain at most 30 blocks`);
+    return input.map((raw, index) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw quoteInputError(`${region} block ${index + 1} is invalid`);
+      const type = quoteText(raw.type, 32);
+      if (!QUOTE_TEMPLATE_BLOCK_TYPES.has(type)) throw quoteInputError(`${region} block ${index + 1} has an unsupported type`);
+      let blockId = quoteText(raw.id, 100);
+      if (!blockId || seen.has(blockId)) blockId = `${region}-${crypto.randomUUID()}`;
+      seen.add(blockId);
+      const isPaymentNote = type === "payment-note";
+      return {
+        id: blockId,
+        type,
+        label: quoteText(raw.label, 100) || (isPaymentNote ? "Formal payment note" : "Text block"),
+        content: isPaymentNote ? QUOTE_TEMPLATE_PAYMENT_NOTE : String(raw.content ?? "").slice(0, 4000),
+        visible: isPaymentNote || raw.visible !== false,
+      };
+    });
+  };
+  const header = normalizeBlocks(value.header, "header").filter((item) => item.type !== "payment-note");
+  const footer = normalizeBlocks(value.footer, "footer");
+  let requiredPaymentNote = null;
+  const safeFooter = [];
+  for (const item of footer) {
+    if (item.type !== "payment-note") { safeFooter.push(item); continue; }
+    if (requiredPaymentNote) continue;
+    requiredPaymentNote = {
+      id: item.id, type: "payment-note", label: item.label || "Formal payment note",
+      content: QUOTE_TEMPLATE_PAYMENT_NOTE, visible: true,
+    };
+    safeFooter.push(requiredPaymentNote);
+  }
+  if (!requiredPaymentNote) {
+    if (safeFooter.length >= 30) throw quoteInputError("footer needs room for the required formal-payment block");
+    let paymentNoteId = "required-payment-note";
+    if (seen.has(paymentNoteId)) paymentNoteId = `footer-${crypto.randomUUID()}`;
+    safeFooter.push({ id: paymentNoteId, type: "payment-note", label: "Formal payment note", content: QUOTE_TEMPLATE_PAYMENT_NOTE, visible: true });
+  }
+  const brandColor = /^#[0-9a-f]{6}$/i.test(String(value.brandColor ?? "")) ? String(value.brandColor) : "#318b45";
+  const companyEmail = quoteText(value.companyEmail, 254).toLowerCase();
+  if (companyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyEmail)) throw quoteInputError("template company email must be valid");
+  const companyName = quoteText(value.companyName, 160) || "Woodex Furniture";
+  const logoText = quoteText(value.logoText, 3).toUpperCase() || companyName.trim().charAt(0).toUpperCase();
+  return {
+    id,
+    name,
+    brandColor,
+    logoText,
+    companyName,
+    companyAddress: quoteText(value.companyAddress, 500),
+    companyPhone: quoteText(value.companyPhone, 80),
+    companyEmail,
+    header,
+    footer: safeFooter,
+    ...(value.updatedAt ? { updatedAt: quoteText(value.updatedAt, 40) } : {}),
+  };
+}
+function normalizeQuotePayload(body = {}, previous = null) {
+  const has = (key) => Object.prototype.hasOwnProperty.call(body, key);
+  const customer = quoteText(has("customer") ? body.customer : previous?.customer, 120);
+  if (!customer) throw quoteInputError("customer is required");
+
+  const rawDetails = body.details && typeof body.details === "object" && !Array.isArray(body.details) ? body.details : {};
+  const detailsInput = { ...(previous?.details ?? {}), ...rawDetails };
+  for (const key of ["company", "email", "phone", "siteAddress"]) {
+    if (has(key)) detailsInput[key] = body[key];
+  }
+  if (has("address")) detailsInput.siteAddress = body.address;
+  const company = quoteText(detailsInput.company, 160);
+  const email = quoteText(detailsInput.email, 254).toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw quoteInputError("email must be valid");
+  const phone = quoteText(detailsInput.phone, 80);
+  if (phone && phone.replace(/\D/g, "").length < 7) throw quoteInputError("phone must contain at least 7 digits");
+  const siteAddress = quoteText(detailsInput.siteAddress, 500);
+  const currency = quoteText(detailsInput.currency || "PKR", 3).toUpperCase();
+  if (currency !== "PKR") throw quoteInputError("Only PKR is supported; currency conversion is not configured");
+
+  const issueDate = quoteDate(detailsInput.issueDate, "Issue date", previous?.details?.issueDate || lahoreToday());
+  const validUntil = quoteDate(detailsInput.validUntil, "Valid until", "");
+  if (validUntil && issueDate && validUntil < issueDate) throw quoteInputError("Valid until cannot be earlier than the issue date");
+  const discountPercent = quoteNumber(detailsInput.discountPercent, "Discount percent", { fallback: 0, min: 0, max: 100 });
+  const taxPercent = quoteNumber(detailsInput.taxPercent, "Tax percent", { fallback: 0, min: 0, max: 100 });
+  const shipping = roundMoney(quoteNumber(detailsInput.shipping, "Delivery / installation amount", { fallback: 0, min: 0 }));
+  const terms = String(detailsInput.terms ?? "").slice(0, 4000);
+  const requestedTemplateId = quoteText(detailsInput.quoteTemplateId, 100);
+  const rawTemplateSnapshot = detailsInput.quoteTemplateSnapshot && typeof detailsInput.quoteTemplateSnapshot === "object"
+    ? detailsInput.quoteTemplateSnapshot
+    : null;
+  const snapshotTemplateId = quoteText(rawTemplateSnapshot?.id, 100);
+  if (requestedTemplateId && snapshotTemplateId && requestedTemplateId !== snapshotTemplateId)
+    throw quoteInputError("quotation template id does not match its snapshot");
+  const quoteTemplateSnapshot = rawTemplateSnapshot
+    ? normalizeQuoteTemplate(rawTemplateSnapshot, requestedTemplateId)
+    : null;
+  const quoteTemplateId = quoteTemplateSnapshot?.id ?? requestedTemplateId;
+
+  const rawItems = has("items") ? body.items : previous?.items;
+  if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > 100)
+    throw quoteInputError("at least one and at most 100 quote items are required");
+  const items = rawItems.map((raw, index) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw quoteInputError(`item ${index + 1} is invalid`);
+    const name = quoteText(raw.name, 160);
+    if (!name) throw quoteInputError(`item ${index + 1} needs a name`);
+    const price = roundMoney(quoteNumber(raw.price, `item ${index + 1} unit price`, { fallback: 0, min: 0, max: 1_000_000_000 }));
+    const qty = Math.round(quoteNumber(raw.qty, `item ${index + 1} quantity`, { fallback: 1, min: 0.01, max: 100_000 }) * 100) / 100;
+    const item = {
+      ...(raw.id != null ? { id: quoteText(raw.id, 80) } : {}),
+      ...(raw.productId != null ? { productId: quoteText(raw.productId, 120) } : {}),
+      name, price, qty, lineTotal: roundMoney(price * qty),
+    };
+    for (const key of ["category", "series", "material", "finish", "customNotes"]) {
+      if (raw[key] != null && String(raw[key]).trim()) item[key] = quoteText(raw[key], key === "customNotes" ? 500 : 120);
+    }
+    for (const key of ["width", "height", "depth"]) {
+      if (raw[key] != null && raw[key] !== "") item[key] = quoteNumber(raw[key], `item ${index + 1} ${key}`, { min: 0, max: 100_000 });
+    }
+    if (raw.dimensionUnit) {
+      const unit = quoteText(raw.dimensionUnit, 8).toLowerCase();
+      if (!["mm", "cm", "in"].includes(unit)) throw quoteInputError(`item ${index + 1} dimension unit must be mm, cm or in`);
+      item.dimensionUnit = unit;
+    }
+    return item;
+  });
+
+  const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
+  const discount = roundMoney(subtotal * discountPercent / 100);
+  const tax = roundMoney((subtotal - discount) * taxPercent / 100);
+  const total = roundMoney(subtotal - discount + tax + shipping);
+  const details = {
+    company, email, phone, siteAddress, issueDate, validUntil, currency,
+    discountPercent, taxPercent, shipping, terms,
+    ...(quoteTemplateId ? { quoteTemplateId } : {}),
+    ...(quoteTemplateSnapshot ? { quoteTemplateSnapshot } : {}),
+    calculation: { currency, subtotal, discount, tax, shipping, total },
+  };
+  const contactValue = has("contact") ? quoteText(body.contact, 320)
+    : previous?.contact || [phone, email].filter(Boolean).join(" · ");
+  return {
+    customer, contact: contactValue || [phone, email].filter(Boolean).join(" · ") || null,
+    items, total, details,
+    source: quoteText(has("source") ? body.source : previous?.source || "storefront", 80) || "storefront",
+    note: has("note") ? (quoteText(body.note, 2000) || null) : (previous?.note ?? null),
+  };
+}
+const quoteContentSnapshot = (quote) => ({
+  customer: quote.customer, contact: quote.contact, leadId: quote.leadId ?? null,
+  items: quote.items, total: quote.total, source: quote.source, note: quote.note, details: quote.details,
+});
+async function insertQuoteVersion(quoteId, version, quote, actor, action, createdAt = now()) {
+  await db.prepare("INSERT INTO quote_versions(quote_id,version,snapshot,actor,action,created_at) VALUES(?,?,?,?,?,?)")
+    .run(quoteId, version, JSON.stringify(quoteContentSnapshot(quote)), actor, action, createdAt);
+}
+async function ensureQuoteVersionBaselines() {
+  const rows = await db.prepare("SELECT * FROM quotes ORDER BY id").all();
+  for (const row of rows) {
+    const version = Number(row.version) || 1;
+    const exists = await db.prepare("SELECT id FROM quote_versions WHERE quote_id=? AND version=?").get(row.id, version);
+    if (!exists) await insertQuoteVersion(row.id, version, rowQuote(row), "System", "Initial version captured", row.created_at || now());
+  }
+}
+const rowLead = (r) => ({
+  id: r.id, ref: r.ref, name: r.name, company: r.company, interest: r.interest, source: r.source,
+  contact: r.contact, email: r.email, phone: r.phone, preferredChannel: r.preferred_channel,
+  contactConsent: r.contact_consent == null ? null : !!Number(r.contact_consent),
+  returning: r.is_returning == null ? null : !!Number(r.is_returning),
+  identityReview: r.identity_review == null ? null : !!Number(r.identity_review),
+  consentAt: r.consent_at, consentVersion: r.consent_version, landingPath: r.landing_path,
+  referrer: r.referrer, utmSource: r.utm_source, utmMedium: r.utm_medium, utmCampaign: r.utm_campaign,
+  status: r.status, owner: r.owner, note: r.note, createdAt: r.created_at, updatedAt: r.updated_at,
+});
 const rowOrder = (r) => ({ id: r.id, ref: r.ref, customer: r.customer, items: JSON.parse(r.items), total: r.total, status: r.status, stage: r.stage, owner: r.owner, due: r.due, createdAt: r.created_at, updatedAt: r.updated_at });
 const rowInvoice = (r) => ({ id: r.id, ref: r.ref, quoteId: r.quote_id, orderId: r.order_id, customer: r.customer,
   items: JSON.parse(r.items || "[]"), subtotal: r.subtotal, discount: r.discount, tax: r.tax, shipping: r.shipping,
@@ -267,15 +546,24 @@ const decorateInvoice = (r) => { const j = rowInvoice(r);
   return j; };
 const rowReturn = (r) => ({ id: r.id, ref: r.ref, orderId: r.order_id, customer: r.customer, item: r.item, reason: r.reason,
   state: r.state, refundAmount: r.refund_amount, resolution: r.resolution, createdAt: r.created_at, updatedAt: r.updated_at });
-const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((e) => { if (!res.headersSent) res.status(500).json({ error: String(e.message || e) }); else res.end(); });
+const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((e) => { if (!res.headersSent) res.status(Number(e.statusCode) || 500).json({ error: String(e.message || e) }); else res.end(); });
 /* TODO-2 (QA): compound write flows run atomically — a mid-flow throw rolls the whole
    route back (no order-without-invoice half-state). */
 const wtx = (fn) => db.transaction(fn);
 const wrapTx = (fn) => wrap(async (req, res) => wtx(() => fn(req, res)));
+// For public capture routes, return success only after the durable transaction commits.
+const wrapTxResponse = (fn) => wrap(async (req, res) => {
+  const afterCommit = [];
+  const result = await db.transaction(() => fn(req, afterCommit));
+  for (const effect of afterCommit) {
+    try { effect(); } catch (error) { console.error("[woodex-api] post-commit effect failed:", error.message); }
+  }
+  res.status(result?.status ?? 200).json(result?.body ?? result);
+});
 
 /* ---------------- app ---------------- */
 const app = express();
-app.set("trust proxy", "loopback"); // dev/prod sit behind a loopback proxy (vite, e2b) — req.ip must be the real client for the login backstop
+app.set("trust proxy", IS_SERVERLESS ? 1 : "loopback"); // Vercel terminates at a trusted single proxy hop; local previews trust only their loopback proxy.
 app.use(express.json({ limit: "2mb" }));
 
 /* ---- Foundation: session auth + RBAC (bearer token; no cookies) ---- */
@@ -290,11 +578,13 @@ const ROLES = Object.keys(ROLE_CAPS);
 const capsFor = (m, path) => {
   if (path.startsWith("/api/auth")) return "auth";
   if (path.startsWith("/api/users")) return "users.manage";
+  if (path === "/api/events") return "owner-only";
+  if (path === "/api/blocks") return "page.manage";
   if (path === "/api/track") return "purge";
   if (path.startsWith("/api/pages") || path.startsWith("/api/saved-sections") || path.startsWith("/api/media")) return "page.manage";
   if (path.startsWith("/api/theme") || path.startsWith("/api/target")) return "theme.manage";
-  if (path.startsWith("/api/leads") || path.startsWith("/api/clients") || path.startsWith("/api/inbox") || path.startsWith("/api/tasks")) return "crm.manage";
-  if (path.startsWith("/api/quotes")) return "quote.manage";
+  if (path.startsWith("/api/leads") || path.startsWith("/api/clients") || path.startsWith("/api/inbox") || path.startsWith("/api/tasks") || path.startsWith("/api/site-visits")) return "crm.manage";
+  if (path.startsWith("/api/quotes") || path.startsWith("/api/quote-templates")) return "quote.manage";
   if (path.startsWith("/api/orders")) return "order.manage";
   if (path.startsWith("/api/invoices") || path.startsWith("/api/payments") || path.startsWith("/api/returns")) return "finance.manage";
   if (path.startsWith("/api/products") || path.startsWith("/api/materials") || path.startsWith("/api/services") || path.startsWith("/api/categories") || path.startsWith("/api/collections")) return "catalog.manage";
@@ -302,16 +592,24 @@ const capsFor = (m, path) => {
 };
 const isPublic = (m, p) =>
   m === "GET" && (
-    p === "/api/health" || p === "/api/events" || p === "/api/theme" ||
+    p === "/api/health" || p === "/api/theme" ||
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
-    /^\/api\/orders\/lookup$/.test(p) || /^\/api\/pages\/[^/]+\/public$/.test(p) ||
+    /^\/api\/pages\/[^/]+\/public$/.test(p) ||
     p.startsWith("/img/") || p === "/uploads" || /^\/(uploads|img)\//.test(p) ||
     p === "/sitemap.xml" || p === "/robots.txt"
-  ) || (m === "POST" && /^\/api\/(track|leads|quotes|orders|auth\/login)$/.test(p));
+  ) || (m === "POST" && (
+    /^\/api\/(track|leads|quotes|orders|auth\/login)$/.test(p)
+    || /^\/api\/orders\/lookup$/.test(p)
+    || /^\/api\/leads\/\d+\/whatsapp-handoff$/.test(p)
+  ));
+const requestToken = (req) => {
+  const auth = String(req.headers.authorization ?? "");
+  const bearer = auth.match(/^Bearer\s+(.+)$/i)?.[1] ?? "";
+  return bearer || String(req.headers["x-woodex-session"] ?? "");
+};
 app.use(async (req, res, next) => { try {
   if (isPublic(req.method, req.path)) return next();
-  const auth = String(req.headers.authorization ?? "");
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : String(req.query.token ?? "");
+  const token = requestToken(req);
   if (!token) return res.status(401).json({ error: "sign in required", code: "no_token" });
   const u = (await (db.prepare("SELECT u.id, u.email, u.name, u.role, u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(token)));
   if (!u) return res.status(401).json({ error: "session expired — sign in again", code: "bad_token" });
@@ -320,10 +618,25 @@ app.use(async (req, res, next) => { try {
   req.user = u; req.actor = u.name;
   const caps = ROLE_CAPS[u.role] ?? [];
   if (req.path.startsWith("/api/users") && req.method === "GET" && !caps.includes("*") && !caps.includes("users.manage"))
-    return res.status(403).json({ error: "role '" + u.role + "' may not view the team roster — owners only", need: "users.manage" });
-  if (req.method !== "GET") {
-    const need = capsFor(req.method, req.path);
-    const moveOnly = (need === "quote.manage" && caps.includes("quote.view-move")) || (need === "order.manage" && caps.includes("order.view-move"));
+    return res.status(403).json({ error: "team roster is owner-only", need: "users.manage" });
+
+  const selfAuthRoute = (req.method === "GET" && req.path === "/api/auth/me")
+    || (req.method === "POST" && req.path === "/api/auth/logout");
+  const need = capsFor(req.method, req.path);
+  if (!selfAuthRoute && req.method === "GET") {
+    const readOnlyMove = (need === "quote.manage" && caps.includes("quote.view-move"))
+      || (need === "order.manage" && caps.includes("order.view-move"));
+    if (!caps.includes("*") && !caps.includes(need) && !readOnlyMove)
+      return res.status(403).json({ error: `role '${u.role}' may not read ${need}`, need });
+  }
+  if (req.method !== "GET" && !selfAuthRoute) {
+    const quoteMoveOnly = need === "quote.manage" && caps.includes("quote.view-move");
+    const orderMoveOnly = need === "order.manage" && caps.includes("order.view-move");
+    const moveOnly = quoteMoveOnly || orderMoveOnly;
+    if (quoteMoveOnly && (req.method !== "PATCH" || Object.keys(req.body ?? {}).some((key) => key !== "status")))
+      return res.status(403).json({ error: `role '${u.role}' may only move quote status`, need: "quote.manage" });
+    if (orderMoveOnly && (req.method !== "PATCH" || Object.keys(req.body ?? {}).some((key) => !["status", "stage"].includes(key))))
+      return res.status(403).json({ error: `role '${u.role}' may only move order status or stage`, need: "order.manage" });
     if (!caps.includes("*") && !caps.includes(need) && !moveOnly)
       return res.status(403).json({ error: `role '${u.role}' may not ${need} — an owner can grant it`, need });
   }
@@ -334,18 +647,82 @@ const hashPass = (pw, salt = crypto.randomBytes(8).toString("hex")) =>
 const loginBucket = new Map();
 
 
-app.get("/api/health", wrap(async (req, res) => {
-  const c = async (t) => (await (db.prepare(`SELECT COUNT(*) n FROM ${t}`).get())).n;
-  res.json({ ok: true, db: db.kind, ts: now(), counts: { products: (await (c("products"))), leads: (await (c("leads"))), quotes: (await (c("quotes"))), orders: (await (c("orders"))), users: (await (c("users"))), invoices: (await (c("invoices"))) } });
-}));
+app.get("/api/health", (req, res) => {
+  // Keep the public liveness response deliberately free of customer and finance counts.
+  res.json({ ok: true, service: "woodex-api", ts: now() });
+});
+
+const PRODUCT_ID_RE = /^[a-z0-9][a-z0-9-]{0,78}[a-z0-9]$/;
+const productImageRef = (value) => {
+  const image = String(value ?? "").trim();
+  if (/^https:\/\//i.test(image)) return image;
+  if (image.startsWith("/img/")) return /^[\w.-]+\.(jpg|jpeg|png|webp)$/i.test(image.slice(5)) ? image.slice(5) : null;
+  return /^[\w.-]+\.(jpg|jpeg|png|webp)$/i.test(image) ? image : null;
+};
+const productText = (value, max = 4000) => String(value ?? "").trim().slice(0, max);
+function normalizeProduct(input, base = {}, id = base.id) {
+  const raw = { ...base, ...input, id };
+  const name = productText(raw.name, 140);
+  const category = productText(raw.category, 80);
+  const description = productText(raw.description, 5000);
+  const shortDescription = productText(raw.shortDescription || description, 240);
+  const price = Number(raw.price);
+  const stockQty = Number(raw.stockQty ?? 0);
+  if (!name) return { error: "name is required" };
+  if (!category) return { error: "category is required" };
+  if (!Number.isFinite(price) || price <= 0) return { error: "price must be greater than 0" };
+  if (!Number.isInteger(stockQty) || stockQty < 0) return { error: "stockQty must be a non-negative whole number" };
+  if (raw.images !== undefined && !Array.isArray(raw.images)) return { error: "images must be an array" };
+  const images = (Array.isArray(raw.images) ? raw.images : []).map(productImageRef);
+  if (images.some((image) => !image)) return { error: "images must be library file names or secure https URLs" };
+  if (!images.length) return { error: "at least one product image is required" };
+  if (raw.colors !== undefined && !Array.isArray(raw.colors)) return { error: "colors must be an array" };
+  const colors = (Array.isArray(raw.colors) ? raw.colors : []).map((color) => ({
+    name: productText(color?.name, 60),
+    hex: productText(color?.hex, 9),
+  })).filter((color) => color.name && color.hex);
+  if (colors.some((color) => !/^#[\da-f]{3,8}$/i.test(color.hex))) return { error: "each color needs a valid hex value" };
+  if (raw.specifications !== undefined && !Array.isArray(raw.specifications)) return { error: "specifications must be an array" };
+  const specifications = (Array.isArray(raw.specifications) ? raw.specifications : []).map((spec) => ({
+    label: productText(spec?.label, 80), value: productText(spec?.value, 240),
+  })).filter((spec) => spec.label || spec.value);
+  if (raw.features !== undefined && !Array.isArray(raw.features)) return { error: "features must be an array" };
+  const features = (Array.isArray(raw.features) ? raw.features : []).map((feature) => productText(feature, 180)).filter(Boolean).slice(0, 30);
+  const originalPriceValue = raw.originalPrice === "" || raw.originalPrice == null ? null : Number(raw.originalPrice);
+  if (originalPriceValue !== null && (!Number.isFinite(originalPriceValue) || originalPriceValue <= 0)) return { error: "originalPrice must be greater than 0 or blank" };
+  if (typeof raw.inStock !== "boolean") return { error: "inStock must be a boolean" };
+  const rating = Number(raw.rating ?? 0);
+  const reviews = Number(raw.reviews ?? 0);
+  if (!Number.isFinite(rating) || rating < 0 || rating > 5) return { error: "rating must be between 0 and 5" };
+  if (!Number.isInteger(reviews) || reviews < 0) return { error: "reviews must be a non-negative whole number" };
+  return { value: {
+    id, name, category,
+    subcategory: productText(raw.subcategory, 80) || undefined,
+    series: productText(raw.series, 80) || undefined,
+    price,
+    originalPrice: originalPriceValue ?? undefined,
+    description,
+    shortDescription,
+    images,
+    colors,
+    specifications,
+    features,
+    inStock: raw.inStock,
+    stockQty,
+    isNew: raw.isNew === true,
+    isBestSeller: raw.isBestSeller === true,
+    rating,
+    reviews,
+  } };
+}
 
 app.get("/api/products", wrap(async (req, res) => {
-  const q = (req.query.q || "").toLowerCase();
+  const q = String(req.query.q || "").toLowerCase();
   const sub = req.query.sub || "";
   let rows = (await (db.prepare("SELECT * FROM products ORDER BY id").all()));
   let items = rows.map(rowProduct);
   if (sub) items = items.filter((p) => p.subcategory === sub);
-  if (q) items = items.filter((p) => (p.name + " " + (p.series ?? "")).toLowerCase().includes(q));
+  if (q) items = items.filter((p) => (p.name + " " + (p.series ?? "") + " " + (p.category ?? "")).toLowerCase().includes(q));
   res.json({ total: items.length, items });
 }));
 
@@ -364,61 +741,199 @@ app.get("/api/products/:id", wrap(async (req, res) => {
   res.json(rowProduct(r));
 }));
 
+app.post("/api/products", wrap(async (req, res) => {
+  const body = req.body ?? {};
+  const id = String(body.id ?? "").trim().toLowerCase();
+  if (!PRODUCT_ID_RE.test(id)) return res.status(400).json({ error: "id must be a lowercase product slug (letters, numbers and dashes; 2–80 chars)" });
+  if (await db.prepare("SELECT id FROM products WHERE id=?").get(id)) return res.status(409).json({ error: "a product with this id already exists" });
+  const parsed = normalizeProduct({ ...body, stockQty: body.stockQty ?? (body.inStock === false ? 0 : 99), inStock: body.inStock ?? true }, {}, id);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const t = now();
+  const product = parsed.value;
+  await db.prepare("INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)")
+    .run(id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, product.stockQty, t);
+  emit("products", { title: "Product created: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" });
+  res.status(201).json(rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(id)));
+}));
+
 app.patch("/api/products/:id", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
-  const { price, inStock, stockQty } = req.body ?? {};
-  const json = JSON.parse(r.json);
-  if (typeof price === "number" && price > 0) json.price = price;
-  if (typeof inStock === "boolean") json.inStock = inStock;
-  (await (db.prepare("UPDATE products SET json=?, price=?, in_stock=?, stock_qty=?, updated_at=? WHERE id=?").run(
-    JSON.stringify(json),
-    json.price,
-    json.inStock ? 1 : 0,
-    typeof stockQty === "number" ? stockQty : r.stock_qty,
-    now(),
-    req.params.id
-  )));
-  const out = rowProduct((await (db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id))));
+  const base = { ...JSON.parse(r.json), stockQty: r.stock_qty };
+  const parsed = normalizeProduct(req.body ?? {}, base, r.id);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const product = parsed.value;
+  const t = now();
+  await db.prepare("UPDATE products SET json=?, price=?, in_stock=?, stock_qty=?, updated_at=? WHERE id=?")
+    .run(JSON.stringify(product), product.price, product.inStock ? 1 : 0, product.stockQty, t, r.id);
+  const out = rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(r.id));
+  emit("products", { title: "Product updated: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" });
   res.json(out);
+}));
+
+app.delete("/api/products/:id", wrap(async (req, res) => {
+  const r = await db.prepare("SELECT * FROM products WHERE id=?").get(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  await db.prepare("DELETE FROM products WHERE id=?").run(r.id);
+  emit("products", { title: "Product removed: " + JSON.parse(r.json).name.slice(0, 60), who: req.actor ?? "Catalog" });
+  res.json({ deleted: r.id });
 }));
 
 app.get("/api/materials", wrap(async (req, res) => res.json((await (db.prepare("SELECT json FROM materials").all())).map((r) => JSON.parse(r.json)))));
 app.get("/api/services", wrap(async (req, res) => res.json((await (db.prepare("SELECT json FROM services").all())).map((r) => JSON.parse(r.json)))));
 
 /* Quotes — storefront submits, dashboard works the pipeline */
+app.get("/api/quote-templates", wrap(async (req, res) => {
+  const rows = await db.prepare("SELECT * FROM quote_templates ORDER BY datetime(updated_at) DESC, lower(name)").all();
+  res.json({ total: rows.length, items: rows.map(rowQuoteTemplate) });
+}));
+app.post("/api/quote-templates", wrap(async (req, res) => {
+  const id = `qt-${crypto.randomUUID()}`;
+  const t = now();
+  const template = { ...normalizeQuoteTemplate(req.body, id), updatedAt: t };
+  await db.prepare("INSERT INTO quote_templates(id,name,template,created_at,updated_at) VALUES(?,?,?,?,?)")
+    .run(template.id, template.name, JSON.stringify(template), t, t);
+  res.status(201).json(template);
+}));
+app.patch("/api/quote-templates/:id", wrap(async (req, res) => {
+  const existing = await db.prepare("SELECT * FROM quote_templates WHERE id=?").get(req.params.id);
+  if (!existing) return res.status(404).json({ error: "quotation template not found" });
+  const t = now();
+  const template = { ...normalizeQuoteTemplate(req.body, existing.id), updatedAt: t };
+  await db.prepare("UPDATE quote_templates SET name=?, template=?, updated_at=? WHERE id=?")
+    .run(template.name, JSON.stringify(template), t, existing.id);
+  res.json(template);
+}));
+app.delete("/api/quote-templates/:id", wrap(async (req, res) => {
+  const result = await db.prepare("DELETE FROM quote_templates WHERE id=?").run(req.params.id);
+  if (!result.changes) return res.status(404).json({ error: "quotation template not found" });
+  res.json({ id: req.params.id, deleted: true });
+}));
+
 app.get("/api/quotes", wrap(async (req, res) => {
   let rows = (await (db.prepare("SELECT * FROM quotes ORDER BY datetime(created_at) DESC").all()));
   if (req.query.status) rows = rows.filter((r) => r.status === req.query.status);
   res.json({ total: rows.length, items: rows.map(rowQuote) });
 }));
-app.post("/api/quotes", wrapTx(async (req, res) => {
-  const { customer, contact, items = [], total, note, source = "storefront" } = req.body ?? {};
-  if (!customer || !items.length) return res.status(400).json({ error: "customer and items are required" });
-  const ref = req.body.ref || (await (nextRef("quotes", "Q-", 2295)));
-  const sum = typeof total === "number" ? total : items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
-  const t = now();
-  const info = (await (db.prepare("INSERT INTO quotes(ref,customer,contact,items,total,status,source,note,audit,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
-    .run(ref, customer, contact ?? null, JSON.stringify(items), sum, "Draft", source, note ?? null,
-      JSON.stringify([{ who: source === "storefront" ? customer : "You", action: "requested quotation via " + source, time: t }]), t, t)));
-  const qLed = rowQuote((await (db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid))));
-  { const m = (await (matchOrCreateClient({ name: customer, contact: contact ?? note, source }))); (await (linkClient(m.client.id, "quote", qLed.id))); }
-  emit("quotes", { title: "Quotation " + ref + " requested", who: "Storefront" }); res.status(201).json(qLed);
+app.get("/api/quotes/:id/versions", wrap(async (req, res) => {
+  const quote = await db.prepare("SELECT id FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!quote) return res.status(404).json({ error: "not found" });
+  const rows = await db.prepare("SELECT * FROM quote_versions WHERE quote_id=? ORDER BY version").all(quote.id);
+  res.json({ quoteId: quote.id, items: rows.map(rowQuoteVersion) });
 }));
-app.patch("/api/quotes/:id", wrap(async (req, res) => {
-  const r = (await (db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
-  if (!r) return res.status(404).json({ error: "not found" });
-  const { status, note, customer, contact } = req.body ?? {};
-  const audit = JSON.parse(r.audit || "[]");
-  if (status) audit.unshift({ who: req.actor ?? "You", action: "moved to " + status, time: now() });
-  if (note) audit.unshift({ who: req.actor ?? "You", action: "noted: " + note, time: now() });
-  (await (db.prepare("UPDATE quotes SET status=?, note=?, customer=?, contact=?, audit=?, updated_at=? WHERE id=?").run(
-    status ?? r.status, note ?? r.note, customer ?? r.customer, contact ?? r.contact, JSON.stringify(audit), now(), r.id
-  )));
-  const out = rowQuote((await (db.prepare("SELECT * FROM quotes WHERE id=?").get(r.id))));
-  if (status === "Sent") (await (db.prepare("INSERT INTO tasks(quote_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
-    .run(r.id, "Follow up on quote " + r.ref + " (" + r.customer + ")", new Date(Date.now() + 864e5 * 3).toISOString().slice(0, 10), "normal", now(), now())));
-  if (status) emit("quotes", { title: "Quotation " + r.ref + " → " + status, who: req.actor ?? "Sales" });
+app.get("/api/quotes/:id", wrap(async (req, res) => {
+  const row = await db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!row) return res.status(404).json({ error: "not found" });
+  const client = await db.prepare("SELECT client_id FROM client_links WHERE entity='quote' AND entity_id=?").get(row.id);
+  res.json({ ...rowQuote(row), clientId: client?.client_id ?? null });
+}));
+app.post("/api/quotes", wrapTxResponse(async (req, afterCommit) => {
+  const body = req.body ?? {};
+  const source = req.actor ? (quoteText(body.source || "dashboard", 80) || "dashboard") : "storefront";
+  const quote = normalizeQuotePayload({ ...body, source });
+  const status = req.actor ? (quoteText(body.status || "Draft", 32) || "Draft") : "Draft";
+  if (!QUOTE_STATUSES.has(status)) throw quoteInputError("status is not supported");
+
+  const captureLead = !body.leadId && (source === "storefront" || body.captureLead === true);
+  const leadInput = captureLead ? normalizeLeadInput({
+    ...body,
+    name: quote.customer,
+    company: quote.details.company,
+    contact: quote.contact,
+    email: quote.details.email,
+    phone: quote.details.phone,
+    source: body.leadSource || "E-Quotation Form",
+    interest: body.interest || `Quote request: ${quote.items.map((item) => item.name).slice(0, 6).join(", ")}`,
+    note: body.leadNote ?? quote.note,
+  }, "E-Quotation Form") : null;
+  if (leadInput?.error) throw quoteInputError(leadInput.error);
+
+  const requestedLeadId = req.actor && body.leadId != null && body.leadId !== "" ? Number(body.leadId) : null;
+  if (requestedLeadId != null && (!Number.isSafeInteger(requestedLeadId) || requestedLeadId < 1))
+    throw quoteInputError("leadId must be a valid lead id");
+  const match = await matchOrCreateClient({
+    name: quote.customer, company: quote.details.company, contact: quote.contact,
+    email: quote.details.email, phone: quote.details.phone, source, note: quote.note,
+  });
+  if (requestedLeadId != null) {
+    const lead = await db.prepare("SELECT id FROM leads WHERE id=?").get(requestedLeadId);
+    if (!lead) throw quoteInputError("selected lead was not found");
+    const leadLink = await db.prepare("SELECT client_id FROM client_links WHERE entity='lead' AND entity_id=?").get(requestedLeadId);
+    if (leadLink && Number(leadLink.client_id) !== Number(match.client.id))
+      throw Object.assign(new Error("selected lead belongs to a different client"), { statusCode: 409 });
+    if (!leadLink) await linkClient(match.client.id, "lead", requestedLeadId);
+  }
+  const linkedLead = leadInput
+    ? await createLeadRecord(leadInput, match.client.id, match.created, match.returning, match.needsReview, afterCommit)
+    : null;
+  const leadId = linkedLead?.id ?? requestedLeadId ?? null;
+  const ref = body.ref || (await nextRef("quotes", "Q-", 2295));
+  const t = now();
+  const audit = [{
+    who: req.actor ?? quote.customer,
+    action: (source === "storefront" ? "requested quotation via " : "created quotation via ") + source,
+    time: t,
+  }];
+  const info = await db.prepare(`INSERT INTO quotes(ref,customer,contact,lead_id,items,total,status,source,note,audit,details,version,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    ref, quote.customer, quote.contact, leadId, JSON.stringify(quote.items), quote.total, status,
+    source, quote.note, JSON.stringify(audit), JSON.stringify(quote.details), 1, t, t,
+  );
+  const stored = rowQuote(await db.prepare("SELECT * FROM quotes WHERE id=?").get(info.lastInsertRowid));
+  await linkClient(match.client.id, "quote", stored.id);
+  await insertQuoteVersion(stored.id, 1, stored, req.actor ?? (source === "storefront" ? quote.customer : "System"), "Quote created", t);
+  afterCommit.push(() => emit("quotes", { title: "Quotation " + ref + " created", who: req.actor ?? "Storefront" }));
+  return { status: 201, body: { ...stored, clientId: match.client.id } };
+}));
+app.patch("/api/quotes/:id", wrapTx(async (req, res) => {
+  const row = await db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!row) return res.status(404).json({ error: "not found" });
+  const body = req.body ?? {};
+  const previous = rowQuote(row);
+  const has = (key) => Object.prototype.hasOwnProperty.call(body, key);
+  const status = has("status") ? quoteText(body.status, 32) : row.status;
+  if (!QUOTE_STATUSES.has(status)) return res.status(400).json({ error: "status is not supported" });
+
+  const hasContentInput = ["customer", "contact", "items", "details", "source", "note", "company", "email", "phone", "siteAddress", "address", "leadId"].some(has);
+  const quote = hasContentInput ? normalizeQuotePayload(body, previous) : previous;
+  let leadId = previous.leadId ?? null;
+  if (has("leadId")) {
+    if (body.leadId == null || body.leadId === "") leadId = null;
+    else {
+      leadId = Number(body.leadId);
+      if (!Number.isSafeInteger(leadId) || leadId < 1) return res.status(400).json({ error: "leadId must be a valid lead id" });
+      const lead = await db.prepare("SELECT id FROM leads WHERE id=?").get(leadId);
+      if (!lead) return res.status(400).json({ error: "selected lead was not found" });
+      const [clientLink, leadLink] = await Promise.all([
+        db.prepare("SELECT client_id FROM client_links WHERE entity='quote' AND entity_id=?").get(row.id),
+        db.prepare("SELECT client_id FROM client_links WHERE entity='lead' AND entity_id=?").get(leadId),
+      ]);
+      if (clientLink && leadLink && Number(clientLink.client_id) !== Number(leadLink.client_id))
+        return res.status(409).json({ error: "selected lead belongs to a different client" });
+      if (!leadLink && clientLink) await linkClient(clientLink.client_id, "lead", leadId);
+    }
+  }
+  quote.leadId = leadId;
+  const contentChanged = JSON.stringify(quoteContentSnapshot(quote)) !== JSON.stringify(quoteContentSnapshot(previous));
+  const statusChanged = status !== row.status;
+  if (contentChanged && ["Sent", "Accepted", "Approved"].includes(row.status) && status !== "Revised")
+    return res.status(409).json({ error: "This quote has been issued. Set status to Revised before changing its content." });
+  const version = (Number(row.version) || 1) + (contentChanged ? 1 : 0);
+  const actor = req.actor ?? "You";
+  const t = now();
+  const audit = safeJson(row.audit, []);
+  if (statusChanged) audit.unshift({ who: actor, action: "moved to " + status, time: t });
+  if (contentChanged) audit.unshift({ who: actor, action: "saved revision " + version, time: t });
+  if (has("note") && quote.note !== previous.note) audit.unshift({ who: actor, action: quote.note ? "updated quote note" : "cleared quote note", time: t });
+  await db.prepare(`UPDATE quotes SET customer=?,contact=?,lead_id=?,items=?,total=?,status=?,source=?,note=?,details=?,audit=?,version=?,updated_at=? WHERE id=?`).run(
+    quote.customer, quote.contact, leadId, JSON.stringify(quote.items), quote.total, status, quote.source,
+    quote.note, JSON.stringify(quote.details), JSON.stringify(audit), version, t, row.id,
+  );
+  const out = rowQuote(await db.prepare("SELECT * FROM quotes WHERE id=?").get(row.id));
+  if (contentChanged) await insertQuoteVersion(row.id, version, out, actor, "Quote revised", t);
+  if (status === "Sent" && row.status !== "Sent") await db.prepare("INSERT INTO tasks(quote_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?)")
+    .run(row.id, "Follow up on quote " + row.ref + " (" + row.customer + ")", new Date(Date.now() + 864e5 * 3).toISOString().slice(0, 10), "normal", t, t);
+  if (statusChanged || contentChanged) emit("quotes", { title: "Quotation " + row.ref + (statusChanged ? " → " + status : " revised"), who: actor });
   res.json(out);
 }));
 
@@ -428,7 +943,7 @@ app.get("/api/leads", wrap(async (req, res) => {
   const fs = String(req.query.status ?? "").trim();
   if (fs) rows = rows.filter((r) => String(r.status).toLowerCase() === fs.toLowerCase());
   const fq = String(req.query.q ?? "").trim().toLowerCase();
-  if (fq) rows = rows.filter((r) => [r.name, r.company, r.interest, r.contact, r.ref].some((v) => String(v ?? "").toLowerCase().includes(fq)));
+  if (fq) rows = rows.filter((r) => [r.name, r.company, r.interest, r.contact, r.email, r.phone, r.ref].some((v) => String(v ?? "").toLowerCase().includes(fq)));
   const items = (await Promise.all(rows.map(async (r) => { const l = rowLead(r); const sc = (await (scoreLead(l)));
     const link = (await (db.prepare("SELECT client_id c FROM client_links WHERE entity='lead' AND entity_id=?").get(l.id)));
     return { ...l, score: sc.score, scoreWhy: sc.why, clientId: link?.c ?? null }; })));
@@ -465,22 +980,33 @@ const resolveTemplate = async (tpl, clientId) => {
   return tpl.body.replaceAll("{{name}}", cl.name ?? "there").replaceAll("{{ref}}", ref);
 };
 const touchInbox = (extra = {}) => emit("inbox", extra);
-app.post("/api/leads", wrapTx(async (req, res) => {
-  const { name, company, interest, source = "Website", contact, note } = req.body ?? {};
-  if (!name) return res.status(400).json({ error: "name is required" });
-  const t = now();
-  const ref = (await (nextRef("leads", "L-", 1100)));
-  const info = (await (db.prepare("INSERT INTO leads(ref,name,company,interest,source,contact,status,note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-    .run(ref, name, company ?? null, interest ?? "General inquiry", source, contact ?? null, "New", note ?? null, t, t)));
-  const led = rowLead((await (db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid))));
-  const m = (await (matchOrCreateClient({ name, company, contact, source, note })));
-  (await (linkClient(m.client.id, "lead", led.id)));
-  { const conv = (await (ensureConv(m.client.id)));
-    (await (appendMsg(conv.id, { channel: "system", direction: "system", author: "System", body: `New ${source} lead ${led.ref}: "${interest}"${contact ? " · " + contact : ""} — follow up within 24h.` })));
-    (await (db.prepare("UPDATE conversations SET unread=unread+1 WHERE id=?").run(conv.id))); touchInbox({ clientId: m.client.id }); }
-  emit("leads", { title: "New lead " + led.ref + (m.created ? " + client record" : ""), who: "CRM", context: (interest ?? "").slice(0, 24) }); // TODO-7: no PII on public SSE
-  emit("clients", { title: (m.created ? "Client record created" : "Client matched"), who: "CRM" });
-  res.status(201).json({ ...led, clientId: m.client.id });
+app.post("/api/leads/:id/whatsapp-handoff", wrapTxResponse(async (req, afterCommit) => {
+  const lead = await db.prepare(`SELECT l.*, x.client_id FROM leads l
+    LEFT JOIN client_links x ON x.entity='lead' AND x.entity_id=l.id WHERE l.id=?`).get(req.params.id);
+  if (!lead) return { status: 404, body: { error: "lead not found" } };
+  if (Number(lead.contact_consent) !== 1)
+    return { status: 403, body: { error: "contact permission is required before logging a handoff" } };
+  if (lead.preferred_channel !== "whatsapp")
+    return { status: 409, body: { error: "WhatsApp was not selected as the preferred contact method" } };
+  if (!lead.client_id) return { status: 409, body: { error: "lead has no linked client record" } };
+  const conversation = await ensureConv(lead.client_id);
+  await appendMsg(conversation.id, {
+    channel: "system", direction: "system", author: "Storefront",
+    body: `Visitor opened a manual WhatsApp handoff for ${lead.ref}. Woodex did not send or receive a message.`,
+    meta: { handoff: "manual", delivery: "not_sent", source: "storefront", leadId: lead.id },
+  });
+  afterCommit.push(() => {
+    touchInbox({ clientId: lead.client_id });
+    emit("leads", { title: "Manual WhatsApp handoff opened for " + lead.ref, who: "Storefront" });
+  });
+  return { status: 201, body: { logged: true, leadId: lead.id, clientId: lead.client_id, ref: lead.ref, delivery: "manual_handoff_not_sent" } };
+}));
+app.post("/api/leads", wrapTxResponse(async (req, afterCommit) => {
+  const leadInput = normalizeLeadInput(req.body ?? {}, "Website");
+  if (leadInput.error) return { status: 400, body: { error: leadInput.error } };
+  const m = (await (matchOrCreateClient(leadInput)));
+  const lead = await createLeadRecord(leadInput, m.client.id, m.created, m.returning, m.needsReview, afterCommit);
+  return { status: 201, body: { ...lead, clientId: m.client.id } };
 }));
 app.patch("/api/leads/:id", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM leads WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
@@ -494,32 +1020,108 @@ app.patch("/api/leads/:id", wrap(async (req, res) => {
 
 /* Orders — checkout → operations */
 app.get("/api/orders", wrap(async (req, res) => {
-  res.json({ total: 0, items: (await (db.prepare("SELECT * FROM orders ORDER BY datetime(created_at) DESC").all())).map(rowOrder) });
+  const items = (await (db.prepare("SELECT * FROM orders ORDER BY datetime(created_at) DESC").all())).map(rowOrder);
+  res.json({ total: items.length, items });
 }));
 app.post("/api/orders", wrapTx(async (req, res) => {
-  const { customer, items = [], total, source } = req.body ?? {};
-  if (!customer || !items.length) return res.status(400).json({ error: "customer and items are required" });
+  const customer = productText(req.body?.customer, 120);
+  const requestedItems = req.body?.items;
+  if (!customer || !Array.isArray(requestedItems) || requestedItems.length < 1 || requestedItems.length > 50)
+    return res.status(400).json({ error: "customer and 1–50 catalog items are required" });
+
+  const items = [];
+  for (const [index, raw] of requestedItems.entries()) {
+    const productId = String(raw?.id ?? raw?.productId ?? "").trim();
+    const qty = Number(raw?.qty);
+    if (!PRODUCT_ID_RE.test(productId) || !Number.isInteger(qty) || qty < 1 || qty > 100)
+      return res.status(400).json({ error: `item ${index + 1} needs a valid catalog product and whole quantity from 1 to 100` });
+    const product = await db.prepare("SELECT id,json,price,in_stock,stock_qty FROM products WHERE id=?").get(productId);
+    if (!product) return res.status(400).json({ error: `item ${index + 1} is not an available catalog product` });
+    if (!Number(product.in_stock) || Number(product.stock_qty) < qty)
+      return res.status(409).json({ error: `${safeJson(product.json, {}).name ?? "A selected product"} is unavailable in the requested quantity` });
+
+    const data = safeJson(product.json, {});
+    const requestedColor = String(raw?.color ?? "").trim().slice(0, 60);
+    const color = (Array.isArray(data.colors) ? data.colors : []).find((entry) => entry?.name === requestedColor)?.name;
+    items.push({ id: product.id, name: String(data.name ?? product.id).slice(0, 140), price: Number(product.price), qty, ...(color ? { color } : {}) });
+  }
+
+  // Client totals/prices are display hints only. Recompute from the current catalog.
+  const subtotal = roundMoney(items.reduce((sum, item) => sum + item.price * item.qty, 0));
+  const shipping = subtotal >= 50_000 ? 0 : 2_500; // same published threshold/fee as Checkout
+  const total = roundMoney(subtotal + shipping);
   const t = now();
-  const sum = typeof total === "number" ? total : items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
-  const ref = (await (nextRef("orders", "WX-", 4300)));
-  const info = (await (db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-    .run(ref, customer, JSON.stringify(items), sum,
-      "Pending", "production", source || "Showroom", "TBD", t, t)));
-  const oLed = rowOrder((await (db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid))));
-  { const m = (await (matchOrCreateClient({ name: customer, contact: req.body?.contact, source: "checkout" }))); (await (linkClient(m.client.id, "order", oLed.id)));
-    (await (db.prepare("INSERT INTO invoices(ref,order_id,customer,items,subtotal,total,status,due,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-      .run("INV-26-" + (1100 + (await (db.prepare("SELECT COUNT(*) n FROM invoices").get())).n), oLed.id, customer, oLed.items ? JSON.stringify(oLed.items) : "[]",
-        oLed.total, Math.round(oLed.total * 1.05), "Issued", new Date(Date.now() + 864e5 * 7).toISOString().slice(0, 10), t, t)));
-    const invRow = (await (db.prepare("SELECT id FROM invoices WHERE order_id=?").get(oLed.id)));
-    if (invRow) (await (linkClient(m.client.id, "invoice", invRow.id)));
-    (await (db.prepare("INSERT OR IGNORE INTO tasks(client_id,order_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
-      .run(m.client.id, oLed.id, "Collect 50% advance before production — " + ref, new Date(Date.now() + 864e5 * 2).toISOString().slice(0, 10), "high", t, t))); }
-  emit("orders", { title: "Order " + ref + " placed · invoice issued", who: "Checkout" }); res.status(201).json(oLed);
+  const ref = await nextRef("orders", "WX-", 4300);
+  const trackingToken = crypto.randomBytes(32).toString("base64url");
+  const trackingTokenHash = crypto.createHash("sha256").update(trackingToken).digest("hex");
+  const info = await db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,tracking_token_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+    .run(ref, customer, JSON.stringify(items), total, "Pending", "production", "Faisal", "TBD", trackingTokenHash, t, t);
+  const oLed = rowOrder(await db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid));
+  const m = await matchOrCreateClient({ name: customer, contact: req.body?.contact, source: "checkout" });
+  await linkClient(m.client.id, "order", oLed.id);
+  const invoiceRef = await nextRef("invoices", "INV-26-", 1100);
+  const invoice = await db.prepare(`INSERT INTO invoices(ref,order_id,customer,items,subtotal,discount,tax,shipping,total,status,due,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(invoiceRef, oLed.id, customer, JSON.stringify(items), subtotal, 0, 0, shipping, total,
+    "Issued", new Date(Date.now() + 864e5 * 7).toISOString().slice(0, 10), t, t);
+  const invRow = await db.prepare("SELECT id FROM invoices WHERE id=?").get(invoice.lastInsertRowid);
+  if (invRow) await linkClient(m.client.id, "invoice", invRow.id);
+  await db.prepare("INSERT OR IGNORE INTO tasks(client_id,order_id,title,due,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+    .run(m.client.id, oLed.id, "Collect 50% advance before production — " + ref,
+      new Date(Date.now() + 864e5 * 2).toISOString().slice(0, 10), "high", t, t);
+  emit("orders", { title: "Order " + ref + " request received", who: "Storefront" });
+  res.status(201).json({
+    id: oLed.id, ref, items, total, status: oLed.status, stage: oLed.stage, createdAt: oLed.createdAt,
+    trackingToken,
+  });
+}));
+/* Public tracking requires both the order reference and a high-entropy secret delivered at checkout.
+   Return operational progress only; never customer, address, item pricing, invoice, payment or return data. */
+app.post("/api/orders/lookup", wrap(async (req, res) => {
+  const ref = String(req.body?.ref ?? "").trim().slice(0, 100);
+  const token = String(req.body?.token ?? "").trim();
+  const order = ref && token.length <= 200
+    ? await db.prepare("SELECT ref,status,stage,created_at,tracking_token_hash FROM orders WHERE ref=? OR ref=?").get(ref, ref.toUpperCase())
+    : null;
+  const expected = order?.tracking_token_hash ? Buffer.from(order.tracking_token_hash, "hex") : Buffer.alloc(0);
+  const actual = token ? Buffer.from(crypto.createHash("sha256").update(token).digest("hex"), "hex") : Buffer.alloc(0);
+  if (!order || expected.length !== actual.length || expected.length !== 32 || !crypto.timingSafeEqual(expected, actual))
+    return res.status(404).json({ error: "tracking details not found; check the reference and private access code" });
+  const stages = ["production", "qc", "dispatch", "delivery", "installation"];
+  res.json({ ref: order.ref, status: order.status, stage: order.stage, stages,
+    stageIndex: stages.indexOf(order.stage), placedAt: order.created_at });
+}));
+app.get("/api/orders/:id", wrap(async (req, res) => {
+  const r = await db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(req.params.id, req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  let client = await db.prepare(`SELECT c.* FROM client_links x JOIN clients c ON c.id=x.client_id
+    WHERE x.entity='order' AND x.entity_id=? AND c.merged_into IS NULL ORDER BY c.id LIMIT 1`).get(r.id);
+  if (!client) client = await db.prepare("SELECT * FROM clients WHERE lower(name)=lower(?) AND merged_into IS NULL ORDER BY id LIMIT 1").get(r.customer);
+  const invoices = await Promise.all((await db.prepare("SELECT * FROM invoices WHERE order_id=? ORDER BY id DESC").all(r.id)).map(async (invoice) => ({
+    ...decorateInvoice(invoice),
+    payments: await db.prepare("SELECT * FROM payments WHERE invoice_id=? ORDER BY datetime(created_at) DESC").all(invoice.id),
+  })));
+  const returns = (await db.prepare("SELECT * FROM returns WHERE order_id=? ORDER BY datetime(created_at) DESC").all(r.id)).map(rowReturn);
+  const tasks = (await db.prepare("SELECT * FROM tasks WHERE order_id=? ORDER BY done ASC, datetime(COALESCE(due,'9999')) ASC").all(r.id)).map(rowTask);
+  res.json({
+    ...rowOrder(r),
+    client: client ? rowClientLite(client) : null,
+    invoices,
+    returns,
+    tasks,
+  });
 }));
 app.patch("/api/orders/:id", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const { status, stage, owner, due } = req.body ?? {};
+  if (status !== undefined && !["Pending", "On Track", "In Progress", "On Hold", "Delayed", "Completed"].includes(status))
+    return res.status(400).json({ error: "status must be Pending, On Track, In Progress, On Hold, Delayed or Completed" });
+  if (stage !== undefined && !["production", "qc", "dispatch", "delivery", "installation"].includes(stage))
+    return res.status(400).json({ error: "stage must be production, qc, dispatch, delivery or installation" });
+  if (owner !== undefined && (typeof owner !== "string" || owner.trim().length > 80))
+    return res.status(400).json({ error: "owner must be a string of at most 80 characters" });
+  if (due !== undefined && (typeof due !== "string" || due.length > 80))
+    return res.status(400).json({ error: "due must be a string of at most 80 characters" });
   (await (db.prepare("UPDATE orders SET status=?, stage=?, owner=?, due=?, updated_at=? WHERE id=?").run(
     status ?? r.status, stage ?? r.stage, owner ?? r.owner, due ?? r.due, now(), r.id
   )));
@@ -554,40 +1156,142 @@ async function scoreLead(l) {
   return { score: Math.max(0, Math.min(100, score)), why };
 }
 
-/** identity resolution: phone OR email match — never silently merge conflicts */
-async function matchOrCreateClient({ name, company, contact, source, note }) {
-  const email = normEmail(contact), phone = normPhone(contact);
-  let where = [];
+/** Resolve by normalized phone/email only; ambiguous signatures stay separate and go to review. */
+async function matchOrCreateClient({ name, company, contact, email: emailInput, phone: phoneInput, source, note }) {
+  const contactText = String(contact ?? "");
+  const email = normEmail(emailInput) ?? normEmail(contactText);
+  const phoneCandidate = String(phoneInput ?? "").trim()
+    || contactText.match(/\+?\d[\d\s().-]{5,}\d/)?.[0]
+    || "";
+  const phoneNorm = normPhone(phoneCandidate);
+  const phone = phoneNorm ? phoneCandidate.trim().slice(0, 80) : null;
+  const where = [];
   if (email) where.push("email_norm=" + db2s(email));
-  if (phone) where.push("phone_norm=" + db2s(phone));
-  where.push("lower(name)=" + db2s(String(name ?? "").toLowerCase().trim()));
-  const sql = "SELECT * FROM clients WHERE merged_into IS NULL AND (" + where.join(" OR ") + ") ORDER BY id LIMIT 2";
-  const hits = (await (db.prepare(sql).all()));
+  if (phoneNorm) where.push("phone_norm=" + db2s(phoneNorm));
+  const hits = where.length
+    ? await db.prepare("SELECT * FROM clients WHERE merged_into IS NULL AND (" + where.join(" OR ") + ") ORDER BY id LIMIT 2").all()
+    : [];
   const t = now();
-  if (hits.length === 0) {
-    const info = (await (db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
-      .run(name ?? "Unknown", company ?? null, email ? String(contact).match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] : null, email, phone,
-        phone, "[]", note ? String(note).slice(0, 400) : null, source ?? "manual", t, t)));
-    return { client: (await (db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid))), created: true };
-  }
+  const createClient = async (identityReview = false) => {
+    const notes = [note ? String(note).slice(0, 280) : "", identityReview ? "Possible duplicate identity — review before merging." : ""]
+      .filter(Boolean).join("\n").slice(0, 400) || null;
+    const info = await db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+      .run(name ?? "Unknown", company ?? null, email, email, phone, phoneNorm, "[]", notes, source ?? "manual", t, t);
+    return { client: await db.prepare("SELECT * FROM clients WHERE id=?").get(info.lastInsertRowid), created: true, returning: false, needsReview: identityReview };
+  };
+  if (hits.length === 0) return createClient();
+  if (hits.length > 1) return createClient(true);
+
   const c = hits[0];
+  const priorHistory = (await db.prepare("SELECT COUNT(*) n FROM client_links WHERE client_id=?").get(c.id))?.n ?? 0;
+  const returning = Number(priorHistory) > 0;
   const patch = {};
   if (email && !c.email_norm) { patch.email = email; patch.email_norm = email; }
-  if (phone && !c.phone_norm) { patch.phone = phone; patch.phone_norm = phone; }
+  if (phone && !c.phone_norm) { patch.phone = phone; patch.phone_norm = phoneNorm; }
   if (company && !c.company) patch.company = company;
   if (Object.keys(patch).length) {
-    (await (db.prepare("UPDATE clients SET " + Object.keys(patch).map((k) => k + "=?").join(",") + ", updated_at=? WHERE id=?")
-      .run(...Object.values(patch), t, c.id)));
+    await db.prepare("UPDATE clients SET " + Object.keys(patch).map((k) => k + "=?").join(",") + ", updated_at=? WHERE id=?")
+      .run(...Object.values(patch), t, c.id);
   }
-  return { client: (await (db.prepare("SELECT * FROM clients WHERE id=?").get(c.id))), created: false };
+  return { client: await db.prepare("SELECT * FROM clients WHERE id=?").get(c.id), created: false, returning, needsReview: false };
 }
+
+function normalizeLeadInput(body = {}, fallbackSource = "Website") {
+  const value = (key, max) => {
+    const raw = body[key];
+    if (raw == null) return "";
+    return String(raw).trim().slice(0, max);
+  };
+  const name = value("name", 120);
+  if (!name) return { error: "name is required" };
+  const company = value("company", 160) || null;
+  const rawEmail = value("email", 254);
+  const contactInput = value("contact", 320);
+  const email = rawEmail ? normEmail(rawEmail) : normEmail(contactInput);
+  if (rawEmail && !email) return { error: "email must be valid" };
+  const rawPhone = value("phone", 80);
+  if (rawPhone && digits(rawPhone).length < 7) return { error: "phone must contain at least 7 digits" };
+  const phoneCandidate = rawPhone || contactInput.match(/\+?\d[\d\s().-]{5,}\d/)?.[0] || "";
+  const phone = normPhone(phoneCandidate) ? phoneCandidate.trim().slice(0, 80) : null;
+  const preferredChannel = value("preferredChannel", 20).toLowerCase() || null;
+  if (preferredChannel && !["email", "phone", "whatsapp"].includes(preferredChannel))
+    return { error: "preferredChannel must be email, phone or whatsapp" };
+  if (preferredChannel === "email" && !email) return { error: "email is required for the selected contact method" };
+  if ((preferredChannel === "phone" || preferredChannel === "whatsapp") && !phone)
+    return { error: "a valid phone number is required for the selected contact method" };
+  const contact = contactInput || [email, phone].filter(Boolean).join(" · ") || null;
+  const consentValue = body.contactConsent;
+  const contactConsent = consentValue === true || consentValue === "true" || consentValue === "on"
+    ? true
+    : consentValue === false || consentValue === "false" ? false : null;
+  return {
+    name, company, email, phone, contact,
+    interest: value("interest", 240) || "General inquiry",
+    source: value("source", 80) || fallbackSource,
+    note: value("note", 2000) || null,
+    preferredChannel, contactConsent,
+    landingPath: value("landingPath", 300) || null,
+    referrer: value("referrer", 1000) || null,
+    utmSource: value("utmSource", 200) || null,
+    utmMedium: value("utmMedium", 200) || null,
+    utmCampaign: value("utmCampaign", 200) || null,
+  };
+}
+
+async function createLeadRecord(input, clientId, clientCreated = false, clientReturning = false, identityReview = false, afterCommit = []) {
+  const t = now();
+  const ref = await nextRef("leads", "L-", 1100);
+  const consent = input.contactConsent == null ? null : input.contactConsent ? 1 : 0;
+  const consentAt = input.contactConsent === true ? t : null;
+  const consentVersion = input.contactConsent === true ? "inquiry-contact-v1" : null;
+  const info = await db.prepare(`INSERT INTO leads(
+    ref,name,company,interest,source,contact,status,note,email,phone,preferred_channel,contact_consent,is_returning,identity_review,
+    consent_at,consent_version,landing_path,referrer,utm_source,utm_medium,utm_campaign,created_at,updated_at
+  ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    ref, input.name, input.company, input.interest, input.source, input.contact, "New", input.note,
+    input.email, input.phone, input.preferredChannel, consent, clientReturning ? 1 : 0, identityReview ? 1 : 0,
+    consentAt, consentVersion, input.landingPath, input.referrer, input.utmSource, input.utmMedium, input.utmCampaign, t, t,
+  );
+  const lead = rowLead(await db.prepare("SELECT * FROM leads WHERE id=?").get(info.lastInsertRowid));
+  await linkClient(clientId, "lead", lead.id);
+  const conv = await ensureConv(clientId);
+  const contactSummary = [input.email, input.phone].filter(Boolean).join(" · ");
+  await appendMsg(conv.id, {
+    channel: "system", direction: "system", author: "System",
+    body: `New ${input.source} lead ${lead.ref}: "${input.interest}"${contactSummary ? " · " + contactSummary : ""} — follow up within 24h.${input.note ? "\nMessage: " + input.note : ""}${identityReview ? "\nPossible identity match — review before merging." : ""}`,
+    meta: { leadId: lead.id, source: input.source, preferredChannel: input.preferredChannel, contactConsent: input.contactConsent, identityReview },
+  });
+  await db.prepare("UPDATE conversations SET unread=unread+1 WHERE id=?").run(conv.id);
+  const due = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+  const taskTitle = identityReview
+    ? `Review possible duplicate identity for ${input.name}`
+    : `Follow up with ${input.name} about ${input.interest}`;
+  await db.prepare(`INSERT INTO tasks(client_id,lead_id,title,due,owner,priority,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?)`).run(clientId, lead.id, taskTitle.slice(0, 240), due, "Unassigned", identityReview ? "high" : "normal", t, t);
+  afterCommit.push(() => {
+    touchInbox({ clientId });
+    emit("leads", { title: "New lead " + lead.ref + (clientCreated ? " + client record" : ""), who: "CRM" });
+    emit("clients", { title: clientCreated ? "Client record created" : "Client matched", who: "CRM" });
+  });
+  return { ...lead, clientId, returning: clientReturning, identityReview };
+}
+
 const db2s = (v) => "'" + String(v).replace(/'/g, "''") + "'";
 const linkClient = async (clientId, entity, entityId) =>
   (await (db.prepare("INSERT OR IGNORE INTO client_links(client_id,entity,entity_id) VALUES(?,?,?)").run(clientId, entity, entityId)));
 
 async function clientTimeline(clientId) {
   const ev = [];
-  for (const id of (await (linkIds(clientId, "lead")))) { const r = (await (db.prepare("SELECT * FROM leads WHERE id=?").get(id))); if (r) ev.push({ kind: "lead", ref: r.ref, label: "Lead · " + (r.interest ?? "inquiry"), status: r.status, time: r.created_at }); }
+  for (const id of (await (linkIds(clientId, "lead")))) {
+    const r = (await (db.prepare("SELECT * FROM leads WHERE id=?").get(id)));
+    if (r) ev.push({
+      kind: "lead", ref: r.ref, label: "Lead · " + (r.interest ?? "inquiry"), status: r.status,
+      source: r.source, email: r.email, phone: r.phone, preferredChannel: r.preferred_channel,
+      contactConsent: r.contact_consent == null ? null : !!Number(r.contact_consent),
+      returning: r.is_returning == null ? null : !!Number(r.is_returning),
+      identityReview: r.identity_review == null ? null : !!Number(r.identity_review), time: r.created_at,
+    });
+  }
   for (const id of (await (linkIds(clientId, "quote")))) { const r = (await (db.prepare("SELECT * FROM quotes WHERE id=?").get(id))); if (r) ev.push({ kind: "quote", ref: r.ref, label: "Quotation " + r.ref, status: r.status, value: r.total, time: r.created_at }); }
   for (const id of (await (linkIds(clientId, "order")))) { const r = (await (db.prepare("SELECT * FROM orders WHERE id=?").get(id))); if (r) ev.push({ kind: "order", ref: r.ref, label: "Order " + r.ref, status: r.status + " · " + r.stage, value: r.total, time: r.created_at }); }
   for (const id of (await (linkIds(clientId, "invoice")))) { const r = (await (db.prepare("SELECT * FROM invoices WHERE id=?").get(id))); if (r) ev.push({ kind: "invoice", ref: r.ref, label: "Invoice " + r.ref, status: r.status, value: r.total, paid: r.paid, time: r.created_at }); }
@@ -606,8 +1310,28 @@ async function clientFull(c) {
   return { ...rowClientLite(c), lifetime, outstanding, quotes: quotes.length, orders: orders.length,
     openBalance: outstanding, lastActivity: tl[0]?.time ?? c.updated_at, timeline: tl, tasks };
 }
-const rowTask = (r) => ({ id: r.id, clientId: r.client_id, leadId: r.lead_id, quoteId: r.quote_id, orderId: r.order_id,
+const rowTask = (r) => ({ id: r.id, clientId: r.client_id, leadId: r.lead_id, quoteId: r.quote_id, orderId: r.order_id, siteVisitId: r.site_visit_id ?? null,
   title: r.title, due: r.due, owner: r.owner, priority: r.priority, done: !!r.done, createdAt: r.created_at, updatedAt: r.updated_at });
+const SITE_VISIT_STATUSES = new Set(["Scheduled", "Confirmed", "Completed", "Cancelled"]);
+const rowSiteVisit = (r) => ({
+  id: r.id, ref: r.ref, leadId: r.lead_id, clientId: r.client_id, leadName: r.lead_name ?? null, leadRef: r.lead_ref ?? null,
+  scheduledAt: r.scheduled_at, timezone: r.timezone, address: r.address, owner: r.owner, status: r.status,
+  notes: r.notes, outcome: r.outcome, reminderAt: r.reminder_at, reminderTaskId: r.reminder_task_id,
+  audit: safeJson(r.audit, []), createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const normalizeSiteDateTime = (value, label) => {
+  const input = String(value ?? "").trim();
+  if (!input || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(input)) throw quoteInputError(`${label} must include a timezone offset`);
+  const ms = Date.parse(input);
+  if (!Number.isFinite(ms)) throw quoteInputError(`${label} must be a valid date and time`);
+  return new Date(ms).toISOString();
+};
+const validTimeZone = (value) => {
+  const timezone = String(value ?? "Asia/Karachi").trim().slice(0, 80) || "Asia/Karachi";
+  try { new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date()); }
+  catch { throw quoteInputError("timezone must be a valid IANA zone"); }
+  return timezone;
+};
 
 /* ---- auth endpoints + team management ---- */
 const rowUserLite = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, active: !!u.active, updatedAt: u.updated_at });
@@ -638,8 +1362,8 @@ app.post("/api/auth/login", wrap(async (req, res) => {
 }));
 app.get("/api/auth/me", wrap((req, res) => res.json({ user: rowUserLite(req.user), caps: ROLE_CAPS[req.user.role], roles: ROLES })));
 app.post("/api/auth/logout", wrap(async (req, res) => {
-  const auth = String(req.headers.authorization ?? "");
-  if (auth.startsWith("Bearer ")) (await (db.prepare("DELETE FROM sessions WHERE token=?").run(auth.slice(7))));
+  const token = requestToken(req);
+  if (token) (await (db.prepare("DELETE FROM sessions WHERE token=?").run(token)));
   res.json({ ok: true });
 }));
 app.get("/api/users", wrap(async (req, res) => res.json({ items: (await (db.prepare("SELECT * FROM users ORDER BY id").all())).map(rowUserLite), roles: ROLES, caps: ROLE_CAPS })));
@@ -769,7 +1493,127 @@ app.patch("/api/tasks/:id", wrap(async (req, res) => {
   res.json(rowTask((await (db.prepare("SELECT * FROM tasks WHERE id=?").get(r.id)))));
 }));
 
+const SITE_VISIT_SELECT = `SELECT v.*, l.name AS lead_name, l.ref AS lead_ref FROM site_visits v JOIN leads l ON l.id=v.lead_id`;
+app.get("/api/site-visits", wrap(async (req, res) => {
+  let rows = await db.prepare(`${SITE_VISIT_SELECT} ORDER BY datetime(v.scheduled_at) ASC LIMIT 250`).all();
+  if (req.query.leadId) rows = rows.filter((v) => Number(v.lead_id) === Number(req.query.leadId));
+  if (req.query.status) rows = rows.filter((v) => v.status === String(req.query.status));
+  res.json({ total: rows.length, items: rows.map(rowSiteVisit) });
+}));
+app.post("/api/site-visits", wrapTxResponse(async (req, afterCommit) => {
+  const body = req.body ?? {};
+  const leadId = Number(body.leadId);
+  if (!Number.isSafeInteger(leadId) || leadId < 1) return { status: 400, body: { error: "leadId is required" } };
+  const lead = await db.prepare("SELECT * FROM leads WHERE id=?").get(leadId);
+  if (!lead) return { status: 404, body: { error: "lead not found" } };
+  const scheduledAt = normalizeSiteDateTime(body.scheduledAt, "scheduledAt");
+  const timezone = validTimeZone(body.timezone);
+  const address = String(body.address ?? "").trim().slice(0, 300);
+  if (!address) return { status: 400, body: { error: "address or visit location is required" } };
+  const status = String(body.status ?? "Scheduled");
+  if (!SITE_VISIT_STATUSES.has(status)) return { status: 400, body: { error: "status must be Scheduled, Confirmed, Completed or Cancelled" } };
+  const reminderAt = body.reminderAt == null || body.reminderAt === "" ? null : normalizeSiteDateTime(body.reminderAt, "reminderAt");
+  if (reminderAt && Date.parse(reminderAt) >= Date.parse(scheduledAt))
+    return { status: 400, body: { error: "reminderAt must be before the site visit" } };
+
+  let clientLink = await db.prepare("SELECT client_id FROM client_links WHERE entity='lead' AND entity_id=?").get(lead.id);
+  if (!clientLink) {
+    const matched = await matchOrCreateClient({ name: lead.name, company: lead.company, contact: lead.contact,
+      email: lead.email, phone: lead.phone, source: "site-visit" });
+    await linkClient(matched.client.id, "lead", lead.id);
+    clientLink = { client_id: matched.client.id };
+  }
+  const clientId = Number(clientLink.client_id);
+  const owner = String(body.owner ?? "").trim().slice(0, 120) || "Unassigned";
+  const notes = String(body.notes ?? "").trim().slice(0, 2000) || null;
+  const t = now();
+  const ref = await nextRef("site_visits", "SV-", 0);
+  const audit = [{ who: req.actor ?? "You", action: "booked", fields: ["scheduledAt", "address"], time: t }];
+  const visit = await db.prepare(`INSERT INTO site_visits(ref,lead_id,client_id,scheduled_at,timezone,address,owner,status,notes,reminder_at,audit,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ref, lead.id, clientId, scheduledAt, timezone, address, owner, status, notes, reminderAt, JSON.stringify(audit), t, t);
+  const visitId = visit.lastInsertRowid;
+  let reminderTaskId = null;
+  if (reminderAt && !["Completed", "Cancelled"].includes(status)) {
+    const task = await db.prepare(`INSERT INTO tasks(client_id,lead_id,site_visit_id,title,due,owner,priority,done,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?)`).run(clientId, lead.id, visitId, `Reminder: site visit ${ref}`, reminderAt, owner, "normal", 0, t, t);
+    reminderTaskId = task.lastInsertRowid;
+    await db.prepare("UPDATE site_visits SET reminder_task_id=? WHERE id=?").run(reminderTaskId, visitId);
+  }
+  if (!["Won", "Lost", "Quotation"].includes(lead.status))
+    await db.prepare("UPDATE leads SET status='Site visit booked', updated_at=? WHERE id=?").run(t, lead.id);
+  const out = rowSiteVisit(await db.prepare(`${SITE_VISIT_SELECT} WHERE v.id=?`).get(visitId));
+  out.reminderTaskId = reminderTaskId;
+  afterCommit.push(() => {
+    emit("site-visits", { title: "Site visit booked: " + ref, who: req.actor ?? "You" });
+    emit("leads", { title: "Lead " + lead.ref + " → Site visit booked", who: req.actor ?? "You" });
+    if (reminderTaskId) emit("tasks", { title: "Site visit reminder task added: " + ref, who: owner });
+  });
+  return { status: 201, body: out };
+}));
+app.patch("/api/site-visits/:id", wrapTxResponse(async (req, afterCommit) => {
+  const current = await db.prepare(`${SITE_VISIT_SELECT} WHERE v.id=?`).get(req.params.id);
+  if (!current) return { status: 404, body: { error: "site visit not found" } };
+  const body = req.body ?? {};
+  const has = (key) => Object.prototype.hasOwnProperty.call(body, key);
+  const scheduledAt = has("scheduledAt") ? normalizeSiteDateTime(body.scheduledAt, "scheduledAt") : current.scheduled_at;
+  const timezone = has("timezone") ? validTimeZone(body.timezone) : current.timezone;
+  const address = has("address") ? String(body.address ?? "").trim().slice(0, 300) : current.address;
+  if (!address) return { status: 400, body: { error: "address or visit location is required" } };
+  const owner = has("owner") ? (String(body.owner ?? "").trim().slice(0, 120) || "Unassigned") : current.owner;
+  const status = has("status") ? String(body.status) : current.status;
+  if (!SITE_VISIT_STATUSES.has(status)) return { status: 400, body: { error: "unsupported site visit status" } };
+  const notes = has("notes") ? (String(body.notes ?? "").trim().slice(0, 2000) || null) : current.notes;
+  const outcome = has("outcome") ? (String(body.outcome ?? "").trim().slice(0, 2000) || null) : current.outcome;
+  const reminderAt = has("reminderAt")
+    ? (body.reminderAt == null || body.reminderAt === "" ? null : normalizeSiteDateTime(body.reminderAt, "reminderAt"))
+    : current.reminder_at;
+  if (reminderAt && Date.parse(reminderAt) >= Date.parse(scheduledAt))
+    return { status: 400, body: { error: "reminderAt must be before the site visit" } };
+
+  const changed = [];
+  if (scheduledAt !== current.scheduled_at) changed.push("scheduledAt");
+  if (timezone !== current.timezone) changed.push("timezone");
+  if (address !== current.address) changed.push("address");
+  if (owner !== current.owner) changed.push("owner");
+  if (status !== current.status) changed.push("status");
+  if (notes !== current.notes) changed.push("notes");
+  if (outcome !== current.outcome) changed.push("outcome");
+  if (reminderAt !== current.reminder_at) changed.push("reminderAt");
+  const t = now();
+  const audit = safeJson(current.audit, []);
+  if (changed.length) audit.unshift({ who: req.actor ?? "You", action: changed.includes("scheduledAt") ? "rescheduled" : "updated", fields: changed, time: t });
+  await db.prepare(`UPDATE site_visits SET scheduled_at=?,timezone=?,address=?,owner=?,status=?,notes=?,outcome=?,reminder_at=?,audit=?,updated_at=? WHERE id=?`)
+    .run(scheduledAt, timezone, address, owner, status, notes, outcome, reminderAt, JSON.stringify(audit), t, current.id);
+
+  let reminderTaskId = current.reminder_task_id ?? null;
+  const taskDone = ["Completed", "Cancelled"].includes(status) ? 1 : 0;
+  if (reminderTaskId) {
+    await db.prepare("UPDATE tasks SET due=?,owner=?,done=?,updated_at=? WHERE id=?")
+      .run(reminderAt, owner, taskDone, t, reminderTaskId);
+  } else if (reminderAt && !taskDone) {
+    const task = await db.prepare(`INSERT INTO tasks(client_id,lead_id,site_visit_id,title,due,owner,priority,done,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?)`).run(current.client_id, current.lead_id, current.id, `Reminder: site visit ${current.ref}`, reminderAt, owner, "normal", 0, t, t);
+    reminderTaskId = task.lastInsertRowid;
+  }
+  await db.prepare("UPDATE site_visits SET reminder_task_id=? WHERE id=?").run(reminderTaskId, current.id);
+
+  const lead = await db.prepare("SELECT status FROM leads WHERE id=?").get(current.lead_id);
+  if (status === "Completed" && lead?.status === "Site visit booked")
+    await db.prepare("UPDATE leads SET status='Site visit completed', updated_at=? WHERE id=?").run(t, current.lead_id);
+  else if (status === "Cancelled" && lead?.status === "Site visit booked")
+    await db.prepare("UPDATE leads SET status='Qualified', updated_at=? WHERE id=?").run(t, current.lead_id);
+
+  const out = rowSiteVisit(await db.prepare(`${SITE_VISIT_SELECT} WHERE v.id=?`).get(current.id));
+  afterCommit.push(() => {
+    emit("site-visits", { title: "Site visit " + current.ref + (changed.includes("status") ? " → " + status : " updated"), who: req.actor ?? "You" });
+    if (changed.includes("status")) emit("leads", { title: "Site visit status updated: " + current.ref, who: req.actor ?? "You" });
+    if (reminderAt !== current.reminder_at || taskDone) emit("tasks", { title: "Site visit reminder updated: " + current.ref, who: owner });
+  });
+  return { status: 200, body: out };
+}));
+
 app.get("/api/events", (req, res) => {
+  if (IS_SERVERLESS) return res.status(410).json({ error: "Streaming events are not available in the serverless runtime; clients refresh by polling." });
   res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
   res.write("retry: 3000\n\n");
   res.write(`event: hello\ndata: ${JSON.stringify({ type: "hello", at: now() })}\n\n`);
@@ -1008,18 +1852,21 @@ app.post("/api/target", wrap(async (req, res) => {
 }));
 
 /* ---- P5 finance: invoices, payments, returns, public lookup ---- */
+const subtotalOf = (items) => roundMoney(items.reduce((sum, item) => {
+  const lineTotal = item.lineTotal == null ? (Number(item.price) || 0) * (Number(item.qty) || 1) : Number(item.lineTotal) || 0;
+  return sum + lineTotal;
+}, 0));
 const totalsFrom = (items, { discount = 0, tax = 0, shipping = 0 }) => {
-  const subtotal = items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
-  return { subtotal, total: Math.max(0, subtotal - discount + tax + shipping) };
+  const subtotal = subtotalOf(items);
+  return { subtotal, total: roundMoney(Math.max(0, subtotal - discount + tax + shipping)) };
 };
-const insertInvoice = async ({ ref, quoteId, orderId, customer, items, discount, tax, shipping, total, due, notes }) => {
+const insertInvoice = async ({ ref, quoteId, orderId, customer, items, subtotal, discount, tax, shipping, total, due, notes }) => {
   const t = now();
   const info = (await (db.prepare(`INSERT INTO invoices(ref,quote_id,order_id,customer,items,subtotal,discount,tax,shipping,total,status,due,notes,created_at,updated_at)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ref, quoteId ?? null, orderId ?? null, customer, JSON.stringify(items),
-    subtotalOf(items), discount ?? 0, tax ?? 0, shipping ?? 0, total, "Issued", due ?? null, notes ?? null, t, t)));
+    subtotal ?? subtotalOf(items), discount ?? 0, tax ?? 0, shipping ?? 0, total, "Issued", due ?? null, notes ?? null, t, t)));
   return (await (db.prepare("SELECT * FROM invoices WHERE id=?").get(info.lastInsertRowid)));
 };
-const subtotalOf = (items) => items.reduce((n, i) => n + (i.price || 0) * (i.qty || 1), 0);
 const nextRef = async (table, prefix, floor = 0) => { // MAX-based: survives row deletion (QA TODO-3)
   const m = (await (db.prepare("SELECT MAX(CAST(substr(ref, ?) AS INTEGER)) v FROM " + table).get(prefix.length + 1))).v ?? 0;
   return prefix + String(Math.max(m, floor) + 1);
@@ -1044,21 +1891,26 @@ app.get("/api/invoices/:id", wrap(async (req, res) => {
 app.post("/api/invoices", wrap(async (req, res) => {
   const b = req.body ?? {};
   let { customer, items } = b;
-  let quoteId = null, orderId = null;
+  let quoteId = null, orderId = null, quoteAmounts = null;
   if (b.quote_id) { const q = (await (db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(b.quote_id, b.quote_id)));
     if (!q) return res.status(400).json({ error: "quote not found" });
-    customer = customer || q.customer; items = items ?? JSON.parse(q.items); quoteId = q.id; }
+    customer = q.customer; items = JSON.parse(q.items || "[]"); quoteId = q.id;
+    const saved = safeJson(q.details, {}).calculation ?? {};
+    quoteAmounts = { subtotal: Number(saved.subtotal) || subtotalOf(items), discount: Number(saved.discount) || 0,
+      tax: Number(saved.tax) || 0, shipping: Number(saved.shipping) || 0,
+      total: Number(q.total) || Number(saved.total) || subtotalOf(items) }; }
   else if (b.order_id) { const o = (await (db.prepare("SELECT * FROM orders WHERE id=? OR ref=?").get(b.order_id, b.order_id)));
     if (!o) return res.status(400).json({ error: "order not found" });
     customer = customer || o.customer; items = items ?? JSON.parse(o.items); orderId = o.id; }
   if (!customer || !Array.isArray(items) || !items.length) return res.status(400).json({ error: "customer+items or quote_id/order_id required" });
-  const { subtotal: _st, total } = totalsFrom(items, b);
+  const amounts = quoteAmounts ?? totalsFrom(items, b);
   const r = (await (insertInvoice({ ref: (await (nextRef("invoices", "INV-26-", 1001))), quoteId, orderId, customer, items,
-    discount: b.discount, tax: b.tax, shipping: b.shipping, total: typeof b.total === "number" ? b.total : total,
+    subtotal: quoteAmounts?.subtotal, discount: quoteAmounts?.discount ?? b.discount, tax: quoteAmounts?.tax ?? b.tax,
+    shipping: quoteAmounts?.shipping ?? b.shipping, total: quoteAmounts?.total ?? (typeof b.total === "number" ? b.total : amounts.total),
     due: b.due, notes: b.notes })));
   if (quoteId) (await (db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
     JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued", time: now() },
-      ...JSON.parse((await (db.prepare("SELECT audit FROM quotes WHERE id=?").get(quoteId)))?.audit || "[]")]), now(), quoteId)));
+      ...safeJson((await (db.prepare("SELECT audit FROM quotes WHERE id=?").get(quoteId)))?.audit, [])]), now(), quoteId)));
   emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
 }));
@@ -1067,10 +1919,13 @@ app.post("/api/quotes/:id/invoice", wrapTx(async (req, res) => {
   if (!q) return res.status(404).json({ error: "quote not found" });
   const items = JSON.parse(q.items || "[]");
   const b = req.body ?? {};
-  const { total } = totalsFrom(items, b);
+  const saved = safeJson(q.details, {}).calculation ?? {};
+  const amounts = { subtotal: Number(saved.subtotal) || subtotalOf(items), discount: Number(saved.discount) || 0,
+    tax: Number(saved.tax) || 0, shipping: Number(saved.shipping) || 0,
+    total: Number(q.total) || Number(saved.total) || subtotalOf(items) };
   const r = (await (insertInvoice({ ref: (await (nextRef("invoices", "INV-26-", 1001))), quoteId: q.id, orderId: null,
-    customer: q.customer, items, discount: b.discount, tax: b.tax, shipping: b.shipping,
-    total: typeof b.total === "number" ? b.total : total, due: b.due, notes: b.notes })));
+    customer: q.customer, items, subtotal: amounts.subtotal, discount: amounts.discount, tax: amounts.tax, shipping: amounts.shipping,
+    total: amounts.total, due: b.due, notes: b.notes })));
   (await (db.prepare("UPDATE quotes SET audit=?, updated_at=? WHERE id=?").run(
     JSON.stringify([{ who: "You", action: "invoice " + r.ref + " issued from quote", time: now() },
       ...JSON.parse(q.audit || "[]")]), now(), q.id)));
@@ -1143,21 +1998,6 @@ app.patch("/api/returns/:id", wrap(async (req, res) => {
   res.json(rOut);
 }));
 
-/* Public order tracking (storefront /order-status) — ref is the capability, no auth */
-app.get("/api/orders/lookup", wrap(async (req, res) => {
-  const ref = String(req.query.ref || "").trim();
-  if (!ref) return res.status(400).json({ error: "ref required" });
-  const o = (await (db.prepare("SELECT * FROM orders WHERE ref=? OR ref=?").get(ref, ref.toUpperCase())));
-  if (!o) return res.status(404).json({ error: "no order with that reference" });
-  const stages = ["production", "qc", "dispatch", "delivery", "installation"];
-  const inv = o.invoice_ref ? (await (db.prepare("SELECT * FROM invoices WHERE ref=?").get(o.invoice_ref))) :
-    (await (db.prepare("SELECT * FROM invoices WHERE order_id=? ORDER BY id DESC LIMIT 1").get(o.id)));
-  const rms = (await (db.prepare("SELECT * FROM returns WHERE order_id=? ORDER BY id DESC").all(o.id))).map(rowReturn);
-  res.json({ ref: o.ref, customer: o.customer, status: o.status, stage: o.stage, stages,
-    stageIndex: stages.indexOf(o.stage), total: o.total, due: o.due, placedAt: o.created_at,
-    items: JSON.parse(o.items), invoice: inv ? decorateInvoice(inv) : null, returns: rms });
-}));
-
 app.get("/api/stats", wrap(async (req, res) => {
   const hotLeadRows = (await (db.prepare("SELECT * FROM leads ORDER BY datetime(updated_at) DESC LIMIT 60").all())).map(rowLead);
   const hotLeadScores = (await Promise.all(hotLeadRows.map(async (l) => (await (scoreLead(l))))));
@@ -1228,6 +2068,11 @@ const pageCols = db.kind === "sqlite"
   ? (await db.prepare("PRAGMA table_info(pages)").all()).map((c) => c.name)
   : (await db.prepare("SELECT column_name AS name FROM information_schema.columns WHERE table_name='pages'").all()).map((c) => c.name);
 if (!pageCols.includes("theme") && db.kind === "sqlite") await db.exec("ALTER TABLE pages ADD COLUMN theme TEXT");
+if (!pageCols.includes("published_snapshot")) {
+  await db.exec(db.kind === "sqlite"
+    ? "ALTER TABLE pages ADD COLUMN published_snapshot TEXT"
+    : "ALTER TABLE pages ADD COLUMN IF NOT EXISTS published_snapshot TEXT");
+}
 
 /* ---- P7/P8 Website CMS: typed block registry, pages, publish, versions ---- */
 const BLOCKS = {
@@ -1299,10 +2144,17 @@ app.get("/api/blocks", (req, res) => res.json({ registry: BLOCKS }));
 const MEDIA = () => fs.readdirSync(path.join(HERE, "public/img")).filter((f) => /\.(jpg|jpeg|png|webp)$/i.test(f));
 app.get("/api/media", (req, res) => res.json({ items: MEDIA().slice(0, 96) }));
 
-const rowPage = async (r, blocks) => ({ id: r.id, slug: r.slug, title: r.title, status: r.status,
-  seoTitle: r.seo_title, seoDesc: r.seo_desc, createdAt: r.created_at, updatedAt: r.updated_at,
-  blocks: blocks ?? (await (pageBlocks(r.id))),
-  theme: r.theme ? JSON.parse(r.theme) : null });
+const rowPage = async (r, blocks) => {
+  const published = safeJson(r.published_snapshot, null);
+  return {
+    id: r.id, slug: r.slug, title: r.title, status: r.status,
+    seoTitle: r.seo_title, seoDesc: r.seo_desc, createdAt: r.created_at, updatedAt: r.updated_at,
+    publishedAt: published?.publishedAt ?? null,
+    hasUnpublishedChanges: r.status === "Published" && !!published?.publishedAt && String(r.updated_at ?? "") > String(published.publishedAt),
+    blocks: blocks ?? (await pageBlocks(r.id)),
+    theme: safeJson(r.theme, null),
+  };
+};
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
 async function validatePage(title, blocks) {
   const errs = [];
@@ -1324,11 +2176,12 @@ async function validatePage(title, blocks) {
   return errs;
 }
 
-const rowBlock = async (b) => { const props = JSON.parse(b.props || "{}");
+const rowBlock = async (b) => { const props = typeof b.props === "string" ? safeJson(b.props, {}) : (b.props ?? {});
   if (b.type === "global-section") { const sec = (await (db.prepare("SELECT * FROM saved_sections WHERE id=?").get(Number(props.section_id))));
-    if (sec) return { type: b.type, props: { ...props, sectionLabel: sec.name, section: { type: JSON.parse(sec.block).type, props: JSON.parse(sec.block).props } } }; }
+    if (sec) return { type: b.type, props: { ...props, sectionLabel: sec.name, section: safeJson(sec.block, {}) } }; }
   return { type: b.type, props }; };
 const pageBlocks = async (pid) => (await Promise.all((await (db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(pid))).map(rowBlock)));
+const resolveSnapshotBlocks = async (blocks) => Promise.all((blocks ?? []).map((block) => rowBlock(block)));
 const sectionUsage = async (sid) => (await (db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE type='global-section' AND props LIKE ?").get(`%"section_id":"${sid}"%`))).n
   + (await (db.prepare("SELECT COUNT(*) n FROM page_blocks WHERE type='global-section' AND props LIKE ?").get(`%"section_id":${sid}%`))).n;
 app.get("/api/pages", wrap(async (req, res) => {
@@ -1376,7 +2229,7 @@ const previewSigOk = (slug, exp, sig) => {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
 const bearerValid = async (req) => {
-  const t = String(req.headers.authorization ?? "").replace(/^Bearer\s+/i, "") || String(req.query.token ?? "");
+  const t = requestToken(req);
   if (!t) return false;
   const u = (await (db.prepare("SELECT u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(t)));
   return !!u && !!u.active && String(u.expires_at) >= now();
@@ -1391,40 +2244,92 @@ app.get("/api/pages/:key/public", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM pages WHERE slug=?").get(req.params.key)));
   if (!r) return res.status(404).json({ error: "no page at that address" });
   const wantDraft = req.query.draft === "1";
-  if (r.status !== "Published" && !(wantDraft && (previewSigOk(r.slug, req.query.exp, req.query.sig) || (await (bearerValid(req))))))
-    return res.status(404).json({ error: "page is not published" }); // TODO-1: drafts need a valid sig or a session — ?draft=1 alone no longer opens
-  res.json({ slug: r.slug, title: r.title, status: r.status, seoTitle: r.seo_title, seoDesc: r.seo_desc,
-    publishedAt: r.updated_at,
-    blocks: (await (pageBlocks(r.id))), theme: r.theme ? JSON.parse(r.theme) : null });
-}));
-app.put("/api/pages/:id/blocks", wrap(async (req, res) => {
-  const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
-  if (!r) return res.status(404).json({ error: "not found" });
-  const rewrite = Array.isArray(req.body?.blocks);
-  if (rewrite) {
-    (await (db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id)));
-    (await Promise.all(req.body.blocks.map(async (b, i) => (await (db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
-      .run(r.id, String(b.type), JSON.stringify(b.props ?? {}), i))))));
+  if (wantDraft) {
+    const authorized = previewSigOk(r.slug, req.query.exp, req.query.sig) || (await (bearerValid(req)));
+    if (!authorized) return res.status(404).json({ error: "draft preview is not available" });
   }
-  const { title, seoTitle, seoDesc, theme } = req.body ?? {};
-  (await (db.prepare("UPDATE pages SET title=COALESCE(?,title), seo_title=COALESCE(?,seo_title), seo_desc=COALESCE(?,seo_desc), theme=COALESCE(?,theme), updated_at=? WHERE id=?")
-    .run(title ?? null, seoTitle ?? null, seoDesc ?? null, theme ? JSON.stringify(theme) : null, now(), r.id)));
-  res.json({ ...(await (rowPage((await (db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)))))),
-    validation: (await (validatePage(req.body?.title ?? r.title,
-      rewrite ? req.body.blocks : (await (db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id))).map((x) => ({ type: x.type, props: JSON.parse(x.props || "{}") }))))) });
+
+  let snapshot;
+  if (wantDraft) {
+    snapshot = {
+      slug: r.slug, title: r.title, seoTitle: r.seo_title, seoDesc: r.seo_desc,
+      theme: safeJson(r.theme, null), publishedAt: r.updated_at, blocks: await pageBlocks(r.id),
+    };
+  } else {
+    if (r.status !== "Published") return res.status(404).json({ error: "page is not published" });
+    snapshot = safeJson(r.published_snapshot, null);
+    if (!snapshot || !Array.isArray(snapshot.blocks))
+      return res.status(404).json({ error: "page has no published snapshot" });
+  }
+  res.json({ slug: snapshot.slug ?? r.slug, title: snapshot.title ?? r.title, status: r.status,
+    seoTitle: Object.prototype.hasOwnProperty.call(snapshot, "seoTitle") ? snapshot.seoTitle : (snapshot.seo?.title ?? r.seo_title),
+    seoDesc: Object.prototype.hasOwnProperty.call(snapshot, "seoDesc") ? snapshot.seoDesc : (snapshot.seo?.desc ?? r.seo_desc),
+    publishedAt: snapshot.publishedAt ?? r.updated_at,
+    preview: wantDraft,
+    blocks: await resolveSnapshotBlocks(snapshot.blocks),
+    theme: Object.prototype.hasOwnProperty.call(snapshot, "theme") ? snapshot.theme : safeJson(r.theme, null) });
 }));
-app.post("/api/pages/:id/publish", wrap(async (req, res) => {
+app.put("/api/pages/:id/blocks", wrapTx(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
-  const blocks = (await (db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id))).map((b) => ({ type: b.type, props: JSON.parse(b.props || "{}") }));
-  const errs = (await (validatePage(req.body?.title ?? r.title, blocks)));
-  if (errs.length) return res.status(422).json({ error: "validation failed", validation: errs });
+  const body = req.body ?? {};
+  const has = (key) => Object.prototype.hasOwnProperty.call(body, key);
+  const rewrite = Array.isArray(body.blocks);
+  if (has("blocks") && !rewrite) return res.status(400).json({ error: "blocks must be an array" });
+  if (rewrite && body.blocks.length > 100)
+    return res.status(400).json({ error: "a page may contain at most 100 blocks" });
+  const invalidBlocks = rewrite && body.blocks.some((b) =>
+    !b || typeof b !== "object" || Array.isArray(b) || typeof b.type !== "string" || !b.type.trim()
+    || (b.props != null && (typeof b.props !== "object" || Array.isArray(b.props))));
+  if (invalidBlocks) return res.status(400).json({ error: "blocks must contain typed blocks with object props" });
+
+  const draftBlocks = rewrite ? body.blocks.map((b) => ({ type: b.type, props: b.props ?? {} }))
+    : (await (db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id))).map((b) => ({ type: b.type, props: safeJson(b.props, {}) }));
+  if (rewrite) {
+    await db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id);
+    for (const [i, b] of draftBlocks.entries())
+      await db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(r.id, b.type, JSON.stringify(b.props), i);
+  }
+
+  const assignments = ["updated_at=?"];
+  const values = [now()];
+  const setField = (key, column, value) => { if (has(key)) { assignments.push(`${column}=?`); values.push(value); } };
+  setField("title", "title", body.title == null ? "" : String(body.title).trim().slice(0, 200));
+  setField("seoTitle", "seo_title", body.seoTitle == null ? null : String(body.seoTitle).slice(0, 180));
+  setField("seoDesc", "seo_desc", body.seoDesc == null ? null : String(body.seoDesc).slice(0, 500));
+  setField("theme", "theme", body.theme == null ? null : JSON.stringify(body.theme));
+  values.push(r.id);
+  await db.prepare(`UPDATE pages SET ${assignments.join(", ")} WHERE id=?`).run(...values);
+
+  const nextTitle = has("title") ? (body.title == null ? "" : String(body.title).trim()) : r.title;
+  const validation = await validatePage(nextTitle, draftBlocks);
+  const updated = await db.prepare("SELECT * FROM pages WHERE id=?").get(r.id);
+  res.json({ ...(await rowPage(updated)), validation });
+}));
+app.post("/api/pages/:id/publish", wrapTxResponse(async (req, afterCommit) => {
+  const r = await db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
+  if (!r) return { status: 404, body: { error: "not found" } };
+  if (req.body?.title != null && String(req.body.title).trim() !== String(r.title).trim())
+    return { status: 409, body: { error: "save the latest draft before publishing" } };
+
+  const blocks = (await db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id))
+    .map((b) => ({ type: b.type, props: safeJson(b.props, {}) }));
+  const errs = await validatePage(r.title, blocks);
+  if (errs.length) return { status: 422, body: { error: "validation failed", validation: errs } };
+
   const t = now();
-  (await (db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)")
-    .run(r.id, JSON.stringify({ blocks, seo: { title: r.seo_title, desc: r.seo_desc } }), req.body?.note ?? "published", req.actor ?? "You", t)));
-  (await (db.prepare("UPDATE pages SET status='Published', updated_at=? WHERE id=?").run(t, r.id)));
-  emit("pages", { title: "Page published: /" + r.slug, who: r.title });
-  res.json({ ...(await (rowPage((await (db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)))))), versions: (await (db.prepare("SELECT COUNT(*) n FROM page_versions WHERE page_id=?").get(r.id))).n });
+  const snapshot = {
+    slug: r.slug, title: r.title, seoTitle: r.seo_title, seoDesc: r.seo_desc,
+    theme: safeJson(r.theme, null), blocks, publishedAt: t,
+  };
+  await db.prepare("INSERT INTO page_versions(page_id,snapshot,note,who,created_at) VALUES(?,?,?,?,?)")
+    .run(r.id, JSON.stringify(snapshot), String(req.body?.note ?? "published").slice(0, 200), req.actor ?? "You", t);
+  await db.prepare("UPDATE pages SET status='Published', published_snapshot=?, updated_at=? WHERE id=?")
+    .run(JSON.stringify(snapshot), t, r.id);
+  const updated = await db.prepare("SELECT * FROM pages WHERE id=?").get(r.id);
+  const versions = (await db.prepare("SELECT COUNT(*) n FROM page_versions WHERE page_id=?").get(r.id)).n;
+  afterCommit.push(() => emit("pages", { title: "Page published: /" + r.slug, who: r.title }));
+  return { status: 200, body: { ...(await rowPage(updated)), versions } };
 }));
 app.post("/api/pages/:id/unpublish", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
@@ -1438,19 +2343,52 @@ app.get("/api/pages/:id/versions", wrap(async (req, res) => {
   res.json({ items: rows.map((v) => ({ id: v.id, note: v.note, who: v.who, createdAt: v.created_at,
     blocks: JSON.parse(v.snapshot).blocks.length })) });
 }));
-app.post("/api/pages/:id/rollback", wrap(async (req, res) => {
+app.post("/api/pages/:id/rollback", wrapTx(async (req, res) => {
+  const page = await db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
+  if (!page) return res.status(404).json({ error: "page not found" });
   const vid = Number(req.body?.version_id);
-  if (!vid) return res.status(400).json({ error: "version_id required" });
-  const v = (await (db.prepare("SELECT * FROM page_versions WHERE id=? AND page_id=?").get(vid, req.params.id)));
-  if (!v) return res.status(404).json({ error: "version not found" });
-  const snap = JSON.parse(v.snapshot);
-  (await (db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(req.params.id)));
-  (await Promise.all((snap.blocks ?? []).map(async (b, i) => (await (db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
-    .run(req.params.id, b.type, JSON.stringify(b.props ?? {}), i))))));
-  (await (db.prepare("UPDATE pages SET updated_at=? WHERE id=?").run(now(), req.params.id)));
-  emit("pages", { title: "Version rolled back on page " + req.params.id, who: req.actor ?? "You" });
-  res.json((await (rowPage((await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)))))));
+  if (!Number.isSafeInteger(vid) || vid < 1) return res.status(400).json({ error: "version_id required" });
+  const version = await db.prepare("SELECT * FROM page_versions WHERE id=? AND page_id=?").get(vid, page.id);
+  if (!version) return res.status(404).json({ error: "version not found" });
+  const snapshot = safeJson(version.snapshot, null);
+  if (!snapshot || !Array.isArray(snapshot.blocks)) return res.status(422).json({ error: "version snapshot is invalid" });
+  if (snapshot.blocks.length > 100 || snapshot.blocks.some((block) =>
+    !block?.type || (block.props != null && (typeof block.props !== "object" || Array.isArray(block.props)))))
+    return res.status(422).json({ error: "version snapshot contains invalid blocks" });
+
+  await db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(page.id);
+  for (const [i, block] of snapshot.blocks.entries()) {
+    await db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)")
+      .run(page.id, String(block.type), JSON.stringify(block.props ?? {}), i);
+  }
+  const legacySeo = snapshot.seo ?? {};
+  const title = Object.prototype.hasOwnProperty.call(snapshot, "title") ? snapshot.title : page.title;
+  const seoTitle = Object.prototype.hasOwnProperty.call(snapshot, "seoTitle") ? snapshot.seoTitle : (legacySeo.title ?? page.seo_title);
+  const seoDesc = Object.prototype.hasOwnProperty.call(snapshot, "seoDesc") ? snapshot.seoDesc : (legacySeo.desc ?? page.seo_desc);
+  const theme = Object.prototype.hasOwnProperty.call(snapshot, "theme") ? snapshot.theme : safeJson(page.theme, null);
+  await db.prepare("UPDATE pages SET title=?,seo_title=?,seo_desc=?,theme=?,updated_at=? WHERE id=?")
+    .run(title, seoTitle, seoDesc, theme == null ? null : JSON.stringify(theme), now(), page.id);
+  const updated = await db.prepare("SELECT * FROM pages WHERE id=?").get(page.id);
+  emit("pages", { title: "Draft restored from version " + vid + " on /" + page.slug, who: req.actor ?? "You" });
+  res.json(await rowPage(updated));
 }));
+
+async function backfillPublishedSnapshots() {
+  const pages = await db.prepare("SELECT * FROM pages WHERE status='Published' AND (published_snapshot IS NULL OR published_snapshot='')").all();
+  if (!pages.length) return;
+  await db.transaction(async () => {
+    for (const page of pages) {
+      const blocks = (await db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(page.id))
+        .map((b) => ({ type: b.type, props: safeJson(b.props, {}) }));
+      const snapshot = {
+        slug: page.slug, title: page.title, seoTitle: page.seo_title, seoDesc: page.seo_desc,
+        theme: safeJson(page.theme, null), blocks, publishedAt: page.updated_at,
+      };
+      await db.prepare("UPDATE pages SET published_snapshot=? WHERE id=?").run(JSON.stringify(snapshot), page.id);
+    }
+  });
+  console.log(`[woodex-api] captured current public baseline for ${pages.length} published CMS page(s)`);
+}
 
 async function ensureSiteDemo() {
   if ((await (db.prepare("SELECT COUNT(*) n FROM pages").get())).n > 0) return;
@@ -1484,66 +2422,126 @@ async function ensureSiteDemo() {
 app.use("/img", express.static(path.join(HERE, "public/img"), { maxAge: "1h" }));
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
-await seed();
-/* P10 demo threads — boot-guarded, runs even after the main seed() short-circuits */
-try {
-  if ((await (db.prepare("SELECT COUNT(*) n FROM conversations").get())).n === 0) {
-    const seeds = [
-      { n: -5, msgs: [["inbound", "whatsapp", "Hassan", "Salam, do you have the L-shaped desk in walnut? Need 4 for a new office by Eid."], ["outbound", "whatsapp", "Usman", "Walaikum salam! Yes — 6 in stock at Gulberg. I'll send prices + 3D layout options today."], ["inbound", "whatsapp", "Hassan", "Great, also do you install in DHA?"]] },
-      { n: -2, msgs: [["inbound", "email", "Bilal Traders", "Following up on quote Q-1042 — can we move to 40% advance?"], ["outbound", "note", "Ayesha", "Owner asked for payment plan — approved 40/60 per finance, updating quote."]] },
-      { n: -1, msgs: [["inbound", "phone", "Sana", "Call: wants 3 executive tables delivered before the 20th, meeting room chairs too."], ["outbound", "whatsapp", "Usman", "Confirmed stock + slot on 19th. Sending delivery address form shortly."]] },
-    ];
-    for (const [i, sp] of seeds.entries()) {
-      const cl = (await (db.prepare("SELECT id FROM clients WHERE merged_into IS NULL ORDER BY id LIMIT 1 OFFSET ?").get(i)));
-      if (!cl) break;
-      const t = new Date(Date.now() + sp.n * 864e5).toISOString();
-      const info = (await (db.prepare("INSERT INTO conversations(client_id,status,assignee,unread,last_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
-        .run(cl.id, "open", i === 1 ? "Ayesha" : "Usman", i === 2 ? 1 : 0, t, t, t)));
-      let k = 0;
-      for (const [dir, ch, au, body] of sp.msgs) {
-        k += 19 * 60 * 1000;
-        (await (db.prepare("INSERT INTO messages(conversation_id,channel,direction,author,body,created_at) VALUES(?,?,?,?,?,?)")
-          .run(info.lastInsertRowid, ch, dir, au, body, new Date(Date.parse(t) + k).toISOString())));
-      }
-    }
-    console.log("[woodex-api] P10 inbox demo threads seeded");
-  }
-} catch (e) { console.error("[woodex-api] inbox seed skipped:", e.message); }
-/* Foundation: admin/admin simple login — migrate the legacy owner row once */
-try {
-  if (!(await (db.prepare("SELECT id FROM users WHERE email='admin@woodex.pk'").get()))) {
-    const legacy = (await (db.prepare("SELECT id FROM users WHERE email='usman@woodex.pk'").get()));
-    if (legacy) {
-      const { salt, hash } = hashPass("admin");
-      (await (db.prepare("UPDATE users SET email='admin@woodex.pk', name='Admin', role='owner', pass_salt=?, pass_hash=?, active=1, updated_at=? WHERE id=?").run(salt, hash, now(), legacy.id)));
-      (await (db.prepare("DELETE FROM sessions WHERE user_id=?").run(legacy.id))); // old pw's tokens invalid
-    } else {
-      const { salt, hash } = hashPass("admin");
-      (await (db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run("admin@woodex.pk", "Admin", "owner", salt, hash, now(), now())));
-    }
-    console.log("[woodex-api] login: admin / admin");
-  }
-} catch (e) { console.error("[woodex-api] admin migration skipped:", e.message); }
-/* Foundation: demo team (password: woodex123 for all) */
-try {
-  {
+
+async function ensureServerlessCatalog() {
+  const { products, materials, services } = await loadShopData();
+  await db.transaction(async () => {
     const t = now();
-    const team = [ // owner role is the admin/admin row migrated above — not recreated here
+    for (const product of products) {
+      const stock = product.inStock ? 99 : 0;
+      await db.prepare("INSERT OR IGNORE INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)")
+        .run(product.id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, stock, t);
+    }
+    for (const material of materials) {
+      await db.prepare("INSERT OR IGNORE INTO materials(id,json) VALUES(?,?)").run(material.id, JSON.stringify(material));
+    }
+    for (const [index, service] of services.entries()) {
+      await db.prepare("INSERT OR IGNORE INTO services(id,json) VALUES(?,?)").run(String(index + 1), JSON.stringify(service));
+    }
+  });
+}
+
+async function bootstrapProductionOwner() {
+  const users = Number((await db.prepare("SELECT COUNT(*) n FROM users").get()).n);
+  if (users > 0) {
+    const owner = await db.prepare("SELECT id FROM users WHERE role='owner' AND active=1 LIMIT 1").get();
+    if (!owner) throw new Error("Production database has users but no active owner; provision an owner before deployment.");
+    return;
+  }
+
+  const email = String(process.env.INITIAL_ADMIN_EMAIL ?? "").trim().toLowerCase();
+  const password = String(process.env.INITIAL_ADMIN_PASSWORD ?? "");
+  if (!email || !password) throw new Error("No production owner exists. Set INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD once, or provision an owner before deployment.");
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) throw new Error("INITIAL_ADMIN_EMAIL must be a valid email address.");
+  if (password.length < 16) throw new Error("INITIAL_ADMIN_PASSWORD must be at least 16 characters.");
+
+  const { salt, hash } = hashPass(password);
+  const t = now();
+  await db.prepare("INSERT OR IGNORE INTO users(email,name,role,pass_salt,pass_hash,active,created_at,updated_at) VALUES(?,?,?,?,?,1,?,?)")
+    .run(email, "Woodex Owner", "owner", salt, hash, t, t);
+  const owner = await db.prepare("SELECT id FROM users WHERE role='owner' AND active=1 LIMIT 1").get();
+  if (!owner) throw new Error("Production owner bootstrap did not create an active owner.");
+  console.log("[woodex-api] initial production owner provisioned; remove bootstrap secrets from Vercel after verification.");
+}
+
+let httpServer = null;
+const allowDemoSeed = !IS_SERVERLESS && !IS_PRODUCTION
+  && (db.kind === "sqlite" || process.env.WOODEX_DEMO_SEED === "1");
+if (allowDemoSeed) {
+  await seed();
+  await ensureQuoteVersionBaselines();
+  /* P10 demo threads — boot-guarded, local/demo only */
+  try {
+    if ((await db.prepare("SELECT COUNT(*) n FROM conversations").get()).n === 0) {
+      const seeds = [
+        { n: -5, msgs: [["inbound", "whatsapp", "Hassan", "Salam, do you have the L-shaped desk in walnut? Need 4 for a new office by Eid."], ["outbound", "whatsapp", "Usman", "Walaikum salam! Yes — 6 in stock at Gulberg. I'll send prices + 3D layout options today."], ["inbound", "whatsapp", "Hassan", "Great, also do you install in DHA?"]] },
+        { n: -2, msgs: [["inbound", "email", "Bilal Traders", "Following up on quote Q-1042 — can we move to 40% advance?"], ["outbound", "note", "Ayesha", "Owner asked for payment plan — approved 40/60 per finance, updating quote."]] },
+        { n: -1, msgs: [["inbound", "phone", "Sana", "Call: wants 3 executive tables delivered before the 20th, meeting room chairs too."], ["outbound", "whatsapp", "Usman", "Confirmed stock + slot on 19th. Sending delivery address form shortly."]] },
+      ];
+      for (const [i, sp] of seeds.entries()) {
+        const cl = await db.prepare("SELECT id FROM clients WHERE merged_into IS NULL ORDER BY id LIMIT 1 OFFSET ?").get(i);
+        if (!cl) break;
+        const t = new Date(Date.now() + sp.n * 864e5).toISOString();
+        const info = await db.prepare("INSERT INTO conversations(client_id,status,assignee,unread,last_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+          .run(cl.id, "open", i === 1 ? "Ayesha" : "Usman", i === 2 ? 1 : 0, t, t, t);
+        let k = 0;
+        for (const [dir, ch, au, body] of sp.msgs) {
+          k += 19 * 60 * 1000;
+          await db.prepare("INSERT INTO messages(conversation_id,channel,direction,author,body,created_at) VALUES(?,?,?,?,?,?)")
+            .run(info.lastInsertRowid, ch, dir, au, body, new Date(Date.parse(t) + k).toISOString());
+        }
+      }
+      console.log("[woodex-api] local P10 inbox demo threads seeded");
+    }
+  } catch (e) { console.error("[woodex-api] local inbox seed skipped:", e.message); }
+  /* Demo owner/team accounts are strictly local; never created in a Vercel runtime. */
+  try {
+    if (!(await db.prepare("SELECT id FROM users WHERE email='admin@woodex.pk'").get())) {
+      const legacy = await db.prepare("SELECT id FROM users WHERE email='usman@woodex.pk'").get();
+      if (legacy) {
+        const { salt, hash } = hashPass("admin");
+        await db.prepare("UPDATE users SET email='admin@woodex.pk', name='Admin', role='owner', pass_salt=?, pass_hash=?, active=1, updated_at=? WHERE id=?")
+          .run(salt, hash, now(), legacy.id);
+        await db.prepare("DELETE FROM sessions WHERE user_id=?").run(legacy.id);
+      } else {
+        const { salt, hash } = hashPass("admin");
+        await db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+          .run("admin@woodex.pk", "Admin", "owner", salt, hash, now(), now());
+      }
+      console.log("[woodex-api] local demo login created (never use these credentials in production).");
+    }
+  } catch (e) { console.error("[woodex-api] local demo owner seed skipped:", e.message); }
+  try {
+    const t = now();
+    const team = [
       ["ayesha@woodex.pk", "Ayesha (Content)", "editor"],
       ["bilal@woodex.pk", "Bilal (Sales)", "sales"],
       ["farhan@woodex.pk", "Farhan (Finance)", "finance"],
       ["guest@woodex.pk", "Guest (View only)", "viewer"],
     ];
     for (const [email, name, role] of team) {
-      if ((await (db.prepare("SELECT id FROM users WHERE email=?").get(email)))) continue;
+      if (await db.prepare("SELECT id FROM users WHERE email=?").get(email)) continue;
       const { salt, hash } = hashPass("woodex123");
-      (await (db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").run(email, name, role, salt, hash, t, t)));
+      await db.prepare("INSERT INTO users(email,name,role,pass_salt,pass_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+        .run(email, name, role, salt, hash, t, t);
     }
-    console.log("[woodex-api] team ensure-complete · demo password 'woodex123'");
-  }
-} catch (e) { console.error("[woodex-api] users seed skipped:", e.message); }
-(await (ensureFinanceDemo()));
-(await (ensureCrmDemo()));
-(await (ensureSiteDemo()));
-const httpServer = app.listen(PORT, "0.0.0.0", () => console.log(`[woodex-api] http://localhost:${httpServer.address()?.port ?? PORT} · driver=${db.kind}`));
+    console.log("[woodex-api] local demo team ensured (never use these credentials in production).");
+  } catch (e) { console.error("[woodex-api] local demo team seed skipped:", e.message); }
+  await ensureFinanceDemo();
+  await ensureCrmDemo();
+  await ensureSiteDemo();
+  await backfillPublishedSnapshots();
+} else if (IS_PRODUCTION) {
+  await bootstrapProductionOwner();
+}
+
+if (IS_SERVERLESS) {
+  if (db.kind !== "postgres") throw new Error("Vercel requires a persistent PostgreSQL DATABASE_URL; SQLite/PGlite are unsupported.");
+  // Fail during initialization rather than accepting traffic against an uninitialized database.
+  await db.prepare("SELECT 1 FROM meta LIMIT 1").get();
+  // Only repository-owned public catalog content is bootstrapped; customer/demo records are never seeded on Vercel.
+  await ensureServerlessCatalog();
+} else {
+  httpServer = app.listen(PORT, "0.0.0.0", () => console.log(`[woodex-api] http://localhost:${httpServer.address()?.port ?? PORT} · driver=${db.kind}`));
+}
 export { app, db, httpServer };

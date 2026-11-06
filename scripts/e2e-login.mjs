@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 /* Browser E2E (QA TODO-6): login → dashboard → sign-out round-trip.
-   Needs Playwright browsers (npx playwright install chromium) — skipped gracefully where
-   downloads are blocked (e.g. this sandbox); CI runs it for real.
+   Needs Playwright Chromium. Local runs skip gracefully if the browser is missing;
+   set E2E_REQUIRED=1 in CI to make missing browser dependencies fail the job.
    BASE=e2e target, default http://127.0.0.1:5173 */
 const BASE = process.env.BASE ?? "http://127.0.0.1:5173";
+const browserRequired = process.env.E2E_REQUIRED === "1";
+const unavailable = (message) => {
+  console.log(`${browserRequired ? "ERROR" : "SKIP"}: ${message}`);
+  process.exit(browserRequired ? 1 : 0);
+};
 let chromium;
 try { ({ chromium } = await import("playwright")); }
-catch { console.log("SKIP: playwright not resolvable (npm i -D playwright)"); process.exit(0); }
+catch { unavailable("Playwright is unavailable (npm i -D playwright)."); }
 let browser;
 try { browser = await chromium.launch(); }
-catch (e) { console.log("SKIP: no browser binary — run `npx playwright install chromium` in an env with network. (" + String(e.message).split("\n")[0] + ")"); process.exit(0); }
+catch (e) { unavailable("no browser binary — run `npx playwright install chromium` in an environment with network. (" + String(e.message).split("\n")[0] + ")"); }
 const fail = (m) => { console.error("E2E FAIL:", m); return browser.close().then(() => process.exit(1)); };
 try {
   const page = await browser.newPage();

@@ -43,7 +43,7 @@ const QuoteBasket = () => {
               <p className="text-xs text-primary-foreground/70">{totalItems} item{totalItems !== 1 ? "s" : ""} added</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-primary-foreground hover:text-accent hover:bg-primary-foreground/10">
+          <Button aria-label="Close quote basket" variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-primary-foreground hover:text-accent hover:bg-primary-foreground/10">
             <X className="h-5 w-5" />
           </Button>
         </div>
