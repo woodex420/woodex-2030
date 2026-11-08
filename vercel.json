@@ -13,6 +13,14 @@
       "destination": "/api/:path*"
     },
     {
+      "source": "/admin",
+      "destination": "/dashboard"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/dashboard/:path*"
+    },
+    {
       "source": "/dashboard",
       "destination": "/dashboard/index.html"
     },

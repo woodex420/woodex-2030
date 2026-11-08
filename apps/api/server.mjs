@@ -35,7 +35,14 @@ const IS_PRODUCTION = process.env.VERCEL_ENV
   : process.env.NODE_ENV === "production";
 const DATABASE_URL = String(process.env.DATABASE_URL ?? "").trim();
 if ((IS_SERVERLESS || IS_PRODUCTION) && !DATABASE_URL) {
-  throw new Error("DATABASE_URL is required for Vercel/production; SQLite is local-development only.");
+  /* Make the misconfiguration diagnosable from the outside. A bare thrown error
+     reaches the browser only as FUNCTION_INVOCATION_FAILED, which says nothing
+     about the missing setting — that is exactly how this deployment shipped
+     "successfully" while every /api/* call was a 500. */
+  const reason = "DATABASE_URL is required for Vercel/production; SQLite is local-development only.";
+  console.error(`[woodex-api] fatal: ${reason} Add it in Vercel → Project → Settings → Environment Variables, then run \`DATABASE_URL=... npm run db:apply-schema\` once.`);
+  globalThis.__WOODEX_FATAL_CONFIG__ = reason;
+  throw Object.assign(new Error(reason), { code: "WOODEX_MISSING_DATABASE_URL", statusCode: 503, expose: true });
 }
 const DB_DIR = process.env.WOODEX_DATA_DIR ? path.resolve(process.env.WOODEX_DATA_DIR) : path.join(ROOT, "data");
 if (!DATABASE_URL) fs.mkdirSync(DB_DIR, { recursive: true });
@@ -756,6 +763,9 @@ if (STATIC_ROOT && fs.existsSync(STATIC_ROOT)) {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
     const clean = decodeURIComponent(req.path).replace(/\.html$/, "").replace(/\/+$/, "") || "/";
     if (clean === "/api" || clean.startsWith("/api/")) return next();   // never answer the API
+    /* /admin is the address people actually type; the dashboard is built under
+       /dashboard. Redirect rather than 404 (or serve) so both work either way. */
+    if (clean === "/admin" || clean.startsWith("/admin/")) return res.redirect(308, "/dashboard" + clean.slice("/admin".length));
     if (clean === "/dashboard") return fs.existsSync(dashboardHtml) ? sendHtml(dashboardHtml, res) : next();
     if (clean.startsWith("/dashboard/")) return fs.existsSync(dashboardHtml) ? sendHtml(dashboardHtml, res) : next();
     if (clean === "/sitemap.xml" || clean === "/robots.txt") return next(); // the API owns these
