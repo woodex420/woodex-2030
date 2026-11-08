@@ -11,3 +11,6 @@ data/*.db-*
 *.log
 *.tsbuildinfo
 .DS_Store
+
+# database backups (never commit customer data)
+backups/

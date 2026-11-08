@@ -30,7 +30,9 @@
     "smoke:render": "node scripts/smoke-render.mjs",
     "qa:pg": "node scripts/qa-pg.mjs",
     "ci:test": "node scripts/ci-test.mjs",
-    "db:apply-schema": "node scripts/apply-postgres-schema.mjs"
+    "db:apply-schema": "node scripts/apply-postgres-schema.mjs",
+    "db:backup": "node scripts/backup.mjs",
+    "db:verify-backup": "node scripts/backup.mjs --verify"
   },
   "engines": {
     "node": ">=22.5"

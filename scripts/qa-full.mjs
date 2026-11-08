@@ -793,6 +793,93 @@ await T("pages · delete removes the page and its blocks/versions (no orphans)",
   return `${key} removed with ${del.j.blocks ?? 0} blocks, ${del.j.versions ?? 0} versions`;
 });
 
+await T("perf · GET /api/clients stays set-based (query count does not track row count)", async () => {
+  const before = await api("/api/diagnostics/queries");
+  if (before.s !== 200) return "diagnostics unavailable (non-owner role) — skipped";
+  const a = before.j.queries;
+  const list = await api("/api/clients"); want(list, 200, "list");
+  const b = (await api("/api/diagnostics/queries")).j.queries;
+  const perRequest = b - a;
+  /* The old implementation issued ~9 queries PER CLIENT (2,943 for 321 rows).
+     Anything near `clients × 4` means somebody reintroduced a rollup loop. */
+  const ceiling = 40 + list.j.total * 2;
+  if (perRequest > ceiling) bad(`/${list.j.total} clients → ${perRequest} queries (ceiling ${ceiling}) — looks like N+1`);
+  // Values must still match the reference implementation.
+  const sample = (list.j.items ?? []).slice(0, 3);
+  for (const it of sample) {
+    const det = await api(`/api/clients/${it.id}`); want(det, 200, "detail");
+    if (det.j.lifetime !== it.lifetime) bad(`${it.name}: lifetime ${it.lifetime} vs ${det.j.lifetime}`);
+    if (det.j.outstanding !== it.outstanding) bad(`${it.name}: outstanding ${it.outstanding} vs ${det.j.outstanding}`);
+    if (det.j.orders !== it.orders) bad(`${it.name}: orders ${it.orders} vs ${det.j.orders}`);
+    if (det.j.quotes !== it.quotes) bad(`${it.name}: quotes ${it.quotes} vs ${det.j.quotes}`);
+  }
+  return `${list.j.total} clients → ${perRequest} queries · rollups match /:id`;
+});
+
+await T("db · every hot-path index exists, and the two schemas agree on them", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { readFileSync, existsSync } = await import("node:fs");
+  const dbPath = process.env.WOODEX_DATA_DIR ? process.env.WOODEX_DATA_DIR + "/woodex.db" : "data/woodex.db";
+  if (!existsSync(dbPath)) return "database file not reachable from the test host — skipped";
+  const raw = new DatabaseSync(dbPath);
+  const sqlite = new Set(raw.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'").all().map((r) => r.name));
+  raw.close();
+  const pg = new Set([...readFileSync("scripts/schema.postgres.sql", "utf8").matchAll(/CREATE INDEX IF NOT EXISTS (idx_\w+)/g)].map((m) => m[1]));
+  const missingSqlite = [...pg].filter((n) => !sqlite.has(n));
+  if (missingSqlite.length) bad("declared in schema.postgres.sql but missing from the live SQLite db: " + missingSqlite.join(", "));
+  /* An index that precedes its CREATE TABLE makes the whole Postgres migration
+     abort, which only `qa:pg` catches — pin the order here too. */
+  const sql = readFileSync("scripts/schema.postgres.sql", "utf8");
+  const tableAt = new Map([...sql.matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/g)].map((m) => [m[1], m.index]));
+  for (const m of sql.matchAll(/CREATE INDEX IF NOT EXISTS (idx_\w+) ON (\w+)/g)) {
+    const [, name, table] = m;
+    if (!tableAt.has(table)) bad(`${name} references unknown table ${table}`);
+    else if (tableAt.get(table) > m.index) bad(`${name} is declared BEFORE CREATE TABLE ${table} — Postgres migration will abort`);
+  }
+  return `${pg.size} indexes declared · ${sqlite.size} present · ordering valid`;
+});
+
+await T("db · backup produces a restorable snapshot whose counts match the live db", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, rmSync, existsSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(tmpdir() + "/wx-bak-");
+  const out = dir + "/snap.db.gz";
+  try {
+    const made = spawnSync(process.execPath, ["scripts/backup.mjs", "--out", out], { encoding: "utf8" });
+    if (made.status !== 0) bad("backup failed: " + (made.stderr || made.stdout).slice(0, 200));
+    if (!existsSync(out)) bad("backup file was not written");
+    const checked = spawnSync(process.execPath, ["scripts/backup.mjs", "--verify", out], { encoding: "utf8" });
+    if (checked.status !== 0) bad("verify failed: " + (checked.stderr || checked.stdout).slice(0, 200));
+    const line = (checked.stdout.match(/integrity ok · \d+ tables · \d+ rows/) ?? [null])[0];
+    if (!line) bad("verify did not report a row count: " + checked.stdout.slice(0, 200));
+    if (!/row counts match the live database exactly/.test(checked.stdout))
+      bad("restored snapshot does not match the live database: " + checked.stdout.slice(0, 240));
+    return line;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+await T("seo · sitemap covers every declared static route and both consumers agree", async () => {
+  const { PUBLIC_ROUTES } = await import("../apps/api/public-routes.mjs");
+  // `api()` is a JSON helper; the sitemap is XML, so fetch it raw.
+  const res = await fetch(BASE + "/sitemap.xml");
+  if (res.status !== 200) bad(`sitemap status ${res.status}`);
+  const xml = await res.text();
+  if (!res.headers.get("content-type")?.includes("xml")) bad("sitemap content-type is not XML");
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  if (!locs.length) bad("sitemap has no <loc> entries");
+  const paths = new Set(locs.map((u) => { try { return new URL(u).pathname; } catch { return u; } }));
+  const missing = PUBLIC_ROUTES.map((x) => x.path).filter((p) => !paths.has(p));
+  if (missing.length) bad("static routes missing from the sitemap: " + missing.join(", "));
+  // The prerender must render exactly this list — otherwise a route exists in the
+  // sitemap but ships as a JavaScript-only page to crawlers.
+  const src = (await import("node:fs")).readFileSync("scripts/prerender.mjs", "utf8");
+  if (!/STATIC_ROUTES = PUBLIC_ROUTES/.test(src)) bad("prerender no longer consumes PUBLIC_ROUTES");
+  return `${PUBLIC_ROUTES.length} static routes + dynamic · ${locs.length} URLs total`;
+});
+
 /* ============ REAL-TIME ============ */
 G("realtime");
 await T("anonymous and non-owner event streams are blocked", async () => {

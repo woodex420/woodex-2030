@@ -186,3 +186,14 @@ END $$;
    ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
    CREATE POLICY tenant_isolation ON leads USING (tenant_id = current_setting('app.tenant_id')::bigint);
    The application role stays a plain owner role until then — single tenant Woodex. */
+
+-- ---- hot-path indexes (must come after every CREATE TABLE above) ----
+CREATE INDEX IF NOT EXISTS idx_tasks_client ON tasks(client_id, done);
+CREATE INDEX IF NOT EXISTS idx_tasks_order ON tasks(order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_stage ON orders(stage, created_at);
+CREATE INDEX IF NOT EXISTS idx_invoices_order ON invoices(order_id);
+CREATE INDEX IF NOT EXISTS idx_clients_merged ON clients(merged_into, updated_at);
+CREATE INDEX IF NOT EXISTS idx_clients_email ON clients(email_norm);
+CREATE INDEX IF NOT EXISTS idx_clients_phone ON clients(phone_norm);
+CREATE INDEX IF NOT EXISTS idx_leads_created ON leads(created_at);
+CREATE INDEX IF NOT EXISTS idx_quotes_created ON quotes(created_at);

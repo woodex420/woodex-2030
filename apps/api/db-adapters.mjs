@@ -93,7 +93,11 @@ export async function createDb({ sqliteFile, databaseUrl = "" }) {
     const guarded = (fn) => als.getStore() ? fn() : mutex(fn);
     const db = {
       kind: "sqlite",
+      /* Every statement is prepared through here. Counting them is how we catch
+         N+1 loops: a list endpoint's query count must not grow with row count. */
+      queries: 0,
       prepare(sql) {
+        db.queries += 1;
         const stmt = raw.prepare(sql);
         return {
           get: (...params) => guarded(() => stmt.get(...params) ?? undefined),
@@ -125,7 +129,9 @@ export async function createDb({ sqliteFile, databaseUrl = "" }) {
     };
     const db = {
       kind: "pglite",
+      queries: 0,
       prepare(sql) {
+        db.queries += 1;
         return {
           get: async (...params) => normalizeRow((await query(sql, params)).rows?.[0]),
           all: async (...params) => (await query(sql, params)).rows.map(normalizeRow),
@@ -170,7 +176,9 @@ export async function createDb({ sqliteFile, databaseUrl = "" }) {
   };
   const db = {
     kind: "postgres",
+    queries: 0,
     prepare(sql) {
+      db.queries += 1;
       return {
         get: async (...params) => normalizeRow((await query(rewritePlaceholders(sql), params)).rows?.[0]),
         all: async (...params) => (await query(rewritePlaceholders(sql), params)).rows.map(normalizeRow),

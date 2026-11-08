@@ -21,6 +21,7 @@ import { build } from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PUBLIC_ROUTES } from "../apps/api/public-routes.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -51,24 +52,9 @@ const ORIGIN = BRAND.url;
 /* ---------- route table ----------
    Static routes plus their per-route metadata. Dynamic product/series/blog
    pages are enumerated from the catalogue below. */
-const STATIC_ROUTES = [
-  { path: "/", title: "Premium Office Furniture | Lahore, Pakistan", desc: "WOODEX designs and manufactures premium office furniture in Lahore — desks, ergonomic chairs, workstations and complete fit-outs, with 48-hour quotations and nationwide delivery.", priority: "1.0", changefreq: "weekly" },
-  { path: "/shop", title: "Shop Office Furniture", desc: "Browse desks, ergonomic chairs, storage and workstations. Live stock and prices, delivery nationwide across Pakistan.", priority: "0.9", changefreq: "daily" },
-  { path: "/about", title: "About WOODEX", desc: "A Lahore-based office furniture manufacturer: our workshop, our materials and how we deliver fit-outs.", priority: "0.6", changefreq: "monthly" },
-  { path: "/contact", title: "Contact & Showrooms", desc: "Talk to WOODEX — showrooms in Lahore, quotations within 48 hours, nationwide delivery.", priority: "0.7", changefreq: "monthly" },
-  { path: "/quotation", title: "Get a Quotation", desc: "Request a priced quotation for your workspace. Real stock, real lead times, response within 48 hours.", priority: "0.8", changefreq: "monthly" },
-  { path: "/services", title: "Design & Fit-out Services", desc: "Space planning, custom manufacturing, delivery and installation for offices across Pakistan.", priority: "0.7", changefreq: "monthly" },
-  { path: "/materials", title: "Materials & Finishes", desc: "The woods, laminates, fabrics and hardware we build with — and how to choose between them.", priority: "0.6", changefreq: "monthly" },
-  { path: "/projects", title: "Completed Projects", desc: "Office fit-outs delivered by WOODEX, with scope, timeline and finished photography.", priority: "0.6", changefreq: "monthly" },
-  { path: "/showrooms", title: "Showrooms", desc: "Visit a WOODEX showroom to sit in the chairs and feel the finishes before you order.", priority: "0.5", changefreq: "monthly" },
-  { path: "/b2b", title: "B2B & Corporate Accounts", desc: "Volume pricing, purchase orders and corporate accounts for offices, co-working spaces and institutions.", priority: "0.6", changefreq: "monthly" },
-  { path: "/blog", title: "Blog — Office Design & Furniture Guides", desc: "Practical guides on office ergonomics, space planning and choosing furniture that lasts.", priority: "0.6", changefreq: "weekly" },
-  { path: "/warranty", title: "Warranty & Care", desc: "WOODEX warranty terms, what is covered, and how to care for solid wood and upholstery.", priority: "0.4", changefreq: "yearly" },
-  { path: "/custom-design", title: "Custom Design", desc: "Made-to-measure furniture drawn around your floor plan, built in our Johar Town workshop.", priority: "0.6", changefreq: "monthly" },
-  { path: "/room-packages", title: "Room Packages", desc: "Furnished-room bundles for meeting rooms, private offices and break-outs, priced as a set.", priority: "0.6", changefreq: "monthly" },
-  { path: "/series", title: "Furniture Series", desc: "WOODEX collections — each series shares a design language across desks, storage and seating.", priority: "0.6", changefreq: "monthly" },
-  { path: "/virtual-showroom", title: "Virtual Showroom", desc: "Walk through the WOODEX range online when you cannot visit in person.", priority: "0.4", changefreq: "monthly" },
-];
+/* Shared with the API, which builds /sitemap.xml from the same list, so a
+   public page cannot exist in one place and be missing from the other. */
+const STATIC_ROUTES = PUBLIC_ROUTES;
 
 /* ---------- runtime shims (shared with smoke-render) ---------- */
 function makeWindow(url, errs) {
@@ -358,16 +344,15 @@ async function main() {
     return;
   }
 
-  /* ---------- sitemap ---------- */
-  const today = new Date().toISOString().slice(0, 10);
-  const urls = written.map((r) => `  <url><loc>${ORIGIN}${r.path === "/" ? "/" : r.path}</loc><lastmod>${today}</lastmod><changefreq>${r.changefreq}</changefreq><priority>${r.priority}</priority></url>`).join("\n");
-  fs.writeFileSync(path.join(DIST, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
+  /* Only robots.txt is written here. A static dist/sitemap.xml would be served
+     by Vercel *before* rewrites and shadow the API's /sitemap.xml — and only the
+     API can see published CMS pages, so the API's is the complete one. One
+     sitemap, one owner. */
   fs.writeFileSync(
     path.join(DIST, "robots.txt"),
     `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /order-status\nDisallow: /checkout\n\nSitemap: ${ORIGIN}/sitemap.xml\n`
   );
-
-  console.log(`[prerender] ${ok}/${targets.length} routes written · sitemap ${written.length} URLs · robots.txt`);
+  console.log(`[prerender] ${ok}/${targets.length} routes rendered · robots.txt written · sitemap served by the API`);
 }
 
 main()

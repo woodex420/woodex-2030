@@ -321,12 +321,54 @@ exit 0, `secret-scan` clean. Rendered for real: `/projects` shows `PRJ-1001`,
 Rs 2,500,000 planned, Rs 948,000 BOQ total; `/analytics` shows PKR 1,201,000
 revenue and the true lead-stage split.
 
+### 2026-11-08 (later) — storefront SEO, page builder, database
+
+**Storefront ships real HTML.** All 76 public routes previously prerendered as a
+529-byte `Loading page…` shell. Root cause was three separate bugs: `React.lazy`
+never settles inside jsdom (rewritten to static imports by an esbuild plugin), the
+wait polled for `children.length > 0` which the toast portal satisfies before the
+route commits, and the `#root` swap matched a literal empty div that no longer
+existed on a second run. Full build is now 18 s; `PRERENDER_ONLY=/about` renders
+one route in 0.4 s.
+
+**Brand is one source.** `apps/storefront/src/config/brand.ts` is read by both the
+app components and the prerenderer. This fixed real inconsistency: the footer
+advertised two different phone numbers, one of them a fake `+92 42 111 WOODEX`,
+and the address disagreed with the dashboard's invoices. Contact values still
+need business sign-off; they are flagged in the file.
+
+**One sitemap.** The API and the prerenderer each built a partial sitemap
+(149 and 76 URLs) with different contents. `apps/api/public-routes.mjs` is now the
+single route list; the API owns `/sitemap.xml` (it is the only side that can see
+published CMS pages) and the prerenderer owns `robots.txt`. A static
+`dist/sitemap.xml` would be served by Vercel *before* rewrites and shadow the
+complete one, so it is deliberately not emitted.
+
+**Page builder: rich fields, real preview.** Five field types added
+(`select`/`number`/`color`/`link`/`boolean`), `hero` gained
+align/accent/compact, `product-grid` gained `limit` + `sort`. Three API bugs
+found while proving it: unknown block types were accepted; `POST /api/pages`
+silently discarded `blocks`; and there was no way to delete a page at all.
+
+**Database.** `/api/clients` issued 2,943 queries for 321 clients (~9 each) —
+now 8, flat in row count and 54 ms → 4 ms, verified value-for-value against the
+per-client endpoint. Nine hot-path indexes added after `EXPLAIN QUERY PLAN`
+showed full table scans; `npm run db:backup` / `db:verify-backup` added
+(VACUUM INTO, integrity check, row-count comparison against live).
+`db.queries` + `/api/diagnostics/queries` make N+1 measurable, and three QA
+tests now fail if the query count scales with rows, if the two schemas drift, or
+if a backup cannot be restored.
+
 ### Still open from the plan
 
-- Storefront: `brand.ts` + prerendering (Q2 decision: prerender) — not started.
-- Page builder: re-scoped away from Puck (see §3.3) — the builder already renders the
-  real storefront in a signed iframe; remaining work is deleting the guessy
-  `BlockPreview`, growing the catalogue and adding `select`/`number`/`color`/`link`/`boolean` fields.
+- Storefront: brand + prerender — **done**. Catalogue single-source is done via
+  `apps/api/public-routes.mjs` + `apps/storefront/src/config/brand.ts`.
+- Page builder: rich field types + sorting **done**; `BlockPreview` in
+  `Website.tsx` is still a guessed mock (the live preview is the signed iframe,
+  so it is redundant rather than wrong) — deleting it is the remaining tidy-up,
+  along with growing the catalogue toward 40 blocks.
+- Database: aggregates/indexes/backup **done**. Still open: `CHECK` constraints on
+  status enum columns, and a documented `pg_dump` cron in the deployment runbook.
 - `main` still contains one file; no PR opened yet.
 - Hostinger packaging — not started.
 - Tailwind 3 → 4 for the storefront (F12).

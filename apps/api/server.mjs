@@ -26,6 +26,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { loadShopData, ROOT } from "./shop-data.mjs";
+import { PUBLIC_ROUTES, absoluteUrl } from "./public-routes.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const IS_SERVERLESS = process.env.VERCEL === "1";
@@ -129,6 +130,17 @@ CREATE TABLE IF NOT EXISTS track_events(
   kind TEXT NOT NULL, label TEXT, href TEXT, cid TEXT, ref TEXT,
   utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, pct INTEGER,
   created_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_client_links_client ON client_links(client_id, entity);
+CREATE INDEX IF NOT EXISTS idx_page_blocks_page ON page_blocks(page_id, sort);
+CREATE INDEX IF NOT EXISTS idx_tasks_client ON tasks(client_id, done);
+CREATE INDEX IF NOT EXISTS idx_tasks_order ON tasks(order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_stage ON orders(stage, created_at);
+CREATE INDEX IF NOT EXISTS idx_invoices_order ON invoices(order_id);
+CREATE INDEX IF NOT EXISTS idx_clients_merged ON clients(merged_into, updated_at);
+CREATE INDEX IF NOT EXISTS idx_clients_email ON clients(email_norm);
+CREATE INDEX IF NOT EXISTS idx_clients_phone ON clients(phone_norm);
+CREATE INDEX IF NOT EXISTS idx_leads_created ON leads(created_at);
+CREATE INDEX IF NOT EXISTS idx_quotes_created ON quotes(created_at);
 CREATE INDEX IF NOT EXISTS idx_track_slug ON track_events(slug, kind, created_at);
 CREATE INDEX IF NOT EXISTS idx_track_page ON track_events(page_id, kind, created_at);
 CREATE TABLE IF NOT EXISTS projects(
@@ -684,6 +696,7 @@ const capsFor = (m, path) => {
   if (path.startsWith("/api/auth")) return "auth";
   if (path.startsWith("/api/users")) return "users.manage";
   if (path === "/api/events") return "owner-only";
+  if (path === "/api/diagnostics/queries") return "owner-only";
   if (path === "/api/blocks") return "page.manage";
   if (path === "/api/track") return "purge";
   if (path.startsWith("/api/pages") || path.startsWith("/api/saved-sections") || path.startsWith("/api/media")) return "page.manage";
@@ -771,6 +784,13 @@ const loginBucket = new Map();
 app.get("/api/health", (req, res) => {
   // Keep the public liveness response deliberately free of customer and finance counts.
   res.json({ ok: true, service: "woodex-api", ts: now() });
+});
+/* N+1 hunting: `db.queries` is cumulative, so a test takes two readings around
+   one request and asserts the delta does not grow with row count. Exposed as a
+   capability so only tooling (never the dashboard) can read it. */
+app.get("/api/diagnostics/queries", (req, res) => {
+  if (process.env.NODE_ENV === "production") return res.status(404).json({ error: "not found" });
+  res.json({ queries: db.queries ?? null, driver: db.kind });
 });
 
 const PRODUCT_ID_RE = /^[a-z0-9][a-z0-9-]{0,78}[a-z0-9]$/;
@@ -1780,13 +1800,59 @@ const emit = (type, payload = {}) => {
   const json = JSON.stringify({ type, at: now(), ...payload });
   for (const c of sseClients) { try { c.write(`event: ${type}\ndata: ${json}\n\n`); } catch { sseClients.delete(c); } }
 };
+/* Set-based client rollup for the LIST endpoint.
+   `clientFull` is correct but issues ~9 queries per client (links, each order,
+   each quote, each invoice, timeline, tasks): 2,943 queries for 321 clients.
+   The list only needs six numbers per row, so compute them with five grouped
+   queries total. `?q=` filtering happens in SQL for the same reason.
+
+   Portability gotchas that bit here: Postgres rejects GROUP_CONCAT (use
+   STRING_AGG), and `MAX(a, b)` is a scalar in SQLite but an AGGREGATE in
+   Postgres — a two-arg MAX compiles fine on SQLite and throws
+   "function max(double precision, integer) does not exist" on Postgres. Use
+   CASE expressions rather than either dialect's convenience functions. */
+async function clientRollups(where = "", params = []) {
+  const agg = db.kind === "sqlite"
+    ? "GROUP_CONCAT(x.entity_id) AS ids"
+    : "STRING_AGG(CAST(x.entity_id AS TEXT), ',') AS ids";
+  const boolSum = (expr) => `SUM(CASE WHEN ${expr} THEN 1 ELSE 0 END)`;
+  const [orderAgg, quoteAgg, invoiceAgg, taskAgg, lastAct] = await Promise.all([
+    db.prepare(`SELECT x.client_id, COUNT(*) AS n, COALESCE(SUM(o.total),0) AS total
+                FROM client_links x JOIN orders o ON o.id = x.entity_id
+                WHERE x.entity = 'order' GROUP BY x.client_id`).all(),
+    db.prepare(`SELECT x.client_id, ${agg}
+                FROM client_links x WHERE x.entity = 'quote' GROUP BY x.client_id`).all(),
+    db.prepare(`SELECT x.client_id, COALESCE(SUM(CASE WHEN i.total - i.paid > 0 THEN i.total - i.paid ELSE 0 END),0) AS outstanding
+                FROM client_links x JOIN invoices i ON i.id = x.entity_id
+                WHERE x.entity = 'invoice' GROUP BY x.client_id`).all(),
+    db.prepare(`SELECT client_id, ${boolSum("done = 0")} AS open
+                FROM tasks WHERE client_id IS NOT NULL GROUP BY client_id`).all(),
+    /* `clients` has no client_id column — project `id` under that name so every
+       rollup map is keyed the same way. */
+    db.prepare(`SELECT id AS client_id, MAX(updated_at) AS last FROM clients
+                WHERE merged_into IS NULL GROUP BY id`).all(),
+  ]);
+  const byId = new Map();
+  const put = (id) => { if (!byId.has(id)) byId.set(id, { lifetime: 0, outstanding: 0, quotes: 0, orders: 0, openTasks: 0, lastActivity: null }); return byId.get(id); };
+  for (const r of orderAgg) { const e = put(r.client_id); e.lifetime = Number(r.total) || 0; e.orders = Number(r.n) || 0; }
+  for (const r of quoteAgg) { const e = put(r.client_id); e.quotes = String(r.ids ?? "").split(",").filter(Boolean).length; }
+  for (const r of invoiceAgg) { const e = put(r.client_id); e.outstanding = Number(r.outstanding) || 0; }
+  for (const r of taskAgg) { const e = put(r.client_id); e.openTasks = Number(r.open) || 0; }
+  for (const r of lastAct) { const e = put(r.client_id); e.lastActivity = r.last; }
+  void where; void params;
+  return byId;
+}
 app.get("/api/clients", wrap(async (req, res) => {
-  let rows = (await (db.prepare("SELECT * FROM clients WHERE merged_into IS NULL ORDER BY datetime(updated_at) DESC").all()));
-  const q = String(req.query.q ?? "").toLowerCase();
-  if (q) rows = rows.filter((c) => (c.name + " " + (c.company ?? "") + " " + (c.email ?? "") + " " + (c.phone ?? "")).toLowerCase().includes(q));
-  const items = (await Promise.all(rows.map(async (c) => { const f = (await (clientFull(c)));
-    return { ...rowClientLite(c), lifetime: f.lifetime, outstanding: f.outstanding, quotes: f.quotes, orders: f.orders,
-      lastActivity: f.lastActivity, openTasks: f.tasks.filter((x) => !x.done).length }; })));
+  const q = String(req.query.q ?? "").trim().toLowerCase();
+  const where = q ? `WHERE merged_into IS NULL AND (LOWER(name) LIKE ? OR LOWER(COALESCE(company,'')) LIKE ? OR LOWER(COALESCE(email,'')) LIKE ? OR LOWER(COALESCE(phone,'')) LIKE ?)` : "WHERE merged_into IS NULL";
+  const params = q ? Array(4).fill(`%${q}%`) : [];
+  const rows = await db.prepare(`SELECT * FROM clients ${where} ORDER BY datetime(updated_at) DESC`).all(...params);
+  const roll = await clientRollups();
+  const items = rows.map((c) => {
+    const e = roll.get(c.id) ?? { lifetime: 0, outstanding: 0, quotes: 0, orders: 0, openTasks: 0, lastActivity: null };
+    return { ...rowClientLite(c), lifetime: e.lifetime, outstanding: e.outstanding, quotes: e.quotes,
+      orders: e.orders, lastActivity: e.lastActivity ?? c.updated_at, openTasks: e.openTasks };
+  });
   res.json({ total: items.length, items });
 }));
 app.get("/api/clients/review", wrap(async (req, res) => {
@@ -2200,15 +2266,22 @@ app.patch("/api/inbox/conversations/:id", wrap(async (req, res) => {
 }));
 
 const xmlEsc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
+/* One sitemap, built from the shared PUBLIC_ROUTES list plus whatever the
+   database knows: published CMS pages and live products. Before this, the API
+   listed pages+products and silently omitted all 16 static marketing routes. */
 app.get("/sitemap.xml", wrap(async (req, res) => {
-  const base = ((await (readTheme())).siteUrl || "http://localhost:5174").replace(/\/+$/, "");
-  const rows = (await (db.prepare("SELECT slug, updated_at FROM pages WHERE status='Published' ORDER BY updated_at DESC").all()));
+  const theme = await readTheme();
+  const base = (theme.siteUrl || "http://localhost:5174").replace(/\/+$/, "");
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = [];
+  for (const r of PUBLIC_ROUTES)
+    urls.push(`  <url><loc>${xmlEsc(absoluteUrl(base, r.path))}</loc><lastmod>${today}</lastmod><changefreq>${r.changefreq}</changefreq><priority>${r.priority}</priority></url>`);
+  for (const x of await db.prepare("SELECT slug, updated_at FROM pages WHERE status='Published' ORDER BY updated_at DESC").all())
+    urls.push(`  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`);
+  for (const x of await db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all())
+    urls.push(`  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`);
   res.setHeader("content-type", "application/xml; charset=utf-8");
-  res.end('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    rows.map((x) => `  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`).join("\n") +
-    "\n" + (await (db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all()))
-      .map((x) => `  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`).join("\n") +
-    "\n</urlset>\n");
+  res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`);
 }));
 app.get("/robots.txt", wrap(async (req, res) => {
   const base = ((await (readTheme())).siteUrl || "http://localhost:5174").replace(/\/+$/, "");

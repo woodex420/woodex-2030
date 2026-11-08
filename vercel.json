@@ -4,9 +4,25 @@
   "buildCommand": "npm run vercel:build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
-    { "source": "/dashboard", "destination": "/dashboard/index.html" },
-    { "source": "/dashboard/:path*", "destination": "/dashboard/index.html" },
-    { "source": "/:path*", "destination": "/index.html" }
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/dashboard/index.html"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "destination": "/dashboard/index.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
   ]
 }
