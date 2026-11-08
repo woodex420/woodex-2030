@@ -9,15 +9,13 @@ import { seriesList, getProductsBySeries } from "@/data/products";
 import { useEffect } from "react";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getSeriesSeo } from "@/data/seoContent";
-import execImg from "@/assets/series-executive.jpg";
-import modernImg from "@/assets/series-modern.jpg";
-import ecoImg from "@/assets/series-eco.jpg";
+import { img } from "@/assets/img";
 
 const seriesImages: Record<string, string> = {
-  "ek-series": ecoImg,
-  "infinity-series": modernImg,
-  "woodex-series": execImg,
-  "cubicle-series": modernImg,
+  "ek-series": img("series-eco.jpg"),
+  "infinity-series": img("series-modern.jpg"),
+  "woodex-series": img("series-executive.jpg"),
+  "cubicle-series": img("series-modern.jpg"),
 };
 
 const SeriesDetail = () => {
@@ -54,7 +52,7 @@ const SeriesDetail = () => {
         {/* Hero */}
         <section className="relative min-h-[380px] bg-primary text-primary-foreground overflow-hidden flex items-center">
           <img
-            src={seriesImages[series.id] || execImg}
+            src={seriesImages[series.id] || img("series-executive.jpg")}
             alt={series.name}
             className="absolute inset-0 w-full h-full object-cover opacity-25"
           />

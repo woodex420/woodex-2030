@@ -1,22 +1,15 @@
 import { Link } from "react-router-dom";
-import receptionImg from "@/assets/product-reception-counter.jpg";
-import cubicleImg from "@/assets/product-cubicle.jpg";
-import storageImg from "@/assets/product-storage.jpg";
-import chairImg from "@/assets/product-office-chair.jpg";
-import staffImg from "@/assets/product-staff-desk.jpg";
-import sofaImg from "@/assets/product-office-sofa.jpg";
-import execImg from "@/assets/product-executive-desk.jpg";
-import meetingImg from "@/assets/product-meeting-table.jpg";
+import { img } from "@/assets/img";
 
 const categories = [
-  { label: "Reception Desk", image: receptionImg, href: "/shop?category=reception-tables" },
-  { label: "Cubicle Workstation", image: cubicleImg, href: "/shop?category=cubicle-workstations" },
-  { label: "Office Storage", image: storageImg, href: "/shop?category=storage" },
-  { label: "Office Chair", image: chairImg, href: "/shop?category=chairs" },
-  { label: "Staff Tables", image: staffImg, href: "/shop?category=staff-tables" },
-  { label: "Office Sofas", image: sofaImg, href: "/shop?category=office-sofas" },
-  { label: "Executive Table", image: execImg, href: "/shop?category=executive-tables" },
-  { label: "Meeting Table", image: meetingImg, href: "/shop?category=meeting-tables" },
+  { label: "Reception Desk", image: img("product-reception-counter.jpg"), href: "/shop?category=reception-tables" },
+  { label: "Cubicle Workstation", image: img("product-cubicle.jpg"), href: "/shop?category=cubicle-workstations" },
+  { label: "Office Storage", image: img("product-storage.jpg"), href: "/shop?category=storage" },
+  { label: "Office Chair", image: img("product-office-chair.jpg"), href: "/shop?category=chairs" },
+  { label: "Staff Tables", image: img("product-staff-desk.jpg"), href: "/shop?category=staff-tables" },
+  { label: "Office Sofas", image: img("product-office-sofa.jpg"), href: "/shop?category=office-sofas" },
+  { label: "Executive Table", image: img("product-executive-desk.jpg"), href: "/shop?category=executive-tables" },
+  { label: "Meeting Table", image: img("product-meeting-table.jpg"), href: "/shop?category=meeting-tables" },
 ];
 
 const ProductCategoriesRow = () => (

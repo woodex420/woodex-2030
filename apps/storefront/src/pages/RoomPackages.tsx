@@ -5,16 +5,13 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import chairImage from "@/assets/chair-product.jpg";
-import deskImage from "@/assets/desk-product.jpg";
-import workstationImage from "@/assets/workstation-product.jpg";
-import proj1 from "@/assets/project-1.jpg";
+import { img } from "@/assets/img";
 
 const packages = [
   {
     id: 1,
     title: "Executive Office Package",
-    image: deskImage,
+    image: img("desk-product.jpg"),
     badge: "Save 10%",
     price: "PKR 450,000",
     originalPrice: "PKR 500,000",
@@ -25,7 +22,7 @@ const packages = [
   {
     id: 2,
     title: "Team Workspace Package",
-    image: workstationImage,
+    image: img("workstation-product.jpg"),
     badge: "Best Value",
     price: "PKR 820,000",
     originalPrice: "PKR 900,000",
@@ -36,7 +33,7 @@ const packages = [
   {
     id: 3,
     title: "Meeting Room Package",
-    image: proj1,
+    image: img("project-1.jpg"),
     badge: "Save 8%",
     price: "PKR 320,000",
     originalPrice: "PKR 348,000",
@@ -47,7 +44,7 @@ const packages = [
   {
     id: 4,
     title: "Startup Bundle",
-    image: workstationImage,
+    image: img("workstation-product.jpg"),
     badge: "Save 7%",
     price: "PKR 680,000",
     originalPrice: "PKR 733,000",
@@ -58,7 +55,7 @@ const packages = [
   {
     id: 5,
     title: "Manager's Suite",
-    image: deskImage,
+    image: img("desk-product.jpg"),
     badge: "Save 12%",
     price: "PKR 580,000",
     originalPrice: "PKR 659,000",
@@ -69,7 +66,7 @@ const packages = [
   {
     id: 6,
     title: "Open Office Package",
-    image: chairImage,
+    image: img("chair-product.jpg"),
     badge: "Save 12%",
     price: "PKR 1,100,000",
     originalPrice: "PKR 1,250,000",

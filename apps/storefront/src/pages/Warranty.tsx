@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import warrantyHero from "@/assets/warranty-hero.jpg";
 import { Link } from "react-router-dom";
 import { Shield, CheckCircle2, Phone, Mail, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { img } from "@/assets/img";
 
 const warrantyTiers = [
   {
@@ -74,7 +74,7 @@ const Warranty = () => {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative bg-primary text-primary-foreground py-20 overflow-hidden">
-          <img src={warrantyHero} alt="Quality craftsmanship" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+          <img src={img("warranty-hero.jpg")} alt="Quality craftsmanship" className="absolute inset-0 w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/85 to-primary/40" />
           <div className="container mx-auto px-4 relative">
             <div className="flex items-center gap-4 mb-4">

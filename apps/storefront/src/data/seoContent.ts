@@ -42,7 +42,7 @@ export const buildCollectionJsonLd = (name: string, description: string, url: st
   name,
   description,
   url,
-  isPartOf: { "@type": "WebSite", name: "WOODEX", url: "https://woodex-reimagined.lovable.app" },
+  isPartOf: { "@type": "WebSite", name: "WOODEX", url: "https://woodex.pk" },
 });
 
 // Shared FAQs reused across furniture categories

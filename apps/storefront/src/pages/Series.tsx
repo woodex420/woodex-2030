@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import seriesHero from "@/assets/series-hero.jpg";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,20 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/shop/ProductCard";
-import execImg from "@/assets/series-executive.jpg";
-import modernImg from "@/assets/series-modern.jpg";
-import ecoImg from "@/assets/series-eco.jpg";
-import novaImg from "@/assets/series-nova.jpg";
 import { seriesList, getProductsBySeries } from "@/data/products";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getSeriesSeo } from "@/data/seoContent";
+import { img } from "@/assets/img";
 
 const seriesImages: Record<string, string> = {
-  "ek-series": ecoImg,
-  "infinity-series": modernImg,
-  "woodex-series": execImg,
-  "cubicle-series": modernImg,
-  "nova-series": novaImg,
+  "ek-series": img("series-eco.jpg"),
+  "infinity-series": img("series-modern.jpg"),
+  "woodex-series": img("series-executive.jpg"),
+  "cubicle-series": img("series-modern.jpg"),
+  "nova-series": img("series-nova.jpg"),
 };
 
 const Series = () => {
@@ -40,7 +36,7 @@ const Series = () => {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative bg-primary text-primary-foreground py-20 overflow-hidden">
-          <img src={seriesHero} alt="WOODEX furniture series" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+          <img src={img("series-hero.jpg")} alt="WOODEX furniture series" className="absolute inset-0 w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/85 to-primary/40" />
           <div className="container mx-auto px-4 relative">
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Collections</p>
@@ -78,7 +74,7 @@ const Series = () => {
             <div className="container mx-auto px-4">
               <div className="grid lg:grid-cols-2 gap-12 items-center mb-14">
                 <div className="relative overflow-hidden rounded-sm">
-                  <img src={seriesImages[s.id] || execImg} alt={s.name} className="w-full h-80 object-cover" />
+                  <img src={seriesImages[s.id] || img("series-executive.jpg")} alt={s.name} className="w-full h-80 object-cover" />
                   <div className="absolute top-4 left-4">
                     <Badge className="bg-accent text-accent-foreground">{s.badge}</Badge>
                   </div>

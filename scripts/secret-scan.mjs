@@ -15,7 +15,7 @@ const PATTERNS = [
   [/xox[baprs]-[A-Za-z0-9-]{10,}/, "Slack token"],
   [/-----BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY-----/, "private key block"],
 ];
-const ALLOW = new Set(["docs/PHASE0-AUDIT-REPORT.md", "scripts/secret-scan.mjs"]); // files that describe findings, not carry them
+const ALLOW = new Set(["docs/audits/PHASE0-AUDIT-REPORT-2026-10-05.md", "scripts/secret-scan.mjs"]); // files that describe findings, not carry them
 
 let files = [];
 try {

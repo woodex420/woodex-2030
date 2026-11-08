@@ -6,11 +6,10 @@ import { useQuote } from "@/contexts/QuoteContext";
 import { useCart } from "@/contexts/CartContext";
 import QuoteBasket from "@/components/QuoteBasket";
 import CartDrawer from "@/components/CartDrawer";
-import megaOfficeImg from "@/assets/hero-slide-1.jpg";
-import megaHomeImg from "@/assets/hero-slide-3.jpg";
 
 import { Moon, Sun } from "lucide-react";
 import { setModeOverride, useSiteTheme } from "@/lib/theme";
+import { img } from "@/assets/img";
 
 /* P6 — site-level announcement (hidden on /p pages that ship their own via wx-pagebar) */
 function SiteAnnounce() {
@@ -221,7 +220,7 @@ const Header = () => {
                             </div>
                             <Link to="/shop?segment=office" className="block group mb-5">
                               <div className="relative aspect-[16/8] overflow-hidden rounded-sm bg-muted">
-                                <img src={megaOfficeImg} alt="Office Furniture" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                <img src={img("hero-slide-1.jpg")} alt="Office Furniture" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
                                 <div className="absolute bottom-3 left-3 right-3 text-primary-foreground">
                                   <p className="text-[10px] uppercase tracking-widest text-accent font-bold mb-0.5">Featured Collection</p>
@@ -258,7 +257,7 @@ const Header = () => {
                             </div>
                             <Link to="/shop?segment=home" className="block group mb-5">
                               <div className="relative aspect-[16/8] overflow-hidden rounded-sm bg-muted">
-                                <img src={megaHomeImg} alt="Home Furniture" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                <img src={img("hero-slide-3.jpg")} alt="Home Furniture" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
                                 <div className="absolute bottom-3 left-3 right-3 text-primary-foreground">
                                   <p className="text-[10px] uppercase tracking-widest text-accent font-bold mb-0.5">New Arrivals</p>

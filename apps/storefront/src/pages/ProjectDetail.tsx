@@ -5,13 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import proj1 from "@/assets/project-1.jpg";
-import proj2 from "@/assets/project-2.jpg";
-import proj3 from "@/assets/project-3.jpg";
-import proj4 from "@/assets/project-4.jpg";
-import proj5 from "@/assets/project-5.jpg";
-import proj6 from "@/assets/project-6.jpg";
-import projSalon from "@/assets/project-hair-salon.jpg";
+import { img } from "@/assets/img";
 
 const projectsData = [
   {
@@ -19,8 +13,8 @@ const projectsData = [
     title: "DHA Corporate Tower",
     client: "DHA Developers",
     category: "Corporate",
-    image: proj1,
-    beforeImage: proj2,
+    image: img("project-1.jpg"),
+    beforeImage: img("project-2.jpg"),
     location: "Lahore",
     sqft: "12,000 sq ft",
     year: "2024",
@@ -38,8 +32,8 @@ const projectsData = [
     title: "TechHub Karachi",
     client: "TechHub Pakistan",
     category: "Tech",
-    image: proj2,
-    beforeImage: proj1,
+    image: img("project-2.jpg"),
+    beforeImage: img("project-1.jpg"),
     location: "Karachi",
     sqft: "8,500 sq ft",
     year: "2024",
@@ -57,8 +51,8 @@ const projectsData = [
     title: "Shaukat Khanum Clinic",
     client: "SKMT Foundation",
     category: "Healthcare",
-    image: proj3,
-    beforeImage: proj4,
+    image: img("project-3.jpg"),
+    beforeImage: img("project-4.jpg"),
     location: "Islamabad",
     sqft: "4,200 sq ft",
     year: "2023",
@@ -76,8 +70,8 @@ const projectsData = [
     title: "LUMS Library Expansion",
     client: "LUMS University",
     category: "Education",
-    image: proj4,
-    beforeImage: proj3,
+    image: img("project-4.jpg"),
+    beforeImage: img("project-3.jpg"),
     location: "Lahore",
     sqft: "6,800 sq ft",
     year: "2023",
@@ -95,8 +89,8 @@ const projectsData = [
     title: "FBR Regional Office",
     client: "Federal Board of Revenue",
     category: "Government",
-    image: proj5,
-    beforeImage: proj6,
+    image: img("project-5.jpg"),
+    beforeImage: img("project-6.jpg"),
     location: "Islamabad",
     sqft: "15,000 sq ft",
     year: "2023",
@@ -114,8 +108,8 @@ const projectsData = [
     title: "PC Hotel Business Center",
     client: "Pearl Continental",
     category: "Hospitality",
-    image: proj6,
-    beforeImage: proj5,
+    image: img("project-6.jpg"),
+    beforeImage: img("project-5.jpg"),
     location: "Lahore",
     sqft: "3,500 sq ft",
     year: "2024",
@@ -133,8 +127,8 @@ const projectsData = [
     title: "Gents Grooming Lounge — DHA Lahore",
     client: "Private Boutique Salon",
     category: "Hospitality",
-    image: projSalon,
-    beforeImage: proj6,
+    image: img("project-hair-salon.jpg"),
+    beforeImage: img("project-6.jpg"),
     location: "DHA Phase 5, Lahore",
     sqft: "3,500 sq ft",
     year: "2025",
@@ -171,7 +165,7 @@ const ProjectDetail = () => {
   const [showBefore, setShowBefore] = useState(false);
   const [galleryIdx, setGalleryIdx] = useState(0);
 
-  const gallery = project ? [project.image, project.beforeImage, proj1, proj2] : [];
+  const gallery = project ? [project.image, project.beforeImage, img("project-1.jpg"), img("project-2.jpg")] : [];
 
   if (!project) {
     return (

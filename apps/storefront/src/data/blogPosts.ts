@@ -1,9 +1,5 @@
-import blogErgonomic from "@/assets/blog-ergonomic.jpg";
-import blogHybrid from "@/assets/blog-hybrid-workspace.jpg";
-import blogSustainable from "@/assets/blog-sustainable.jpg";
-import blogColors from "@/assets/blog-office-colors.jpg";
-import blogCaseStudy from "@/assets/blog-case-study.jpg";
-import blogStandingDesk from "@/assets/blog-standing-desk.jpg";
+import { img } from "@/assets/img";
+
 
 export interface BlogPost {
   id: string;
@@ -25,7 +21,7 @@ export const blogPosts: BlogPost[] = [
     title: "The Complete Guide to Ergonomic Office Furniture in 2025",
     excerpt:
       "Discover how the right office chair and desk setup can reduce back pain, boost productivity, and improve employee wellbeing. Expert tips from WOODEX's certified ergonomists.",
-    image: blogErgonomic,
+    image: img("blog-ergonomic.jpg"),
     category: "Ergonomics",
     author: "Dr. Farah Khan",
     date: "Feb 15, 2025",
@@ -59,7 +55,7 @@ export const blogPosts: BlogPost[] = [
     title: "Designing Hybrid Workspaces: Furniture That Adapts",
     excerpt:
       "How Pakistani companies are rethinking office layouts for hybrid work. Modular furniture, hot-desking solutions, and collaborative zones explained.",
-    image: blogHybrid,
+    image: img("blog-hybrid-workspace.jpg"),
     category: "Workspace Design",
     author: "Ahmed Raza",
     date: "Feb 8, 2025",
@@ -77,7 +73,7 @@ export const blogPosts: BlogPost[] = [
     title: "Sustainable Furniture Manufacturing in Pakistan",
     excerpt:
       "WOODEX's commitment to eco-friendly production — from FSC-certified wood sourcing to zero-waste manufacturing practices in our Lahore facility.",
-    image: blogSustainable,
+    image: img("blog-sustainable.jpg"),
     category: "Sustainability",
     author: "Sara Malik",
     date: "Jan 28, 2025",
@@ -95,7 +91,7 @@ export const blogPosts: BlogPost[] = [
     title: "How Office Colors Affect Productivity: A Research-Backed Guide",
     excerpt:
       "Blue for focus, green for creativity, and warm tones for collaboration — the science behind choosing the right furniture finishes for your workspace.",
-    image: blogColors,
+    image: img("blog-office-colors.jpg"),
     category: "Interior Design",
     author: "Hina Javed",
     date: "Jan 20, 2025",
@@ -113,7 +109,7 @@ export const blogPosts: BlogPost[] = [
     title: "Case Study: Furnishing 8 Allied Bank Branches Across Punjab",
     excerpt:
       "How WOODEX delivered 200+ workstations, executive suites, and customer service counters across 8 branches in just 6 weeks — on time and on budget.",
-    image: blogCaseStudy,
+    image: img("blog-case-study.jpg"),
     category: "Case Study",
     author: "Bilal Ahmed",
     date: "Jan 12, 2025",
@@ -131,7 +127,7 @@ export const blogPosts: BlogPost[] = [
     title: "Standing Desks in Pakistan: Are They Worth the Investment?",
     excerpt:
       "A comprehensive analysis of sit-stand desks for Pakistani offices — health benefits, ROI calculations, and the best models for different budgets.",
-    image: blogStandingDesk,
+    image: img("blog-standing-desk.jpg"),
     category: "Ergonomics",
     author: "Dr. Farah Khan",
     date: "Jan 5, 2025",

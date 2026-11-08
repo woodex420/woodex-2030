@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import contactHero from "@/assets/contact-hero.jpg";
+import { img } from "@/assets/img";
 
 const showrooms = [
   { city: "Lahore (HQ)", address: "123 Gulberg III, Main Boulevard, Lahore", phone: "+92 42 111 WOODEX", hours: "Mon–Sat: 9am–7pm" },
@@ -75,7 +75,7 @@ const Contact = () => {
       <main className="flex-1">
         {/* Page Header with Hero Image */}
         <section className="relative h-72 overflow-hidden bg-primary">
-          <img src={contactHero} alt="WOODEX Office Showroom" className="w-full h-full object-cover opacity-30" />
+          <img src={img("contact-hero.jpg")} alt="WOODEX Office Showroom" className="w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 flex items-center">
             <div className="container mx-auto px-4">
               <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Contact Us</p>

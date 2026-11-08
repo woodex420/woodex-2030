@@ -4,10 +4,7 @@ import { ArrowRight, MessageCircle, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import heroImg from "@/assets/custom-design-hero.jpg";
-import shopImg from "@/assets/custom-design-shop.jpg";
-import floorplanImg from "@/assets/custom-design-floorplan.jpg";
-import tabletImg from "@/assets/custom-design-tablet.jpg";
+import { img } from "@/assets/img";
 
 const WA_PHONE = "923001234567";
 
@@ -122,7 +119,7 @@ const CustomDesign = () => {
         {/* HERO — dark, single chair, headline left */}
         <section className="relative bg-primary text-primary-foreground overflow-hidden">
           <img
-            src={heroImg}
+            src={img("custom-design-hero.jpg")}
             alt="Bespoke green velvet armchair in WOODEX custom furniture design studio"
             className="absolute inset-0 w-full h-full object-cover opacity-70"
             width={1536}
@@ -191,7 +188,7 @@ const CustomDesign = () => {
 
               <div className="bg-background border border-border rounded-sm p-8 flex flex-col items-center">
                 <img
-                  src={shopImg}
+                  src={img("custom-design-shop.jpg")}
                   alt="WDS interactive 3D office design tool on desktop"
                   className="w-full max-w-md h-auto"
                   width={1024}
@@ -267,7 +264,7 @@ const CustomDesign = () => {
               </div>
               <div>
                 <img
-                  src={tabletImg}
+                  src={img("custom-design-tablet.jpg")}
                   alt="WOODEX designer previewing custom office cabinet on tablet"
                   className="w-full h-auto rounded-sm shadow-xl"
                   width={1280}
@@ -311,7 +308,7 @@ const CustomDesign = () => {
               </div>
               <div>
                 <img
-                  src={floorplanImg}
+                  src={img("custom-design-floorplan.jpg")}
                   alt="Isometric 3D rendered office floor plan by WOODEX"
                   className="w-full h-auto"
                   width={1280}

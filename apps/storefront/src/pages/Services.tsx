@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { services } from "@/data/services";
-import heroImg from "@/assets/services-main-hero.jpg";
+import { img } from "@/assets/img";
 
 const WA_PHONE = "923001234567";
 
@@ -44,7 +44,7 @@ const Services = () => {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative h-72 overflow-hidden bg-primary">
-          <img src={heroImg} alt="WOODEX office furniture services" className="w-full h-full object-cover opacity-30" width={1536} height={1024} />
+          <img src={img("services-main-hero.jpg")} alt="WOODEX office furniture services" className="w-full h-full object-cover opacity-30" width={1536} height={1024} />
           <div className="absolute inset-0 flex items-center">
             <div className="container mx-auto px-4">
               <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">What We Offer</p>
@@ -97,7 +97,7 @@ const Services = () => {
               {/* Right: large image */}
               <div className="relative">
                 <img
-                  src={heroImg}
+                  src={img("services-main-hero.jpg")}
                   alt="WOODEX corporate office building Pakistan"
                   className="w-full h-auto rounded-sm shadow-xl"
                   width={1536}

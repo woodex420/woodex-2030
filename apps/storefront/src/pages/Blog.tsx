@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { blogPosts } from "@/data/blogPosts";
-import blogErgonomic from "@/assets/blog-ergonomic.jpg";
+import { img } from "@/assets/img";
 
 const categories = ["All", "Ergonomics", "Workspace Design", "Sustainability", "Interior Design", "Case Study"];
 
@@ -25,7 +25,7 @@ const Blog = () => {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative h-[420px] overflow-hidden bg-primary">
-          <img src={blogErgonomic} alt="WOODEX Blog" className="w-full h-full object-cover opacity-30" />
+          <img src={img("blog-ergonomic.jpg")} alt="WOODEX Blog" className="w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/85 to-primary/40" />
           <div className="absolute inset-0 flex items-center">
             <div className="container mx-auto px-4">

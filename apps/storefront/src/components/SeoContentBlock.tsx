@@ -23,7 +23,9 @@ interface Props {
  */
 const SeoContentBlock = ({ seo, path, hideIntro, hideFaqs }: Props) => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const url = `https://woodex-reimagined.lovable.app${path}`;
+  // Canonical origin follows the deployment (preview hosts and production alike).
+  const origin = typeof window === "undefined" ? "https://woodex.pk" : window.location.origin;
+  const url = `${origin}${path}`;
 
   useEffect(() => {
     document.title = seo.title;

@@ -1,16 +1,13 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import chairImg from "@/assets/product-office-chair.jpg";
-import execDeskImg from "@/assets/product-executive-desk.jpg";
-import workstationImg from "@/assets/product-workstation.jpg";
-import sofaImg from "@/assets/product-office-sofa.jpg";
+import { img } from "@/assets/img";
 
 const products = [
-  { name: "Black Pearl Executive Chair", category: "Executive Chairs", image: chairImg, slug: "executive-ergonomic-chair" },
-  { name: "Monarch Executive Desk", category: "Executive Tables", image: execDeskImg, slug: "monarch-executive-desk" },
-  { name: "Nova Pro Workstation", category: "Workstations", image: workstationImg, slug: "nova-pro-workstation" },
-  { name: "Cambridge Office Sofa", category: "Office Sofas", image: sofaImg, slug: "cambridge-3-seater-sofa" },
+  { name: "Black Pearl Executive Chair", category: "Executive Chairs", image: img("product-office-chair.jpg"), slug: "executive-ergonomic-chair" },
+  { name: "Monarch Executive Desk", category: "Executive Tables", image: img("product-executive-desk.jpg"), slug: "monarch-executive-desk" },
+  { name: "Nova Pro Workstation", category: "Workstations", image: img("product-workstation.jpg"), slug: "nova-pro-workstation" },
+  { name: "Cambridge Office Sofa", category: "Office Sofas", image: img("product-office-sofa.jpg"), slug: "cambridge-3-seater-sofa" },
 ];
 
 const LatestCollection = () => (

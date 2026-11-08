@@ -4,7 +4,7 @@ import { MapPin, Phone, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import showroomImg from "@/assets/virtual-showroom-hero.jpg";
+import { img } from "@/assets/img";
 
 const showrooms = [
   {
@@ -70,7 +70,7 @@ const Showrooms = () => {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative h-64 overflow-hidden bg-primary">
-          <img src={showroomImg} alt="WOODEX Showrooms" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+          <img src={img("virtual-showroom-hero.jpg")} alt="WOODEX Showrooms" className="absolute inset-0 w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 flex items-center">
             <div className="container mx-auto px-4">
               <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Experience In Person</p>

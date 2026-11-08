@@ -39,14 +39,18 @@ async function bundleModule(entryAbs, outName) {
     alias: { "@": SHOP_SRC },
     plugins: [
       {
-        name: "assets-as-basename",
+        /* Photographs live once, in apps/api/public/img, and the storefront
+           references them as `/img/<file>`. Data modules seeded into the DB must
+           carry the same absolute path so the dashboard and storefront render
+           identical URLs. A bare filename is still tolerated for older rows. */
+        name: "assets-as-public-url",
         setup(build) {
           build.onResolve({ filter: /\.(jpg|jpeg|png|svg|webp)$/ }, (args) => ({
             path: args.path,
-            namespace: "basename",
+            namespace: "public-url",
           }));
-          build.onLoad({ filter: /.*/, namespace: "basename" }, (args) => ({
-            contents: `export default ${JSON.stringify(path.basename(args.path))}`,
+          build.onLoad({ filter: /.*/, namespace: "public-url" }, (args) => ({
+            contents: `export default ${JSON.stringify("/img/" + path.basename(args.path))}`,
             loader: "js",
           }));
         },

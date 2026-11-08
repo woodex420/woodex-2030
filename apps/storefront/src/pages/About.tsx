@@ -4,9 +4,7 @@ import { Award, Target, Users, Globe, ArrowRight, ChevronDown, Leaf, Shield, Hea
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import factoryImg from "@/assets/about-factory.jpg";
-import aboutHero from "@/assets/about-hero.jpg";
-import manufacturingImg from "@/assets/about-manufacturing.jpg";
+import { img } from "@/assets/img";
 
 const stats = [
   { icon: Award, number: "20+", label: "Years of Craft" },
@@ -61,7 +59,7 @@ const About = () => {
       <main className="flex-1">
         {/* === HERO === */}
         <section className="relative h-[420px] lg:h-[520px] overflow-hidden bg-primary">
-          <img src={aboutHero} alt="WOODEX modern office interior" className="absolute inset-0 w-full h-full object-cover opacity-45" />
+          <img src={img("about-hero.jpg")} alt="WOODEX modern office interior" className="absolute inset-0 w-full h-full object-cover opacity-45" />
           <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/80 to-primary/30" />
           <div className="absolute inset-0 flex items-center">
             <div className="container mx-auto px-4">
@@ -127,7 +125,7 @@ const About = () => {
               </div>
               <div className="relative">
                 <div className="rounded-sm overflow-hidden shadow-xl">
-                  <img src={factoryImg} alt="WOODEX craftsmanship — hand finishing a walnut desk" className="w-full h-[460px] object-cover" loading="lazy" />
+                  <img src={img("about-factory.jpg")} alt="WOODEX craftsmanship — hand finishing a walnut desk" className="w-full h-[460px] object-cover" loading="lazy" />
                 </div>
                 <div className="hidden lg:block absolute -bottom-6 -left-6 bg-accent text-accent-foreground px-6 py-4 rounded-sm shadow-lg">
                   <p className="text-3xl font-black leading-none">20+</p>
@@ -166,7 +164,7 @@ const About = () => {
           <div className="container mx-auto px-4">
             <div className="grid lg:grid-cols-2 gap-14 items-center">
               <div className="rounded-sm overflow-hidden shadow-xl order-2 lg:order-1">
-                <img src={manufacturingImg} alt="WOODEX manufacturing floor in Lahore" className="w-full h-[460px] object-cover" loading="lazy" />
+                <img src={img("about-manufacturing.jpg")} alt="WOODEX manufacturing floor in Lahore" className="w-full h-[460px] object-cover" loading="lazy" />
               </div>
               <div className="order-1 lg:order-2">
                 <div className="w-12 h-1 bg-accent mb-6" />

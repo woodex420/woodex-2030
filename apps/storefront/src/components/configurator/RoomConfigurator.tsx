@@ -6,10 +6,8 @@ import { toast } from "sonner";
 import HotspotMarker from "./HotspotMarker";
 import MaterialPanel from "./MaterialPanel";
 import { materials, type Material } from "@/data/materials";
+import { img } from "@/assets/img";
 
-import roomOpen from "@/assets/configurator-room-open.jpg";
-import roomExec from "@/assets/configurator-room-executive.jpg";
-import roomConf from "@/assets/configurator-room-conference.jpg";
 
 type FurniturePart = Material["applicableTo"][number];
 
@@ -32,7 +30,7 @@ const rooms: RoomConfig[] = [
   {
     id: "open-plan",
     label: "Open Plan Office",
-    image: roomOpen,
+    image: img("configurator-room-open.jpg"),
     hotspots: [
       { id: "desk-1", x: 28, y: 55, label: "Worktop Surface", part: "worktop" },
       { id: "desk-2", x: 62, y: 52, label: "Desk Panel", part: "panel" },
@@ -45,7 +43,7 @@ const rooms: RoomConfig[] = [
   {
     id: "executive",
     label: "Executive Office",
-    image: roomExec,
+    image: img("configurator-room-executive.jpg"),
     hotspots: [
       { id: "exec-desk", x: 50, y: 55, label: "Executive Desk", part: "worktop" },
       { id: "exec-chair", x: 30, y: 58, label: "Executive Chair", part: "seating" },
@@ -57,7 +55,7 @@ const rooms: RoomConfig[] = [
   {
     id: "conference",
     label: "Conference Room",
-    image: roomConf,
+    image: img("configurator-room-conference.jpg"),
     hotspots: [
       { id: "conf-table", x: 50, y: 50, label: "Meeting Table", part: "worktop" },
       { id: "conf-chair-l", x: 25, y: 55, label: "Chair Left", part: "seating" },

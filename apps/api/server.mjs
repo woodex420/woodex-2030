@@ -192,17 +192,22 @@ async function seed() {
   if (count > 0) return;
   console.log("[seed] importing storefront catalog into SQLite…");
   const { products, materials, services } = await loadShopData();
-  const ins = db.prepare(
-    "INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)"
-  );
-  for (const p of products) {
-    const stock = p.inStock ? 99 : 0;
-    (await (ins.run(p.id, JSON.stringify(p), p.price, p.inStock ? 1 : 0, stock, now())));
-  }
-  const insMat = db.prepare("INSERT INTO materials(id,json) VALUES(?,?)");
-  (await Promise.all(materials.map(async (m) => (await (insMat.run(m.id, JSON.stringify(m)))))));
-  const insSvc = db.prepare("INSERT INTO services(id,json) VALUES(?,?)");
-  (await Promise.all(services.map(async (s, i) => (await (insSvc.run(String(i + 1), JSON.stringify(s)))))));
+  /* Atomic: an interrupted boot (dev watcher restart, Ctrl-C, crash) must leave the
+     catalogue empty rather than partially seeded. seed() short-circuits on a
+     non-empty products table, so a half-written import would never be repaired. */
+  await db.transaction(async () => {
+    const ins = db.prepare(
+      "INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)"
+    );
+    for (const p of products) {
+      const stock = p.inStock ? 99 : 0;
+      (await (ins.run(p.id, JSON.stringify(p), p.price, p.inStock ? 1 : 0, stock, now())));
+    }
+    const insMat = db.prepare("INSERT INTO materials(id,json) VALUES(?,?)");
+    for (const m of materials) (await (insMat.run(m.id, JSON.stringify(m))));
+    const insSvc = db.prepare("INSERT INTO services(id,json) VALUES(?,?)");
+    for (const [i, svc] of services.entries()) (await (insSvc.run(String(i + 1), JSON.stringify(svc))));
+  });
 
   // Demo operational data so every module has content on first boot
   const seedLeads = [

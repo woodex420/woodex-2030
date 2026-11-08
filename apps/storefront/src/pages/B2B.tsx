@@ -4,7 +4,7 @@ import { Building2, Users, TrendingUp, HeadphonesIcon, CheckCircle2, XCircle, Ar
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import b2bHero from "@/assets/b2b-hero.jpg";
+import { img } from "@/assets/img";
 
 const benefits = [
   { icon: Building2, title: "Corporate Solutions", description: "Large-scale office furnishing projects with dedicated project management from concept to completion." },
@@ -60,7 +60,7 @@ const B2B = () => {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative min-h-[400px] overflow-hidden bg-primary flex items-center">
-          <img src={b2bHero} alt="B2B Solutions" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+          <img src={img("b2b-hero.jpg")} alt="B2B Solutions" className="absolute inset-0 w-full h-full object-cover opacity-30" />
           <div className="container mx-auto px-4 relative z-10 py-16">
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-3">Business Solutions</p>
             <h1 className="text-4xl lg:text-6xl font-black text-primary-foreground mb-4 max-w-2xl leading-tight">

@@ -2,13 +2,11 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CheckSquare, Sun, GitFork, Maximize2, Monitor, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import sketchImg from "@/assets/workspace-planning-sketch.jpg";
-import proj1 from "@/assets/project-1.jpg";
-import proj2 from "@/assets/project-2.jpg";
+import { img } from "@/assets/img";
 
 const slides = [
   {
-    image: sketchImg,
+    image: img("workspace-planning-sketch.jpg"),
     title: "We Help You Plan your workspace.",
     description: "Workspace Design can be a challenge for brands to represent their identity through their office environment. Modern trendy office designs use unique ways to represent their brand identity, fulfilling their brand's goals through Workspace layouts and styles.",
     features: [
@@ -21,7 +19,7 @@ const slides = [
     ],
   },
   {
-    image: proj1,
+    image: img("project-1.jpg"),
     title: "Transform Your Office Space",
     description: "From concept to completion, our design team works closely with you to create workspaces that inspire productivity and reflect your company culture.",
     features: [
@@ -34,7 +32,7 @@ const slides = [
     ],
   },
   {
-    image: proj2,
+    image: img("project-2.jpg"),
     title: "End-to-End Project Delivery",
     description: "We handle every aspect — from initial consultation and 3D rendering to manufacturing, delivery, and professional installation.",
     features: [

@@ -1,10 +1,5 @@
-import customDesignImg from "@/assets/service-custom-design.jpg";
-import b2bImg from "@/assets/service-b2b-solutions.jpg";
-import customMfgImg from "@/assets/service-custom-manufacturing.jpg";
-import deliveryImg from "@/assets/service-delivery.jpg";
-import spacePlanningImg from "@/assets/service-space-planning.jpg";
-import afterSalesImg from "@/assets/service-after-sales.jpg";
-import projectMgmtImg from "@/assets/service-project-management.jpg";
+import { img } from "@/assets/img";
+
 
 export interface ServiceData {
   slug: string;
@@ -32,7 +27,7 @@ export const services: ServiceData[] = [
     title: "Custom Office Furniture Design",
     shortTitle: "Custom Design",
     tagline: "Bespoke executive desks, reception counters and workstations — engineered around how your team actually works.",
-    hero: customDesignImg,
+    hero: img("service-custom-design.jpg"),
     intro: "Every workspace is unique. WOODEX's in-house design studio translates your brand, dimensions and workflow into precision-engineered office furniture — from a single sculptural executive desk to a 500-seat floor of brand-aligned workstations, built right here in Lahore.",
     metaTitle: "Custom Office Furniture Design Pakistan — Bespoke Desks & Workstations | WOODEX",
     metaDescription: "Bespoke custom office furniture design in Lahore, Karachi & Islamabad. Executive desks, reception counters, workstations & boardroom tables tailored to your brand and floor plate. Free 3D renders.",
@@ -85,7 +80,7 @@ export const services: ServiceData[] = [
     title: "B2B Office Furniture Solutions",
     shortTitle: "B2B Office Solutions",
     tagline: "End-to-end office furniture for banks, hospitals, tech parks and government — at scale, on schedule.",
-    hero: b2bImg,
+    hero: img("service-b2b-solutions.jpg"),
     intro: "WOODEX supplies enterprise clients across Pakistan with complete office furniture programmes — from single floors to multi-city rollouts — backed by dedicated account management and volume pricing.",
     metaTitle: "B2B Office Furniture Solutions Pakistan | Bulk Supply WOODEX",
     metaDescription: "Enterprise office furniture for Pakistani banks, hospitals, IT parks & government. Volume pricing, project management & nationwide installation.",
@@ -132,7 +127,7 @@ export const services: ServiceData[] = [
     title: "Custom Manufacturing",
     shortTitle: "Custom Manufacturing",
     tagline: "In-house production at our Lahore facility — control, quality and speed under one roof.",
-    hero: customMfgImg,
+    hero: img("service-custom-manufacturing.jpg"),
     intro: "Our 45,000 sq ft manufacturing facility in Sundar Industrial Estate, Lahore combines German CNC precision with master craftsmanship to produce furniture engineered for Pakistani workplaces.",
     metaTitle: "Custom Office Furniture Manufacturing Lahore | WOODEX Pakistan",
     metaDescription: "WOODEX manufactures premium office furniture in Lahore. CNC precision, imported materials, 5-year warranty. ISO-certified facility.",
@@ -179,7 +174,7 @@ export const services: ServiceData[] = [
     title: "Delivery & Installation",
     shortTitle: "Delivery & Installation",
     tagline: "Professional logistics and on-site assembly across every major city in Pakistan.",
-    hero: deliveryImg,
+    hero: img("service-delivery.jpg"),
     intro: "WOODEX operates its own fleet and in-house installation crews — no third-party movers, no damaged goods, no missed deadlines.",
     metaTitle: "Office Furniture Delivery & Installation Pakistan | WOODEX",
     metaDescription: "Nationwide office furniture delivery & professional installation across Pakistan. In-house fleet, trained crews, zero damage guarantee.",
@@ -226,7 +221,7 @@ export const services: ServiceData[] = [
     title: "Space Planning & Design",
     shortTitle: "Space Planning & Design",
     tagline: "Workplace strategy, CAD floor plans and 3D renders — before you commit to a single piece of furniture.",
-    hero: spacePlanningImg,
+    hero: img("service-space-planning.jpg"),
     intro: "Our space planners study your team density, collaboration patterns and growth plans, then deliver scaled CAD layouts and photoreal 3D renders so you can see — and adjust — your office before it's built.",
     metaTitle: "Office Space Planning & Interior Design Pakistan | WOODEX",
     metaDescription: "Professional office space planning, CAD layouts & 3D renders for Pakistani businesses. Ergonomic, scalable workplace design by WOODEX.",
@@ -273,7 +268,7 @@ export const services: ServiceData[] = [
     title: "After-Sales Support",
     shortTitle: "After-Sales Support",
     tagline: "5-year warranty, on-call repair teams and spare parts always in stock.",
-    hero: afterSalesImg,
+    hero: img("service-after-sales.jpg"),
     intro: "When you buy WOODEX, you're buying into a long-term partnership. Our service desk responds within 24 hours and our technicians carry common spares for same-day fixes.",
     metaTitle: "Office Furniture After-Sales Support Pakistan | WOODEX Warranty",
     metaDescription: "5-year warranty, 24-hour response and on-site repair for WOODEX office furniture across Pakistan. Annual maintenance plans available.",
@@ -320,7 +315,7 @@ export const services: ServiceData[] = [
     title: "Project Management",
     shortTitle: "Project Management",
     tagline: "One dedicated PM, one budget tracker, one timeline — from contract to keys.",
-    hero: projectMgmtImg,
+    hero: img("service-project-management.jpg"),
     intro: "Every WOODEX project of 25+ workstations gets a dedicated certified project manager who owns the timeline, budget, communication and quality from day one.",
     metaTitle: "Office Furniture Project Management Pakistan | WOODEX",
     metaDescription: "Certified project managers for office furniture rollouts across Pakistan. Timeline, budget & quality ownership from concept to handover.",

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import materialsHero from "@/assets/materials-hero.jpg";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { img } from "@/assets/img";
 
 const woodFinishes = [
   { name: "Dark Walnut", hex: "#3e2723", description: "Rich, deep brown with natural grain" },
@@ -78,7 +78,7 @@ const Materials = () => {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative bg-primary text-primary-foreground py-20 overflow-hidden">
-          <img src={materialsHero} alt="Materials & finishes" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+          <img src={img("materials-hero.jpg")} alt="Materials & finishes" className="absolute inset-0 w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/85 to-primary/40" />
           <div className="container mx-auto px-4 relative">
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Finishes & Fabrics</p>

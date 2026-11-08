@@ -12,44 +12,29 @@ import OurServices from "@/components/home/OurServices";
 import GoogleReviews from "@/components/home/GoogleReviews";
 import ClientLogos from "@/components/home/ClientLogos";
 import FAQSection from "@/components/home/FAQSection";
+import { img } from "@/assets/img";
 
-import slide1 from "@/assets/hero-slide-1.jpg";
-import slide2 from "@/assets/hero-slide-2.jpg";
-import slide3 from "@/assets/hero-slide-3.jpg";
-import slide4 from "@/assets/hero-slide-4.jpg";
-import slide5 from "@/assets/hero-slide-5.jpg";
-import chairsImg from "@/assets/category-chairs.jpg";
-import desksImg from "@/assets/category-executive.jpg";
-import workstationsImg from "@/assets/category-workstations.jpg";
-import tablesImg from "@/assets/category-tables.jpg";
-import storageImg from "@/assets/category-storage.jpg";
-import bedroomCatImg from "@/assets/category-bedroom.jpg";
-import livingCatImg from "@/assets/category-living.jpg";
-import diningCatImg from "@/assets/category-dining.jpg";
-import proj1 from "@/assets/project-1.jpg";
-import proj2 from "@/assets/project-2.jpg";
-import proj3 from "@/assets/project-3.jpg";
 
 const slides = [
-  { image: slide1, title: "Design For Your Workspace", subtitle: "From concept to installation — design, manufacture, and deliver", cta: "Shop Now", ctaHref: "/shop?category=workstations" },
-  { image: slide2, title: "Meeting Rooms That Inspire", subtitle: "Conference furniture engineered for collaboration and focus", cta: "Shop Now", ctaHref: "/shop?category=meeting-tables" },
-  { image: slide3, title: "Executive Offices, Crafted", subtitle: "Premium executive desks and seating with timeless presence", cta: "Shop Now", ctaHref: "/shop?category=executive-tables" },
-  { image: slide4, title: "Reception That Welcomes", subtitle: "First impressions built with bespoke reception solutions", cta: "Shop Now", ctaHref: "/shop?category=reception" },
-  { image: slide5, title: "Manager Cabins, Refined", subtitle: "Functional, elegant private offices for leadership teams", cta: "Shop Now", ctaHref: "/shop?category=executive-tables" },
+  { image: img("hero-slide-1.jpg"), title: "Design For Your Workspace", subtitle: "From concept to installation — design, manufacture, and deliver", cta: "Shop Now", ctaHref: "/shop?category=workstations" },
+  { image: img("hero-slide-2.jpg"), title: "Meeting Rooms That Inspire", subtitle: "Conference furniture engineered for collaboration and focus", cta: "Shop Now", ctaHref: "/shop?category=meeting-tables" },
+  { image: img("hero-slide-3.jpg"), title: "Executive Offices, Crafted", subtitle: "Premium executive desks and seating with timeless presence", cta: "Shop Now", ctaHref: "/shop?category=executive-tables" },
+  { image: img("hero-slide-4.jpg"), title: "Reception That Welcomes", subtitle: "First impressions built with bespoke reception solutions", cta: "Shop Now", ctaHref: "/shop?category=reception" },
+  { image: img("hero-slide-5.jpg"), title: "Manager Cabins, Refined", subtitle: "Functional, elegant private offices for leadership teams", cta: "Shop Now", ctaHref: "/shop?category=executive-tables" },
 ];
 
 const officeCategories = [
-  { label: "Ergonomic Chairs", image: chairsImg, href: "/shop?category=chairs" },
-  { label: "Executive Desks", image: desksImg, href: "/shop?category=executive-tables" },
-  { label: "Workstations", image: workstationsImg, href: "/shop?category=workstations" },
-  { label: "Meeting Tables", image: tablesImg, href: "/shop?category=meeting-tables" },
-  { label: "Office Storage", image: storageImg, href: "/shop?category=storage" },
+  { label: "Ergonomic Chairs", image: img("category-chairs.jpg"), href: "/shop?category=chairs" },
+  { label: "Executive Desks", image: img("category-executive.jpg"), href: "/shop?category=executive-tables" },
+  { label: "Workstations", image: img("category-workstations.jpg"), href: "/shop?category=workstations" },
+  { label: "Meeting Tables", image: img("category-tables.jpg"), href: "/shop?category=meeting-tables" },
+  { label: "Office Storage", image: img("category-storage.jpg"), href: "/shop?category=storage" },
 ];
 
 const homeCategories = [
-  { label: "Bedroom", href: "/shop?category=bedroom", description: "Beds, dressing tables, mirrors & more", image: bedroomCatImg },
-  { label: "Living Room", href: "/shop?category=living", description: "Sofas, coffee tables, TV units", image: livingCatImg },
-  { label: "Dining", href: "/shop?category=dining", description: "Complete dining sets & chairs", image: diningCatImg },
+  { label: "Bedroom", href: "/shop?category=bedroom", description: "Beds, dressing tables, mirrors & more", image: img("category-bedroom.jpg") },
+  { label: "Living Room", href: "/shop?category=living", description: "Sofas, coffee tables, TV units", image: img("category-living.jpg") },
+  { label: "Dining", href: "/shop?category=dining", description: "Complete dining sets & chairs", image: img("category-dining.jpg") },
 ];
 
 const Index = () => {
@@ -182,7 +167,7 @@ const Index = () => {
         <section className="py-0 bg-section-mid">
           <div className="grid lg:grid-cols-2 min-h-[400px]">
             <div className="relative overflow-hidden">
-              <img src={proj1} alt="Office project" className="w-full h-full object-cover min-h-[300px]" />
+              <img src={img("project-1.jpg")} alt="Office project" className="w-full h-full object-cover min-h-[300px]" />
             </div>
             <div className="flex items-center p-10 lg:p-16">
               <div>
@@ -205,7 +190,7 @@ const Index = () => {
               <p className="text-accent text-sm uppercase tracking-widest">Transforming Spaces with Design that Blends Creativity, Comfort, and Function</p>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
-              {[proj1, proj2, proj3].map((img, i) => (
+              {[img("project-1.jpg"), img("project-2.jpg"), img("project-3.jpg")].map((img, i) => (
                 <Link key={i} to="/projects" className="group overflow-hidden rounded-sm">
                   <div className="aspect-[4/3] overflow-hidden">
                     <img src={img} alt={`Project ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />

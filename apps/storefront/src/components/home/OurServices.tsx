@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
-import servicesImg from "@/assets/services-office.jpg";
+import { img } from "@/assets/img";
 
 const serviceList = [
   "3D Rendered Floor Plan",
@@ -39,7 +39,7 @@ const OurServices = () => (
           </Button>
         </div>
         <div className="relative">
-          <img src={servicesImg} alt="Our services" className="w-full rounded-sm shadow-lg" />
+          <img src={img("services-office.jpg")} alt="Our services" className="w-full rounded-sm shadow-lg" />
           <div className="absolute -bottom-4 -left-4 bg-accent text-accent-foreground rounded-sm px-6 py-4 shadow-lg">
             <p className="text-3xl font-black">20+</p>
             <p className="text-xs font-semibold">Years of Experience</p>

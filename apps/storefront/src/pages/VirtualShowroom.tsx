@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import RoomConfigurator from "@/components/configurator/RoomConfigurator";
-import showroomImg from "@/assets/virtual-showroom-hero.jpg";
+import { img } from "@/assets/img";
 
 const features = [
   { icon: Monitor, title: "Real-Time 3D Preview", description: "Photorealistic rendering of every product from any angle, in your actual room dimensions." },
@@ -57,7 +57,7 @@ const VirtualShowroom = () => {
                 </div>
               </div>
               <div className="rounded-sm overflow-hidden shadow-2xl">
-                <img src={showroomImg} alt="Virtual Showroom" className="w-full h-72 lg:h-80 object-cover" />
+                <img src={img("virtual-showroom-hero.jpg")} alt="Virtual Showroom" className="w-full h-72 lg:h-80 object-cover" />
               </div>
             </div>
           </div>
