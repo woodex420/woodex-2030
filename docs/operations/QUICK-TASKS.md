@@ -44,9 +44,22 @@ Add to `scripts/schema.postgres.sql` + a new `migrations/0002_constraints.sql`:
 `FOREIGN KEY (client_id) REFERENCES clients(id)`, `CHECK (status IN (…))` for `orders/quotes/returns`, `DEFAULT now()` audit columns, `idx_leads_status_created`, `idx_orders_stage`, `idx_invoices_status`, `idx_sessions_expires_at`. Add a `schema_migrations` table and a `npm run db:migrate` that applies ordered files.
 **Done when:** `qa-full` + `qa:pg` still **96/96** with constraints enabled.
 
-### Q7 · One React / Vite / Tailwind — 1 d
-Storefront → React 19.2, Vite 8, Tailwind 4 (dashboard is already there). Delete `apps/woodex-reimagined-preview` (+ `bun.lock`, `bun.lockb`, its `supabase/functions/mcp`). Add `tsc -b` for **both** apps to CI.
-**Done when:** `(cd apps/storefront && npx tsc -b)` exits 0, and `du -sh apps/` drops ~12 MB.
+### Q7 · One React / Vite / Tailwind — ✅ SHIPPED 2026-11-08
+Storefront declared React `^18.3.1` while the dashboard declared `^19.2.0`, so npm hoisted React 19
+to the root for Radix / `@tanstack/react-query` / `next-themes` / `vaul` **and** nested a second React
+18 inside `apps/storefront`. The page ran two React copies, every hook returned `null`, and the first
+render aborted — a **blank white page with a fully green build**. The same had happened to Vite
+(storefront on 5, root on 8), which made `vite.config.ts` fail to typecheck against the hoisted types.
+
+Shipped: storefront moved to React `^19.2.0` (+ `@types/react` 19), Vite `^8.2.2` with
+`@vitejs/plugin-react` (the SWC plugin tops out at Vite 7), one hoisted copy of each.
+`tsc -b` now exits **0** (was 1,037 errors). Guarded by `npm run smoke:render` in CI, which fails the
+build if either app mounts nothing.
+
+Remaining: Tailwind 4 for the storefront. It is **not** a runtime singleton like React — a nested
+Tailwind 3/PostCSS is safe (the two apps compile CSS separately) — but it is the last version split.
+Q8's image work touches the same `tailwind.config` surface, so do them together.
+**Done when:** `tsc -b` exits 0 for both apps (met) and both apps mount (met).
 
 ### Q8 · Image pipeline — 4 h
 Convert the 92 JPEGs to AVIF + WebP at 3 widths, emit `srcset`, keep the originals out of `dist`. Target `dist` ≤ 3 MB and `index.*.js` ≤ 200 KB.

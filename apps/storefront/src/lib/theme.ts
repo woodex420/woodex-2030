@@ -95,7 +95,17 @@ let override: "light" | "dark" | null = (() => {
   try { const v = localStorage.getItem("wx-mode"); return v === "dark" || v === "light" ? v : null; } catch { return null; }
 })();
 let resolved: "light" | "dark" = "light";
-let snap = { theme, mode: theme.mode, override, resolved, booted: false };
+type Mode = "light" | "dark";
+type Snap = {
+  theme: SiteTheme;
+  mode: SiteTheme["mode"];
+  override: Mode | null;
+  resolved: Mode;
+  booted: boolean;
+};
+// Explicit type: without it TS infers `resolved` as the literal "light" from the
+// initializer, and every `resolved === "dark"` check is flagged as dead code.
+let snap: Snap = { theme, mode: theme.mode, override, resolved, booted: false };
 const publish = () => {
   resolved = theme.mode === "auto" ? (override ?? (mq?.matches ? "dark" : "light")) : (override ?? theme.mode);
   document.documentElement.classList.toggle("dark", resolved === "dark");

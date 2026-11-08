@@ -24,6 +24,10 @@ jobs:
         run: npm run secret-scan
       - name: Combined Vercel production-shape build
         run: npm run vercel:build
+      - name: Render smoke test (both apps must mount)
+        run: npm run smoke:render
+      - name: Typecheck both apps
+        run: npm run typecheck:all
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: PostgreSQL rehearsal, API security QA, and browser acceptance
