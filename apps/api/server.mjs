@@ -131,6 +131,27 @@ CREATE TABLE IF NOT EXISTS track_events(
   created_at TEXT);
 CREATE INDEX IF NOT EXISTS idx_track_slug ON track_events(slug, kind, created_at);
 CREATE INDEX IF NOT EXISTS idx_track_page ON track_events(page_id, kind, created_at);
+CREATE TABLE IF NOT EXISTS projects(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
+  client_id INTEGER NOT NULL, order_id INTEGER, owner TEXT DEFAULT 'Unassigned',
+  stage TEXT NOT NULL DEFAULT 'Planning', address TEXT, start_at TEXT, due_at TEXT,
+  planned_cost REAL DEFAULT 0, actual_cost REAL DEFAULT 0, progress INTEGER DEFAULT 0,
+  notes TEXT, created_at TEXT, updated_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_projects_client ON projects(client_id, stage);
+CREATE TABLE IF NOT EXISTS project_milestones(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, title TEXT NOT NULL,
+  due_at TEXT, done INTEGER DEFAULT 0, sort INTEGER DEFAULT 0, note TEXT, created_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_milestones_project ON project_milestones(project_id, sort);
+CREATE TABLE IF NOT EXISTS boq_lines(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, sku TEXT,
+  description TEXT NOT NULL, qty REAL NOT NULL DEFAULT 1, unit TEXT DEFAULT 'pcs',
+  unit_cost REAL NOT NULL DEFAULT 0, sort INTEGER DEFAULT 0, created_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_boq_project ON boq_lines(project_id, sort);
+CREATE TABLE IF NOT EXISTS project_files(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL,
+  kind TEXT DEFAULT 'drawing', size INTEGER DEFAULT 0, url TEXT, uploaded_by TEXT DEFAULT 'You',
+  created_at TEXT);
+CREATE INDEX IF NOT EXISTS idx_files_project ON project_files(project_id);
 CREATE TABLE IF NOT EXISTS conversations(
   id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER NOT NULL UNIQUE,
   status TEXT DEFAULT 'open', assignee TEXT, priority INTEGER DEFAULT 0,
@@ -569,9 +590,13 @@ const wrapTx = (fn) => wrap(async (req, res) => wtx(() => fn(req, res)));
    contain the row and get a spurious 404. These routes build the reply, let COMMIT
    land, and only then write the response. */
 const wrapTxJson = (fn) => wrap(async (req, res) => {
-  const result = await db.transaction(() => fn(req));
+  const afterCommit = [];
+  const result = await db.transaction(() => fn(req, afterCommit));
   // Business rows carry their own `status` ("Sent", "Partially Paid", …) — only an
   // integer is ever an HTTP code.
+  for (const effect of afterCommit) {
+    try { effect(); } catch (error) { console.error("[woodex-api] post-commit effect failed:", error.message); }
+  }
   const status = Number.isInteger(result?.status) ? result.status : 200;
   res.status(status).json(result?.body ?? result ?? { ok: true });
 });
@@ -649,7 +674,7 @@ app.use(express.json({ limit: "2mb" }));
 const ROLE_CAPS = {
   owner: ["*"],
   editor: ["page.manage", "theme.manage", "catalog.manage"],
-  sales: ["crm.manage", "quote.manage", "order.manage"],
+  sales: ["crm.manage", "quote.manage", "order.manage", "project.manage"],
   finance: ["finance.manage", "quote.view-move", "order.view-move"],
   viewer: [],
 };
@@ -664,6 +689,7 @@ const capsFor = (m, path) => {
   if (path.startsWith("/api/theme") || path.startsWith("/api/target")) return "theme.manage";
   if (path.startsWith("/api/leads") || path.startsWith("/api/clients") || path.startsWith("/api/inbox") || path.startsWith("/api/tasks") || path.startsWith("/api/site-visits")) return "crm.manage";
   if (path.startsWith("/api/quotes") || path.startsWith("/api/quote-templates")) return "quote.manage";
+  if (path.startsWith("/api/projects")) return "project.manage";
   if (path.startsWith("/api/orders")) return "order.manage";
   if (path.startsWith("/api/invoices") || path.startsWith("/api/payments") || path.startsWith("/api/returns")) return "finance.manage";
   if (path.startsWith("/api/products") || path.startsWith("/api/materials") || path.startsWith("/api/services") || path.startsWith("/api/categories") || path.startsWith("/api/collections")) return "catalog.manage";
@@ -684,7 +710,11 @@ const isPublic = (m, p) =>
 const requestToken = (req) => {
   const auth = String(req.headers.authorization ?? "");
   const bearer = auth.match(/^Bearer\s+(.+)$/i)?.[1] ?? "";
-  return bearer || String(req.headers["x-woodex-session"] ?? "");
+  /* EventSource cannot set request headers, so the stream may authenticate with
+     ?token=. Scoped to that one endpoint: no other route accepts a URL token,
+     because URLs leak into logs and Referer headers. */
+  const queryToken = req.path === "/api/events" ? String(req.query?.token ?? "") : "";
+  return bearer || String(req.headers["x-woodex-session"] ?? "") || queryToken;
 };
 app.use(async (req, res, next) => { try {
   /* Public paths stay accessible without a session, but a *valid* token must still be
@@ -1004,7 +1034,7 @@ app.post("/api/quotes", wrapTxResponse(async (req, afterCommit) => {
   afterCommit.push(() => emit("quotes", { title: "Quotation " + ref + " created", who: req.actor ?? "Storefront" }));
   return { status: 201, body: { ...stored, clientId: match.client.id } };
 }));
-app.patch("/api/quotes/:id", wrapTxJson(async (req) => {
+app.patch("/api/quotes/:id", wrapTxJson(async (req, afterCommit) => {
   const row = await db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id);
   if (!row) return { status: 404, body: { error: "not found" } };
   const body = req.body ?? {};
@@ -1138,11 +1168,233 @@ app.patch("/api/leads/:id", wrap(async (req, res) => {
 }));
 
 /* Orders — checkout → operations */
+/* ---- Projects / BOQ / milestones / files ---- */
+const PROJECT_STAGES = ["Planning", "Procurement", "Production", "Delivery", "Installation", "Handover"];
+const PROJECT_FILE_KINDS = ["drawing", "boq", "contract", "photo", "other"];
+const rowProject = (r) => ({
+  id: r.id, ref: r.ref, name: r.name, clientId: r.client_id, orderId: r.order_id,
+  owner: r.owner, stage: r.stage, address: r.address,
+  startAt: r.start_at, dueAt: r.due_at,
+  plannedCost: r.planned_cost, actualCost: r.actual_cost, progress: r.progress,
+  notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowMilestone = (r) => ({ id: r.id, projectId: r.project_id, title: r.title, dueAt: r.due_at, done: !!r.done, sort: r.sort, note: r.note });
+const rowBoq = (r) => ({ id: r.id, projectId: r.project_id, sku: r.sku, description: r.description, qty: r.qty, unit: r.unit, unitCost: r.unit_cost, lineTotal: Math.round(r.qty * r.unit_cost) });
+const rowProjectFile = (r) => ({ id: r.id, projectId: r.project_id, name: r.name, kind: r.kind, size: r.size, url: r.url, uploadedBy: r.uploaded_by, createdAt: r.created_at });
+const projectNextRef = async () => {
+  const row = (await db.prepare("SELECT COUNT(*) n FROM projects").get());
+  return "PRJ-" + String(1001 + Number(row?.n ?? 0)).padStart(4, "0");
+};
+
+app.get("/api/projects", wrap(async (req, res) => {
+  let rows = (await (db.prepare("SELECT * FROM projects ORDER BY datetime(created_at) DESC").all())).map(rowProject);
+  if (req.query.stage) rows = rows.filter((p) => p.stage === req.query.stage);
+  if (req.query.clientId) rows = rows.filter((p) => p.clientId === Number(req.query.clientId));
+  const items = [];
+  for (const p of rows) {
+    const boq = (await (db.prepare("SELECT * FROM boq_lines WHERE project_id=? ORDER BY sort, id").all(p.id))).map(rowBoq);
+    const boqTotal = boq.reduce((n, l) => n + l.lineTotal, 0);
+    const milestones = (await (db.prepare("SELECT * FROM project_milestones WHERE project_id=? ORDER BY sort, id").all(p.id))).map(rowMilestone);
+    items.push({ ...p, boqTotal, boqCount: boq.length, milestones: milestones.length, milestonesDone: milestones.filter((m) => m.done).length });
+  }
+  const planned = items.reduce((n, p) => n + (p.plannedCost || 0), 0);
+  res.json({ total: items.length, planned, open: items.filter((p) => p.stage !== "Handover").length, items });
+}));
+
+app.get("/api/projects/:id", wrap(async (req, res) => {
+  const r = (await (db.prepare("SELECT * FROM projects WHERE id=?").get(Number(req.params.id))));
+  if (!r) return res.status(404).json({ error: "project not found" });
+  const p = rowProject(r);
+  const boq = (await (db.prepare("SELECT * FROM boq_lines WHERE project_id=? ORDER BY sort, id").all(p.id))).map(rowBoq);
+  const milestonesList = (await (db.prepare("SELECT * FROM project_milestones WHERE project_id=? ORDER BY sort, id").all(p.id))).map(rowMilestone);
+  const files = (await (db.prepare("SELECT * FROM project_files WHERE project_id=? ORDER BY id DESC").all(p.id))).map(rowProjectFile);
+  const client = p.clientId ? (await (db.prepare("SELECT id, name, company, email, phone FROM clients WHERE id=?").get(p.clientId))) : null;
+  const boqTotal = boq.reduce((n, l) => n + l.lineTotal, 0);
+  /* Detail returns `milestonesList` (rows) so it never collides with the `milestones`
+     count the list endpoint uses — reading the wrong one renders "3" not three rows. */
+  res.json({ ...p, boq, boqTotal, milestonesList, files,
+    margin: boqTotal > 0 ? Math.round(((boqTotal - (p.actualCost || 0)) / boqTotal) * 1000) / 10 : null,
+    client: client ?? null });
+}));
+
+app.post("/api/projects", wrapTxJson(async (req, afterCommit) => {
+  const name = productText(req.body?.name, 160);
+  const clientId = Number(req.body?.clientId);
+  if (!name) return { status: 400, body: { error: "project name is required" } };
+  if (!Number.isInteger(clientId) || clientId <= 0) return { status: 400, body: { error: "clientId is required" } };
+  const client = (await db.prepare("SELECT id FROM clients WHERE id=?").get(clientId));
+  if (!client) return { status: 400, body: { error: "client not found" } };
+  const ref = await projectNextRef();
+  const stage = PROJECT_STAGES.includes(req.body?.stage) ? req.body.stage : "Planning";
+  const at = now();
+  const info = (await db.prepare(`INSERT INTO projects(ref,name,client_id,order_id,owner,stage,address,start_at,due_at,planned_cost,actual_cost,progress,notes,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(ref, name, clientId, req.body?.orderId ?? null, productText(req.body?.owner, 80) || req.actor, stage,
+      productText(req.body?.address, 300) || null, req.body?.startAt ?? null, req.body?.dueAt ?? null,
+      Number(req.body?.plannedCost) || 0, 0, 0, productText(req.body?.notes, 2000) || null, at, at));
+  afterCommit.push(() => emit("projects", { title: "Project opened: " + name, who: req.actor }));
+  return { status: 201, body: rowProject((await db.prepare("SELECT * FROM projects WHERE id=?").get(info.lastInsertRowid))) };
+}));
+
+app.patch("/api/projects/:id", wrapTxJson(async (req, afterCommit) => {
+  const id = Number(req.params.id);
+  const r = (await db.prepare("SELECT * FROM projects WHERE id=?").get(id));
+  if (!r) return { status: 404, body: { error: "project not found" } };
+  const b = req.body ?? {};
+  const sets = [], vals = [];
+  const push = (col, val) => { sets.push(col + "=?"); vals.push(val); };
+  if (b.name !== undefined) { const v = productText(b.name, 160); if (!v) return { status: 400, body: { error: "name cannot be empty" } }; push("name", v); }
+  if (b.stage !== undefined) {
+    if (!PROJECT_STAGES.includes(b.stage)) return { status: 400, body: { error: "stage must be one of " + PROJECT_STAGES.join(", ") } };
+    push("stage", b.stage);
+  }
+  if (b.owner !== undefined) push("owner", productText(b.owner, 80) || "Unassigned");
+  if (b.address !== undefined) push("address", productText(b.address, 300) || null);
+  if (b.startAt !== undefined) push("start_at", b.startAt || null);
+  if (b.dueAt !== undefined) push("due_at", b.dueAt || null);
+  if (b.plannedCost !== undefined) { const n = Number(b.plannedCost); if (!Number.isFinite(n) || n < 0) return { status: 400, body: { error: "plannedCost must be a positive number" } }; push("planned_cost", n); }
+  if (b.actualCost !== undefined) { const n = Number(b.actualCost); if (!Number.isFinite(n) || n < 0) return { status: 400, body: { error: "actualCost must be a positive number" } }; push("actual_cost", n); }
+  if (b.progress !== undefined) { const n = Number(b.progress); if (!Number.isInteger(n) || n < 0 || n > 100) return { status: 400, body: { error: "progress must be an integer 0-100" } }; push("progress", n); }
+  if (b.notes !== undefined) push("notes", productText(b.notes, 2000) || null);
+  if (!sets.length) return { status: 400, body: { error: "no supported fields supplied" } };
+  push("updated_at", now());
+  vals.push(id);
+  await db.prepare(`UPDATE projects SET ${sets.join(", ")} WHERE id=?`).run(...vals);
+  afterCommit.push(() => emit("projects", { title: "Project updated: " + (b.name ?? r.name), who: req.actor }));
+  return { status: 200, body: rowProject((await db.prepare("SELECT * FROM projects WHERE id=?").get(id))) };
+}));
+
+app.delete("/api/projects/:id", wrapTxJson(async (req, afterCommit) => {
+  const id = Number(req.params.id);
+  const r = (await db.prepare("SELECT id, name FROM projects WHERE id=?").get(id));
+  if (!r) return { status: 404, body: { error: "project not found" } };
+  for (const t of ["project_milestones", "boq_lines", "project_files"]) await db.prepare(`DELETE FROM ${t} WHERE project_id=?`).run(id);
+  await db.prepare("DELETE FROM projects WHERE id=?").run(id);
+  afterCommit.push(() => emit("projects", { title: "Project deleted: " + r.name, who: req.actor }));
+  return { status: 200, body: { ok: true } };
+}));
+
+/* BOQ lines — the priced scope of work. Line totals are always server-computed. */
+app.post("/api/projects/:id/boq", wrapTxJson(async (req, afterCommit) => {
+  const projectId = Number(req.params.id);
+  const project = (await db.prepare("SELECT id FROM projects WHERE id=?").get(projectId));
+  if (!project) return { status: 404, body: { error: "project not found" } };
+  const description = productText(req.body?.description, 300);
+  const qty = Number(req.body?.qty ?? 1);
+  const unitCost = Number(req.body?.unitCost ?? 0);
+  if (!description) return { status: 400, body: { error: "description is required" } };
+  if (!Number.isFinite(qty) || qty <= 0) return { status: 400, body: { error: "qty must be greater than zero" } };
+  if (!Number.isFinite(unitCost) || unitCost < 0) return { status: 400, body: { error: "unitCost must be zero or more" } };
+  const maxSort = (await db.prepare("SELECT COALESCE(MAX(sort),0) m FROM boq_lines WHERE project_id=?").get(projectId));
+  const info = (await db.prepare("INSERT INTO boq_lines(project_id,sku,description,qty,unit,unit_cost,sort,created_at) VALUES(?,?,?,?,?,?,?,?)")
+    .run(projectId, productText(req.body?.sku, 60) || null, description, qty, productText(req.body?.unit, 16) || "pcs", unitCost, Number(maxSort?.m ?? 0) + 1, now()));
+  afterCommit.push(() => emit("projects", { title: "BOQ line added", who: req.actor }));
+  return { status: 201, body: rowBoq((await db.prepare("SELECT * FROM boq_lines WHERE id=?").get(info.lastInsertRowid))) };
+}));
+
+app.patch("/api/projects/:id/boq/:lineId", wrapTxJson(async (req, afterCommit) => {
+  const projectId = Number(req.params.id), lineId = Number(req.params.lineId);
+  const r = (await db.prepare("SELECT * FROM boq_lines WHERE id=? AND project_id=?").get(lineId, projectId));
+  if (!r) return { status: 404, body: { error: "BOQ line not found" } };
+  const b = req.body ?? {};
+  const sets = [], vals = [];
+  if (b.description !== undefined) { const v = productText(b.description, 300); if (!v) return { status: 400, body: { error: "description cannot be empty" } }; sets.push("description=?"); vals.push(v); }
+  if (b.qty !== undefined) { const n = Number(b.qty); if (!Number.isFinite(n) || n <= 0) return { status: 400, body: { error: "qty must be greater than zero" } }; sets.push("qty=?"); vals.push(n); }
+  if (b.unitCost !== undefined) { const n = Number(b.unitCost); if (!Number.isFinite(n) || n < 0) return { status: 400, body: { error: "unitCost must be zero or more" } }; sets.push("unit_cost=?"); vals.push(n); }
+  if (b.unit !== undefined) { sets.push("unit=?"); vals.push(productText(b.unit, 16) || "pcs"); }
+  if (b.sku !== undefined) { sets.push("sku=?"); vals.push(productText(b.sku, 60) || null); }
+  if (!sets.length) return { status: 400, body: { error: "no supported fields supplied" } };
+  vals.push(lineId);
+  await db.prepare(`UPDATE boq_lines SET ${sets.join(", ")} WHERE id=?`).run(...vals);
+  afterCommit.push(() => emit("projects", { title: "BOQ updated", who: req.actor }));
+  return { status: 200, body: rowBoq((await db.prepare("SELECT * FROM boq_lines WHERE id=?").get(lineId))) };
+}));
+
+app.delete("/api/projects/:id/boq/:lineId", wrapTxJson(async (req, afterCommit) => {
+  const lineId = Number(req.params.lineId), projectId = Number(req.params.id);
+  const r = (await db.prepare("SELECT id FROM boq_lines WHERE id=? AND project_id=?").get(lineId, projectId));
+  if (!r) return { status: 404, body: { error: "BOQ line not found" } };
+  await db.prepare("DELETE FROM boq_lines WHERE id=?").run(lineId);
+  afterCommit.push(() => emit("projects", { title: "BOQ line removed", who: req.actor }));
+  return { status: 200, body: { ok: true } };
+}));
+
+/* Milestones */
+app.post("/api/projects/:id/milestones", wrapTxJson(async (req, afterCommit) => {
+  const projectId = Number(req.params.id);
+  const project = (await db.prepare("SELECT id FROM projects WHERE id=?").get(projectId));
+  if (!project) return { status: 404, body: { error: "project not found" } };
+  const title = productText(req.body?.title, 160);
+  if (!title) return { status: 400, body: { error: "milestone title is required" } };
+  const maxSort = (await db.prepare("SELECT COALESCE(MAX(sort),0) m FROM project_milestones WHERE project_id=?").get(projectId));
+  const info = (await db.prepare("INSERT INTO project_milestones(project_id,title,due_at,done,sort,note,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(projectId, title, req.body?.dueAt ?? null, 0, Number(maxSort?.m ?? 0) + 1, productText(req.body?.note, 500) || null, now()));
+  afterCommit.push(() => emit("projects", { title: "Milestone added: " + title, who: req.actor }));
+  return { status: 201, body: rowMilestone((await db.prepare("SELECT * FROM project_milestones WHERE id=?").get(info.lastInsertRowid))) };
+}));
+
+app.patch("/api/projects/:id/milestones/:mid", wrapTxJson(async (req, afterCommit) => {
+  const projectId = Number(req.params.id), mid = Number(req.params.mid);
+  const r = (await db.prepare("SELECT * FROM project_milestones WHERE id=? AND project_id=?").get(mid, projectId));
+  if (!r) return { status: 404, body: { error: "milestone not found" } };
+  const b = req.body ?? {};
+  const sets = [], vals = [];
+  if (b.title !== undefined) { const v = productText(b.title, 160); if (!v) return { status: 400, body: { error: "title cannot be empty" } }; sets.push("title=?"); vals.push(v); }
+  if (b.dueAt !== undefined) { sets.push("due_at=?"); vals.push(b.dueAt || null); }
+  if (b.done !== undefined) { sets.push("done=?"); vals.push(b.done ? 1 : 0); }
+  if (b.note !== undefined) { sets.push("note=?"); vals.push(productText(b.note, 500) || null); }
+  if (!sets.length) return { status: 400, body: { error: "no supported fields supplied" } };
+  vals.push(mid);
+  await db.prepare(`UPDATE project_milestones SET ${sets.join(", ")} WHERE id=?`).run(...vals);
+  // Derived progress: a project whose milestones are all done is 100%.
+  const all = (await db.prepare("SELECT done FROM project_milestones WHERE project_id=?").all(projectId));
+  if (all.length) {
+    const pct = Math.round((all.filter((m) => m.done).length / all.length) * 100);
+    await db.prepare("UPDATE projects SET progress=?, updated_at=? WHERE id=?").run(pct, now(), projectId);
+  }
+  afterCommit.push(() => emit("projects", { title: "Milestone updated", who: req.actor }));
+  return { status: 200, body: rowMilestone((await db.prepare("SELECT * FROM project_milestones WHERE id=?").get(mid))) };
+}));
+
+app.delete("/api/projects/:id/milestones/:mid", wrapTxJson(async (req, afterCommit) => {
+  const mid = Number(req.params.mid), projectId = Number(req.params.id);
+  const r = (await db.prepare("SELECT id FROM project_milestones WHERE id=? AND project_id=?").get(mid, projectId));
+  if (!r) return { status: 404, body: { error: "milestone not found" } };
+  await db.prepare("DELETE FROM project_milestones WHERE id=?").run(mid);
+  afterCommit.push(() => emit("projects", { title: "Milestone removed", who: req.actor }));
+  return { status: 200, body: { ok: true } };
+}));
+
+/* Project files — metadata only; binaries live in /img or an object store. */
+app.post("/api/projects/:id/files", wrapTxJson(async (req, afterCommit) => {
+  const projectId = Number(req.params.id);
+  const project = (await db.prepare("SELECT id FROM projects WHERE id=?").get(projectId));
+  if (!project) return { status: 404, body: { error: "project not found" } };
+  const name = productText(req.body?.name, 200);
+  if (!name) return { status: 400, body: { error: "file name is required" } };
+  const kind = PROJECT_FILE_KINDS.includes(req.body?.kind) ? req.body.kind : "other";
+  const url = productText(req.body?.url, 500);
+  if (url && !/^(\/img\/|https:\/\/)/.test(url)) return { status: 400, body: { error: "url must be an /img/ path or an https URL" } };
+  const info = (await db.prepare("INSERT INTO project_files(project_id,name,kind,size,url,uploaded_by,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(projectId, name, kind, Math.max(0, Number(req.body?.size) || 0), url || null, req.actor, now()));
+  afterCommit.push(() => emit("projects", { title: "File attached: " + name, who: req.actor }));
+  return { status: 201, body: rowProjectFile((await db.prepare("SELECT * FROM project_files WHERE id=?").get(info.lastInsertRowid))) };
+}));
+
+app.delete("/api/projects/:id/files/:fid", wrapTxJson(async (req, afterCommit) => {
+  const fid = Number(req.params.fid), projectId = Number(req.params.id);
+  const r = (await db.prepare("SELECT id, name FROM project_files WHERE id=? AND project_id=?").get(fid, projectId));
+  if (!r) return { status: 404, body: { error: "file not found" } };
+  await db.prepare("DELETE FROM project_files WHERE id=?").run(fid);
+  afterCommit.push(() => emit("projects", { title: "File removed: " + r.name, who: req.actor }));
+  return { status: 200, body: { ok: true } };
+}));
+
 app.get("/api/orders", wrap(async (req, res) => {
   const items = (await (db.prepare("SELECT * FROM orders ORDER BY datetime(created_at) DESC").all())).map(rowOrder);
   res.json({ total: items.length, items });
 }));
-app.post("/api/orders", wrapTxJson(async (req) => {
+app.post("/api/orders", wrapTxJson(async (req, afterCommit) => {
   const customer = productText(req.body?.customer, 120);
   const requestedItems = req.body?.items;
   if (!customer || !Array.isArray(requestedItems) || requestedItems.length < 1 || requestedItems.length > 50)
@@ -1554,7 +1806,7 @@ app.get("/api/clients/:id", wrap(async (req, res) => {
   if (!c) return res.status(404).json({ error: "not found" });
   res.json((await (clientFull(c))));
 }));
-app.post("/api/clients", wrapTxJson(async (req) => {
+app.post("/api/clients", wrapTxJson(async (req, afterCommit) => {
   const b = req.body ?? {}; if (!b.name) return { status: 400, body: { error: "name required" } };
   const t = now();
   const info = (await (db.prepare("INSERT INTO clients(name,company,email,email_norm,phone,phone_norm,tags,notes,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
@@ -1575,7 +1827,7 @@ app.patch("/api/clients/:id", wrap(async (req, res) => {
       b.tags ? JSON.stringify(b.tags) : c.tags, b.notes ?? c.notes, now(), c.id)));
   res.json(rowClientLite((await (db.prepare("SELECT * FROM clients WHERE id=?").get(c.id)))));
 }));
-app.post("/api/clients/:id/merge", wrapTxJson(async (req) => {
+app.post("/api/clients/:id/merge", wrapTxJson(async (req, afterCommit) => {
   const into = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id)));
   const from = (await (db.prepare("SELECT * FROM clients WHERE id=?").get(req.body?.from_id)));
   if (!into || !from) return { status: 404, body: { error: "client pair not found" } };
@@ -2033,7 +2285,7 @@ app.post("/api/invoices", wrap(async (req, res) => {
   emit("invoices", { title: "Invoice " + r.ref + " issued", who: r.customer });
   res.status(201).json(rowInvoice(r));
 }));
-app.post("/api/quotes/:id/invoice", wrapTxJson(async (req) => {
+app.post("/api/quotes/:id/invoice", wrapTxJson(async (req, afterCommit) => {
   const q = (await (db.prepare("SELECT * FROM quotes WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!q) return { status: 404, body: { error: "quote not found" } };
   const items = JSON.parse(q.items || "[]");
@@ -2066,7 +2318,7 @@ app.patch("/api/invoices/:id", wrap(async (req, res) => {
     now(), r.id)));
   res.json(rowInvoice((await (db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)))));
 }));
-app.post("/api/invoices/:id/payments", wrapTxJson(async (req) => {
+app.post("/api/invoices/:id/payments", wrapTxJson(async (req, afterCommit) => {
   const r = (await (db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return { status: 404, body: { error: "not found" } };
   const amount = Number(req.body?.amount);
@@ -2089,7 +2341,7 @@ app.get("/api/returns", wrap(async (req, res) => {
   if (req.query.state) rows = rows.filter((r) => r.state === req.query.state);
   res.json({ total: rows.length, open: rows.filter((r) => r.state !== "Closed").length, items: rows });
 }));
-app.post("/api/returns", wrapTxJson(async (req) => {
+app.post("/api/returns", wrapTxJson(async (req, afterCommit) => {
   const b = req.body ?? {};
   let customer = b.customer; let orderId = null;
   if (b.order_id || b.order_ref) {
@@ -2115,6 +2367,53 @@ app.patch("/api/returns/:id", wrap(async (req, res) => {
   const rOut = rowReturn((await (db.prepare("SELECT * FROM returns WHERE id=?").get(r.id))));
   if (b.state) emit("returns", { title: "RMA " + r.ref + " → " + b.state, who: r.customer });
   res.json(rOut);
+}));
+
+/* Real revenue series for the Overview + Analytics charts.
+   Sums orders by month, plus collected payments, over a bounded window. */
+app.get("/api/stats/revenue", wrap(async (req, res) => {
+  const months = Math.max(1, Math.min(24, Number(req.query.months) || 6));
+  const buckets = new Map();
+  const stamp = (d) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString());
+  const bump = (iso, key, amount) => {
+    if (!iso) return;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return;
+    const label = d.toISOString().slice(0, 7); // YYYY-MM
+    const b = buckets.get(label) ?? { label, revenue: 0, orders: 0, collected: 0 };
+    if (key === "orders") { b.orders += 1; b.revenue += Number(amount) || 0; }
+    if (key === "collected") b.collected += Number(amount) || 0;
+    buckets.set(label, b);
+  };
+
+  for (const r of (await (db.prepare("SELECT created_at, total FROM orders").all()))) bump(r.created_at, "orders", r.total);
+  for (const r of (await (db.prepare("SELECT created_at, amount FROM payments").all()))) bump(r.created_at, "collected", r.amount);
+
+  // Emit a continuous window so a quiet month shows as zero, never as a gap.
+  const series = [];
+  const cursor = new Date();
+  cursor.setUTCDate(1);
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() - i, 1));
+    const label = d.toISOString().slice(0, 7);
+    const b = buckets.get(label) ?? { label, revenue: 0, orders: 0, collected: 0 };
+    series.push({ label, revenue: Math.round(b.revenue), orders: b.orders, collected: Math.round(b.collected) });
+  }
+
+  const current = series.slice(-1)[0] ?? { revenue: 0, orders: 0 };
+  const prior = series.slice(-2)[0] ?? { revenue: 0, orders: 0 };
+  const pct = (a, b) => (b > 0 ? Math.round(((a - b) / b) * 1000) / 10 : a > 0 ? 100 : 0);
+  res.json({
+    months,
+    series,
+    summary: {
+      totalRevenue: series.reduce((n, s) => n + s.revenue, 0),
+      totalOrders: series.reduce((n, s) => n + s.orders, 0),
+      collected: series.reduce((n, s) => n + s.collected, 0),
+      revenueChange: pct(current.revenue, prior.revenue),
+      ordersChange: pct(current.orders, prior.orders),
+    },
+  });
 }));
 
 app.get("/api/stats", wrap(async (req, res) => {
@@ -2388,7 +2687,7 @@ app.get("/api/pages/:key/public", wrap(async (req, res) => {
     blocks: await resolveSnapshotBlocks(snapshot.blocks),
     theme: Object.prototype.hasOwnProperty.call(snapshot, "theme") ? snapshot.theme : safeJson(r.theme, null) });
 }));
-app.put("/api/pages/:id/blocks", wrapTxJson(async (req) => {
+app.put("/api/pages/:id/blocks", wrapTxJson(async (req, afterCommit) => {
   const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
   if (!r) return { status: 404, body: { error: "not found" } };
   const body = req.body ?? {};
@@ -2462,7 +2761,7 @@ app.get("/api/pages/:id/versions", wrap(async (req, res) => {
   res.json({ items: rows.map((v) => ({ id: v.id, note: v.note, who: v.who, createdAt: v.created_at,
     blocks: JSON.parse(v.snapshot).blocks.length })) });
 }));
-app.post("/api/pages/:id/rollback", wrapTxJson(async (req) => {
+app.post("/api/pages/:id/rollback", wrapTxJson(async (req, afterCommit) => {
   const page = await db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
   if (!page) return { status: 404, body: { error: "page not found" } };
   const vid = Number(req.body?.version_id);

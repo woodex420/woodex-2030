@@ -668,6 +668,59 @@ await T("client merge keeps survivor & links", async () => {
   const m = await api(`/api/clients/${a}/merge`, { method: "POST", body: { from_id: b2 } });
   if (m.s >= 400) bad("merge: " + m.s + " " + JSON.stringify(m.j).slice(0, 140));
 });
+/* ---- Projects / BOQ: the delivery side of the business ---- */
+await T("project create → BOQ → milestone → derived progress", async () => {
+  if (!qa.clientId) bad("no qa client to attach the project to");
+  const c = await api("/api/projects", { method: "POST", body: { name: `${Q} Fit-out`, clientId: qa.clientId, plannedCost: 1000000, dueAt: "2027-03-01" } });
+  if (c.s >= 400) bad("create: " + c.s + " " + JSON.stringify(c.j).slice(0, 140));
+  qa.projectId = c.j.id;
+  if (!/^PRJ-\d+$/.test(String(c.j.ref))) bad("ref not generated: " + c.j.ref);
+  if (c.j.stage !== "Planning") bad("default stage=" + c.j.stage);
+});
+await T("project BOQ line totals are server-computed", async () => {
+  if (!qa.projectId) bad("skipped upstream");
+  const a = await api(`/api/projects/${qa.projectId}/boq`, { method: "POST", body: { description: `${Q} chair`, qty: 4, unitCost: 2500 } });
+  if (a.s >= 400) bad("line: " + a.s + " " + JSON.stringify(a.j).slice(0, 140));
+  if (Number(a.j.lineTotal) !== 10000) bad("lineTotal=" + a.j.lineTotal + " expected 10000");
+  // A client-supplied lineTotal must never be trusted.
+  const b = await api(`/api/projects/${qa.projectId}/boq`, { method: "POST", body: { description: `${Q} desk`, qty: 2, unitCost: 9000, lineTotal: 1 } });
+  if (b.s >= 400) bad("line2: " + b.s);
+  if (Number(b.j.lineTotal) !== 18000) bad("client-supplied lineTotal was honoured: " + b.j.lineTotal);
+  const d = await api(`/api/projects/${qa.projectId}`);
+  want(d, 200);
+  if (Number(d.j.boqTotal) !== 28000) bad("boqTotal=" + d.j.boqTotal + " expected 28000");
+  if (!Array.isArray(d.j.milestonesList)) bad("milestonesList missing from detail");
+});
+await T("milestones drive project progress", async () => {
+  if (!qa.projectId) bad("skipped upstream");
+  const m1 = await api(`/api/projects/${qa.projectId}/milestones`, { method: "POST", body: { title: `${Q} survey` } });
+  const m2 = await api(`/api/projects/${qa.projectId}/milestones`, { method: "POST", body: { title: `${Q} install` } });
+  if (m1.s >= 400 || m2.s >= 400) bad("milestone create failed");
+  const done = await api(`/api/projects/${qa.projectId}/milestones/${m1.j.id}`, { method: "PATCH", body: { done: true } });
+  want(done, 200);
+  const p = await api(`/api/projects/${qa.projectId}`);
+  if (p.j.progress !== 50) bad("progress=" + p.j.progress + " expected 50 after 1 of 2 milestones");
+  await api(`/api/projects/${qa.projectId}/milestones/${m2.j.id}`, { method: "PATCH", body: { done: true } });
+  const p2 = await api(`/api/projects/${qa.projectId}`);
+  if (p2.j.progress !== 100) bad("progress=" + p2.j.progress + " expected 100");
+});
+await T("project rejects bad input, 404s unknown, cascades on delete", async () => {
+  const noName = await api("/api/projects", { method: "POST", body: { clientId: qa.clientId } });
+  if (noName.s !== 400) bad("missing name accepted: " + noName.s);
+  const noClient = await api("/api/projects", { method: "POST", body: { name: `${Q} orphan`, clientId: 999999 } });
+  if (noClient.s !== 400) bad("unknown client accepted: " + noClient.s);
+  const badStage = await api(`/api/projects/${qa.projectId}`, { method: "PATCH", body: { stage: "Teleported" } });
+  if (badStage.s !== 400) bad("invalid stage accepted: " + badStage.s);
+  const gone = await api("/api/projects/999999");
+  if (gone.s !== 404) bad("unknown project should 404, got " + gone.s);
+  const del = await api(`/api/projects/${qa.projectId}`, { method: "DELETE" });
+  if (del.s >= 400) bad("delete: " + del.s);
+  const after = await api(`/api/projects/${qa.projectId}`);
+  if (after.s !== 404) bad("project still readable after delete");
+  const list = await api("/api/projects");
+  if ((list.j.items ?? []).some((p) => p.id === qa.projectId)) bad("deleted project still in list");
+});
+
 await T("inbox message round-trip", async () => {
   const cid = qa.clientId; if (!cid) bad("no qa client");
   const p = await api(`/api/inbox/${cid}/messages`, { method: "POST", body: { channel: "whatsapp", body: `${Q} · reply sent via QA`, direction: "outbound" } });

@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/Progress";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Dropdown, DropdownDivider, DropdownItem, DropdownLabel } from "@/components/ui/Dropdown";
 import { useToast } from "@/components/ui/Toast";
-import { activity, opsStatus, pipeline } from "@/data/mock";
+import { opsStatus } from "@/data/mock";
 import type { Kpi, Tone } from "@/data/mock";
 import { useApi, fmtPKR, timeAgo } from "@/lib/api";
 import type { ApiStats } from "@/lib/api";
@@ -145,20 +145,22 @@ const kpiTile: Record<Tone, string> = {
 export function KpiRow() {
   const { data: stats } = useApi<ApiStats>("/api/stats", 60000);
   const f = stats?.finance;
+  /* Values are real. `trend` is deliberately absent: the backend does not yet
+     expose period-over-period deltas for these counters, and a hardcoded arrow
+     ("↑ 24%") on a real number is worse than no arrow at all. */
   const live: Kpi[] = [
-    { id: "target", label: "Target hit", value: f ? f.target.pct + "%" : "—", trend: f && f.target.pct >= 50 ? 5.2 : -2.1, comparison: f ? fmtPKR(f.target.value) + " goal" : "set via /api/target", icon: "dollar", tone: f && f.target.pct >= 60 ? "success" : "warning" },
-    { id: "revenue", label: "Revenue (delivered)", value: stats ? fmtPKR(stats.orders.revenue) : "—", trend: 24, comparison: "orders past dispatch", icon: "dollar", tone: "success" },
-    { id: "deals", label: "Deals won / open", value: f ? f.deals.won + " / " + f.deals.open : "—", trend: 6.1, comparison: "quotes · win rate " + (f && f.deals.won + f.deals.open ? Math.round((f.deals.won / Math.max(1, f.deals.won + f.deals.open)) * 100) : 0) + "%", icon: "clipboard", tone: "primary" },
-    { id: "leads", label: "Leads", value: String(stats?.leads.total ?? "—"), trend: 12.4, comparison: stats ? `${stats.leads.byStatus.New ?? 0} new right now` : "from shared backend", icon: "users", tone: "info" },
-    { id: "aov", label: "Avg order value", value: f && f.aov ? fmtPKR(f.aov) : "—", trend: 3.4, comparison: stats ? `${stats.orders.total} orders` : "", icon: "invoice", tone: "info" },
-    { id: "returns", label: "Open returns", value: stats ? String(stats.returns.open) : "—", trend: stats && stats.returns.open === 0 ? 4 : -4, comparison: stats ? `${stats.returns.total} RMA total` : "", icon: "factory", tone: stats && stats.returns.open > 0 ? "danger" : "success" },
-    { id: "tasks", label: "Follow-ups due", value: stats ? String(stats.crm.tasksDue) : "—", trend: stats && stats.crm.tasksDue > 0 ? -6 : 9, comparison: stats ? `${stats.crm.hotLeads} hot leads · ${stats.crm.review} merge review` : "", icon: "clipboard", tone: stats && stats.crm.tasksDue > 0 ? "warning" : "success" },
+    { id: "target", label: "Target hit", value: f ? f.target.pct + "%" : "—", comparison: f ? fmtPKR(f.target.value) + " goal" : "set via /api/target", icon: "dollar", tone: f && f.target.pct >= 60 ? "success" : "warning" },
+    { id: "revenue", label: "Revenue (delivered)", value: stats ? fmtPKR(stats.orders.revenue) : "—", comparison: "orders past dispatch", icon: "dollar", tone: "success" },
+    { id: "deals", label: "Deals won / open", value: f ? f.deals.won + " / " + f.deals.open : "—", comparison: "quotes · win rate " + (f && f.deals.won + f.deals.open ? Math.round((f.deals.won / Math.max(1, f.deals.won + f.deals.open)) * 100) : 0) + "%", icon: "clipboard", tone: "primary" },
+    { id: "leads", label: "Leads", value: String(stats?.leads.total ?? "—"), comparison: stats ? `${stats.leads.byStatus.New ?? 0} new right now` : "from shared backend", icon: "users", tone: "info" },
+    { id: "aov", label: "Avg order value", value: f && f.aov ? fmtPKR(f.aov) : "—", comparison: stats ? `${stats.orders.total} orders` : "", icon: "invoice", tone: "info" },
+    { id: "returns", label: "Open returns", value: stats ? String(stats.returns.open) : "—", comparison: stats ? `${stats.returns.total} RMA total` : "", icon: "factory", tone: stats && stats.returns.open > 0 ? "danger" : "success" },
+    { id: "tasks", label: "Follow-ups due", value: stats ? String(stats.crm.tasksDue) : "—", comparison: stats ? `${stats.crm.hotLeads} hot leads · ${stats.crm.review} merge review` : "", icon: "clipboard", tone: stats && stats.crm.tasksDue > 0 ? "warning" : "success" },
   ];
   return (
     <section aria-label="Key performance indicators" className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4 xl:grid-cols-4">
       {live.map((k) => {
         const Icon = kpiIcons[k.icon];
-        const up = k.trend >= 0;
         return (
           <Card key={k.id} className="p-4 lg:p-5" padded={false}>
             <div className="flex items-start justify-between gap-2">
@@ -170,9 +172,11 @@ export function KpiRow() {
             <p className="mt-3 text-small font-medium text-muted">{k.label}</p>
             <p className="mt-0.5 text-h1 tracking-tight text-ink">{k.value}</p>
             <p className="mt-1.5 flex items-center gap-1.5 text-caption">
-              <span className={cn("inline-flex items-center gap-0.5 font-semibold", up ? "text-success-strong" : "text-danger-strong")}>
-                {up ? "↑" : "↓"} {Math.abs(k.trend).toFixed(1)}%
-              </span>
+              {typeof k.trend === "number" && (
+                <span className={cn("inline-flex items-center gap-0.5 font-semibold", k.trend >= 0 ? "text-success-strong" : "text-danger-strong")}>
+                  {k.trend >= 0 ? "↑" : "↓"} {Math.abs(k.trend).toFixed(1)}%
+                </span>
+              )}
               <span className="text-subtle">{k.comparison}</span>
             </p>
           </Card>
@@ -254,7 +258,15 @@ export function PaymentsStrip() {
 export function QuotationPipelineCard() {
   const { data: stats } = useApi<ApiStats>("/api/stats", 60000);
   const won = stats?.finance.deals.won ?? 0, open = stats?.finance.deals.open ?? 0;
-  const win = won + open > 0 ? Math.round((won / (won + open)) * 100) : 17;
+  const win = won + open > 0 ? Math.round((won / (won + open)) * 100) : 0;
+  /* Real stage buckets from /api/stats; percentages are of the open pipeline. */
+  const buckets = (stats?.quotes.byStatus ?? {}) as Record<string, { count: number; value: number }>;
+  const pipelineTotal = Object.values(buckets).reduce((n, b) => n + b.value, 0) || 1;
+  const stageRows = Object.entries(buckets).map(([stage, b]) => ({
+    stage,
+    count: b.count,
+    pct: Math.round((b.value / pipelineTotal) * 100),
+  }));
   return (
     <Card className="flex h-full flex-col">
       <CardHeader
@@ -267,7 +279,8 @@ export function QuotationPipelineCard() {
         }
       />
       <ul className="flex-1 space-y-3">
-        {pipeline.map((s, i) => (
+        {stageRows.length === 0 && <li className="py-6 text-center text-caption text-subtle">No quotations yet.</li>}
+        {stageRows.map((s, i) => (
           <li key={s.stage} className="grid grid-cols-[92px_minmax(0,1fr)_64px] items-center gap-3">
             <span className="text-small font-medium text-slate-700">{s.stage}</span>
             <Progress value={s.pct} size="md" tone={i === 0 ? "muted" : i === 1 ? "info" : i >= 4 ? "success" : "primary"} />
@@ -280,8 +293,8 @@ export function QuotationPipelineCard() {
       </ul>
       <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-caption text-muted">
         <span>Win rate <strong className="font-semibold text-ink">{win}%</strong></span>
-        <span>Avg cycle <strong className="font-semibold text-ink">11 days</strong></span>
-        <span>Avg value <strong className="font-semibold text-ink">$PKR pipeline</strong></span>
+        <span>Pipeline <strong className="font-semibold text-ink">{fmtPKR(pipelineTotal)}</strong></span>
+        <span>{Object.values(buckets).reduce((n, b) => n + b.count, 0)} quotes</span>
       </div>
     </Card>
   );
@@ -361,7 +374,9 @@ export function ActivityFeed() {
     context: r.context,
     time: r.time ? timeAgo(r.time) : "just now",
   }));
-  const feed = [...live, ...activity.map((a) => ({ id: "m" + a.id, type: a.type, title: a.title, who: a.who, context: a.context, time: a.time }))].slice(0, 7);
+  /* Only real events. Previously this appended a hardcoded `activity` list, so a
+     quiet system still showed a busy feed. */
+  const feed = live.slice(0, 7);
   return (
     <Card className="flex h-full flex-col" padded={false}>
       <div className="px-5 pt-5 lg:px-6 lg:pt-6">

@@ -17,8 +17,10 @@ import {
   WorkspaceContextBar,
 } from "@/components/dashboard";
 import { compact, money } from "@/lib/cn";
-import { revenueSeries, revenueSummary } from "@/data/mock";
 import { useApi, timeAgo, type ApiLead } from "@/lib/api";
+
+type RevenuePoint = { label: string; revenue: number; orders: number; collected: number };
+type RevenueStats = { months: number; series: RevenuePoint[]; summary: { totalRevenue: number; totalOrders: number; collected: number; revenueChange: number; ordersChange: number } };
 import { SkeletonRows } from "@/components/ui/States";
 import { ArrowRight, Plus } from "@/icons";
 
@@ -70,6 +72,8 @@ function RecentLeads() {
 }
 
 export default function Dashboard() {
+  /* Real revenue/orders, straight from orders + payments. No mock series. */
+  const revenue = useApi<RevenueStats>("/api/stats/revenue?months=6").data;
   return (
     <div className="space-y-5 lg:space-y-6">
       <WorkspaceContextBar />
@@ -80,7 +84,7 @@ export default function Dashboard() {
         <Card className="xl:col-span-2">
           <CardHeader
             title="Sales & Revenue Overview"
-            description="Revenue and order trend, last 12 months"
+            description="Revenue and order trend — live from orders and payments"
             action={
               <div className="flex items-center gap-2">
                 <Link
@@ -94,30 +98,40 @@ export default function Dashboard() {
           />
           <div className="mb-4 grid grid-cols-2 gap-3 sm:max-w-md">
             <div className="rounded-card border border-line bg-slate-50/60 p-3.5">
-              <p className="text-caption font-medium text-subtle">Total Revenue</p>
-              <p className="mt-1 text-h2 tracking-tight text-ink">{money(revenueSummary.totalRevenue)}</p>
+              <p className="text-caption font-medium text-subtle">Revenue ({revenue?.months ?? 6} mo)</p>
+              <p className="mt-1 text-h2 tracking-tight text-ink">
+                {revenue ? money(revenue.summary.totalRevenue) : <span className="inline-block h-7 w-24 animate-pulse rounded bg-slate-200" />}
+              </p>
               <p className="mt-1 flex items-center gap-1.5 text-caption">
-                <TrendChip value={revenueSummary.revenueChange} />
-                <span className="text-subtle">vs. prior period</span>
+                {revenue ? <TrendChip value={revenue.summary.revenueChange} /> : null}
+                <span className="text-subtle">vs. prior month</span>
               </p>
             </div>
             <div className="rounded-card border border-line bg-slate-50/60 p-3.5">
-              <p className="text-caption font-medium text-subtle">Total Orders</p>
-              <p className="mt-1 text-h2 tracking-tight text-ink">{revenueSummary.totalOrders}</p>
+              <p className="text-caption font-medium text-subtle">Orders</p>
+              <p className="mt-1 text-h2 tracking-tight text-ink">
+                {revenue ? revenue.summary.totalOrders : <span className="inline-block h-7 w-16 animate-pulse rounded bg-slate-200" />}
+              </p>
               <p className="mt-1 flex items-center gap-1.5 text-caption">
-                <TrendChip value={revenueSummary.ordersChange} />
-                <span className="text-subtle">vs. prior period</span>
+                {revenue ? <TrendChip value={revenue.summary.ordersChange} /> : null}
+                <span className="text-subtle">vs. prior month</span>
               </p>
             </div>
           </div>
-          <LineAreaChart
-            labels={revenueSeries.labels}
-            series={[
-              { name: "Revenue", color: "#4F9D21", values: revenueSeries.revenue, area: true },
-              { name: "Orders", color: "#3578B8", values: revenueSeries.orders },
-            ]}
-            valueFormat={(n) => "PKR " + compact(n)}
-          />
+          {revenue ? (
+            <LineAreaChart
+              labels={revenue.series.map((p) => p.label.slice(5) + "/" + p.label.slice(2, 4))}
+              series={[
+                { name: "Revenue", color: "#4F9D21", values: revenue.series.map((p) => p.revenue), area: true },
+                { name: "Orders", color: "#3578B8", values: revenue.series.map((p) => p.orders) },
+              ]}
+              valueFormat={(n) => "PKR " + compact(n)}
+            />
+          ) : (
+            <div className="grid h-44 place-items-center rounded-card border border-dashed border-line text-caption text-subtle">
+              Loading revenue…
+            </div>
+          )}
           <div className="mt-2 flex items-center gap-4 border-t border-line pt-3 text-caption text-muted">
             <span className="inline-flex items-center gap-1.5">
               <span className="h-1.5 w-4 rounded-full bg-primary-500" /> Revenue

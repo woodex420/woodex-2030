@@ -67,7 +67,8 @@ export type Kpi = {
   id: string;
   label: string;
   value: string;
-  trend: number;
+  /** Omitted when the API has no period-over-period figure — never invent one. */
+  trend?: number;
   comparison: string;
   icon: "users" | "clipboard" | "dollar" | "building" | "factory" | "invoice";
   tone: Tone;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getToken } from "@/lib/auth";
 
 /* Runtime API layer — the dashboard reads/writes the same SQLite-backed
    service as the storefront (apps/api). No bundled copies of the data. */
@@ -283,7 +284,7 @@ export type ApiOrderDetail = ApiOrder & {
 
 /* ---------- Serverless-compatible realtime refresh (short polling) ---------- */
 export type RtEvent = { type: string; at?: string; title?: string; who?: string; context?: string };
-type RtStatus = "connecting" | "polling" | "down";
+type RtStatus = "connecting" | "live" | "polling" | "down";
 let rtStatus: RtStatus = "connecting";
 let pollTimer: number | null = null;
 const statusListeners = new Set<(value: RtStatus) => void>();
@@ -294,31 +295,112 @@ function setStatus(value: RtStatus) {
   statusListeners.forEach((listener) => listener(value));
 }
 
-/** Vercel function instances do not share an in-memory SSE bus. Refresh consumers on a short poll instead. */
-export function initRealtime() {
+/** Poll fallback period. Used only where SSE is unavailable (Vercel serverless). */
+const SSE_RETRY_MS = 5_000;
+
+const dispatchRt = (event: RtEvent) => {
+  window.dispatchEvent(new CustomEvent<RtEvent>("woodex:rt", { detail: event }));
+  window.dispatchEvent(new CustomEvent<string>("woodex:rt-refresh", { detail: event.type }));
+};
+
+/**
+ * Realtime transport.
+ *
+ * The API has always exposed a working SSE bus (`GET /api/events`, 39 emit sites),
+ * but the dashboard never subscribed to it: it only ever fired a synthetic "poll"
+ * event, which useRealtime then filtered out. Net effect — a colleague's write
+ * appeared only after a manual reload.
+ *
+ * This attaches the real stream and keeps polling underneath for the two cases
+ * SSE cannot cover: the Vercel serverless runtime (where /api/events returns 410
+ * by design) and a connection that closes.
+ */
+let source: EventSource | null = null;
+let retryTimer: number | null = null;
+let started = false;
+let usingSse = false;
+const SSE_EVENTS = ["leads", "quotes", "orders", "tasks", "invoices", "inbox", "projects", "pages", "theme", "site-visits", "track"];
+
+function startPolling() {
   if (pollTimer !== null || typeof window === "undefined") return;
-  setStatus("polling");
   pollTimer = window.setInterval(() => {
-    const event: RtEvent = { type: "poll", at: new Date().toISOString() };
-    window.dispatchEvent(new CustomEvent<RtEvent>("woodex:rt", { detail: event }));
-    window.dispatchEvent(new CustomEvent<string>("woodex:rt-refresh", { detail: "poll" }));
+    dispatchRt({ type: "poll", at: new Date().toISOString() });
   }, REFRESH_MS);
 }
+function stopPolling() {
+  if (pollTimer !== null) { window.clearInterval(pollTimer); pollTimer = null; }
+}
 
-/** Subscribe to refresh signals; the serverless deployment uses 15-second polling, not public SSE. */
+export function initRealtime() {
+  if (started || typeof window === "undefined") return;
+  started = true;
+
+  // Polling is the floor: it works everywhere, including serverless.
+  startPolling();
+  if (typeof EventSource === "undefined") { setStatus("polling"); return; }
+
+  const connect = () => {
+    const token = getToken();
+    if (!token) { setStatus("polling"); return; }
+    try {
+      // EventSource cannot send an Authorization header; the stream route accepts
+      // ?token= and nothing else does.
+      source = new EventSource("/api/events?token=" + encodeURIComponent(token));
+    } catch {
+      setStatus("polling");
+      return;
+    }
+    setStatus("connecting");
+
+    source.addEventListener("hello", () => {
+      usingSse = true;
+      setStatus("live");
+      stopPolling(); // while the stream is open it is authoritative
+    });
+
+    for (const type of SSE_EVENTS) {
+      source.addEventListener(type, (e) => {
+        try {
+          const data = JSON.parse((e as MessageEvent).data) as RtEvent;
+          dispatchRt({ ...data, type: data.type || type });
+        } catch {
+          dispatchRt({ type });
+        }
+      });
+    }
+
+    source.addEventListener("error", () => {
+      if (source && source.readyState === EventSource.CLOSED) {
+        usingSse = false;
+        source = null;
+        setStatus("polling");
+        startPolling();
+        if (retryTimer === null) {
+          retryTimer = window.setTimeout(() => { retryTimer = null; connect(); }, SSE_RETRY_MS);
+        }
+      }
+    });
+  };
+
+  connect();
+}
+
+/** True when the live stream is attached (as opposed to polling). */
+export const isLiveStream = () => usingSse;
+
+/** Subscribe to realtime signals: server events by type, plus a poll heartbeat. */
 export function useRealtime(types: RegExp, handler: (event: RtEvent) => void) {
   useEffect(() => {
     initRealtime();
     const listener = (event: Event) => {
       const detail = (event as CustomEvent<RtEvent>).detail;
-      if (detail && detail.type !== "poll" && types.test(detail.type)) handler(detail);
+      if (!detail) return;
+      // "poll" is the fallback heartbeat, delivered so screens still refresh when
+      // SSE is unavailable. Real events are filtered by the caller's regex.
+      if (detail.type === "poll" || types.test(detail.type)) handler(detail);
     };
     addEventListener("woodex:rt", listener);
-    const timer = window.setInterval(() => handler({ type: "poll", at: new Date().toISOString() }), REFRESH_MS);
-    return () => {
-      window.clearInterval(timer);
-      removeEventListener("woodex:rt", listener);
-    };
+    return () => removeEventListener("woodex:rt", listener);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [types.source]);
 }

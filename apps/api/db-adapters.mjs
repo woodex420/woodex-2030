@@ -14,6 +14,8 @@ const RETURN_ID_TABLES = new Set([
   "leads", "quotes", "quote_versions", "orders", "invoices", "payments", "returns", "clients", "tasks", "site_visits",
   "pages", "page_blocks", "page_versions", "saved_sections", "track_events",
   "conversations", "messages", "users",
+  // Delivery side: every one of these inserts needs its generated id back.
+  "projects", "project_milestones", "boq_lines", "project_files",
 ]);
 
 /** Convert SQLite '?' placeholders to PostgreSQL '$n', respecting SQL quoting/comments. */
