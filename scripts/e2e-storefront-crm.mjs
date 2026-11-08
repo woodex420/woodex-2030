@@ -233,8 +233,13 @@ try {
   await basketPage.getByRole("button").filter({ hasText: product.name }).first().click();
   await basketPage.getByRole("button", { name: "Close quote basket" }).click();
   await basketPage.getByRole("heading", { name: /Your Quote Basket/ }).waitFor();
-  await basketPage.getByText("Estimated Total", { exact: true }).waitFor();
-  await basketPage.getByText("Final payment terms will be included in formal quotation.", { exact: true }).waitFor();
+  /* Scope to <main>. The quote-basket drawer (QuoteBasket.tsx) is mounted at all
+     times and renders its own "Estimated Total" label, so an unscoped getByText
+     resolves to two elements and throws a strict-mode violation. This assertion is
+     about the quotation page's summary, not the hidden drawer's. */
+  const basketMain = basketPage.getByRole("main");
+  await basketMain.getByText("Estimated Total", { exact: true }).waitFor();
+  await basketMain.getByText("Final payment terms will be included in formal quotation.", { exact: true }).waitFor();
 
   await basketPage.getByRole("button", { name: "Log & open WhatsApp", exact: true }).click();
   const builderDialog = basketPage.locator('[role="dialog"]');
