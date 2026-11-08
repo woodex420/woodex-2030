@@ -65,7 +65,13 @@ export async function login(email: string, password: string) {
   const appPath = DASHBOARD_BASE && location.pathname.startsWith(DASHBOARD_BASE)
     ? location.pathname.slice(DASHBOARD_BASE.length) || "/"
     : location.pathname;
-  if (["/", "/login", "/signin", "/dashboard", "/home", "/overview"].includes(appPath))
+  /* After signing in at /admin the path is NOT under the basename, so appPath
+     stayed "/admin" and no branch matched — the URL was left off-basename and
+     <BrowserRouter> then rendered nothing. Treat every bare dashboard entry
+     path, alias included, as "go home". */
+  const entryPaths = ["/", "/login", "/signin", "/dashboard", "/home", "/overview"];
+  const bareAlias = /^\/(admin|dashboard)\/?$/i.test(location.pathname);
+  if (entryPaths.includes(appPath) || bareAlias)
     history.replaceState(null, "", DASHBOARD_HOME);
   takeReturn(); // land back where an expired session yanked us from
   set({ status: "in", user, caps });

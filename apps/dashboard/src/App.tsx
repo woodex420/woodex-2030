@@ -44,10 +44,41 @@ function NotFound() {
   );
 }
 
+import { useEffect, useState } from "react";
 import Login from "@/pages/Login";
 import { restoreSession, useAuth } from "@/lib/auth";
+import { canonicalDashboardPath, isOutsideDashboard } from "@/lib/router-paths";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const dashboardBasename = import.meta.env.BASE_URL.replace(/\/+$/, "") || "/";
+
+/* Owns the basename problem so no page can trip over it.
+   <BrowserRouter> matches nothing when the path sits outside its basename, and
+   "nothing" means zero DOM — a white screen with no error to explain it. Rather
+   than trusting every caller to land on a canonical path, correct the path here
+   and then re-render, so the router is only ever mounted on a URL it can match.
+   If the path is unrelated to the dashboard entirely, fall back to its home.
+   See lib/router-paths.ts for the matching rules. */
+function DashboardRouter({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const target = canonicalDashboardPath(dashboardBasename, location.pathname);
+    if (target) window.history.replaceState(null, "", target + location.search + location.hash);
+    else if (isOutsideDashboard(dashboardBasename, location.pathname)) {
+      /* Some other off-basename path (stale bookmark, or a host that did not
+         rewrite). Land on the dashboard home rather than rendering nothing. */
+      window.history.replaceState(null, "", dashboardBasename + "/" + location.search);
+    }
+    setReady(true);
+  }, []);
+  if (!ready)
+    return (
+      <div className="grid min-h-screen place-items-center bg-surface-secondary">
+        <p className="text-caption font-semibold text-muted">Opening the workspace…</p>
+      </div>
+    );
+  return <BrowserRouter basename={dashboardBasename}>{children}</BrowserRouter>;
+}
 
 export default function App() {
   const { status } = useAuth();
@@ -59,8 +90,9 @@ export default function App() {
   if (status === "out") return <Login />;
   return (
     <ToastProvider>
-      <BrowserRouter basename={dashboardBasename}>
-        <Routes>
+      <DashboardRouter>
+        <ErrorBoundary label="the workspace">
+          <Routes>
           <Route element={<AppShell />}>
             <Route index element={<Dashboard />} />
             <Route path="/crm" element={<Crm />} />
@@ -105,8 +137,9 @@ export default function App() {
             ))}
             <Route path="*" element={<NotFound />} />
           </Route>
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </ErrorBoundary>
+      </DashboardRouter>
     </ToastProvider>
   );
 }

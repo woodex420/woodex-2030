@@ -53,7 +53,7 @@ export default function Analytics() {
   const failed = revenue.error && stats.error && marketing.error;
 
   const leadSources: LeadSourceRow[] = useMemo(() => {
-    const by = stats.data?.leads.byStatus ?? {};
+    const by = stats.data?.leads?.byStatus ?? {};
     const entries = Object.entries(by).sort((a, b) => b[1] - a[1]);
     const total = entries.reduce((n, [, v]) => n + v, 0);
     const tones: LeadSourceRow["tone"][] = ["primary", "info", "warning", "success", "muted"];
@@ -68,7 +68,7 @@ export default function Analytics() {
   /* Campaign-style table, but every row is a real quote status bucket. */
   type QuoteRow = { id: string; bucket: string; count: number; value: number; avg: number };
   const quoteRows: QuoteRow[] = useMemo(() => {
-    const by = stats.data?.quotes.byStatus ?? {};
+    const by = stats.data?.quotes?.byStatus ?? {};
     return Object.entries(by).map(([bucket, v]) => ({
       id: "q-" + bucket,
       bucket,
@@ -85,8 +85,8 @@ export default function Analytics() {
     { key: "value", header: "Total value", align: "right", cell: (r) => <span className="text-small font-semibold text-ink">{money(r.value)}</span> },
   ];
 
-  const wonCount = stats.data?.leads.byStatus?.Won ?? 0;
-  const leadTotal = stats.data?.leads.total ?? 0;
+  const wonCount = stats.data?.leads?.byStatus?.Won ?? 0;
+  const leadTotal = stats.data?.leads?.total ?? 0;
   const convRate = leadTotal > 0 ? Math.round((wonCount / leadTotal) * 1000) / 10 : 0;
 
   const pageRows = (marketing.data?.pages ?? []).slice(0, 6);
@@ -131,7 +131,7 @@ export default function Analytics() {
           <div>
             <p className="text-small font-medium text-muted">Revenue</p>
             <p className="mt-1 text-h1 tracking-tight text-ink">{revenue.data ? money(revenue.data.summary.totalRevenue) : "—"}</p>
-            <p className="mt-1 text-caption text-subtle">last {range.months} months · {revenue.data?.summary.totalOrders ?? 0} orders</p>
+            <p className="mt-1 text-caption text-subtle">last {range.months} months · {revenue.data?.summary?.totalOrders ?? 0} orders</p>
           </div>
           {revenue.data ? <TrendChip value={revenue.data.summary.revenueChange} className="mt-1" /> : null}
         </Card>
@@ -139,7 +139,7 @@ export default function Analytics() {
           <div>
             <p className="text-small font-medium text-muted">Leads</p>
             <p className="mt-1 text-h1 tracking-tight text-ink">{leadTotal.toLocaleString()}</p>
-            <p className="mt-1 text-caption text-subtle">all sources · {stats.data?.leads.byStatus?.New ?? 0} new</p>
+            <p className="mt-1 text-caption text-subtle">all sources · {stats.data?.leads?.byStatus?.New ?? 0} new</p>
           </div>
         </Card>
         <Card className="flex items-start justify-between gap-3">
@@ -155,7 +155,7 @@ export default function Analytics() {
       <div className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-3 lg:gap-4">
         <Card className="xl:col-span-2">
           <CardHeader title="Revenue Trend" description={`Orders and payments, last ${range.months} months`} />
-          {revenue.data ? (
+          {revenue.data?.series?.length ? (
             <LineAreaChart
               labels={revenue.data.series.map((p) => monthLabel(p.label))}
               series={[
@@ -184,8 +184,8 @@ export default function Analytics() {
                 </div>
               </div>
               <LineAreaChart
-                labels={marketing.data.daily.map((d) => d.date.slice(5))}
-                series={[{ name: "Views", color: "#2E8B57", values: marketing.data.daily.map((d) => d.views), area: true }]}
+                labels={(marketing.data.daily ?? []).map((d) => d.date.slice(5))}
+                series={[{ name: "Views", color: "#2E8B57", values: (marketing.data.daily ?? []).map((d) => d.views), area: true }]}
                 height={130}
                 valueFormat={(n) => String(n)}
               />
@@ -228,7 +228,7 @@ export default function Analytics() {
               className="mb-1"
               title="Quotation Value"
               description="Open and closed quote value by status"
-              action={<span className="text-caption text-subtle">Pipeline {money(stats.data?.quotes.pipelineValue ?? 0)}</span>}
+              action={<span className="text-caption text-subtle">Pipeline {money(stats.data?.quotes?.pipelineValue ?? 0)}</span>}
             />
           </div>
           {quoteRows.length === 0 ? (

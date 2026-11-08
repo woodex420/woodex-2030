@@ -38,7 +38,9 @@
     "db:migrate": "node scripts/pg-migrate.mjs",
     "seed:data": "node scripts/build-seed-data.mjs",
     "seed:data:check": "node scripts/build-seed-data.mjs --check",
-    "check:deploy": "node scripts/check-deploy-config.mjs"
+    "check:deploy": "node scripts/check-deploy-config.mjs",
+    "test:router": "node scripts/test-router-paths.mjs",
+    "check:migration": "node scripts/check-migration-coverage.mjs"
   },
   "engines": {
     "node": ">=22.5"

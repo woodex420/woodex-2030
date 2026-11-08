@@ -100,25 +100,25 @@ export default function Dashboard() {
             <div className="rounded-card border border-line bg-slate-50/60 p-3.5">
               <p className="text-caption font-medium text-subtle">Revenue ({revenue?.months ?? 6} mo)</p>
               <p className="mt-1 text-h2 tracking-tight text-ink">
-                {revenue ? money(revenue.summary.totalRevenue) : <span className="inline-block h-7 w-24 animate-pulse rounded bg-slate-200" />}
+                {revenue?.summary ? money(revenue.summary.totalRevenue) : <span className="inline-block h-7 w-24 animate-pulse rounded bg-slate-200" />}
               </p>
               <p className="mt-1 flex items-center gap-1.5 text-caption">
-                {revenue ? <TrendChip value={revenue.summary.revenueChange} /> : null}
+                {revenue?.summary ? <TrendChip value={revenue.summary.revenueChange} /> : null}
                 <span className="text-subtle">vs. prior month</span>
               </p>
             </div>
             <div className="rounded-card border border-line bg-slate-50/60 p-3.5">
               <p className="text-caption font-medium text-subtle">Orders</p>
               <p className="mt-1 text-h2 tracking-tight text-ink">
-                {revenue ? revenue.summary.totalOrders : <span className="inline-block h-7 w-16 animate-pulse rounded bg-slate-200" />}
+                {revenue?.summary ? revenue.summary.totalOrders : <span className="inline-block h-7 w-16 animate-pulse rounded bg-slate-200" />}
               </p>
               <p className="mt-1 flex items-center gap-1.5 text-caption">
-                {revenue ? <TrendChip value={revenue.summary.ordersChange} /> : null}
+                {revenue?.summary ? <TrendChip value={revenue.summary.ordersChange} /> : null}
                 <span className="text-subtle">vs. prior month</span>
               </p>
             </div>
           </div>
-          {revenue ? (
+          {revenue?.series?.length ? (
             <LineAreaChart
               labels={revenue.series.map((p) => p.label.slice(5) + "/" + p.label.slice(2, 4))}
               series={[
