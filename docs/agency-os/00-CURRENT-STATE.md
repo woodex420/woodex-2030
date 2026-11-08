@@ -1,0 +1,156 @@
+# WOODEX OS — Current Implemented State
+
+**Status:** authoritative. This file records what the repository *does today*, with
+evidence, not what the roadmap intends.
+
+**Baseline:** `main` @ `15e6242` (merge of PR #6)
+**Last verified:** 2026-11-08
+**Verification method:** counts taken from source and from a green gate run. Where
+something was not independently verified, it is marked **UNVERIFIED** rather than
+assumed.
+
+> Rule for this directory: if a document here disagrees with this file, this file
+> wins, and the other document is wrong. Update it with evidence — a file path, a
+> command output, or a live check — or do not update it at all.
+
+---
+
+## 1. Measured stack
+
+| Layer | Actually in use | Evidence |
+|---|---|---|
+| Storefront | React 19.2 · Vite 8.2 · Tailwind **3.4** · react-router-dom 6 | `apps/storefront/package.json` |
+| Dashboard | React 19.2 · Vite 8.2 · Tailwind **4.3** · react-router 8 | `apps/dashboard/package.json` |
+| API | Express 4.21 · Node ≥22.5 | `apps/api/package.json` |
+| Drivers | SQLite (`node:sqlite`) · PGlite · PostgreSQL (`pg`) | `apps/api/db-adapters.mjs` |
+| Database (prod) | PostgreSQL on Supabase, project `krtncckcfvzirnrcdjrm` | live check, 2026-11-08 |
+| Hosting (prod) | Vercel, serverless function, region `iad1` | `vercel.json`, deployment `dpl_8eUwmfe7WKCDYZnnrxHez2jPnmyZ` |
+
+**Known inconsistency:** the two apps use different Tailwind major versions
+(3.4 vs 4.3). This is real, tracked debt — see §9. A shared design system cannot
+be standardised until it is resolved.
+
+## 2. Measured surface area
+
+| Thing | Count | Evidence |
+|---|---|---|
+| API route handlers | **103** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
+| Storefront routes | **25** | `<Route` in `apps/storefront/src/App.tsx` |
+| Dashboard routes | **29** | `<Route` in `apps/dashboard/src/App.tsx` |
+| PostgreSQL tables | **30** | `scripts/schema.postgres.sql` |
+| SQLite tables | **31** | `apps/api/server.mjs` |
+| Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json` |
+| Prerendered storefront routes | **76** | `npm run vercel:build` |
+| QA checks | **107** (sqlite) and **107** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |
+
+Counts rot. `npm run docs:verify` re-checks them and fails when this file drifts.
+
+## 3. What works, verified
+
+- **Authentication.** Bearer sessions, scrypt password hashing, capability
+  checks, role→capability mapping. Live login confirmed against production on
+  2026-11-08 (`POST /api/auth/login` → 200 + session).
+- **Catalogue.** 148 products seeded in production; `/api/products` returns them.
+- **CRM and sales.** Leads, clients, contacts, tasks, quotations, quotation
+  versions, templates, approvals.
+- **Commerce.** Products, categories, orders, returns.
+- **Projects / BOQ.** `projects`, `project_milestones`, `boq_lines`,
+  `project_files` exist and are migratable.
+- **CMS and page builder.** Typed block editor, block ordering, saved sections,
+  signed iframe preview, versions, publish, rollback.
+- **Finance (partial).** Invoices and manual payment records.
+- **Real-time.** SSE on the persistent runtime; polling fallback on Vercel.
+- **Deployment guards.** Routing, seed-snapshot, router-basename and migration
+  coverage checks all run inside `vercel:build`.
+
+## 4. Deployment facts — verified
+
+| Item | State |
+|---|---|
+| Production URL | `https://woodex-2030.vercel.app` |
+| Current deployment | `dpl_8eUwmfe7WKCDYZnnrxHez2jPnmyZ`, READY, PROMOTED |
+| `/api/*` routing | All paths rewrite to the single `api/index.mjs` function |
+| API boot | Verified; catalogue bootstrap runs on first request |
+| Production database | Seeded: 148 products, 16 materials, 7 services, 1 owner |
+
+**Do not reintroduce**, each of these caused a production outage:
+- a `vercel.json` rewrite whose `source` equals its `destination`;
+- `api/[...path].mjs` — Vercel compiles it to a *single segment*, not a catch-all;
+- runtime `esbuild` of storefront `.ts` inside the serverless function;
+- a dashboard path outside the router's basename (`/admin` is rewritten, so the
+  router must normalise it before mounting).
+
+All four are now guarded by `npm run check:deploy` and `npm run test:router`.
+
+## 5. Not built
+
+Listed to stop anyone assuming otherwise. None of this exists today:
+
+- Multi-tenancy: no `tenant_id`, no tenant context, no RLS, no control plane.
+- Stock movement ledger: products carry `stock_qty` as a mutable number only.
+- Procurement: no suppliers, RFQs, purchase orders or goods receiving.
+- Production: no BOM, job cards, work centres or QC.
+- Delivery: no dispatch, POD or installation workflow.
+- Support / warranty: `/support` renders a placeholder.
+- Payment gateway: checkout creates an order request, not a payment.
+- Durable queues: no Redis, no job runner; rate limiting is in-process.
+- ORM: none. Custom SQL + adapter. That is a deliberate choice, not an omission.
+- Next.js or Laravel: not present. Both apps are Vite.
+
+## 6. Verified risks, ranked
+
+| Priority | Risk | Consequence |
+|---|---|---|
+| P0 | No tenant isolation | Cross-company data leakage if a second tenant is onboarded |
+| P0 | No tested backup/restore drill | Recovery is unproven |
+| P1 | In-process rate limiting | Limits are not shared across serverless instances |
+| P1 | PostgreSQL schema lacks most FK/CHECK constraints | Integrity rests on application validation |
+| P1 | No ordered migration ledger | Schema drift is hard to detect or roll back |
+| P2 | Tailwind 3 / 4 split | Two styling systems; design tokens cannot be shared |
+| P2 | Vite rather than Next.js | No SSR; SEO relies on prerendering (76 routes) |
+| P2 | SSE unavailable on Vercel | Polling fallback only in production |
+
+## 7. Test and gate inventory
+
+Every gate below runs in CI and/or inside `vercel:build`.
+
+| Command | Covers |
+|---|---|
+| `npm run qa` | 107 API checks against SQLite |
+| `npm run qa:pg` | 107 checks against a PostgreSQL rehearsal |
+| `npm run typecheck:all` | Both apps |
+| `npm run secret-scan` | Tracked files |
+| `npm run smoke:render` | Both apps mount in jsdom |
+| `npm run check:deploy` | Routing, seed snapshot, no bracket catch-all |
+| `npm run test:router` | 21 router-basename cases |
+| `npm run check:migration` | Migrator covers every table, in dependency order |
+| `npm run seed:data:check` | Seed snapshot matches storefront sources |
+| `npm run vercel:build` | Full production assembly, 76 routes prerendered |
+| `npm run docs:verify` | The counts in §2 of this file are still true |
+
+## 8. How to verify production in five minutes
+
+```bash
+curl -s https://woodex-2030.vercel.app/api/health          # {"ok":true,...}
+curl -s "https://woodex-2030.vercel.app/api/products?limit=1" | head -c 80
+
+curl -s -X POST https://woodex-2030.vercel.app/api/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@woodex.pk","password":"<the owner password>"}'
+# expect 200 + {"token":"...","user":{...},"caps":["*"]}
+
+# database (Supabase SQL editor, project krtncckcfvzirnrcdjrm)
+SELECT (SELECT COUNT(*) FROM products) AS products,
+       (SELECT COUNT(*) FROM materials) AS materials,
+       (SELECT COUNT(*) FROM services) AS services,
+       (SELECT COUNT(*) FROM users) AS users;
+# expect 148, 16, 7, >=1
+```
+
+## 9. Known debt, with owners' decisions pending
+
+1. **Tailwind majors differ.** Pick one before building a shared design system.
+2. **No ORM.** Keep custom SQL, or adopt one. Do not adopt two.
+3. **Vite vs Next.js.** Prerendering covers SEO today. Revisit only if a
+   concrete requirement (SSR, streaming, per-request HTML) demands it.
+4. **No tenant model.** This is the gating decision for any multi-company use.

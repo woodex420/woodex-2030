@@ -1,6 +1,6 @@
 # Phase 0 — Discovery & Audit + PRD Plan v2
 
-> **HISTORICAL / SUPERSEDED as a plan.** The canonical plan is [`docs/product/AGENCY-OS-MASTER-PLAN-V2.md`](AGENCY-OS-MASTER-PLAN-V2.md). Some recommendations in this historical file about importing sister-product schemas/data or combining products were not approved; no cross-product code, content, customer data or database records may be moved under this plan.
+> **HISTORICAL / SUPERSEDED as a plan.** The canonical plan is [`docs/product/AGENCY-OS-MASTER-PLAN-V2.md`](../product/AGENCY-OS-MASTER-PLAN-V2.md). Some recommendations in this historical file about importing sister-product schemas/data or combining products were not approved; no cross-product code, content, customer data or database records may be moved under this plan.
 
 **Date:** 2026-10-05 · **Status: RESEARCH → INSPECT → RECOMMEND complete — DO NOT CODE YET (awaiting approval gate)**
 **Auditor:** Arena agent · **Inputs:** live clones + GitHub API metadata (this session)

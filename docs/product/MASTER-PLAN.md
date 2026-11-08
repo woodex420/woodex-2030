@@ -11,16 +11,25 @@
 
 ## 0. The single most important finding
 
-**`main` contains exactly one file: `README.md`.**
+> **SUPERSEDED — this section described the situation on 2026-11-08 morning and is
+> no longer true.** `main` now contains the full application and deploys to
+> production. Kept verbatim below because the reasoning that followed from it
+> shaped the plan; do not act on it.
+>
+> **Current state lives in [`docs/agency-os/00-CURRENT-STATE.md`](../agency-os/00-CURRENT-STATE.md).**
+> Verified 2026-11-08: `main` @ `15e6242`, production READY and PROMOTED, API
+> answering, catalogue seeded, owner login confirmed.
+
+**At the time of writing, `main` contained exactly one file: `README.md`.**
 
 ```
 $ git ls-tree -r --name-only origin/main | wc -l
 1
 ```
 
-Every line of application code — 31,120 LOC across 369 tracked files — lives only on the `arena/*` branches. The Vercel project is configured to deploy `main`. **Nothing that exists today can reach production**, which is why the last deploy runbook ends with "no deployment has been made."
+Application code lived only on `arena/*` branches, and the Vercel project deploys `main`. Nothing could reach production — which is why the runbook of that day ended with "no deployment has been made."
 
-This reframes the whole request. The blocker is not features, it is **integration**: getting a working, verified tree onto `main` with a deployment path that survives contact with both Vercel and Hostinger.
+That framed the original request: the blocker was not features but **integration** — getting a verified tree onto `main` through a deployment path that survives Vercel and Hostinger. That work is now done.
 
 ---
 

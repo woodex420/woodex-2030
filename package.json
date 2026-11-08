@@ -40,7 +40,8 @@
     "seed:data:check": "node scripts/build-seed-data.mjs --check",
     "check:deploy": "node scripts/check-deploy-config.mjs",
     "test:router": "node scripts/test-router-paths.mjs",
-    "check:migration": "node scripts/check-migration-coverage.mjs"
+    "check:migration": "node scripts/check-migration-coverage.mjs",
+    "docs:verify": "node scripts/verify-docs.mjs"
   },
   "engines": {
     "node": ">=22.5"
