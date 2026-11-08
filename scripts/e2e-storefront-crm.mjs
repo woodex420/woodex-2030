@@ -123,26 +123,20 @@ try {
   storefront.on("pageerror", (error) => failures.push(`storefront page error: ${error.message}`));
   await storefront.goto(`${STOREFRONT_BASE}/quotation?utm_source=e2e&utm_campaign=${encodeURIComponent(marker)}`, { waitUntil: "domcontentloaded" });
   await storefront.getByRole("heading", { name: "Get an E-Quotation" }).waitFor();
-  /* This assertion has failed in CI while passing everywhere else, so make it
-     explain itself: report how many matches, the text around them, and what the
-     basket actually held. Without that the annotation is just "expected 0". */
-  {
-    const matches = storefront.getByText("Your Quote Basket");
-    const found = await matches.count();
-    if (found !== 0) {
-      const detail = [];
-      for (let i = 0; i < Math.min(found, 3); i++) {
-        const t = (await matches.nth(i).textContent().catch(() => "")) ?? "";
-        detail.push(`#${i}: ${String(t).replace(/\s+/g, " ").slice(0, 120)}`);
-      }
-      const stored = await storefront.evaluate(() => {
-        try { return localStorage.getItem("woodex-quote"); } catch { return "(localStorage blocked)"; }
-      }).catch(() => "(evaluate failed)");
-      const url = storefront.url();
-      requireCondition(false, `Expected the no-basket quotation path but found ${found} match(es). `
-        + `url=${url} localStorage[woodex-quote]=${String(stored).slice(0, 200)} :: ${detail.join(" | ")}`);
-    }
-  }
+  /* The intent is "the basket section with items is not rendered". Assert it on
+     the real heading, not on a substring.
+
+     `getByText("Your Quote Basket")` is CASE-INSENSITIVE substring matching, so it
+     also matches the empty-state copy "Your quote basket is empty" — the journey
+     failed for weeks on a page that was behaving correctly. Match the `<h2>`
+     (which only exists when items.length > 0) by role and by an anchored,
+     case-sensitive pattern. */
+  const basketHeading = storefront.getByRole("heading", { name: /^Your Quote Basket \(\d+ item/ });
+  const basketSections = await basketHeading.count();
+  requireCondition(basketSections === 0, `Expected the no-basket quotation path but found ${basketSections} basket heading(s).`);
+  // Sanity check the opposite: the empty state IS the thing on screen.
+  const emptyState = await storefront.getByText("Your quote basket is empty").count();
+  requireCondition(emptyState === 1, `Expected the empty-basket state on /quotation, found ${emptyState}.`);
 
   await storefront.locator("#name").fill(leadName);
   await storefront.locator("#company").fill(`E2E Company ${marker}`);
