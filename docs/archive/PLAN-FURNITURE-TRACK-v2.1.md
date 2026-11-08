@@ -1,5 +1,5 @@
 > **SUPERSEDED 2026-11-08.** This document is history. The single source of truth is
-> [`MASTER-PLAN.md`](./MASTER-PLAN.md). Do not follow instructions from here; they
+> [`MASTER-PLAN.md`](../product/MASTER-PLAN.md). Do not follow instructions from here; they
 > describe an earlier phase and several are already shipped or abandoned.
 
 # Woodex FURNITURE — Plan v2.1 (corrected scope)

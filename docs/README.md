@@ -8,10 +8,20 @@ One canonical document per question. If two files disagree, the older one is in
 **[../AGENTS.md](../AGENTS.md)** — rules, traps, and the definition of done. Read before
 touching code.
 
+## Engineering specifications — start here
+| Document | Status |
+|---|---|
+| [agency-os/README.md](agency-os/README.md) | **Authoritative engineering contract.** Read in order 00→04 |
+| [agency-os/00-CURRENT-STATE.md](agency-os/00-CURRENT-STATE.md) | **What actually exists**, measured. Wins every disagreement |
+| [agency-os/01-ARCHITECTURE.md](agency-os/01-ARCHITECTURE.md) | System shape, and the four guarded failure modes |
+| [agency-os/02-TECH-STACK-DECISIONS.md](agency-os/02-TECH-STACK-DECISIONS.md) | Keep / reject / revisit, with reasons |
+| [agency-os/03-DATA-AND-TENANCY.md](agency-os/03-DATA-AND-TENANCY.md) | Schema, integrity gaps, tenancy design + tests |
+| [agency-os/04-ROADMAP.md](agency-os/04-ROADMAP.md) | Delivery order and exit criteria |
+
 ## Product — what we are building
 | Document | Status |
 |---|---|
-| [MASTER-PLAN.md](product/MASTER-PLAN.md) | **The plan.** Measured state, phases, decisions, progress log |
+| [MASTER-PLAN.md](product/MASTER-PLAN.md) | Historical plan — §0 superseded; see `agency-os/` for decisions |
 | [PRD-AGENCY-OS.md](product/PRD-AGENCY-OS.md) | Requirements source |
 | [AGENCY-OS-MASTER-PLAN-V2.md](product/AGENCY-OS-MASTER-PLAN-V2.md) | Superseded — history |
 | [DASHBOARD-IA-AND-SALES-CRM-PLAN-2026-10-05.md](product/DASHBOARD-IA-AND-SALES-CRM-PLAN-2026-10-05.md) | Superseded — history |
@@ -20,7 +30,7 @@ touching code.
 ## Architecture — how it is built
 | Document | Status |
 |---|---|
-| [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | **Canonical** system map and data flows |
+| [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | Partly stale — superseded by `agency-os/01-ARCHITECTURE.md` |
 | [DECISION-LOG.md](architecture/DECISION-LOG.md) | **Canonical** decision record (D-001 … D-034) |
 | [POSTGRES-CUTOVER.md](architecture/POSTGRES-CUTOVER.md) | Canonical cut-over runbook |
 | [CMS-GAP-AUDIT-2026-10-05.md](architecture/CMS-GAP-AUDIT-2026-10-05.md) | Reference — CMS gap analysis |
@@ -28,9 +38,9 @@ touching code.
 ## Audits — what was found
 | Document | Status |
 |---|---|
-| [docs/audits/WOODEX-2030-STACK-AUDIT-2026-11-08.md](audits/docs/audits/WOODEX-2030-STACK-AUDIT-2026-11-08.md) | **Latest** — full-stack audit; §11 lists what was fixed and verified |
+| [docs/audits/WOODEX-2030-STACK-AUDIT-2026-11-08.md](audits/WOODEX-2030-STACK-AUDIT-2026-11-08.md) | **Latest** — full-stack audit; §11 lists what was fixed and verified |
 | [WOODEX-2030-MASTER-AUDIT-REPORT-2026-11-06.md](audits/WOODEX-2030-MASTER-AUDIT-REPORT-2026-11-06.md) | Previous audit — §10 supersedes §§1–9; blockers #1–#4 are now closed |
-| [QA-REPORT-2026-10-05.md](audits/QA-REPORT-2026-10-05.md) | Historical QA counts (superseded: current suite is 96 checks) |
+| [QA-REPORT-2026-10-05.md](audits/QA-REPORT-2026-10-05.md) | Historical QA counts (superseded: current suite is 107 checks) |
 | [PHASE0-AUDIT-REPORT-2026-10-05.md](audits/PHASE0-AUDIT-REPORT-2026-10-05.md) | Historical — discovery snapshot |
 | [PHASE0-AUDIT-AND-PLAN-V2.md](audits/PHASE0-AUDIT-AND-PLAN-V2.md) | Historical — discovery + plan |
 

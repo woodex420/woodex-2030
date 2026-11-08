@@ -29,6 +29,9 @@ run(["run", "test:router"]);
 /* A SQLite→PostgreSQL cutover must not silently skip a table. Four project
    tables were missing from the migrator's list until this check existed. */
 run(["run", "check:migration"]);
+/* Documentation that disagrees with the code gets acted on, and misleads. The
+   previous drift claimed 87 routes, 96 checks and a single-file main. */
+run(["run", "docs:verify"]);
 
 const output = path.join(ROOT, "dist");
 fs.rmSync(output, { recursive: true, force: true });

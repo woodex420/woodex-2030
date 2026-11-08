@@ -28,7 +28,7 @@ Those green API results do **not** clear the main release risks. The current sou
 - Current local source in `apps/api`, `apps/dashboard`, `apps/storefront`, `scripts`, `ci`, `.github`, and `docs`.
 - Local SQLite and PGlite QA results and local HTTP checks against `127.0.0.1:3002`.
 - The exact referenced GitHub commit [`6cd9fc2`](https://github.com/woodex420/woodex-2030/commit/6cd9fc238c8846e6dd1a40fde10f8c4efc5b07d9) for the relevant API, form, QA, and CI-copy source files.
-- The supplied historical report at [`docs/audits/QA-REPORT-2026-10-05.md`](QA-REPORT-2026-10-05.md), the existing [`docs/architecture/POSTGRES-CUTOVER.md`](POSTGRES-CUTOVER.md), and the local workflow copies.
+- The supplied historical report at [`docs/audits/QA-REPORT-2026-10-05.md`](QA-REPORT-2026-10-05.md), the existing [`docs/architecture/POSTGRES-CUTOVER.md`](../architecture/POSTGRES-CUTOVER.md), and the local workflow copies.
 
 ### Source identity warning
 
@@ -234,7 +234,7 @@ This is a source review, not browser acceptance: the cross-app E2E failed at the
 12. Implement and verify any payment-provider authorization, signed webhook, idempotency, reconciliation, refund, and customer-facing disclosure requirements before presenting the storefront as accepting payment.
 13. Use synthetic data for previews. Do not import or expose real customer data until privacy controls, access roles, retention, and operational ownership are approved.
 
-The canonical planning document remains [`AGENCY-OS-MASTER-PLAN-V2.md`](AGENCY-OS-MASTER-PLAN-V2.md); keep the old plan for traceability. This audit recommends gates but does **not** approve a stack rewrite, hosted database cutover, payment provider, or production launch.
+The canonical planning document remains [`AGENCY-OS-MASTER-PLAN-V2.md`](../product/AGENCY-OS-MASTER-PLAN-V2.md); keep the old plan for traceability. This audit recommends gates but does **not** approve a stack rewrite, hosted database cutover, payment provider, or production launch.
 
 ## 7. Separate reference-app evidence
 

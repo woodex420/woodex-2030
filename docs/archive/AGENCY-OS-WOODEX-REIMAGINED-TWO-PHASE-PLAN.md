@@ -4,7 +4,7 @@
 **Status:** Phase 1 in progress. The user confirmed complete reference reuse rights; the full source tree is isolated at `apps/woodex-reimagined-preview` with a live preview on `:5175`, and Agency OS ports remain unchanged. The reference build, lint and typecheck pass; Agency OS build/lint pass with warnings. Browser acceptance is blocked by the missing browser binary, and API/privacy/content gates remain open. This is not a deployment, provider or production approval.
 **Prepared:** 2026-10-30
 **Updated:** 2026-10-31
-**Parent authority:** [`AGENCY-OS-MASTER-PLAN-V2.md`](AGENCY-OS-MASTER-PLAN-V2.md) and the requirements PRD [`AGENCY_OS_MASTER_SYSTEM_PRD_PROMPT.md`](AGENCY_OS_MASTER_SYSTEM_PRD_PROMPT.md). This plan maps work to the PRD’s P0–P14 roadmap; it does not replace or renumber it.
+**Parent authority:** [`AGENCY-OS-MASTER-PLAN-V2.md`](../product/AGENCY-OS-MASTER-PLAN-V2.md) and the requirements PRD `AGENCY_OS_MASTER_SYSTEM_PRD_PROMPT.md` (not committed to this repository; superseded by [`docs/product/PRD-AGENCY-OS.md`](../product/PRD-AGENCY-OS.md)). This plan maps work to the PRD’s P0–P14 roadmap; it does not replace or renumber it.
 **Reference:** `blackibexofficial-blip/woodex-reimagined`, default branch `main`, commit `e97d69f10e6537c84712d9c97abd52b50cd29015` (2026-10-03). The original audit was read-only/static; after the user authorized complete reuse, an isolated full-tree copy was built and previewed locally on 2026-10-31. The upstream repository was not modified.
 
 ---

@@ -25,16 +25,17 @@ ledger**. Editing a price in the dashboard is visible on the storefront within
 
 ```
 apps/
-  api/            Express API — 87 routes, SQLite · PGlite · PostgreSQL drivers
+  api/            Express API — 103 routes, SQLite · PGlite · PostgreSQL drivers
     server.mjs      routes, schema, RBAC guard, demo seed
     db-adapters.mjs driver facade (one SQL dialect, three engines)
-    shop-data.mjs   seeds the catalogue from the storefront data modules
+    shop-data.mjs   loads the catalogue snapshot (esbuild only as a dev fallback)
+    seed-data.json  committed catalogue snapshot — what production actually seeds
     public/img/     the only copy of every photograph (92 files)
-  dashboard/      operator app — 27 screens, React 19 · Vite 8 · Tailwind 4
-  storefront/     customer app — 25 routes, React 18 · Vite 5 · Tailwind 3
+  dashboard/      operator app — 29 routes, React 19 · Vite 8 · Tailwind 4
+  storefront/     customer app — 25 routes, React 19 · Vite 8 · Tailwind 3
     src/assets/img.ts   the one helper that builds /img URLs
-api/              Vercel serverless shims (catch-all + sitemap)
-scripts/          QA battery (96 checks), e2e specs, PG migrator, secret scan
+api/              Vercel serverless entry (index.mjs) + sitemap
+scripts/          QA battery (107 checks), e2e specs, PG migrator, deploy & doc guards
 docs/             see docs/README.md — product · architecture · audits · operations · archive
 vercel.json       install/build/output + SPA rewrites
 ```
