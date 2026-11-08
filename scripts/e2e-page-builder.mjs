@@ -75,14 +75,21 @@ try {
   await createDialog.getByLabel("Slug").fill(slug);
   /* A substring /Blank/ also matches the "Sale landing" template button. */
   await createDialog.getByRole("button", { name: "Blank", exact: true }).click();
-  const createResponsePromise = page.waitForResponse((response) => {
+  /* The editor navigates as soon as the page is created, and a response body is
+     unreadable after navigation. Capture the payload inside the predicate so the
+     body is taken while the response is still live. */
+  let createdPage = null;
+  const createResponsePromise = page.waitForResponse(async (response) => {
     const url = new URL(response.url());
-    return url.pathname === "/api/pages" && response.request().method() === "POST";
+    if (url.pathname !== "/api/pages" || response.request().method() !== "POST") return false;
+    if (response.status() === 201) createdPage = await response.json().catch(() => null);
+    return true;
   });
   await createDialog.getByRole("button", { name: "Create & edit" }).click();
   const createResponse = await createResponsePromise;
   requireCondition(createResponse.status() === 201, `Page creation returned HTTP ${createResponse.status()}.`);
-  const created = await createResponse.json();
+  requireCondition(createdPage?.id != null, "the created page id was not readable from the POST /api/pages response");
+  const created = createdPage;
   pageId = created.id;
   await page.waitForURL(new RegExp(`/website/edit/${pageId}$`));
   await page.getByText("Empty page").waitFor();
@@ -109,14 +116,18 @@ try {
   await page.locator("#wx-blk-1").getByRole("button", { name: "move up" }).click();
   requireCondition((await page.locator("#wx-blk-0").innerText()).includes(ctaHeading), "Arrow reordering did not restore the selected CTA block.");
 
-  const saveResponsePromise = page.waitForResponse((response) => {
+  let savedPayload = null;
+  const saveResponsePromise = page.waitForResponse(async (response) => {
     const url = new URL(response.url());
-    return url.pathname === `/api/pages/${pageId}/blocks` && response.request().method() === "PUT";
+    if (url.pathname !== `/api/pages/${pageId}/blocks` || response.request().method() !== "PUT") return false;
+    if (response.ok()) savedPayload = await response.json().catch(() => null);
+    return true;
   });
   await page.getByRole("button", { name: "Save draft" }).click();
   const saveResponse = await saveResponsePromise;
   requireCondition(saveResponse.ok(), `Draft save returned HTTP ${saveResponse.status()}.`);
-  const saved = await saveResponse.json();
+  requireCondition(savedPayload, "the saved draft payload was not readable");
+  const saved = savedPayload;
   requireCondition(saved.blocks?.[0]?.type === "cta-band" && saved.blocks?.[0]?.props?.heading === ctaHeading, "Saved draft did not retain the reordered and edited CTA block.");
   requireCondition(saved.blocks?.[1]?.type === "hero" && saved.blocks?.[1]?.props?.heading === heroHeading, "Saved draft did not retain the second block in order.");
 
@@ -137,13 +148,17 @@ try {
 
   await page.locator("#wx-blk-1").getByRole("button", { name: "delete" }).click();
   requireCondition(await page.locator("#wx-blk-1").count() === 0, "Removing a block did not update the structure.");
-  const finalSavePromise = page.waitForResponse((response) => {
+  let finalPayload = null;
+  const finalSavePromise = page.waitForResponse(async (response) => {
     const url = new URL(response.url());
-    return url.pathname === `/api/pages/${pageId}/blocks` && response.request().method() === "PUT";
+    if (url.pathname !== `/api/pages/${pageId}/blocks` || response.request().method() !== "PUT") return false;
+    if (response.ok()) finalPayload = await response.json().catch(() => null);
+    return true;
   });
   await page.getByRole("button", { name: "Save draft" }).click();
-  const finalSave = await finalSavePromise;
-  const finalDraft = await finalSave.json();
+  await finalSavePromise;
+  requireCondition(finalPayload, "the final draft payload was not readable");
+  const finalDraft = finalPayload;
   requireCondition(finalDraft.blocks?.length === 1 && finalDraft.blocks[0]?.type === "cta-band", "Removed section was not absent from the saved page.");
   requireCondition(pageErrors.length === 0, `Browser page errors: ${pageErrors.join(" | ")}`);
   console.log(`E2E PASS: create blank page → add/edit/reorder/preview/remove blocks (${slug}).`);
