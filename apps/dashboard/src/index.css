@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Woodex Agency OS — Design tokens (design.md §02, §03, §15, §16, §21)
+   TailAdmin-inspired patterns, original implementation only (§32).
+   ============================================================ */
+
+@theme {
+  /* Typography — §3.1 */
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --text-display: 32px;
+  --text-display--line-height: 1.2;
+  --text-display--font-weight: 700;
+  --text-h1: 28px;
+  --text-h1--line-height: 1.25;
+  --text-h1--font-weight: 700;
+  --text-h2: 22px;
+  --text-h2--line-height: 1.3;
+  --text-h2--font-weight: 700;
+  --text-h3: 18px;
+  --text-h3--line-height: 1.4;
+  --text-h3--font-weight: 600;
+  --text-bodylg: 16px;
+  --text-bodylg--line-height: 1.5;
+  --text-small: 13px;
+  --text-small--line-height: 1.5;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.4;
+
+  /* Primary — Woodex Green §2.1 */
+  --color-primary-50: #f5faf1;
+  --color-primary-100: #eaf5e3;
+  --color-primary-500: #4f9d21;
+  --color-primary-600: #43851c;
+  --color-primary-700: #376f18;
+
+  /* Neutrals — Charcoal / Slate §2.1 */
+  --color-charcoal-950: #171b1e;
+  --color-charcoal-900: #1d2226;
+  --color-charcoal-800: #252b30;
+  --color-slate-700: #47515a;
+  --color-slate-600: #66717a;
+  --color-slate-500: #7b858d;
+  --color-slate-400: #a2aab0;
+  --color-slate-300: #d2d7da;
+  --color-slate-200: #e5e8ea;
+  --color-slate-100: #f1f3f4;
+  --color-slate-50: #f8f9f9;
+
+  /* Semantic — §2.1 (+ accessible text variants) */
+  --color-success: #2e8b57;
+  --color-success-strong: #256f46;
+  --color-success-soft: #e9f4ee;
+  --color-warning: #d99a24;
+  --color-warning-strong: #8a6112;
+  --color-warning-soft: #faf1de;
+  --color-danger: #d9534f;
+  --color-danger-strong: #b23b37;
+  --color-danger-soft: #faecea;
+  --color-info: #3578b8;
+  --color-info-strong: #2a629b;
+  --color-info-soft: #e9f1f8;
+
+  /* Semantic aliases — §21 tokens */
+  --color-page: var(--color-slate-50);
+  --color-surface: #ffffff;
+  --color-line: var(--color-slate-200);
+  --color-line-strong: var(--color-slate-300);
+  --color-ink: var(--color-charcoal-900);
+  --color-muted: var(--color-slate-600);
+  --color-subtle: var(--color-slate-500);
+
+  /* Radius — §16 */
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-panel: 12px;
+
+  /* Shadow — §10 (very subtle) */
+  --shadow-card: 0 1px 2px rgb(23 27 30 / 0.04), 0 1px 3px rgb(23 27 30 / 0.06);
+  --shadow-pop: 0 4px 6px -2px rgb(23 27 30 / 0.06), 0 12px 24px -4px rgb(23 27 30 / 0.12);
+  --shadow-cta: 0 1px 2px rgb(55 111 24 / 0.25), 0 4px 12px -2px rgb(79 157 33 / 0.35);
+
+  /* Motion — §20 */
+  --animate-toast-in: toast-in 0.22s ease-out;
+  --animate-fade-in: fade-in 0.18s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-page font-sans text-small;
+    color: var(--color-slate-700);
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-ink;
+    text-wrap: balance;
+  }
+  ::selection {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+  }
+  /* Visible focus — §19 */
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+  }
+}
+
+/* Subtle scrollbars for operational density */
+.scrollbar-slim::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.scrollbar-slim::-webkit-scrollbar-thumb {
+  background: var(--color-slate-300);
+  border-radius: 999px;
+}
+.scrollbar-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media print {
+  @page { margin: 16mm; }
+  body * { visibility: hidden !important; }
+  #quote-print, #quote-print * { visibility: visible !important; }
+  #quote-print {
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    background: white !important;
+    color: #1f2937 !important;
+    box-shadow: none !important;
+  }
+}

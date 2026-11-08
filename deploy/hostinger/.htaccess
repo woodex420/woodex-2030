@@ -1,0 +1,56 @@
+# Hostinger shared hosting — Shape A (static) or Shape B proxy.
+#
+# Shape A: upload the contents of `dist/` to public_html/ and point your API
+#          domain at a Node host. API calls then need an absolute base URL, so
+#          Shape A also needs VITE_API_BASE set at build time.
+# Shape B (recommended, one vendor): upload `dist/` AND run the API as the
+#          panel's Node app. This file then proxies /api and /img to it, and
+#          everything else is served from disk.
+#
+# Copy this file into public_html/.htaccess.
+
+Options -MultiViews
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Never rewrite the API, the sitemap or the imagery: those come from Node.
+  RewriteRule ^api/ - [L]
+  RewriteRule ^img/ - [L]
+  RewriteRule ^sitemap\.xml$ - [L]
+  RewriteRule ^robots\.txt$ - [L]
+
+  # Real files and directories win (this serves every prerendered route as a
+  # static HTML file — that is the whole point of the prerender step).
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else is an SPA deep link.
+  RewriteRule \.(?:js|css|png|jpe?g|webp|svg|woff2?|ttf|ico)$ - [L,R=404]
+  RewriteRule ^dashboard(/.*)?$ /dashboard/index.html [L]
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Hashed bundles never change; HTML must always be revalidated or a deploy is
+# invisible to returning visitors.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/webp "access plus 1 month"
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

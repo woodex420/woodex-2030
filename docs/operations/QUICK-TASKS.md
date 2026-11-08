@@ -1,0 +1,128 @@
+# WOODEX 2030 — QUICK TASKS
+
+> **HISTORICAL as of 2026-11-08.** This list was the working backlog before
+> `docs/product/MASTER-PLAN.md` became the only plan. Items here have since been
+> shipped, and the ones that remain are tracked in MASTER-PLAN §8. It is kept for
+> the reasoning, not as a to-do list — **do not start work from this file.**
+>
+> Shipped since this was written: Q4 (deployment runbook →
+> `docs/DEPLOYMENT.md`), Q6 (indexes + schema parity, verified by a QA test),
+> `npm run db:migrate`, and the test count is now 107/107, not 96/96.
+
+---
+
+## 🔴 DO TODAY (Q1/Q2 shipped · Q3/Q4 need you)
+
+### ✅ Q1 · Reprice `POST /api/quotes` from the catalog — **DONE**
+`apps/api/server.mjs` · `applyCatalogPricingToPublicIntake()`.
+Anonymous intake is now priced **only** from `products`: unknown SKU → `400`, name/price overwritten, qty checked against stock (`409`), and self-serve `discountPercent` / `taxPercent` / `shipping` forced to `0`. Free-text (custom furniture) lines are stored at price `0` because a visitor's number is a request, not an agreed amount. Staff keep full authority.
+Proof: `no-such-product @ price 1 × 500` → **`400`** (was `201 / PKR 500`); `dining-set-6 @ price 1 × 2` → **`PKR 370 000`** from the catalog.
+Two related defects fixed in the same pass: staff calls through the public route were being treated as anonymous (token ignored on allowlisted paths), and `Quotation.tsx` wasn't sending `productId`.
+
+### ✅ Q2 · Token-bucket the four public writes — **DONE**
+`30/min/IP` on `POST /leads · /quotes · /orders · /target`, `120/min` on `/track` (a pixel must never throttle a real visitor). `429` + `retry-after`. No new dependency.
+
+### 🔑 Q3 · Replace the public `main` README + rotate — 1 h
+`README.md` at `main` (`e7b7d15`) is a truncated chat transcript that **announces** `docs/CREDENTIALS.md` ("all credentials and usernames/passwords") and names an admin email, a password and a Supabase project URL. **Verified: that file was never committed** — no `docs/CREDENTIALS.md` exists in either branch tree, and the application branch's README is clean and credential-free. The repository is **public** (`private: false`), so treat anything ever pasted there as exposed.
+Do: replace the `main` README with the real one from the app branch, and rotate any credential that was ever used in that draft (Supabase key, admin password).
+**Done when:** `main`'s README matches the application README and grep finds no email/password/`supabase.co` in it.
+
+### Q4 · Make the deployed API able to boot — 2 h 🔑
+Vercel project `woodex-2030` (`prj_NZ35RoMsW…`) has **`env: []`**; `server.mjs:36` throws when `VERCEL=1` and `DATABASE_URL` is unset, so `/api/*` is dead on every deployment.
+1. Provision Postgres (🔑 owner picks provider + plan).
+2. `npm run db:apply-schema` against it.
+3. Add `DATABASE_URL` (encrypted, all targets) + `INITIAL_ADMIN_EMAIL`/`INITIAL_ADMIN_PASSWORD` (production only, then delete the password var after first boot).
+**Done when:** `curl https://<preview>/api/health` → `{"ok":true,"driver":"postgres"}`.
+
+---
+
+## 🟠 THIS WEEK (≈ 2.5 d)
+
+### ✅ Q5 · Security headers + real error handling — **DONE**
+`nosniff`, `Referrer-Policy`, `X-Frame-Options: SAMEORIGIN`, `CORP`, `Permissions-Policy`, HSTS when deployed, `X-Powered-By` removed, explicit CORS allowlist (`WOODEX_PUBLIC_ORIGINS` + `*.vercel.app`) answering preflight `204`, malformed JSON → `400 {"error":"request body is not valid JSON"}`, unknown `/api/*` → JSON `404`, and a terminal error boundary so no stack trace ever reaches a client. No `helmet` dependency — ~40 lines, no supply chain.
+
+### ✅ Q-(new) · Respond-before-commit race — **DONE**
+`wrapTx()` answered inside the transaction, so a client's very next request could miss the row (`404` on payment, unreadable tracking digest). Reproduced deterministically on SQLite, fixed with `wrapTxJson()` across **9** mutating routes. Covered by the existing suite, which now passes 96/96 on both drivers.
+
+### ✅ Q6 · Postgres integrity pass — **SHIPPED 2026-11-08** (indexes + schema agreement test; `CHECK` constraints and `session` indexes still open — see MASTER-PLAN §8)
+Add to `scripts/schema.postgres.sql` + a new `migrations/0002_constraints.sql`:
+`FOREIGN KEY (client_id) REFERENCES clients(id)`, `CHECK (status IN (…))` for `orders/quotes/returns`, `DEFAULT now()` audit columns, `idx_leads_status_created`, `idx_orders_stage`, `idx_invoices_status`, `idx_sessions_expires_at`. Add a `schema_migrations` table and a `npm run db:migrate` that applies ordered files.
+**Done when:** `qa-full` + `qa:pg` still green with constraints enabled. *(Was 96/96; now 107/107.)*
+
+### Q7 · One React / Vite / Tailwind — ✅ SHIPPED 2026-11-08
+Storefront declared React `^18.3.1` while the dashboard declared `^19.2.0`, so npm hoisted React 19
+to the root for Radix / `@tanstack/react-query` / `next-themes` / `vaul` **and** nested a second React
+18 inside `apps/storefront`. The page ran two React copies, every hook returned `null`, and the first
+render aborted — a **blank white page with a fully green build**. The same had happened to Vite
+(storefront on 5, root on 8), which made `vite.config.ts` fail to typecheck against the hoisted types.
+
+Shipped: storefront moved to React `^19.2.0` (+ `@types/react` 19), Vite `^8.2.2` with
+`@vitejs/plugin-react` (the SWC plugin tops out at Vite 7), one hoisted copy of each.
+`tsc -b` now exits **0** (was 1,037 errors). Guarded by `npm run smoke:render` in CI, which fails the
+build if either app mounts nothing.
+
+Remaining: Tailwind 4 for the storefront. It is **not** a runtime singleton like React — a nested
+Tailwind 3/PostCSS is safe (the two apps compile CSS separately) — but it is the last version split.
+Q8's image work touches the same `tailwind.config` surface, so do them together.
+**Done when:** `tsc -b` exits 0 for both apps (met) and both apps mount (met).
+
+### Q8 · Image pipeline — 4 h
+Convert the 92 JPEGs to AVIF + WebP at 3 widths, emit `srcset`, keep the originals out of `dist`. Target `dist` ≤ 3 MB and `index.*.js` ≤ 200 KB.
+**Done when:** `du -sh dist` ≤ 3 MB and Lighthouse mobile LCP < 2.5 s on `/`.
+
+---
+
+## 🟡 NEXT SPRINT (≈ 1.5 w)
+
+| Q | Task | File |
+|---|---|---|
+| Q9 | SQL aggregates for `/api/clients`, `/api/stats`, `/api/marketing/stats` (today: ~6 queries × N rows in JS) | `server.mjs:1411,2001` |
+| Q10 | Replace `Analytics.tsx` + `Projects.tsx` mock data, or badge them **Demo** in the sidebar and page header | `apps/dashboard/src/pages/*` |
+| Q11 | Remove the last mock KPIs from `Dashboard.tsx` (Overview hero) | `apps/dashboard/src/pages/Dashboard.tsx` |
+| Q12 | Invoice / payment / return audit trail (quotes and pages already have one) | `server.mjs:1875-1999` |
+| Q13 | `zod` schema per public endpoint → one boundary instead of 60 hand-rolled checks | new `apps/api/schemas.mjs` |
+| Q14 | OpenAPI 3.1 from the route table → generate `apps/dashboard/src/lib/api.ts` types | new |
+| Q15 | `track_events` retention job (90 d) + a `npm run db:prune` | new |
+| Q16 | Tag the two competing plan docs: keep `AGENCY-OS-MASTER-PLAN-V2.md`, archive `-v3` under `docs/archive/` | `docs/*` |
+| Q17 | Fix `scripts/secret-scan.mjs` to scan the **worktree incl. untracked** (it currently reads `git show HEAD:<file>` → 1 file on `main`) | `scripts/secret-scan.mjs` |
+| Q18 | Add the three findings that can't be seen by `qa-full` to the QA suite: fake-SKU quote must 400, malformed JSON must be JSON 4xx, headers present | `scripts/qa-full.mjs` |
+
+---
+
+## 🟢 WHEN INTEGRATIONS ARE APPROVED 🔑
+
+| Q | Integration | Note |
+|---|---|---|
+| Q19 | Payments — Safepay / JazzCash / Stripe (PK-first) | checkout currently **creates an order request only**; no capture, no webhook, no reconciliation. Do not present the storefront as "accepting payment" until this exists. |
+| Q20 | Transactional email (Resend/SendGrid) | quotes/invoices have no delivery path; WhatsApp is a `wa.me` deep link, not a send |
+| Q21 | WhatsApp Cloud API | the inbox is an internal log today; `delivery: "manual_handoff_not_sent"` is honest |
+| Q22 | `tenant_id` + RLS | required before "Agency OS" can host a second client |
+| Q23 | Backups / PITR + restore drill | no backup exists anywhere in the repo |
+
+---
+
+## 🧪 How to re-verify the shipped work
+
+```bash
+npm ci --legacy-peer-deps
+PORT=3013 WOODEX_DATA_DIR=/tmp/wx-check npm -w @woodex/api start &   # or: node apps/api/server.mjs
+WOODEX_DATA_DIR=/tmp/wx-check node scripts/qa-full.mjs --base=http://127.0.0.1:3013   # 96/96
+npm run qa:pg                                                                          # 96/96 (PGlite)
+npm run vercel:build                                                                   # ~32 s
+```
+
+The four checks that pin this work: *public quote intake cannot be poisoned*, *staff quote creation stays privileged*, *API errors are JSON and never leak a stack trace*, *public write paths are rate limited*.
+
+---
+
+## ✅ Already done — do not re-open
+
+These were listed as blockers in `docs/audits/WOODEX-2030-MASTER-AUDIT-REPORT-2026-11-06.md` §1 and are **fixed** (re-verified 2026-11-08):
+
+- ~~Demo users/customer data seeded in production~~ → `allowDemoSeed = !IS_SERVERLESS && !IS_PRODUCTION`; production bootstraps one owner from env and fails closed.
+- ~~`viewer` can read invoices/client PII~~ → verified `403` on invoices, clients, leads, orders, quotes, users, pages.
+- ~~Order lookup by reference alone~~ → requires the SHA-256 of a 32-byte tracking token; ref-only returns `404`.
+- ~~Anonymous SSE leaks customer/payment metadata~~ → `401` anonymous, `410` serverless, owner-only locally.
+- ~~Checkout trusts client prices~~ → server reprices (verified `1 → 185 000`) — **for orders; quotes still open, see Q1**.
+- ~~Drafts visible before publish~~ → published snapshot + HMAC preview links, suite-verified.
+- ~~Form shows success after a failed POST~~ → `post()` returns `null`; Contact/Quotation/Checkout all reject `null`.
