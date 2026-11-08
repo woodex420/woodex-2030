@@ -91,8 +91,28 @@ async function stop(child) {
   }
 }
 
+/* Fail once, clearly, if the browser cannot launch — before spending two minutes
+   starting servers. The four journeys all abort on the same launch, so a
+   preflight turns "e2e:login exited 1" into the actual reason. */
+async function browserPreflight() {
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch();
+  await browser.close();
+}
+
 let failed = false;
 try {
+  console.log("[ci] Browser preflight.");
+  try {
+    await browserPreflight();
+    console.log("[ci] Chromium launches.");
+  } catch (error) {
+    console.error("[ci] Chromium cannot launch: " + String(error.message).split("\n")[0]);
+    console.error("[ci] the workflow runs `npx playwright install --with-deps chromium`; if that step passed, "
+      + "check that the installed browser matches the playwright version in package-lock.json.");
+    throw error;
+  }
+
   console.log("[ci] Running disposable PostgreSQL-semantic QA rehearsal.");
   await runChecked(process.execPath, ["scripts/qa-pg.mjs"], baseEnv, "qa:pg", 600_000);
 
@@ -129,13 +149,24 @@ try {
     STOREFRONT_BASE: storefrontBase,
     E2E_SQLITE_DB: path.join(dataDir, "woodex.db"),
   };
-  for (const [label, script] of [
+  /* Browser journeys. Each script prints its own diagnosis, but `runChecked`
+     only reports an exit code — so on failure re-echo the last lines of output
+     here. Without this, a CI log says "e2e:login exited 1" and nothing else
+     (this job has failed that way since the first commit). */
+  const browserJourneys = [
     ["e2e:login", "scripts/e2e-login.mjs"],
     ["e2e:storefront-crm", "scripts/e2e-storefront-crm.mjs"],
     ["e2e:quotation-template", "scripts/e2e-quotation-template.mjs"],
     ["e2e:page-builder", "scripts/e2e-page-builder.mjs"],
-  ]) {
-    await runChecked(process.execPath, ["--experimental-sqlite", script], browserEnv, label, 300_000);
+  ];
+  for (const [label, script] of browserJourneys) {
+    try {
+      await runChecked(process.execPath, ["--experimental-sqlite", script], browserEnv, label, 300_000);
+    } catch (error) {
+      console.error(`[ci] ${label} failed — see the [${label}] lines above for the cause.`);
+      console.error(`[ci] dashboard=${dashboardBase} storefront=${storefrontBase} api=${apiBase}`);
+      throw error;
+    }
   }
   console.log("[ci] PASS: PostgreSQL rehearsal, SQLite security/API QA, and all browser journeys.");
 } catch (error) {
