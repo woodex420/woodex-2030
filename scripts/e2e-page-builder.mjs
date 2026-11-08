@@ -73,7 +73,8 @@ try {
   const createDialog = page.getByRole("dialog");
   await createDialog.getByLabel("Title").fill(title);
   await createDialog.getByLabel("Slug").fill(slug);
-  await createDialog.getByRole("button", { name: /Blank/ }).click();
+  /* A substring /Blank/ also matches the "Sale landing" template button. */
+  await createDialog.getByRole("button", { name: "Blank", exact: true }).click();
   const createResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname === "/api/pages" && response.request().method() === "POST";
