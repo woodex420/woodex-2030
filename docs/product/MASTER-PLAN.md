@@ -244,3 +244,52 @@ Either way I need to add: `npm run start:hostinger` (serve `dist/` from Express 
 ---
 
 *Everything above was verified against `74f6a34`; the API, dashboard, and storefront are running at :3001 / :5173 / :5174.*
+
+---
+
+## 8. Progress log
+
+### 2026-11-08 — shipped
+
+**Fake data eliminated (F1, F2, F3).** Overview, Analytics and Projects no longer
+render invented numbers.
+
+- `/api/stats/revenue?months=N` added — real revenue/orders/collected series from
+  `orders` + `payments`, with a continuous month window so quiet months show zero.
+- Dashboard Overview: headline revenue + chart now live.
+- `Kpi.trend` made optional; the hardcoded "↑ 24%" arrows are gone (no
+  period-over-period source exists yet, so no arrow is shown).
+- Quotation Pipeline derived from real quote buckets; fake "11 days" removed.
+- Recent Activity: real events only (it used to append a hardcoded feed).
+- Analytics rewritten against `/api/stats`, `/api/stats/revenue`,
+  `/api/marketing/stats`. Zero mock imports remain in `pages/`.
+
+**Projects / BOQ built for real (F3).** The screen had no backend at all.
+
+- New tables `projects`, `project_milestones`, `boq_lines`, `project_files` in
+  both the SQLite bootstrap and `scripts/schema.postgres.sql`.
+- 14 endpoints. Line totals server-computed; client-supplied `lineTotal` ignored
+  and covered by a QA assertion. Milestone completion derives `progress`.
+- Projects page rewritten: real list, real modals, real delete, realtime refresh.
+- New `project.manage` capability (owner, sales).
+
+**Realtime connected (F4, F5).**
+
+- Dashboard attaches `EventSource` to `/api/events`; polling remains the floor for
+  the serverless runtime and as a reconnect path.
+- `/api/events` accepts `?token=` because EventSource cannot set headers — scoped
+  to that one route.
+
+**Verification:** `qa-full` **100/100** SQLite and **100/100** PGlite (4 new
+project groups), `typecheck:all` clean, `smoke:render` both apps, `vercel:build`
+exit 0, `secret-scan` clean. Rendered for real: `/projects` shows `PRJ-1001`,
+Rs 2,500,000 planned, Rs 948,000 BOQ total; `/analytics` shows PKR 1,201,000
+revenue and the true lead-stage split.
+
+### Still open from the plan
+
+- Storefront: `brand.ts` + prerendering (Q2 decision: prerender) — not started.
+- Page builder: Puck + 40-section catalogue — not started.
+- `main` still contains one file; no PR opened yet.
+- Hostinger packaging — not started.
+- Tailwind 3 → 4 for the storefront (F12).

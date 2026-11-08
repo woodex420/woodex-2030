@@ -1,3 +1,7 @@
+> **SUPERSEDED 2026-11-08.** This document is history. The single source of truth is
+> [`MASTER-PLAN.md`](./MASTER-PLAN.md). Do not follow instructions from here; they
+> describe an earlier phase and several are already shipped or abandoned.
+
 # Woodex FURNITURE — Plan v2.1 (corrected scope)
 
 **Supersedes scope drift in Phase-0 plan v2. Date: 2026-10-05. Gate: recommendation → approval → build.**

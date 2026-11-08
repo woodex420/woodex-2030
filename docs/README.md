@@ -3,14 +3,19 @@
 One canonical document per question. If two files disagree, the older one is in
 `archive/` and is historical only.
 
+## Start here
+
+**[../AGENTS.md](../AGENTS.md)** — rules, traps, and the definition of done. Read before
+touching code.
+
 ## Product — what we are building
 | Document | Status |
 |---|---|
-| [AGENCY-OS-MASTER-PLAN-V2.md](product/AGENCY-OS-MASTER-PLAN-V2.md) | **Canonical** plan (decision log D-033) |
-| [PRD-AGENCY-OS.md](product/PRD-AGENCY-OS.md) | **Canonical** requirements source |
-| [DASHBOARD-IA-AND-SALES-CRM-PLAN-2026-10-05.md](product/DASHBOARD-IA-AND-SALES-CRM-PLAN-2026-10-05.md) | Reference — dashboard IA |
-| [NEXT-PHASE-DELIVERY-PLAN-2026-10-06.md](product/NEXT-PHASE-DELIVERY-PLAN-2026-10-06.md) | Reference — delivery sequencing |
-| [PLAN-FURNITURE-TRACK-v2.1.md](product/PLAN-FURNITURE-TRACK-v2.1.md) | Reference — furniture domain track |
+| [MASTER-PLAN.md](product/MASTER-PLAN.md) | **The plan.** Measured state, phases, decisions, progress log |
+| [PRD-AGENCY-OS.md](product/PRD-AGENCY-OS.md) | Requirements source |
+| [AGENCY-OS-MASTER-PLAN-V2.md](product/AGENCY-OS-MASTER-PLAN-V2.md) | Superseded — history |
+| [DASHBOARD-IA-AND-SALES-CRM-PLAN-2026-10-05.md](product/DASHBOARD-IA-AND-SALES-CRM-PLAN-2026-10-05.md) | Superseded — history |
+| [NEXT-PHASE-DELIVERY-PLAN-2026-10-06.md](product/NEXT-PHASE-DELIVERY-PLAN-2026-10-06.md) | Superseded — history |
 
 ## Architecture — how it is built
 | Document | Status |

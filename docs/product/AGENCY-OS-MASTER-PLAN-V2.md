@@ -1,3 +1,7 @@
+> **SUPERSEDED 2026-11-08.** This document is history. The single source of truth is
+> [`MASTER-PLAN.md`](./MASTER-PLAN.md). Do not follow instructions from here; they
+> describe an earlier phase and several are already shipped or abandoned.
+
 # Woodex Agency OS — Master Plan V2 (Canonical)
 
 **Prepared:** 2026-10-15 · **Product:** Agency OS Core + Woodex Furniture Business Pack · **Operating market:** Lahore, Pakistan · **Currency:** PKR

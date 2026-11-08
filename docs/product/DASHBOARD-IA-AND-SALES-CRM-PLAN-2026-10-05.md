@@ -1,3 +1,7 @@
+> **SUPERSEDED 2026-11-08.** This document is history. The single source of truth is
+> [`MASTER-PLAN.md`](./MASTER-PLAN.md). Do not follow instructions from here; they
+> describe an earlier phase and several are already shipped or abandoned.
+
 # Dashboard information architecture and Sales CRM plan
 
 **Prepared:** 2026-10-05
