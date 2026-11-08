@@ -62,11 +62,19 @@ function ProductGrid({ b, th }: { b: Block; th?: Theme }) {
   const catalogRevision = useRuntimeRevision();
   const list = useMemo(() => {
     const ids = S(b, "ids").split(",").map((x) => x.trim()).filter(Boolean);
-    const limit = Number(S(b, "limit")) || 4;
-    if (ids.length) return products.filter((p) => ids.includes(p.id)).slice(0, limit);
+    const limit = Math.min(48, Math.max(1, Number(S(b, "limit")) || 4));
+    const sort = S(b, "sort") || "featured";
+    const order = (list: typeof products) => {
+      const copy = [...list]; /* never sort the module-level `products` in place */
+      if (sort === "price-asc") return copy.sort((x, y) => x.price - y.price);
+      if (sort === "price-desc") return copy.sort((x, y) => y.price - x.price);
+      if (sort === "name") return copy.sort((x, y) => x.name.localeCompare(y.name));
+      return copy.sort((x, y) => Number(!!y.isBestSeller) - Number(!!x.isBestSeller));
+    };
+    if (ids.length) return order(products.filter((p) => ids.includes(p.id))).slice(0, limit);
     const words = S(b, "match").toLowerCase().split(/\s+/).filter(Boolean);
     const pool = words.length ? products.filter((p) => words.some((w) => (p.name + " " + p.category + " " + (p.series ?? "")).toLowerCase().includes(w))) : products;
-    return pool.sort((x, y) => Number(!!y.isBestSeller) - Number(!!x.isBestSeller)).slice(0, limit);
+    return order(pool).slice(0, limit);
   }, [b, catalogRevision]);
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -123,23 +131,31 @@ function FaqBlock({ b }: { b: Block }) {
 
 function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
   switch (b.type) {
-    case "hero":
+    case "hero": {
+      /* Block-level accent overrides the page theme for this section only.
+         `align` decides whether the image shows at all and on which side;
+         `compact` trims the vertical rhythm. */
+      const accent = S(b, "accent") || th?.primary;
+      const align = S(b, "align") || "right";
+      const showImage = !!S(b, "image") && align !== "none";
+      const pad = b.props.compact === true || b.props.compact === "true" ? "p-6 sm:p-8" : "p-8 sm:p-12";
       return (
-        <section className="relative overflow-hidden rounded-3xl bg-primary/5" style={th?.primary ? { background: hexA(th.primary, 0.06) } : undefined}>
-          <div className="grid items-center gap-6 p-8 sm:p-12 lg:grid-cols-2">
-            <div>
-              {S(b, "kicker") && <p className="text-xs font-black uppercase tracking-[0.2em] text-primary" style={th?.primary ? { color: th.primary } : undefined}>{S(b, "kicker")}</p>}
+        <section className="relative overflow-hidden rounded-3xl bg-primary/5" style={accent ? { background: hexA(accent, 0.06) } : undefined}>
+          <div className={`grid items-center gap-6 ${pad}${showImage ? " lg:grid-cols-2" : ""}`}>
+            <div className={align === "left" ? "lg:order-2" : undefined}>
+              {S(b, "kicker") && <p className="text-xs font-black uppercase tracking-[0.2em] text-primary" style={accent ? { color: accent } : undefined}>{S(b, "kicker")}</p>}
               <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">{S(b, "heading")}</h1>
               {S(b, "sub") && <p className="mt-4 max-w-lg text-muted-foreground">{S(b, "sub")}</p>}
               <div className="mt-6 flex flex-wrap gap-3">
-                {S(b, "cta_label") && <Button asChild data-wx-cta="hero-cta" className="bg-primary text-primary-foreground hover:bg-primary/90" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}><Link to={S(b, "cta_href") || "/shop"}>{S(b, "cta_label")} <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>}
+                {S(b, "cta_label") && <Button asChild data-wx-cta="hero-cta" className="bg-primary text-primary-foreground hover:bg-primary/90" style={accent ? { background: accent, borderColor: accent } : undefined}><Link to={S(b, "cta_href") || "/shop"}>{S(b, "cta_label")} <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>}
                 {S(b, "cta2") && <Button asChild data-wx-cta="hero-secondary" variant="outline"><Link to="/shop">{S(b, "cta2")}</Link></Button>}
               </div>
             </div>
-            {S(b, "image") && <img src={imgSrc(S(b, "image"))} alt={S(b, "heading")} className="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg" />}
+            {showImage && <img src={imgSrc(S(b, "image"))} alt={S(b, "heading")} className={`aspect-[4/3] w-full rounded-2xl object-cover shadow-lg${align === "left" ? " lg:order-1" : ""}`} />}
           </div>
         </section>
       );
+    }
     case "text-section":
       return (
         <section className="grid items-center gap-8 py-4 lg:grid-cols-2">

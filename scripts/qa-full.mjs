@@ -746,6 +746,53 @@ await T("pages: create → blocks → publish → versions → rollback → unpu
   return `${key} id#${qa.pageId}`;
 });
 
+await T("blocks · registry declares the rich field types the editor renders", async () => {
+  const r = await api("/api/blocks"); want(r, 200, "registry");
+  const reg = r.j.registry ?? {};
+  const types = new Set();
+  for (const spec of Object.values(reg)) for (const f of spec.fields ?? []) types.add(f.t);
+  for (const need of ["text", "textarea", "lines", "image", "select", "number", "color", "link", "boolean"]) {
+    if (!types.has(need)) bad(`field type "${need}" missing from the server catalogue`);
+  }
+  // A select is only usable if it declares its options — the editor renders them verbatim.
+  const selects = Object.entries(reg).flatMap(([type, spec]) => (spec.fields ?? []).filter((f) => f.t === "select").map((f) => ({ type, ...f })));
+  if (!selects.length) bad("no select fields declared");
+  for (const f of selects) if (!Array.isArray(f.options) || f.options.length < 2) bad(`select ${f.type}.${f.k} has no options`);
+  return `${Object.keys(reg).length} blocks · ${types.size} field types · ${selects.length} selects`;
+});
+
+await T("blocks · an unknown block type is rejected, a rich-prop block round-trips", async () => {
+  const key = `qa-rich-${TS}`;
+  const c = await api("/api/pages", { method: "POST", body: { slug: key, title: `${Q} Rich`, blocks: [{ type: "hero", props: { heading: "A" } }] } });
+  if (c.s >= 400) bad("create: " + c.s);
+  const id = c.j.id ?? c.j.page?.id;
+  const bad1 = await api(`/api/pages/${id}/blocks`, { method: "PUT", body: { blocks: [{ type: "not-a-block", props: {} }] } });
+  if (bad1.s < 400) bad("unknown block type was accepted (s=" + bad1.s + ")");
+  const rich = [{ type: "hero", props: { heading: "Rich", align: "left", accent: "#0f766e", compact: true } }];
+  const put = await api(`/api/pages/${id}/blocks`, { method: "PUT", body: { blocks: rich } }); want(put, 200, "put rich props");
+  const back = await api(`/api/pages/${id}`);
+  const stored = (back.j.blocks ?? back.j.page?.blocks ?? [])[0]?.props ?? {};
+  if (stored.accent !== "#0f766e") bad("colour prop lost: " + JSON.stringify(stored).slice(0, 120));
+  if (stored.compact !== true) bad("boolean prop lost: " + JSON.stringify(stored.compact));
+  await api(`/api/pages/${id}/unpublish`, { method: "POST" });
+  return "unknown type rejected · select/colour/boolean survive the round-trip";
+});
+
+await T("pages · delete removes the page and its blocks/versions (no orphans)", async () => {
+  const key = `qa-del-${TS}`;
+  const c = await api("/api/pages", { method: "POST", body: { slug: key, title: `${Q} Deletable`, blocks: [{ type: "hero", props: { heading: "x" } }] } });
+  if (c.s >= 400) bad("create: " + c.s);
+  const id = c.j.id ?? c.j.page?.id;
+  // A delete test that runs on an empty page proves nothing about cascades.
+  if ((c.j.blocks ?? []).length !== 1) bad(`create dropped the blocks it was given (${(c.j.blocks ?? []).length})`);
+  await api(`/api/pages/${id}/publish`, { method: "POST" });
+  const del = await api(`/api/pages/${id}`, { method: "DELETE" }); want(del, 200, "delete");
+  if ((del.j.blocks ?? 0) < 1) bad("deleted page reported 0 blocks — cascade never ran");
+  const gone = await api(`/api/pages/${id}`); if (gone.s !== 404) bad(`page still readable (s=${gone.s})`);
+  const again = await api(`/api/pages/${id}`, { method: "DELETE" }); want(again, 404, "second delete is 404, not 500");
+  return `${key} removed with ${del.j.blocks ?? 0} blocks, ${del.j.versions ?? 0} versions`;
+});
+
 /* ============ REAL-TIME ============ */
 G("realtime");
 await T("anonymous and non-owner event streams are blocked", async () => {

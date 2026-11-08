@@ -17,7 +17,15 @@ import { can } from "@/lib/auth";
 import { ArrowRight, Check, Eye, FileText, Globe, Lock, Plus, Save, Trash2, Undo2 } from "@/icons";
 
 /* ---------- types ---------- */
-type BlockField = { k: string; t: "text" | "textarea" | "image" | "lines"; req?: boolean; help?: string };
+type FieldType = "text" | "textarea" | "image" | "lines" | "select" | "number" | "color" | "link" | "boolean";
+type BlockField = {
+  k: string;
+  t: FieldType;
+  req?: boolean;
+  help?: string;
+  /** for `select` — the allowed values; the server declares them, the editor obeys. */
+  options?: { value: string; label: string }[];
+};
 type BlockSpec = { label: string; group: string; fields: BlockField[] };
 type Block = { type: string; props: Record<string, unknown> };
 type SavedSection = { id: number; name: string; category: string; block: Block; usage: number; updatedAt: string };
@@ -113,6 +121,33 @@ function BlockEditor({ b, spec, onChange, onImage }: { b: Block; spec?: BlockSpe
               rows={f.t === "lines" ? 3 : 2} placeholder={f.t === "lines" ? f.help : undefined}
               onChange={(e) => onChange({ ...b.props, [f.k]: e.target.value })}
               className={cn("w-full rounded-control border border-line-strong bg-white px-3 py-2 text-small text-ink focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20", f.t === "lines" && "font-mono text-caption")} />
+          ) : f.t === "select" ? (
+            <select value={String(b.props[f.k] ?? "")} onChange={(e) => onChange({ ...b.props, [f.k]: e.target.value })}
+              className="w-full rounded-control border border-line-strong bg-white px-3 py-2 text-small text-ink focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20">
+              <option value="">{f.help ?? "Choose…"}</option>
+              {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          ) : f.t === "boolean" ? (
+            <label className="flex items-center gap-2 py-2 text-small text-ink">
+              <input type="checkbox" checked={b.props[f.k] === true || b.props[f.k] === "true"}
+                onChange={(e) => onChange({ ...b.props, [f.k]: e.target.checked })}
+                className="h-4 w-4 rounded border-line-strong" />
+              {f.help ?? f.k.replace(/_/g, " ")}
+            </label>
+          ) : f.t === "color" ? (
+            <span className="flex gap-1.5">
+              <input type="color" value={String(b.props[f.k] ?? "#16a34a")} onChange={(e) => onChange({ ...b.props, [f.k]: e.target.value })}
+                className="h-9 w-12 shrink-0 cursor-pointer rounded-control border border-line-strong bg-white p-0.5" />
+              <Input value={String(b.props[f.k] ?? "")} onChange={(e) => onChange({ ...b.props, [f.k]: e.target.value })} placeholder="#16a34a" />
+            </span>
+          ) : f.t === "number" ? (
+            <Input type="number" value={String(b.props[f.k] ?? "")} onChange={(e) => onChange({ ...b.props, [f.k]: e.target.value })} placeholder={f.help} />
+          ) : f.t === "link" ? (
+            <span className="flex gap-1.5">
+              <Input value={String(b.props[f.k] ?? "")} onChange={(e) => onChange({ ...b.props, [f.k]: e.target.value })} placeholder="/shop or https://…" />
+              <a href={String(b.props[f.k] ?? "#")} target="_blank" rel="noreferrer"
+                className="inline-flex shrink-0 items-center rounded-control border border-line-strong px-2 text-caption font-semibold text-primary-700 hover:bg-surface-secondary">Test</a>
+            </span>
           ) : f.t === "image" ? (
             <span className="flex gap-1.5">
               <Input value={String(b.props[f.k] ?? "")} onChange={(e) => onChange({ ...b.props, [f.k]: e.target.value })} placeholder="file from library or URL" />

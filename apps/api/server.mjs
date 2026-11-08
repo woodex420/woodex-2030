@@ -578,6 +578,7 @@ const rowReturn = (r) => ({ id: r.id, ref: r.ref, orderId: r.order_id, customer:
 const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((e) => {
   const status = Number(e.statusCode) || 500;
   // 5xx bodies stay generic: driver/stack detail belongs in the server log, not the response.
+  if (status >= 500) console.error(`[woodex-api] ${req.method} ${req.originalUrl} → 500 ·`, e?.stack ?? e);
   if (!res.headersSent) res.status(status).json({ error: status >= 500 ? "internal error" : String(e.message || e) });
   else res.end();
 });
@@ -2496,13 +2497,21 @@ if (!pageCols.includes("published_snapshot")) {
 const BLOCKS = {
   "hero": { label: "Hero", group: "Marketing", fields: [
     { k: "kicker", t: "text" }, { k: "heading", t: "text", req: true }, { k: "sub", t: "textarea" },
-    { k: "image", t: "image" }, { k: "cta_label", t: "text" }, { k: "cta_href", t: "text" } ] },
+    { k: "image", t: "image" }, { k: "cta_label", t: "text" }, { k: "cta_href", t: "link" },
+    { k: "align", t: "select", help: "Image side", options: [
+      { value: "right", label: "Image right" }, { value: "left", label: "Image left" }, { value: "none", label: "No image" } ] },
+    { k: "accent", t: "color", help: "Overrides the theme colour for this block only" },
+    { k: "compact", t: "boolean", help: "Tighter vertical padding" } ] },
   "text-section": { label: "Text + points", group: "Content", fields: [
     { k: "kicker", t: "text" }, { k: "heading", t: "text", req: true }, { k: "body", t: "textarea" },
     { k: "bullets", t: "lines" }, { k: "image", t: "image" } ] },
   "product-grid": { label: "Product grid (live)", group: "Commerce", fields: [
     { k: "heading", t: "text" }, { k: "match", t: "text", help: "series / category / sku words" },
-    { k: "ids", t: "text", help: "or exact ids, comma separated" }, { k: "limit", t: "text" } ] },
+    { k: "ids", t: "text", help: "or exact ids, comma separated" },
+    { k: "limit", t: "number", help: "how many cards (default 4)" },
+    { k: "sort", t: "select", help: "Order", options: [
+      { value: "featured", label: "Featured first" }, { value: "price-asc", label: "Price: low → high" },
+      { value: "price-desc", label: "Price: high → low" }, { value: "name", label: "Name A → Z" } ] } ] },
   "product-feature": { label: "Product spotlight (live)", group: "Commerce", fields: [
     { k: "productId", t: "text", req: true }, { k: "heading", t: "text" }, { k: "body", t: "textarea" } ] },
   "materials": { label: "Materials & craft", group: "Commerce", fields: [
@@ -2611,7 +2620,7 @@ app.get("/api/pages", wrap(async (req, res) => {
       ctas: (await (db.prepare("SELECT COUNT(*) n FROM track_events WHERE page_id=? AND kind='cta'").get(r.id))).n })))) });
 }));
 app.post("/api/pages", wrap(async (req, res) => {
-  const { slug, title, template } = req.body ?? {};
+  const { slug, title, template, blocks: seedBlocks } = req.body ?? {};
   if (!slug || !SLUG_RE.test(slug)) return res.status(400).json({ error: "slug must be lowercase letters/numbers/dashes (2-61)" });
   if ((await (db.prepare("SELECT id FROM pages WHERE slug=?").get(slug)))) return res.status(409).json({ error: "slug already exists" });
   const t = now();
@@ -2629,7 +2638,19 @@ app.post("/api/pages", wrap(async (req, res) => {
       { type: "faq", props: { heading: "Common questions", items: "Do you deliver nationwide? | Yes — flat-rate cargo, assembly included in Lahore and Karachi.\nIs there a warranty? | 5 years on frames, 2 years on mechanisms." } },
     ],
   };
-  for (const [i, b] of ((packs[template] ?? []).entries())) (await (db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props), i)));
+  /* Explicit blocks win over a template. Silently dropping what the caller sent
+     made create look successful while the page came back empty — callers then
+     published a blank page. Validate against the catalogue for the same reason
+     the PUT route does. */
+  if (seedBlocks !== undefined) {
+    if (!Array.isArray(seedBlocks)) return res.status(400).json({ error: "blocks must be an array" });
+    if (seedBlocks.length > 100) return res.status(400).json({ error: "a page may contain at most 100 blocks" });
+    const unknownSeed = seedBlocks.find((b) => !b || typeof b !== "object" || !BLOCKS[b.type]);
+    if (unknownSeed) return res.status(400).json({ error: `unknown block type "${unknownSeed?.type}" — see GET /api/blocks` });
+  }
+  const seed = seedBlocks ?? packs[template] ?? [];
+  for (const [i, b] of seed.entries())
+    await db.prepare("INSERT INTO page_blocks(page_id,type,props,sort) VALUES(?,?,?,?)").run(pid, b.type, JSON.stringify(b.props ?? {}), i);
   const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(pid)));
   emit("pages", { title: "Page created: /" + r.slug, who: r.title });
   res.status(201).json((await (rowPage(r))));
@@ -2700,6 +2721,12 @@ app.put("/api/pages/:id/blocks", wrapTxJson(async (req, afterCommit) => {
     !b || typeof b !== "object" || Array.isArray(b) || typeof b.type !== "string" || !b.type.trim()
     || (b.props != null && (typeof b.props !== "object" || Array.isArray(b.props))));
   if (invalidBlocks) return { status: 400, body: { error: "blocks must contain typed blocks with object props" } };
+  /* Shape is not enough: a block whose type is not in the server catalogue has
+     no renderer, so it publishes as an invisible gap on a live page. Reject it
+     at the door and name the offending type. */
+  const unknown = rewrite && body.blocks.find((b) => !BLOCKS[b.type]);
+  if (unknown)
+    return { status: 400, body: { error: `unknown block type "${unknown.type}" — see GET /api/blocks`, known: Object.keys(BLOCKS) } };
 
   const draftBlocks = rewrite ? body.blocks.map((b) => ({ type: b.type, props: b.props ?? {} }))
     : (await (db.prepare("SELECT type, props FROM page_blocks WHERE page_id=? ORDER BY sort").all(r.id))).map((b) => ({ type: b.type, props: safeJson(b.props, {}) }));
@@ -2755,6 +2782,19 @@ app.post("/api/pages/:id/unpublish", wrap(async (req, res) => {
   (await (db.prepare("UPDATE pages SET status='Draft', updated_at=? WHERE id=?").run(now(), r.id)));
   emit("pages", { title: "Page unpublished: /" + r.slug, who: r.title });
   res.json((await (rowPage((await (db.prepare("SELECT * FROM pages WHERE id=?").get(r.id)))))));
+}));
+app.delete("/api/pages/:id", wrapTxJson(async (req, afterCommit) => {
+  const r = (await (db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id)));
+  if (!r) return { status: 404, body: { error: "not found" } };
+  /* page_blocks / page_versions have no FK cascade, so orphaned rows would
+     survive the delete and every later integrity sweep would flag them. */
+  const blocks = (await (db.prepare("SELECT COUNT(*) AS n FROM page_blocks WHERE page_id=?").get(r.id))).n;
+  const versions = (await (db.prepare("SELECT COUNT(*) AS n FROM page_versions WHERE page_id=?").get(r.id))).n;
+  await db.prepare("DELETE FROM page_blocks WHERE page_id=?").run(r.id);
+  await db.prepare("DELETE FROM page_versions WHERE page_id=?").run(r.id);
+  await db.prepare("DELETE FROM pages WHERE id=?").run(r.id);
+  afterCommit.push(() => emit("pages", { title: "Page deleted: /" + r.slug, who: r.title }));
+  return { body: { deleted: true, slug: r.slug, blocks, versions } };
 }));
 app.get("/api/pages/:id/versions", wrap(async (req, res) => {
   const rows = (await (db.prepare("SELECT id, note, who, created_at, snapshot FROM page_versions WHERE page_id=? ORDER BY id DESC").all(req.params.id)));

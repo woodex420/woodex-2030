@@ -128,16 +128,51 @@ Target: `grep -rn "data/mock" apps/dashboard/src` returns only the UI primitives
 
 ### 3.3 Page builder — real-time, live, customisable
 
-Current: 11 block types, form editor, iframe preview per save, duplicate renderer.
+**Status: re-scoped on 2026-11-08 after reading the code. The Q5 answer (adopt
+Puck + port a 40-section catalogue) was made without that inspection. What is
+actually built is better than the plan assumed, and Puck would be a downgrade.**
 
-Target: **Puck** (`@puckeditor/core`, MIT) + the 40-section catalogue from the reimagined repo.
+What exists today (verified):
 
-- One renderer, shared by editor canvas, preview, and storefront.
-- Live side-by-side preview (Puck's native data binding) — no iframe round-trip per keystroke.
-- Blocks config stays **server-authoritative** where it matters (which blocks exist, what props they accept), with the client catalogue generated from it.
-- Draft/publish already works (`published_snapshot`) — keep it.
+| Capability | Where | Verdict |
+|---|---|---|
+| Real-time *visual* render | `Website.tsx` renders a live `<iframe>` of the **real storefront** `/p/<slug>` via a 15-min signed draft link (`lib/preview.ts`, `/api/pages/:id/preview-link`) | This is already "real-time render" — no guessed markup |
+| One renderer | `PublishedPage.tsx` is the only renderer; the iframe shows exactly it | Correct by construction |
+| Live real data | `product-grid` / `product-feature` read the catalogue and render **live PKR prices**; `lead-form` posts into the CRM | Meets the requirement |
+| Customisable | 11 block types, 4 field types, drag-to-reorder, per-block lock, theme presets, **global sections that fan out**, saved-section library, draft/publish/version/rollback | Solid |
+| Server-authoritative catalogue | `BLOCKS` in `apps/api/server.mjs`, served at `/api/blocks`; the editor renders whatever fields the server declares | Correct pattern |
 
-Cost: ~4 days (2 d catalogue port, 2 d Puck integration + migration of existing pages).
+Why not Puck:
+
+- A shared React renderer module is **not possible without inventing a design
+  system**. The storefront uses Tailwind 3 (`tailwind.config.ts`) with
+  `primary` / `muted-foreground` tokens; the dashboard has **no Tailwind config**
+  at all and styles from CSS custom properties. Puck's canvas would have to
+  reproduce storefront markup in the other app's CSS — the same drift, one layer
+  deeper, with an extra 200 kB dependency.
+- The signed-iframe preview is **guaranteed truthful**, which a re-implemented
+  canvas is not. The remaining cost is a save + iframe reload per edit, not a
+  correctness problem.
+- Puck is headless config-first; adopting it means re-declaring all 11 blocks
+  (and the 40 new ones) in Puck's schema *and* keeping the storefront renderer —
+  two catalogues, which is precisely the drift we are trying to delete.
+- `@measured/puck@0.20.2` supports React 19 (peer `^18 || ^19`), so it *can* be
+  installed — this is a design judgement, not a compatibility wall.
+
+**Re-scoped target (~1 d instead of 4 d):**
+
+1. Delete `BlockPreview` in `Website.tsx` — the crude guessed mock. The inspector
+   keeps the field editor; the preview pane is the signed iframe, which is real.
+   *(Removes the only place that can lie about what a page looks like.)*
+2. Keep the catalogue server-authoritative and **grow it toward 40 blocks** in
+   `BLOCKS` + one `case` in `PublishedPage.tsx` each — incremental, no migration.
+3. Add the field types the catalogue needs to be genuinely customisable:
+   `select` (enum), `number`, `color`, `link`, `boolean` — currently only
+   `text` / `textarea` / `lines` / `image` exist, which is the actual ceiling on
+   "fully customisable".
+
+If the user still wants Puck after reading this, it is reversible: nothing else
+in the plan depends on the choice.
 
 ### 3.4 UI/UX pass
 
@@ -218,7 +253,7 @@ Either way I need to add: `npm run start:hostinger` (serve `dist/` from Express 
 | 0 | **Answers to Q1–Q5** | — | everything |
 | 1 | Kill fake data: Dashboard, Analytics (+ Projects API) | 4 | — |
 | 2 | SSE wiring + realtime screens | 1 | — |
-| 3 | Page builder → Puck + 40 blocks | 4 | — |
+| 3 | Page builder → **re-scoped** (keep iframe+renderer, grow catalogue, add field types) | 1 | — |
 | 4 | Storefront: brand config + prerender + catalogue single-source | 2 | — |
 | 5 | Agent workflow: `AGENTS.md` + one master plan + archive the rest | 1 | — |
 | 6 | DB: aggregates, constraints, migrations runner, backups | 3 | — |
@@ -289,7 +324,9 @@ revenue and the true lead-stage split.
 ### Still open from the plan
 
 - Storefront: `brand.ts` + prerendering (Q2 decision: prerender) — not started.
-- Page builder: Puck + 40-section catalogue — not started.
+- Page builder: re-scoped away from Puck (see §3.3) — the builder already renders the
+  real storefront in a signed iframe; remaining work is deleting the guessy
+  `BlockPreview`, growing the catalogue and adding `select`/`number`/`color`/`link`/`boolean` fields.
 - `main` still contains one file; no PR opened yet.
 - Hostinger packaging — not started.
 - Tailwind 3 → 4 for the storefront (F12).
