@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
@@ -115,6 +115,17 @@ export function QuoteTemplateDesigner({
     moveBlock(region, id, items[next].id);
   };
 
+  const dragRegionRef = useRef<Region | null>(null);
+  /* Chromium starts a text selection instead of an HTML5 drag when the press
+     lands on an <input>, so the grab affordance is its own drag source. The row
+     stays draggable for presses on its padding. */
+  const startDrag = (event: DragEvent, region: Region, id: string) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", id);
+    dragRegionRef.current = region;
+    setDragging({ region, id });
+  };
+
   const addCustomBlock = (region: Region) => {
     const item = block(newBlockId(), "custom", "Custom text", "Add your text here.");
     setDraft((current) => ({ ...current, [region]: [...current[region], item] }));
@@ -203,24 +214,34 @@ export function QuoteTemplateDesigner({
         {items.map((item, index) => (
           <div
             key={item.id}
+            data-block-row=""
             draggable={!saving}
-            onDragStart={(event) => {
-              setDragging({ region, id: item.id });
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", item.id);
-            }}
-            onDragEnd={() => setDragging(null)}
+            onDragStart={(event) => startDrag(event, region, item.id)}
+            onDragEnd={() => { dragRegionRef.current = null; setDragging(null); }}
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
+              /* Read the source from the payload first: relying on React state alone
+                 made the drop a no-op whenever the dragstart re-render had not
+                 committed yet (as seen in headless Chromium). */
               const fromId = event.dataTransfer.getData("text/plain") || dragging?.id;
-              if (fromId && dragging?.region === region) moveBlock(region, fromId, item.id);
+              const fromRegion = dragging?.region ?? dragRegionRef.current;
+              if (fromId && fromRegion === region) moveBlock(region, fromId, item.id);
               setDragging(null);
             }}
             className={`rounded-control border bg-white p-3 transition-colors ${dragging?.id === item.id ? "border-primary-500 opacity-60" : "border-line"}`}
           >
             <div className="flex items-start gap-2">
-              <span aria-hidden className="cursor-grab select-none pt-1 text-lg leading-none text-slate-400">⠿</span>
+              <span
+                role="button"
+                tabIndex={-1}
+                aria-label={`Drag ${item.label}`}
+                data-block-drag-handle=""
+                draggable={!saving}
+                onDragStart={(event) => startDrag(event, region, item.id)}
+                title="Drag to reorder"
+                className="cursor-grab select-none pt-1 text-lg leading-none text-slate-400 active:cursor-grabbing"
+              >⠿</span>
               <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <label className="block text-caption font-medium text-slate-700">
                   Block label

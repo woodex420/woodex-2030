@@ -88,15 +88,17 @@ try {
   await designer.getByLabel("Logo mark").fill("WX");
 
   const headerSection = designer.locator("section").filter({ hasText: "Header blocks" }).first();
-  const headerBlocks = headerSection.locator('[draggable="true"]');
+  const headerBlocks = headerSection.locator("[data-block-row]");
   const titleBlock = headerBlocks.nth(1);
   const metaBlock = headerBlocks.nth(2);
-  await titleBlock.dragTo(metaBlock);
-  const headerOrder = await headerSection.locator('[draggable="true"] input:not([type="checkbox"])').evaluateAll((inputs) => inputs.map((input) => input.value));
+  /* Drag by the grab handle: a press on the block's centre lands on an <input>,
+     where Chromium starts a text selection instead of an HTML5 drag. */
+  await titleBlock.locator("[data-block-drag-handle]").dragTo(metaBlock);
+  const headerOrder = await headerSection.locator('[data-block-row] input:not([type="checkbox"])').evaluateAll((inputs) => inputs.map((input) => input.value));
   requireCondition(headerOrder[1] === "Date and reference" && headerOrder[2] === "Quotation", `Drag reorder did not update header order: ${headerOrder.join(" | ")}`);
 
   const footerSection = designer.locator("section").filter({ hasText: "Footer blocks" }).first();
-  const thankYouBlock = footerSection.locator('[draggable="true"]').nth(3);
+  const thankYouBlock = footerSection.locator("[data-block-row]").nth(3);
   await thankYouBlock.locator('input:not([type="checkbox"])').first().fill("E2E footer note");
   await thankYouBlock.locator("textarea").fill("Reusable footer content from the browser acceptance test.");
 
