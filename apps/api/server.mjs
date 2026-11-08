@@ -62,6 +62,29 @@ CREATE TABLE IF NOT EXISTS products(
 );
 CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY, json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS services(id TEXT PRIMARY KEY, json TEXT NOT NULL);
+
+/* Stock ledger — mirror of scripts/migrations/003_stock_ledger.sql.
+   SQLite does not enforce the CHECK/FK set the way PostgreSQL does, but the
+   shape must match so pg-migrate can copy every column and the reconciliation
+   test runs identically on both engines. */
+CREATE TABLE IF NOT EXISTS stock_movements(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id TEXT NOT NULL, delta INTEGER NOT NULL CHECK (delta <> 0),
+  reason TEXT NOT NULL, ref_type TEXT, ref_id INTEGER, note TEXT,
+  created_by TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON stock_movements(product_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_ref ON stock_movements(ref_type, ref_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_stock_movements_sale_ref
+  ON stock_movements(ref_type, ref_id, product_id)
+  WHERE reason = 'sale' AND ref_type IS NOT NULL AND ref_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS stock_reservations(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id TEXT NOT NULL, qty INTEGER NOT NULL CHECK (qty > 0),
+  ref_type TEXT NOT NULL, ref_id INTEGER, status TEXT NOT NULL DEFAULT 'held',
+  expires_at TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_stock_reservations_product ON stock_reservations(product_id, status);
 CREATE TABLE IF NOT EXISTS leads(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, name TEXT NOT NULL, company TEXT,
   interest TEXT, source TEXT, contact TEXT, status TEXT DEFAULT 'New', owner TEXT,
@@ -247,6 +270,14 @@ async function seed() {
     for (const m of materials) (await (insMat.run(m.id, JSON.stringify(m))));
     const insSvc = db.prepare("INSERT INTO services(id,json) VALUES(?,?)");
     for (const [i, svc] of services.entries()) (await (insSvc.run(String(i + 1), JSON.stringify(svc))));
+    /* The catalogue just arrived with quantities but no history. Record them as
+       opening receipts so stock_qty reconciles against SUM(delta) from the
+       first boot rather than starting 148 products in debt. */
+    await db.prepare(`INSERT INTO stock_movements(product_id, delta, reason, note, created_by, created_at)
+      SELECT id, stock_qty, 'receipt', 'opening balance seeded with the catalogue', 'seed', ?
+        FROM products p
+       WHERE p.stock_qty <> 0
+         AND NOT EXISTS (SELECT 1 FROM stock_movements m WHERE m.product_id = p.id)`).run(now());
   });
 
   // Demo operational data so every module has content on first boot
@@ -364,6 +395,56 @@ async function ensureCrmDemo() {
 }
 
 /* ---------------- helpers ---------------- */
+/* ---------------- stock ledger ----------------
+   Every change to product stock goes through applyStockMovement. Nothing else
+   may write stock_qty, because a second write path is how a store starts
+   disagreeing with its own ledger.
+
+   stock_qty is a cache over SUM(delta) in stock_movements, not the source of
+   truth. Two things follow from that:
+
+   1. The decrement has to be atomic with its availability check. "Is there
+      enough?" followed by "take some" is two statements, and between them
+      another request can take the same units. Both are done in one running
+      transaction, and the UPDATE asserts `stock_qty >= ?` on the row itself, so
+      the database refuses the decrement even if application logic is wrong.
+
+   2. Changing stock at the same moment as editing a product must not interleave.
+      The admin PATCH used to write the whole products row from a value it read
+      earlier; it now writes only its own columns and lets the ledger own
+      stock_qty, so a concurrent sale cannot be silently overwritten by an
+      edit form that loaded the page a minute ago. */
+const STOCK_REASONS = new Set(["receipt", "sale", "return", "adjustment", "transfer", "wastage"]);
+const applyStockMovement = async ({ productId, delta, reason, refType = null, refId = null, note = null, actor = "system" }) => {
+  const d = Number(delta);
+  if (!Number.isInteger(d) || d === 0) throw Object.assign(new Error("stock delta must be a non-zero whole number"), { statusCode: 400 });
+  if (!STOCK_REASONS.has(reason)) throw Object.assign(new Error("unknown stock reason: " + reason), { statusCode: 400 });
+
+  /* A negative delta must be reconcilable in one statement. When it is not,
+     the row simply does not match and we report insufficient stock rather than
+     writing an entry the ledger cannot back. */
+  if (d < 0) {
+    const res = await db.prepare("UPDATE products SET stock_qty = stock_qty + ?, updated_at = ? WHERE id = ? AND stock_qty >= ?")
+      .run(d, now(), productId, -d);
+    if (!res.changes) throw Object.assign(new Error("insufficient stock"), { statusCode: 409, code: "insufficient_stock", productId });
+  } else {
+    const res = await db.prepare("UPDATE products SET stock_qty = stock_qty + ?, updated_at = ? WHERE id = ?").run(d, now(), productId);
+    if (!res.changes) throw Object.assign(new Error("product not found: " + productId), { statusCode: 404, code: "product_not_found", productId });
+  }
+
+  const info = await db.prepare(
+    "INSERT INTO stock_movements(product_id, delta, reason, ref_type, ref_id, note, created_by, created_at) VALUES(?,?,?,?,?,?,?,?)"
+  ).run(productId, d, reason, refType, refId, note, String(actor).slice(0, 80), now());
+  return { id: info.lastInsertRowid, productId, delta: d, reason };
+};
+
+/* Recompute the cache from the ledger. Used by the reconciliation test and by
+   the admin repair endpoint; if these two ever disagree, the ledger wins. */
+const stockFromLedger = async (productId) => {
+  const row = await db.prepare("SELECT COALESCE(SUM(delta),0) AS q FROM stock_movements WHERE product_id = ?").get(productId);
+  return Number(row?.q ?? 0);
+};
+
 const rowProduct = (r) => ({ ...JSON.parse(r.json), price: r.price, inStock: !!r.in_stock, stockQty: r.stock_qty, updatedAt: r.updated_at });
 const safeJson = (value, fallback) => { try { return JSON.parse(value ?? ""); } catch { return fallback; } };
 const rowQuote = (r) => ({
@@ -722,7 +803,12 @@ const isPublic = (m, p) =>
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
     /^\/api\/pages\/[^/]+\/public$/.test(p) ||
     p.startsWith("/img/") || p === "/uploads" || /^\/(uploads|img)\//.test(p) ||
-    p === "/sitemap.xml" || p === "/robots.txt"
+    /* /sitemap.xml is public, but on Vercel it arrives as /api/sitemap: the
+       rewrite targets that path, and the auth gate runs on the path as
+       received. It saw /api/sitemap, judged it private, and answered 401 to
+       every crawler — while every local check used /sitemap.xml and passed.
+       Both spellings are public. */
+    p === "/sitemap.xml" || p === "/api/sitemap" || p === "/robots.txt" || p === "/api/robots.txt"
   ) || (m === "POST" && (
     /^\/api\/(track|leads|quotes|orders|auth\/login)$/.test(p)
     || /^\/api\/orders\/lookup$/.test(p)
@@ -957,23 +1043,65 @@ app.post("/api/products", wrap(async (req, res) => {
   const product = parsed.value;
   await db.prepare("INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)")
     .run(id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, product.stockQty, t);
+  /* Opening quantity is a receipt, so a product's ledger is complete from the
+     moment it exists and reconciliation never reports a phantom discrepancy. */
+  if (Number(product.stockQty) > 0) {
+    await db.prepare("INSERT INTO stock_movements(product_id, delta, reason, note, created_by, created_at) VALUES(?,?,?,?,?,?)")
+      .run(id, Number(product.stockQty), "receipt", "opening balance at product creation", String(req.actor ?? "Catalog").slice(0, 80), t);
+  }
   emit("products", { title: "Product created: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" });
   res.status(201).json(rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(id)));
 }));
 
-app.patch("/api/products/:id", wrap(async (req, res) => {
+app.patch("/api/products/:id", wrapTxJson(async (req, afterCommit) => {
   const r = (await (db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id)));
-  if (!r) return res.status(404).json({ error: "not found" });
+  if (!r) return { status: 404, body: { error: "not found" } };
   const base = { ...JSON.parse(r.json), stockQty: r.stock_qty };
   const parsed = normalizeProduct(req.body ?? {}, base, r.id);
-  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  if (parsed.error) return { status: 400, body: { error: parsed.error } };
   const product = parsed.value;
-  const t = now();
-  await db.prepare("UPDATE products SET json=?, price=?, in_stock=?, stock_qty=?, updated_at=? WHERE id=?")
-    .run(JSON.stringify(product), product.price, product.inStock ? 1 : 0, product.stockQty, t, r.id);
+
+  /* This route deliberately does NOT write stock_qty. The edit form posts the
+     whole product, including whatever quantity it loaded when the page opened;
+     writing that back would silently undo every sale that happened in between,
+     which is a lost update no constraint would ever catch. Stock moves only
+     through the ledger, via an explicit delta below. */
+  await db.prepare("UPDATE products SET json=?, price=?, in_stock=?, updated_at=? WHERE id=?")
+    .run(JSON.stringify(product), product.price, product.inStock ? 1 : 0, now(), r.id);
+
+  /* An integer stockQty that differs from current stock is interpreted as an
+     explicit recount and recorded as an adjustment, not as a field edit. */
+  const requested = Number(req.body?.stockQty);
+  if (req.body?.stockQty !== undefined && Number.isInteger(requested)) {
+    const current = Number((await db.prepare("SELECT stock_qty FROM products WHERE id=?").get(r.id)).stock_qty);
+    if (requested !== current) {
+      await applyStockMovement({
+        productId: r.id, delta: requested - current, reason: "adjustment",
+        refType: "product", refId: null, note: "stock set from product edit form",
+        actor: req.actor ?? "Catalog",
+      });
+    }
+  }
+
   const out = rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(r.id));
-  emit("products", { title: "Product updated: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" });
-  res.json(out);
+  afterCommit.push(() => emit("products", { title: "Product updated: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" }));
+  return { body: out };
+}));
+
+/* Stock history and reconciliation for one product.
+   Read-only by design: the ledger is append-only, so there is no POST here —
+   movements are created as a side effect of real events (a sale, a return, a
+   recount), never by an API caller choosing a number. */
+app.get("/api/products/:id/stock", wrap(async (req, res) => {
+  const product = (await db.prepare("SELECT id, stock_qty FROM products WHERE id=?").get(req.params.id));
+  if (!product) return res.status(404).json({ error: "not found" });
+  const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+  const items = (await db.prepare("SELECT * FROM stock_movements WHERE product_id=? ORDER BY id DESC LIMIT ?").all(product.id, limit))
+    .map((m) => ({ id: m.id, productId: m.product_id, delta: Number(m.delta), reason: m.reason,
+      refType: m.ref_type, refId: m.ref_id, note: m.note, createdBy: m.created_by, createdAt: m.created_at }));
+  const ledger = await stockFromLedger(product.id);
+  res.json({ productId: product.id, stockQty: Number(product.stock_qty), ledgerQty: ledger,
+    reconciles: Number(product.stock_qty) === ledger, total: items.length, items });
 }));
 
 app.delete("/api/products/:id", wrap(async (req, res) => {
@@ -1519,6 +1647,26 @@ app.post("/api/orders", wrapTxJson(async (req, afterCommit) => {
   const info = await db.prepare("INSERT INTO orders(ref,customer,items,total,status,stage,owner,due,tracking_token_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
     .run(ref, customer, JSON.stringify(items), total, "Pending", "production", "Faisal", "TBD", trackingTokenHash, t, t);
   const oLed = rowOrder(await db.prepare("SELECT * FROM orders WHERE id=?").get(info.lastInsertRowid));
+
+  /* Take the stock. Until this existed, checkout validated availability and
+     then never decremented it, so a product with 99 units could be sold an
+     unlimited number of times — the availability check gave the appearance of
+     inventory control without providing any.
+
+     Ordered items were already per-line validated above, but that was a read.
+     These are the writes, and they are the ones that can lose a race: the
+     ledger's guarded UPDATE fails with 409 if the units are gone, which rolls
+     the whole checkout back (order, invoice, client, task) instead of selling
+     air. Lines are applied sequentially because two lines may name the same
+     product, and a partial success must not survive. */
+  for (const item of items) {
+    await applyStockMovement({
+      productId: item.id, delta: -item.qty, reason: "sale",
+      refType: "order", refId: oLed.id, note: ref + " · " + item.name.slice(0, 80),
+      actor: "storefront",
+    });
+  }
+
   const m = await matchOrCreateClient({ name: customer, contact: req.body?.contact, source: "checkout" });
   await linkClient(m.client.id, "order", oLed.id);
   const invoiceRef = await nextRef("invoices", "INV-26-", 1100);
@@ -2339,7 +2487,7 @@ const xmlEsc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<":
 /* One sitemap, built from the shared PUBLIC_ROUTES list plus whatever the
    database knows: published CMS pages and live products. Before this, the API
    listed pages+products and silently omitted all 16 static marketing routes. */
-app.get("/sitemap.xml", wrap(async (req, res) => {
+const sitemapDocument = async () => {
   const theme = await readTheme();
   const base = (theme.siteUrl || "http://localhost:5174").replace(/\/+$/, "");
   const today = new Date().toISOString().slice(0, 10);
@@ -2350,9 +2498,26 @@ app.get("/sitemap.xml", wrap(async (req, res) => {
     urls.push(`  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`);
   for (const x of await db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all())
     urls.push(`  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
+};
+
+/* Two explicit routes, one handler.
+   /sitemap.xml is the address in robots.txt and the one a human types.
+   /api/sitemap is what vercel.json rewrites that to, and the only path the
+   serverless function ever sees. Serving it here means the rewrite works
+   regardless of which form Vercel delivers — the previous setup relied on a
+   separate function file being invoked with the right path, and it was not.
+
+   Written as two routes rather than a loop because a loop hides both from the
+   `^app\.(get|post` pattern that derives the route count in
+   00-CURRENT-STATE.md; the documented number would then drift silently. */
+const sendSitemap = wrap(async (req, res) => {
   res.setHeader("content-type", "application/xml; charset=utf-8");
-  res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`);
-}));
+  res.end(await sitemapDocument());
+});
+app.get("/sitemap.xml", sendSitemap);
+app.get("/api/sitemap", sendSitemap);
+
 app.get("/robots.txt", wrap(async (req, res) => {
   const base = ((await (readTheme())).siteUrl || "http://localhost:5174").replace(/\/+$/, "");
   res.setHeader("content-type", "text/plain; charset=utf-8");
@@ -2502,15 +2667,42 @@ app.post("/api/returns", wrapTxJson(async (req, afterCommit) => {
   emit("returns", { title: "RMA opened for " + customer, who: customer, context: b.reason });
   return { status: 201, body: retOut };
 }));
-app.patch("/api/returns/:id", wrap(async (req, res) => {
-  const r = (await (db.prepare("SELECT * FROM returns WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
-  if (!r) return res.status(404).json({ error: "not found" });
+app.patch("/api/returns/:id", wrapTxJson(async (req, afterCommit) => {
+  const r = (await db.prepare("SELECT * FROM returns WHERE id=? OR ref=?").get(req.params.id, req.params.id));
+  if (!r) return { status: 404, body: { error: "not found" } };
   const b = req.body ?? {};
-  (await (db.prepare("UPDATE returns SET state=?, refund_amount=?, resolution=?, updated_at=? WHERE id=?").run(
-    b.state ?? r.state, b.refund_amount ?? b.refundAmount ?? r.refund_amount, b.resolution ?? r.resolution, now(), r.id)));
-  const rOut = rowReturn((await (db.prepare("SELECT * FROM returns WHERE id=?").get(r.id))));
-  if (b.state) emit("returns", { title: "RMA " + r.ref + " → " + b.state, who: r.customer });
-  res.json(rOut);
+  const next = b.state ?? r.state;
+  await db.prepare("UPDATE returns SET state=?, refund_amount=?, resolution=?, updated_at=? WHERE id=?")
+    .run(next, b.refund_amount ?? b.refundAmount ?? r.refund_amount, b.resolution ?? r.resolution, now(), r.id);
+
+  /* Goods coming back are stock coming back. Before this, closing a return
+     changed a status and nothing else — the units stayed gone, so every return
+     permanently understated inventory with no record of why.
+
+     Only on the transition INTO Closed (never an edit that merely restates it),
+     and only for lines naming a real catalogue product: a return may be for a
+     bespoke item, and inventing stock for one would corrupt the ledger. */
+  if (next === "Closed" && r.state !== "Closed" && r.order_id) {
+    const order = (await db.prepare("SELECT items FROM orders WHERE id=?").get(r.order_id));
+    const lines = safeJson(order?.items, []);
+    for (const line of Array.isArray(lines) ? lines : []) {
+      if (!line?.id || !r.item) continue;
+      const want = String(r.item).trim().toLowerCase().slice(0, 140);
+      if (String(line.name ?? "").trim().toLowerCase() !== want) continue;
+      const qty = Math.min(Number(line.qty) || 0, 100);
+      if (qty > 0) {
+        await applyStockMovement({
+          productId: line.id, delta: qty, reason: "return",
+          refType: "return", refId: r.id, note: "RMA " + r.ref,
+          actor: req.actor ?? "Returns",
+        });
+      }
+    }
+  }
+
+  const rOut = rowReturn((await db.prepare("SELECT * FROM returns WHERE id=?").get(r.id)));
+  if (b.state) afterCommit.push(() => emit("returns", { title: "RMA " + r.ref + " → " + b.state, who: r.customer }));
+  return { body: rOut };
 }));
 
 /* Real revenue series for the Overview + Analytics charts.
@@ -3051,6 +3243,19 @@ async function ensureServerlessCatalog() {
       await db.prepare("INSERT OR IGNORE INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)")
         .run(product.id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, stock, t);
     }
+    /* Opening balance for stock that already existed when the ledger arrived.
+       The schema upgrade at boot runs BEFORE this seed, so a database that
+       already had products gets no opening movement from migration 003 — the
+       INSERT OR IGNORE above matches nothing and inserts no row. Without this,
+       every pre-existing product holds real stock against an empty history, and
+       reconciliation reports a discrepancy that is really a missing baseline.
+       Guarded on "no movements at all", so it can never add a second baseline
+       to a product that already has history. */
+    await db.prepare(`INSERT INTO stock_movements(product_id, delta, reason, note, created_by, created_at)
+      SELECT id, stock_qty, 'receipt', 'opening balance captured at ledger introduction', 'seed', ?
+        FROM products p
+       WHERE p.stock_qty <> 0
+         AND NOT EXISTS (SELECT 1 FROM stock_movements m WHERE m.product_id = p.id)`).run(t);
     for (const material of materials) {
       await db.prepare("INSERT OR IGNORE INTO materials(id,json) VALUES(?,?)").run(material.id, JSON.stringify(material));
     }

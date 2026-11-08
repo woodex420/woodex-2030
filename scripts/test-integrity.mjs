@@ -39,8 +39,15 @@ const check = (ok, label, detail = "") => {
 };
 
 /* Expectations, derived from the migration files rather than hardcoded. */
-const fkExpected = [...read("scripts/migrations/002_integrity_constraints.sql")
-  .matchAll(/^\s*\('(\w+)',\s*'(\w+)',\s*'(\w+)',\s*'(\w+)',/gm)].length;
+/* Expected counts come from the migration FILES, not hardcoded numbers, so
+   adding a constraint cannot silently disagree with this test. Migration 003
+   adds two foreign keys of its own, so this reads every migration. */
+const allMigrationSql = fs.readdirSync(path.join(ROOT, "scripts", "migrations"))
+  .filter((f) => f.endsWith(".sql")).sort()
+  .map((f) => read(path.join("scripts", "migrations", f))).join("\n");
+const fkExpected = [...allMigrationSql
+  .matchAll(/'(\w+)',\s*'(\w+)',\s*'(\w+)',\s*'(id)',\s*'(?:NO ACTION|CASCADE|SET NULL|RESTRICT)',/gm)].length
+  + [...allMigrationSql.matchAll(/FOREIGN KEY\s*\(\w+\)\s*REFERENCES\s+\w+/gi)].length;
 const chkExpected = [...read("scripts/migrations/002_integrity_constraints.sql")
   .matchAll(/^\s*\('\w+',\s*'\w+',\s*'/gm)].length - fkExpected;
 

@@ -34,11 +34,11 @@ be standardised until it is resolved.
 
 | Thing | Count | Evidence |
 |---|---|---|
-| API route handlers | **103** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
+| API route handlers | **105** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
 | Storefront routes | **25** | `<Route` in `apps/storefront/src/App.tsx` |
 | Dashboard routes | **29** | `<Route` in `apps/dashboard/src/App.tsx` |
-| PostgreSQL tables | **29** | `scripts/schema.postgres.sql` (distinct `CREATE TABLE` names) |
-| SQLite tables | **29** | `apps/api/server.mjs` (distinct names; two are created twice) |
+| PostgreSQL tables | **31** | base schema + `scripts/migrations/*.sql` (distinct names) |
+| SQLite tables | **31** | `apps/api/server.mjs` (distinct names; two are created twice) |
 | Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json` |
 | Prerendered storefront routes | **76** | `npm run vercel:build` |
 | QA checks | **107** (sqlite) and **107** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |

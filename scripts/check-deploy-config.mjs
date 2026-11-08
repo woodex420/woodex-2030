@@ -91,6 +91,22 @@ for (const p of apiPaths) {
 }
 if (!failures.length) ok(`every /api path resolves to the function (${apiPaths.length} cases)`);
 
+/* /sitemap.xml must reach a handler that serves the ROOT path.
+   The old rule sent it to /api/sitemap, a single path segment, so Vercel
+   rewrote it onward to /api/index — the API's own entry — where the auth gate
+   saw a private-looking path and answered 401 to every crawler. It had been
+   "routed to the API" the whole time, which is why the check above passed while
+   the feature never worked. Reaching a function is not the same as reaching the
+   right path. */
+const sitemapRule = resolveRewrite("/sitemap.xml");
+if (!sitemapRule) {
+  fail("/sitemap.xml has no rewrite rule — crawlers would get the SPA shell");
+} else if (!/^\/api\/sitemap(\.[a-z]+)?$/.test(sitemapRule.destination)) {
+  fail(`/sitemap.xml → "${sitemapRule.destination}" — must go to /api/sitemap (the root-path adapter), not through a catch-all`);
+} else {
+  ok(`/sitemap.xml → ${sitemapRule.destination} (root-path adapter)`);
+}
+
 /* The SPA shell must not swallow API traffic, and must still serve app routes. */
 const shell = resolveRewrite("/some/storefront/route");
 if (shell?.destination !== "/index.html") fail("/:path* no longer falls back to /index.html (SPA routing broken)");

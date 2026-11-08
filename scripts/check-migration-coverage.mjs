@@ -35,10 +35,23 @@ if (!listMatch) {
 const migrated = [...listMatch[1].matchAll(/"([a-z_][a-z0-9_]*)"/gi)].map((m) => m[1].toLowerCase());
 const migratedSet = new Set(migrated);
 
-/* 3. Every table the PostgreSQL schema creates. */
+/* 3. Every table the PostgreSQL schema creates — the base file PLUS every
+      numbered migration. New tables belong in a migration, not in the base
+      schema, but they are still part of the PostgreSQL schema. Counting only
+      the base file made the first migration that added a table look like a
+      coverage gap, which is the reverse of the bug this check exists for. */
 const pgTables = new Set();
-for (const m of read("scripts/schema.postgres.sql").matchAll(/CREATE TABLE IF NOT EXISTS\s+([a-z_][a-z0-9_]*)/gi)) {
-  pgTables.add(m[1].toLowerCase());
+const addPgTables = (src) => {
+  for (const m of src.replace(/--[^\n]*/g, "").matchAll(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?([a-z_][a-z0-9_]*)/gi)) {
+    pgTables.add(m[1].toLowerCase());
+  }
+};
+addPgTables(read("scripts/schema.postgres.sql"));
+const migDir = path.join(ROOT, "scripts", "migrations");
+if (fs.existsSync(migDir)) {
+  for (const f of fs.readdirSync(migDir).filter((f) => f.endsWith(".sql")).sort()) {
+    addPgTables(fs.readFileSync(path.join(migDir, f), "utf8"));
+  }
 }
 
 const problems = [];

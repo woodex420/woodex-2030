@@ -34,15 +34,23 @@ first find the rows that already violate them.
 **Exit:** restore drill passes from a real backup; `schema_migrations` reflects
 the current schema; no table lacks a PK.
 
-### Phase B — Stock movement ledger
+### Phase B — Stock movement ledger — **DONE**
 
 **Why second:** it is small, self-contained, and unblocks three modules.
 
-- `stock_movements` append-only; `stock_qty` becomes derived and reconcilable.
-- Reservation model separate from stock.
-- Reconciliation test: `SUM(delta)` equals cached `stock_qty` for every product.
+- `stock_movements` append-only; `stock_qty` becomes derived and reconcilable. ✅
+- Reservation model separate from stock. ✅ table exists; nothing writes yet (deliberate)
+- Reconciliation test: `SUM(delta)` equals cached `stock_qty` for every product. ✅
 
-**Exit:** the reconciliation test passes; no code path updates `stock_qty` directly.
+**Exit:** the reconciliation test passes; no code path updates `stock_qty` directly. ✅
+`npm run test:stock` — 20 assertions, including that selling out of stock is
+*refused* (the pre-existing overselling bug), that editing a product cannot
+overwrite live stock, and that a return restocks exactly once.
+
+**Found while building it:** checkout validated availability and never
+decremented, so stock never fell. Closing a return never restocked. Both were
+live production bugs, not missing features — this phase fixed them rather than
+only adding history around them.
 
 ### Phase C — Operations: procurement → production → delivery
 

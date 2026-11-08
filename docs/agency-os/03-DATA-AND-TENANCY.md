@@ -86,32 +86,62 @@ From now on, every new table and every touch of an existing one must add:
 This is written as a rule because retrofitting constraints later means first
 finding the rows that already violate them — usually in production.
 
-## 3. The `stock_qty` problem, stated precisely
+## 3. The `stock_qty` problem — fixed in Phase B
 
-`products.stock_qty` is a **mutable integer on the product record**.
+`products.stock_qty` **was** a mutable integer on the product record with no
+history: you could not answer "why is this 47?", could not attribute a shortage
+to an order, and could not reconcile a physical count.
 
-This means stock has no history: you cannot answer "why is this 47?", cannot
-attribute a shortage to a customer order, and cannot reconcile a physical count.
-Two concurrent decrements can interleave and lose an update.
+It was worse than that. **Nothing decremented it.** `POST /api/orders` checked
+availability and then never reduced it, so a product with 99 units could be sold
+an unlimited number of times. The check that made checkout look responsible was
+decorative. The same was true of `PATCH /api/returns/:id`: closing a return
+changed a status and left the units gone forever.
 
-**Required design — append-only movement ledger:**
+### What exists now
 
-```
-stock_movements(id, product_id, warehouse_id, delta, reason, ref_type, ref_id,
-                created_by, created_at)
-```
+`stock_movements(product_id, delta, reason, ref_type, ref_id, note, created_by,
+created_at)` — **insert-only**. There is no UPDATE and no DELETE against it
+anywhere in the API, asserted by `npm run test:stock`.
 
-Rules:
-- Every change is an **insert**, never an update. Corrections are compensating rows.
-- `products.stock_qty` becomes a **derived cache**, recomputable from the ledger
-  (`SUM(delta)`), and must be reconcilable by a test.
-- Reasons are an enumerated set: `receipt`, `sale`, `return`, `adjustment`,
-  `transfer`, `wastage`, `reservation`.
-- Reservations are separate from stock: `reserved` is not a movement, it is a
-  claim on available stock.
+- `products.stock_qty` is a **derived cache** over `SUM(delta)`. The
+  reconciliation test recomputes it for every product and fails on any
+  disagreement, so the cache is verified rather than trusted.
+- Reasons are a closed set: `receipt`, `sale`, `return`, `adjustment`,
+  `transfer`, `wastage`. A `CHECK` enforces it, so an unenumerated reason means
+  somebody bypassed the helper.
+- **Sales consume stock atomically.** The decrement is
+  `UPDATE products SET stock_qty = stock_qty - ? WHERE id = ? AND stock_qty >= ?`
+  inside the checkout transaction. If no row matches, the whole checkout rolls
+  back — order, invoice, client and task — with `409 insufficient_stock`, rather
+  than selling air. Read-then-write would have lost this race.
+- **The product edit form no longer writes stock.** It used to post back
+  whatever quantity it loaded when the page opened, silently undoing every sale
+  that happened in the meantime. Stock now changes only via an explicit delta
+  (recorded as `adjustment`) through the ledger.
+- **Closing a return restocks**, once. Re-closing is a no-op, and only lines
+  naming a real catalogue product are restocked — a bespoke return must not
+  invent inventory.
+- A `UNIQUE` partial index prevents the same sale being recorded twice for one
+  order line, so a retried request cannot double-decrement.
 
-**This must land before any warehouse or procurement module**, because those
-modules exist to create movements.
+### Deliberately not built yet
+
+`stock_reservations` exists as a table but nothing writes to it. A reservation is
+a claim on available stock, not a movement — recording it as a delta would make
+stock look sold before it shipped. Carts do not reserve yet; that belongs with
+the cart/checkout rework, not with the ledger.
+
+There is no `warehouse_id`. There is one warehouse today; a nullable column
+added later is cheap, whereas inventing a warehouse table now and migrating every
+row into one fake location is not.
+
+### The remaining honest gap
+
+`stock_qty` can still disagree with the ledger if someone runs SQL by hand. The
+reconciliation test catches it in CI and on demand via
+`GET /api/products/:id/stock`, which returns `stockQty`, `ledgerQty` and a
+`reconciles` boolean — but nothing stops a manual `UPDATE` at the database.
 
 ## 4. Multi-tenancy — the design
 
