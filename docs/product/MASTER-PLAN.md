@@ -359,6 +359,19 @@ showed full table scans; `npm run db:backup` / `db:verify-backup` added
 tests now fail if the query count scales with rows, if the two schemas drift, or
 if a backup cannot be restored.
 
+### 2026-11-08 (deployment)
+
+**Shape B works and is tested.** `WOODEX_SERVE_STATIC=dist npm run start:hostinger`
+serves prerendered pages, the dashboard, the API, imagery and the sitemap from one
+process. The first attempt returned 401 on every page because the static layer was
+registered after the session middleware, and 301s because `express.static` answers
+directory paths with a redirect — both fixed, and `smoke:hostinger` now asserts
+`200` + a real `<title>` + no `Loading page` on 8 routes, plus that `/api/*` still
+returns JSON and `/sitemap.xml` still comes from the API.
+
+`docs/DEPLOYMENT.md` documents both targets end to end: env vars, schema creation,
+post-deploy `curl` checks, the SQLite single-writer caveat, and backups.
+
 ### Still open from the plan
 
 - Storefront: brand + prerender — **done**. Catalogue single-source is done via
@@ -370,5 +383,7 @@ if a backup cannot be restored.
 - Database: aggregates/indexes/backup **done**. Still open: `CHECK` constraints on
   status enum columns, and a documented `pg_dump` cron in the deployment runbook.
 - `main` still contains one file; no PR opened yet.
-- Hostinger packaging — not started.
+- Hostinger packaging — **done**: `npm run start:hostinger` (Shape B, one Node
+  process), `deploy/hostinger/.htaccess`, `npm run smoke:hostinger` and
+  `docs/DEPLOYMENT.md` covering both targets, backups and post-deploy checks.
 - Tailwind 3 → 4 for the storefront (F12).

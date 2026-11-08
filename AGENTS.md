@@ -103,10 +103,20 @@ A change is not finished until this passes, in this order:
 npm run secret-scan          # no credentials committed
 npm run typecheck:all        # both apps, 0 errors
 npm run smoke:render         # both apps actually mount
-node scripts/qa-full.mjs --base=http://127.0.0.1:3001   # 100/100
-npm run qa:pg                # 100/100 on PGlite
-npm run vercel:build         # production shape builds
+npm run qa                   # 107/107 against the running API (needs one on :3001)
+npm run qa:pg                # 107/107 on PGlite — catches every Postgres-only bug
+npm run vercel:build         # production shape; must print "76/76 routes rendered"
+npm run smoke:hostinger      # all-in-one shape: real HTML, not the Loading shell
 ```
+
+Two of these exist because the same class of bug shipped twice:
+
+- **`qa:pg` is not optional.** SQLite is the dev database and it tolerates things
+  Postgres does not: `GROUP_CONCAT` does not exist, and `MAX(a, b)` is a scalar in
+  SQLite but an aggregate in Postgres. Both were caught here and nowhere else.
+- **`smoke:hostinger`** boots the single-process deployment on a throwaway port
+  and database and asserts the prerendered routes serve real HTML. A static server
+  will happily serve a build whose prerender silently failed.
 
 `npm run e2e` (browser journeys) additionally requires Chromium:
 `npx playwright install chromium`. **Chromium cannot be installed in the Arena

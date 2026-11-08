@@ -730,6 +730,48 @@ const requestToken = (req) => {
   const queryToken = req.path === "/api/events" ? String(req.query?.token ?? "") : "";
   return bearer || String(req.headers["x-woodex-session"] ?? "") || queryToken;
 };
+/* ---------- all-in-one hosting (Hostinger Shape B) ----------
+   When WOODEX_SERVE_STATIC points at the built `dist/`, this process serves the
+   storefront and dashboard too: one Node app, one origin, one port. That is the
+   simplest deployment the client can run on shared hosting, and it also lets us
+   rehearse production locally (`npm run start:hostinger`).
+
+   Ordering is the whole trick. This must run BEFORE the session middleware (or
+   every page request returns 401), it must never answer /api/*, and it must not
+   send a file for a directory path — express.static would answer `<route>/` with
+   a 301 redirect instead. Serving `dist/<route>/index.html` directly keeps every
+   prerendered URL a clean 200. */
+const STATIC_ROOT = process.env.WOODEX_SERVE_STATIC ? path.resolve(process.env.WOODEX_SERVE_STATIC) : "";
+if (STATIC_ROOT && fs.existsSync(STATIC_ROOT)) {
+  const indexHtml = path.join(STATIC_ROOT, "index.html");
+  const dashboardHtml = path.join(STATIC_ROOT, "dashboard/index.html");
+  const sendHtml = (file, res) => {
+    res.setHeader("cache-control", "no-cache");
+    res.sendFile(file);
+  };
+  // Hashed bundles are immutable; a deploy renames them.
+  app.use("/assets", express.static(path.join(STATIC_ROOT, "assets"), { immutable: true, maxAge: "1y" }));
+  app.use("/img", express.static(path.join(HERE, "public/img"), { maxAge: "1h" }));
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const clean = decodeURIComponent(req.path).replace(/\.html$/, "").replace(/\/+$/, "") || "/";
+    if (clean === "/api" || clean.startsWith("/api/")) return next();   // never answer the API
+    if (clean === "/dashboard") return fs.existsSync(dashboardHtml) ? sendHtml(dashboardHtml, res) : next();
+    if (clean.startsWith("/dashboard/")) return fs.existsSync(dashboardHtml) ? sendHtml(dashboardHtml, res) : next();
+    if (clean === "/sitemap.xml" || clean === "/robots.txt") return next(); // the API owns these
+    const candidate = clean === "/" ? indexHtml : path.join(STATIC_ROOT, clean, "index.html");
+    const flat = clean === "/" ? null : path.join(STATIC_ROOT, clean);
+    if (candidate && candidate.startsWith(STATIC_ROOT) && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return sendHtml(candidate, res);
+    if (flat && flat.startsWith(STATIC_ROOT) && fs.existsSync(flat) && fs.statSync(flat).isFile()) return res.sendFile(flat);
+    // Deep link that was never prerendered: hand the SPA shell to the router.
+    if (path.extname(clean)) return next();
+    return fs.existsSync(indexHtml) ? sendHtml(indexHtml, res) : next();
+  });
+  console.log(`[woodex-api] serving static build from ${STATIC_ROOT}`);
+} else if (STATIC_ROOT) {
+  console.warn(`[woodex-api] WOODEX_SERVE_STATIC=${STATIC_ROOT} does not exist — API only.`);
+}
+
 app.use(async (req, res, next) => { try {
   /* Public paths stay accessible without a session, but a *valid* token must still be
      resolved: staff acting through a public route (dashboard quote builder, embed)
