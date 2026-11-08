@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+.vercel
+data/*.db
+data/*.db-*
+.env
+.env.*
+!.env.example
+*.local
+*.log
+*.tsbuildinfo
+.DS_Store

@@ -1,0 +1,38 @@
+{
+  "name": "woodex-platform",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "apps/api",
+    "apps/dashboard",
+    "apps/storefront"
+  ],
+  "scripts": {
+    "qa": "node scripts/qa-full.mjs",
+    "e2e": "node scripts/e2e-login.mjs",
+    "e2e:storefront-crm": "node scripts/e2e-storefront-crm.mjs",
+    "e2e:quotation-template": "node scripts/e2e-quotation-template.mjs",
+    "e2e:page-builder": "node scripts/e2e-page-builder.mjs",
+    "dev:api": "npm -w @woodex/api run dev",
+    "dev:dashboard": "npm -w @woodex/dashboard run dev",
+    "dev:storefront": "npm -w @woodex/storefront run dev",
+    "dev:preview:api": "PORT=3002 npm run dev:api",
+    "dev:preview:dashboard": "ARENA_PREVIEW=1 API_PROXY_TARGET=http://localhost:3002 npm -w @woodex/dashboard run dev -- --port 3001",
+    "dev:preview:storefront": "ARENA_PREVIEW=1 API_PROXY_TARGET=http://localhost:3002 npm -w @woodex/storefront run dev -- --port 5174",
+    "build": "npm -w @woodex/dashboard run build && npm -w @woodex/storefront run build",
+    "vercel:build": "node scripts/build-vercel.mjs",
+    "typecheck": "npm -w @woodex/dashboard run build",
+    "secret-scan": "node scripts/secret-scan.mjs",
+    "qa:pg": "node scripts/qa-pg.mjs",
+    "ci:test": "node scripts/ci-test.mjs",
+    "db:apply-schema": "node scripts/apply-postgres-schema.mjs"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "playwright": "^1.63.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "installCommand": "npm ci --legacy-peer-deps",
+  "buildCommand": "npm run vercel:build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/dashboard", "destination": "/dashboard/index.html" },
+    { "source": "/dashboard/:path*", "destination": "/dashboard/index.html" },
+    { "source": "/:path*", "destination": "/index.html" }
+  ]
+}
