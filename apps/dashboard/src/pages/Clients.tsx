@@ -121,7 +121,7 @@ export default function Clients() {
       {tab === "review" && (
         <Card>
           <CardHeader title="Ambiguous identities" description="Same phone or email across two client records — keep separate or merge (history re-links)." />
-          {(review.data?.items.length ?? 0) === 0 ? (
+          {(review.data?.items?.length ?? 0) === 0 ? (
             <div className="p-6"><EmptyState icon={<GitMerge size={20} />} title="Queue is clear" description="No duplicate contact signatures detected." /></div>
           ) : (
             <ul className="divide-y divide-hairline">{review.data!.items.map((p, i) => (

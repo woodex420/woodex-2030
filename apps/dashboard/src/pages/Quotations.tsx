@@ -396,7 +396,7 @@ export function QuotationBuilder() {
   const chooseLead = (value: string) => {
     const id = value ? Number(value) : null;
     setRelatedLeadId(id && Number.isSafeInteger(id) ? id : null);
-    const lead = leads.data?.items.find((item) => item.id === id);
+    const lead = leads.data?.items?.find((item) => item.id === id);
     if (lead) setCustomer((current) => ({
       ...current, name: lead.name ?? "", company: lead.company ?? "", email: lead.email ?? "", phone: lead.phone ?? "",
     }));
@@ -536,7 +536,7 @@ export function QuotationBuilder() {
             <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-5 lg:px-6 lg:pt-6">
               <div>
                 <h3 className="text-h3">Product / Service Lines</h3>
-                <p className="mt-1 text-small text-muted">{lines.length} items · from the {catalog.data?.items.length ?? "live"}-SKU catalog or custom lines</p>
+                <p className="mt-1 text-small text-muted">{lines.length} items · from the {catalog.data?.items?.length ?? "live"}-SKU catalog or custom lines</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="subtle" size="sm" disabled={locked} onClick={() => {

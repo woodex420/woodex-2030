@@ -435,7 +435,7 @@ export function PageEditor() {
 
           <Card className="p-4">
             <p className="mb-2 text-caption font-bold uppercase tracking-wide text-subtle">Published revisions</p>
-            {versions.loading ? <SkeletonRows rows={2} /> : (versions.data?.items.length ?? 0) === 0 ? <p className="text-caption text-subtle">No versions yet.</p> : (
+            {versions.loading ? <SkeletonRows rows={2} /> : (versions.data?.items?.length ?? 0) === 0 ? <p className="text-caption text-subtle">No versions yet.</p> : (
               <ul className="space-y-1.5">{versions.data!.items.map((v) => (
                 <li key={v.id} className="flex items-center justify-between rounded-control bg-surface-secondary px-2.5 py-1.5 text-caption">
                   <span><b className="text-ink">v{v.id}</b> · {v.blocks} blocks<span className="block text-subtle">{timeAgo(v.createdAt)} · {v.who}</span></span>
@@ -594,7 +594,7 @@ export default function Website() {
       </Card>
       <Card className="mt-4 p-4">
         <p className="mb-2 text-caption font-bold uppercase tracking-wide text-subtle">Section library</p>
-        {(sections.data?.items.length ?? 0) === 0 ? <p className="text-caption text-subtle">Save any block “as section” inside the editor — it becomes a reusable fan-out source like the seeded <b>Trust strip</b>.</p> : (
+        {(sections.data?.items?.length ?? 0) === 0 ? <p className="text-caption text-subtle">Save any block “as section” inside the editor — it becomes a reusable fan-out source like the seeded <b>Trust strip</b>.</p> : (
           <ul className="flex flex-wrap gap-2">{sections.data!.items.map((sec) => (
             <li key={sec.id} className="flex items-center gap-2 rounded-control border border-hairline px-3 py-1.5 text-caption">
               <b className="text-ink">{sec.name}</b><span className="text-subtle">{sec.category} · {sec.usage} page{sec.usage === 1 ? "" : "s"}</span>

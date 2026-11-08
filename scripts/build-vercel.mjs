@@ -22,6 +22,13 @@ run(["-w", "@woodex/storefront", "run", "build"]);
    rewritten to the function. Both are cheap to check here. */
 run(["run", "seed:data:check"]);
 run(["run", "check:deploy"]);
+/* The dashboard is served under /dashboard but is also reached at /admin via a
+   rewrite. A path outside the router's basename renders nothing at all — zero
+   DOM, no error — which shipped as a blank white screen after a valid sign-in. */
+run(["run", "test:router"]);
+/* A SQLite→PostgreSQL cutover must not silently skip a table. Four project
+   tables were missing from the migrator's list until this check existed. */
+run(["run", "check:migration"]);
 
 const output = path.join(ROOT, "dist");
 fs.rmSync(output, { recursive: true, force: true });

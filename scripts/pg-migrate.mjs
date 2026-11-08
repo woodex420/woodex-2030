@@ -26,8 +26,16 @@ const truncate = args.includes("--truncate");
 if (!dsn && !pgliteDir) { console.error("usage: --dsn <postgres-url> | --pglite <dir> [--truncate]"); process.exit(2); }
 if (!dsn && !fs) process.exit(2);
 
+/* Order matters: parents before children, because the target enforces foreign
+   keys that SQLite mostly did not. `projects` must load before its milestones,
+   BOQ lines and files, and `clients` before `projects`.
+   NOTE: the four project tables used to be absent from this list, so a
+   SQLite→PostgreSQL cutover silently dropped every project, milestone, BOQ
+   line and file record. scripts/check-migration-coverage.mjs now fails if a
+   table exists in the SQLite schema but not here. */
 const TABLES = ["products","materials","services","leads","quotes","quote_versions","quote_templates","orders","invoices","payments","returns",
   "clients","client_links","tasks","site_visits","pages","page_blocks","page_versions","saved_sections","track_events",
+  "projects","project_milestones","boq_lines","project_files",
   "conversations","messages","users","sessions","meta"];
 const PK = { products:"id", materials:"id", services:"id", sessions:"token", meta:"key" }; // TEXT-PK tables (also pages.slug unique — id ordered fine)
 

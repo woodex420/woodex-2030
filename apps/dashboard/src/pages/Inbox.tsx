@@ -54,7 +54,7 @@ export default function Inbox() {
   const [ch, setCh] = useState<(typeof CHANNELS)[number]>("whatsapp");
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [thread.data?.messages.length]);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [thread.data?.messages?.length]);
   useEffect(() => { setHandoffUrl(null); }, [sel]);
 
   const items = list.data?.items ?? [];
@@ -101,13 +101,13 @@ export default function Inbox() {
         crumbs={[{ label: "Digital" }, { label: "Omnichannel" }]}
         title="Shared inbox"
         description="WhatsApp / call / email handoffs and internal notes threaded per client — leads open conversations automatically. Never deletes, only logs."
-        actions={<Badge tone="primary" dot>{list.data?.counts.unread ?? 0} unread · {list.data?.counts.open ?? 0} open</Badge>}
+        actions={<Badge tone="primary" dot>{list.data?.counts?.unread ?? 0} unread · {list.data?.counts?.open ?? 0} open</Badge>}
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {(["all", "unread", "mine"] as const).map((b) => (
           <button key={b} onClick={() => setBox(b)}
             className={cn("rounded-control px-3 py-1.5 text-caption font-bold capitalize transition-colors", box === b ? "bg-ink text-white" : "bg-surface-secondary text-muted hover:text-ink")}>
-            {b === "mine" ? "assigned to me" : b}{b === "unread" && list.data?.counts.unread ? ` (${list.data.counts.unread})` : ""}
+            {b === "mine" ? "assigned to me" : b}{b === "unread" && list.data?.counts?.unread ? ` (${list.data.counts.unread})` : ""}
           </button>))}
         <span className="mx-1 h-5 w-px bg-hairline" />
         <form onSubmit={(e) => { e.preventDefault(); setQ(qText.trim()); }} className="relative flex-1 min-w-44 max-w-72">
@@ -201,7 +201,7 @@ export default function Inbox() {
               <div className="border-t border-hairline p-3">
                 {templates.data && (
                   <div className="mb-2 flex flex-wrap gap-1.5">
-                    {templates.data.items.map((t) => (
+                    {(templates.data.items ?? []).map((t) => (
                       <button key={t.id} onClick={() => insertTpl(t)} className="rounded-full border border-hairline bg-surface-secondary px-2.5 py-1 text-[10px] font-semibold text-muted transition-colors hover:border-primary-400 hover:text-primary-800">＋ {t.label}</button>))}
                   </div>)}
                 <div className="flex items-end gap-2">

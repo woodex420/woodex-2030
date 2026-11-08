@@ -225,6 +225,13 @@ export function useApi<T>(path: string | null, intervalMs = 0) {
       const res = await fetch(path, { headers: { accept: "application/json" } });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const j = (await res.json()) as T;
+      /* A page renders straight off this value and the type is only a claim, so
+         reject anything that is not an object or array. A proxy error page or a
+         truncated payload would otherwise reach the renderer and throw, taking
+         the whole screen down. */
+      if (j === null || typeof j !== "object") {
+        throw new Error("unexpected response shape from " + path);
+      }
       if (alive.current) {
         setData(j);
         setError(null);
