@@ -27,6 +27,23 @@ let context;
 
 const requireCondition = (condition, message) => { if (!condition) throw new Error(message); };
 
+/* Playwright drops a response body once the page navigates away, so any response
+   the journey needs to inspect is read the instant it arrives — before the app
+   can leave the page. */
+function captureJson(page, predicate) {
+  const captured = { value: null, error: null, status: null };
+  const ready = page.waitForResponse((response) => {
+    if (!predicate(response)) return false;
+    captured.status = response.status();
+    response.json().then(
+      (json) => { captured.value = json; },
+      (error) => { captured.error = error; },
+    );
+    return true;
+  }).then(() => captured).catch(() => captured);
+  return { ready, captured };
+}
+
 function cleanup() {
   const dbPath = process.env.E2E_SQLITE_DB ?? fileURLToPath(new URL("../data/woodex.db", import.meta.url));
   if (!existsSync(dbPath)) return;
@@ -75,21 +92,14 @@ try {
   await createDialog.getByLabel("Slug").fill(slug);
   /* A substring /Blank/ also matches the "Sale landing" template button. */
   await createDialog.getByRole("button", { name: "Blank", exact: true }).click();
-  /* The editor navigates as soon as the page is created, and a response body is
-     unreadable after navigation. Capture the payload inside the predicate so the
-     body is taken while the response is still live. */
-  let createdPage = null;
-  const createResponsePromise = page.waitForResponse(async (response) => {
+  const createCapture = captureJson(page, (response) => {
     const url = new URL(response.url());
-    if (url.pathname !== "/api/pages" || response.request().method() !== "POST") return false;
-    if (response.status() === 201) createdPage = await response.json().catch(() => null);
-    return true;
+    return url.pathname === "/api/pages" && response.request().method() === "POST";
   });
   await createDialog.getByRole("button", { name: "Create & edit" }).click();
-  const createResponse = await createResponsePromise;
-  requireCondition(createResponse.status() === 201, `Page creation returned HTTP ${createResponse.status()}.`);
-  requireCondition(createdPage?.id != null, "the created page id was not readable from the POST /api/pages response");
-  const created = createdPage;
+  const { value: created, status: createStatus, error: createError } = await createCapture.ready;
+  requireCondition(createStatus === 201, `Page creation returned HTTP ${createStatus}.`);
+  requireCondition(created?.id != null, `the created page id was not readable from the POST /api/pages response (${createError?.message ?? "empty body"})`);
   pageId = created.id;
   await page.waitForURL(new RegExp(`/website/edit/${pageId}$`));
   await page.getByText("Empty page").waitFor();
@@ -116,18 +126,15 @@ try {
   await page.locator("#wx-blk-1").getByRole("button", { name: "move up" }).click();
   requireCondition((await page.locator("#wx-blk-0").innerText()).includes(ctaHeading), "Arrow reordering did not restore the selected CTA block.");
 
-  let savedPayload = null;
-  const saveResponsePromise = page.waitForResponse(async (response) => {
+  const blocksPredicate = (response) => {
     const url = new URL(response.url());
-    if (url.pathname !== `/api/pages/${pageId}/blocks` || response.request().method() !== "PUT") return false;
-    if (response.ok()) savedPayload = await response.json().catch(() => null);
-    return true;
-  });
+    return url.pathname === `/api/pages/${pageId}/blocks` && response.request().method() === "PUT";
+  };
+  const saveCapture = captureJson(page, blocksPredicate);
   await page.getByRole("button", { name: "Save draft" }).click();
-  const saveResponse = await saveResponsePromise;
-  requireCondition(saveResponse.ok(), `Draft save returned HTTP ${saveResponse.status()}.`);
-  requireCondition(savedPayload, "the saved draft payload was not readable");
-  const saved = savedPayload;
+  const { value: saved, status: saveStatus } = await saveCapture.ready;
+  requireCondition(saveStatus === 200, `Draft save returned HTTP ${saveStatus}.`);
+  requireCondition(saved, "the saved draft payload was not readable");
   requireCondition(saved.blocks?.[0]?.type === "cta-band" && saved.blocks?.[0]?.props?.heading === ctaHeading, "Saved draft did not retain the reordered and edited CTA block.");
   requireCondition(saved.blocks?.[1]?.type === "hero" && saved.blocks?.[1]?.props?.heading === heroHeading, "Saved draft did not retain the second block in order.");
 
@@ -148,17 +155,10 @@ try {
 
   await page.locator("#wx-blk-1").getByRole("button", { name: "delete" }).click();
   requireCondition(await page.locator("#wx-blk-1").count() === 0, "Removing a block did not update the structure.");
-  let finalPayload = null;
-  const finalSavePromise = page.waitForResponse(async (response) => {
-    const url = new URL(response.url());
-    if (url.pathname !== `/api/pages/${pageId}/blocks` || response.request().method() !== "PUT") return false;
-    if (response.ok()) finalPayload = await response.json().catch(() => null);
-    return true;
-  });
+  const finalCapture = captureJson(page, blocksPredicate);
   await page.getByRole("button", { name: "Save draft" }).click();
-  await finalSavePromise;
-  requireCondition(finalPayload, "the final draft payload was not readable");
-  const finalDraft = finalPayload;
+  const { value: finalDraft } = await finalCapture.ready;
+  requireCondition(finalDraft, "the final draft payload was not readable");
   requireCondition(finalDraft.blocks?.length === 1 && finalDraft.blocks[0]?.type === "cta-band", "Removed section was not absent from the saved page.");
   requireCondition(pageErrors.length === 0, `Browser page errors: ${pageErrors.join(" | ")}`);
   console.log(`E2E PASS: create blank page → add/edit/reorder/preview/remove blocks (${slug}).`);
