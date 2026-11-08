@@ -162,7 +162,17 @@ try {
   const viewportGroup = previewDialog.getByRole("group", { name: "Preview viewport" });
   for (const [device, expectedWidth] of [["Tablet", 768], ["Mobile", 390]]) {
     await viewportGroup.getByRole("button", { name: new RegExp(device) }).click();
-    const width = await previewDialog.locator(`[data-preview-mode="${device.toLowerCase()}"]`).evaluate((element) => Math.round(element.getBoundingClientRect().width));
+    const mode = device.toLowerCase();
+    /* The preview frame animates its width (200ms), so measuring straight after
+       the click reads the previous device size. Wait for the mode to apply and
+       the width to settle first. */
+    await previewDialog.locator(`[data-preview-mode="${mode}"]`).waitFor();
+    await page.waitForFunction(({ mode, expectedWidth }) => {
+      const element = document.querySelector(`[data-preview-mode="${mode}"]`);
+      if (!element) return false;
+      return Math.abs(Math.round(element.getBoundingClientRect().width) - expectedWidth) <= 1;
+    }, { mode, expectedWidth }, { timeout: 5_000 }).catch(() => {});
+    const width = await previewDialog.locator(`[data-preview-mode="${mode}"]`).evaluate((element) => Math.round(element.getBoundingClientRect().width));
     requireCondition(width === expectedWidth, `${device} preview width was ${width}px, expected ${expectedWidth}px.`);
   }
   await previewDialog.getByRole("button", { name: "Close dialog" }).click();
