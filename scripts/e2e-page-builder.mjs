@@ -173,7 +173,8 @@ try {
       return Math.abs(Math.round(element.getBoundingClientRect().width) - expectedWidth) <= 1;
     }, { mode, expectedWidth }, { timeout: 5_000 }).catch(() => {});
     const width = await previewDialog.locator(`[data-preview-mode="${mode}"]`).evaluate((element) => Math.round(element.getBoundingClientRect().width));
-    requireCondition(width === expectedWidth, `${device} preview width was ${width}px, expected ${expectedWidth}px.`);
+    /* Subpixel layout rounds to 391 for a 390px box, so allow 1px either way. */
+    requireCondition(Math.abs(width - expectedWidth) <= 1, `${device} preview width was ${width}px, expected ${expectedWidth}px.`);
   }
   await previewDialog.getByRole("button", { name: "Close dialog" }).click();
 
