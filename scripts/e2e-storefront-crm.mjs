@@ -123,7 +123,26 @@ try {
   storefront.on("pageerror", (error) => failures.push(`storefront page error: ${error.message}`));
   await storefront.goto(`${STOREFRONT_BASE}/quotation?utm_source=e2e&utm_campaign=${encodeURIComponent(marker)}`, { waitUntil: "domcontentloaded" });
   await storefront.getByRole("heading", { name: "Get an E-Quotation" }).waitFor();
-  requireCondition(await storefront.getByText("Your Quote Basket").count() === 0, "Expected the no-basket quotation path.");
+  /* This assertion has failed in CI while passing everywhere else, so make it
+     explain itself: report how many matches, the text around them, and what the
+     basket actually held. Without that the annotation is just "expected 0". */
+  {
+    const matches = storefront.getByText("Your Quote Basket");
+    const found = await matches.count();
+    if (found !== 0) {
+      const detail = [];
+      for (let i = 0; i < Math.min(found, 3); i++) {
+        const t = (await matches.nth(i).textContent().catch(() => "")) ?? "";
+        detail.push(`#${i}: ${String(t).replace(/\s+/g, " ").slice(0, 120)}`);
+      }
+      const stored = await storefront.evaluate(() => {
+        try { return localStorage.getItem("woodex-quote"); } catch { return "(localStorage blocked)"; }
+      }).catch(() => "(evaluate failed)");
+      const url = storefront.url();
+      requireCondition(false, `Expected the no-basket quotation path but found ${found} match(es). `
+        + `url=${url} localStorage[woodex-quote]=${String(stored).slice(0, 200)} :: ${detail.join(" | ")}`);
+    }
+  }
 
   await storefront.locator("#name").fill(leadName);
   await storefront.locator("#company").fill(`E2E Company ${marker}`);
