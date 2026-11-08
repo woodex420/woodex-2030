@@ -782,6 +782,18 @@ if (STATIC_ROOT && fs.existsSync(STATIC_ROOT)) {
   console.warn(`[woodex-api] WOODEX_SERVE_STATIC=${STATIC_ROOT} does not exist — API only.`);
 }
 
+/* Vercel routes the catch-all function to /api/<function>/<path>, and a rewrite whose
+   destination repeats its own prefix yields /api/api/... . That path matches no route,
+   so it fell through to the session middleware, which answered 401 for every POST —
+   surfacing to the browser as a generic 405 and looking exactly like a wrong password.
+   Collapse a duplicated prefix instead of failing, so a routing mistake degrades to a
+   working request rather than a misleading auth error. */
+app.use((req, _res, next) => {
+  if (req.url === "/api/api") req.url = "/api";
+  else if (req.url.startsWith("/api/api/")) req.url = req.url.slice(4);
+  next();
+});
+
 app.use(async (req, res, next) => { try {
   /* Public paths stay accessible without a session, but a *valid* token must still be
      resolved: staff acting through a public route (dashboard quote builder, embed)
