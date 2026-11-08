@@ -37,8 +37,8 @@ be standardised until it is resolved.
 | API route handlers | **103** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
 | Storefront routes | **25** | `<Route` in `apps/storefront/src/App.tsx` |
 | Dashboard routes | **29** | `<Route` in `apps/dashboard/src/App.tsx` |
-| PostgreSQL tables | **30** | `scripts/schema.postgres.sql` |
-| SQLite tables | **31** | `apps/api/server.mjs` |
+| PostgreSQL tables | **29** | `scripts/schema.postgres.sql` (distinct `CREATE TABLE` names) |
+| SQLite tables | **29** | `apps/api/server.mjs` (distinct names; two are created twice) |
 | Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json` |
 | Prerendered storefront routes | **76** | `npm run vercel:build` |
 | QA checks | **107** (sqlite) and **107** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |
@@ -104,8 +104,9 @@ Listed to stop anyone assuming otherwise. None of this exists today:
 | P0 | No tenant isolation | Cross-company data leakage if a second tenant is onboarded |
 | P0 | No tested backup/restore drill | Recovery is unproven |
 | P1 | In-process rate limiting | Limits are not shared across serverless instances |
-| P1 | PostgreSQL schema lacks most FK/CHECK constraints | Integrity rests on application validation |
-| P1 | No ordered migration ledger | Schema drift is hard to detect or roll back |
+| ~~P1~~ | ~~PostgreSQL schema lacks FK/CHECK constraints~~ **FIXED** | 26 FKs + 21 CHECKs added; `npm run test:integrity` proves each one rejects bad data |
+| ~~P1~~ | ~~No ordered migration ledger~~ **FIXED** | `schema_migrations` + `scripts/migrate.mjs`; checksum drift is a hard error |
+| P1 | `tasks.priority`, `returns.state`, `invoices.status` are open vocabularies | No constraint possible until the API normalises input — see 03 §2 |
 | P2 | Tailwind 3 / 4 split | Two styling systems; design tokens cannot be shared |
 | P2 | Vite rather than Next.js | No SSR; SEO relies on prerendering (76 routes) |
 | P2 | SSE unavailable on Vercel | Polling fallback only in production |

@@ -71,6 +71,13 @@ function BlockPreview({ b, theme }: { b: Block; theme?: Theme | null }) {
       case "product-grid": return (
         <div className={wrap} style={{ background: bg }}><p className="text-caption font-bold" style={{ color: ink }}>{val(b, "heading") || "Products"}</p>
           <p className="mt-1 rounded bg-surface-secondary px-2 py-2 text-[10px] text-muted">▦ live catalog slice — match “{val(b, "match") || val(b, "ids") || "(all)"}” · up to {val(b, "limit") || "4"} cards, live prices</p></div>);
+      case "text-section": return (
+        <div className={wrap} style={{ background: bg }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: acc ?? "var(--color-primary-600, #16a34a)" }}>{val(b, "kicker")}</p>
+          <p className="mt-0.5 text-caption font-bold" style={{ color: ink }}>{val(b, "heading") || "Text + points"}</p>
+          {val(b, "body") && <p className="mt-0.5 line-clamp-2 text-[10px] text-muted">{val(b, "body")}</p>}
+          {lines(b, "bullets").length > 0 && <p className="mt-1 text-[10px] text-muted">• {lines(b, "bullets").length} point{lines(b, "bullets").length === 1 ? "" : "s"}</p>}
+        </div>);
       case "testimonials": case "faq": case "gallery":
         return <div className={wrap} style={{ background: bg }}><p className="text-caption font-bold" style={{ color: ink }}>{val(b, "heading") || b.type}</p>
           <p className="mt-1 text-[10px] text-muted">{lines(b, "items").length || lines(b, "images").length || 0} {b.type === "gallery" ? "images" : "entries"}</p></div>;
@@ -83,6 +90,18 @@ function BlockPreview({ b, theme }: { b: Block; theme?: Theme | null }) {
           <span className="rounded bg-white px-2 py-0.5 text-[9px] font-bold" style={{ color: acc ?? "#166534" }}>{val(b, "primary_label") || "Button"}</span></div>);
       case "global-section": return b.props.section ? <Resolved b={b} /> : (
         <div className={cn(wrap, "border-amber-400 bg-amber-50 text-caption font-semibold text-amber-800")}>⚠ Global section “{val(b, "section_id")}” has no source — re-pick one</div>);
+      /* Live-commerce blocks have no static preview by design: they render data
+         from the catalog, which this renderer deliberately does not fetch (see
+         the note above BlockPreview). Saying so is more honest than showing a
+         generic heading box that looks like a real render and is not one. */
+      case "product-feature":
+      case "materials":
+        return (
+          <div className={cn(wrap, "border-sky-300 bg-sky-50")} style={{ background: undefined }}>
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-sky-800"><Globe size={11} /> live catalog · {b.type}</p>
+            <p className="mt-0.5 truncate text-caption font-bold" style={{ color: ink }}>{val(b, "heading") || b.type}</p>
+            <p className="mt-0.5 text-[10px] text-muted">renders live {b.type === "materials" ? "materials" : "product"} data — use Preview to see the real output</p>
+          </div>);
       default: return (
         <div className={wrap} style={{ background: bg }}><p className="text-caption font-bold" style={{ color: ink }}>{val(b, "heading") || val(b, "kicker") || b.type}</p>
           {(val(b, "sub") || val(b, "body")) && <p className="mt-0.5 line-clamp-2 text-[10px] text-muted">{val(b, "sub") || val(b, "body")}</p>}</div>);

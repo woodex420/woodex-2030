@@ -75,6 +75,29 @@ console.log("[migrate] source: data/woodex.db · target:", tgt.name);
 /* ---- schema ---- */
 await tgt.exec(fs.readFileSync(path.join(ROOT, "scripts/schema.postgres.sql"), "utf8"));
 
+/* ---- migrations ----
+   The base schema file describes the original shape; integrity constraints live
+   in scripts/migrations/ and are applied on top. Without this step a rehearsal,
+   a cutover or a fresh environment would be built *without* the foreign keys and
+   check constraints, so anything that passed here would prove nothing about the
+   database the application actually runs against.
+   Keeping this adapter in step with scripts/migrate.mjs is checked by
+   scripts/check-migration-coverage.mjs. */
+const migrationsDir = path.join(ROOT, "scripts/migrations");
+if (fs.existsSync(migrationsDir)) {
+  const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
+  await tgt.exec(`CREATE TABLE IF NOT EXISTS schema_migrations(
+    version INTEGER PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL,
+    applied_at TEXT NOT NULL, duration_ms INTEGER NOT NULL);`);
+  for (const f of files) {
+    const sql = fs.readFileSync(path.join(migrationsDir, f), "utf8");
+    await tgt.exec(sql);
+    await tgt.q("INSERT INTO schema_migrations(version,name,checksum,applied_at,duration_ms) VALUES($1,$2,$3,$4,$5)",
+      [Number(f.slice(0, 3)), f, crypto.createHash("sha256").update(sql).digest("hex"), new Date().toISOString(), 0]);
+  }
+  console.log(`[migrate] applied ${files.length} integrity migration(s)`);
+}
+
 /* ---- copy ---- */
 let failed = 0;
 const report = [];

@@ -41,7 +41,10 @@
     "check:deploy": "node scripts/check-deploy-config.mjs",
     "test:router": "node scripts/test-router-paths.mjs",
     "check:migration": "node scripts/check-migration-coverage.mjs",
-    "docs:verify": "node scripts/verify-docs.mjs"
+    "docs:verify": "node scripts/verify-docs.mjs",
+    "test:integrity": "node scripts/test-integrity.mjs",
+    "test:blocks": "node scripts/test-block-coverage.mjs",
+    "db:migrate:status": "node scripts/migrate.mjs --status"
   },
   "engines": {
     "node": ">=22.5"

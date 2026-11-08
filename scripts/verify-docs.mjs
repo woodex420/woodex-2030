@@ -28,10 +28,25 @@ const dashApp = read("apps/dashboard/src/App.tsx");
 const shopApp = read("apps/storefront/src/App.tsx");
 const seed = JSON.parse(read("apps/api/seed-data.json"));
 
+/* Strip SQL comments before counting. Without this, the sentence
+   "-- … must come after every CREATE TABLE above" matched the CREATE TABLE
+   pattern and yielded a fictional table called "above", inflating the count
+   by one. A guard that a comment can fool is worse than no guard: it reports
+   agreement with confidence it has not earned. */
+const stripSqlComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\n]*/g, "");
+
+/* Count DISTINCT table names. apps/api/server.mjs creates quote_versions and
+   site_visits twice (base schema, then an idempotent upgrade block), so a raw
+   match count overstated the SQLite side by two. */
+const tableNames = (src, re) => new Set([...stripSqlComments(src).matchAll(re)].map((m) => m[m.length - 1].toLowerCase()));
+
+const pgTableSet = tableNames(pgSrc, /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)/gi);
+const sqliteTableSet = tableNames(serverSrc, /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([a-z_][a-z0-9_]*)/gi);
+
 const facts = {
   apiRoutes: count(/^app\.(get|post|patch|put|delete)\(/gm, serverSrc),
-  pgTables: count(/CREATE TABLE\s+(IF NOT EXISTS\s+)?[a-z_]+/gi, pgSrc),
-  sqliteTables: count(/CREATE TABLE IF NOT EXISTS\s+[a-z_]+/gi, serverSrc),
+  pgTables: pgTableSet.size,
+  sqliteTables: sqliteTableSet.size,
   dashboardRoutes: count(/<Route[\s>]/g, dashApp),
   storefrontRoutes: count(/<Route[\s>]/g, shopApp),
   products: seed.products.length,
@@ -85,6 +100,13 @@ const stale = [
 for (const [re, why] of stale) {
   if (re.test(readme)) problems.push(`${README}: ${why} (stale)`);
 }
+
+/* The two schemas are maintained by hand, so they drift. They must describe the
+   same tables: scripts/pg-migrate.mjs copies between them by name, and a table
+   present in one only is either data that silently will not migrate, or a
+   PostgreSQL table the API will never read. */
+for (const t of pgTableSet) if (!sqliteTableSet.has(t)) problems.push(`scripts/schema.postgres.sql defines "${t}", which apps/api/server.mjs never creates`);
+for (const t of sqliteTableSet) if (!pgTableSet.has(t)) problems.push(`apps/api/server.mjs creates "${t}", which scripts/schema.postgres.sql does not define`);
 
 const PLAN = "docs/product/MASTER-PLAN.md";
 if (/main.? contains exactly one file/i.test(read(PLAN))) {
