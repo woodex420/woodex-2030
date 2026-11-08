@@ -40,6 +40,15 @@ run(["run", "test:blocks"]);
    supposed to reject — an unenforced constraint looks identical to a correct
    one until something tries to break it. */
 run(["run", "test:integrity"]);
+/* The paths a signed-out visitor and a crawler must reach, tested at the path
+   production actually delivers them on. /sitemap.xml passed every local check
+   for weeks while returning 401 in production, because production rewrites it
+   to /api/sitemap and nothing exercised that spelling. */
+run(["run", "test:public"]);
+/* Stock must reconcile against its ledger, and selling must actually consume
+   it. Before Phase B, checkout checked availability and never decremented, so a
+   99-unit product could be sold without limit. */
+run(["run", "test:stock"]);
 
 const output = path.join(ROOT, "dist");
 fs.rmSync(output, { recursive: true, force: true });

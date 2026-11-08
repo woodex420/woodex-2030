@@ -40,7 +40,16 @@ const stripSqlComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/
    match count overstated the SQLite side by two. */
 const tableNames = (src, re) => new Set([...stripSqlComments(src).matchAll(re)].map((m) => m[m.length - 1].toLowerCase()));
 
-const pgTableSet = tableNames(pgSrc, /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)/gi);
+/* The PostgreSQL schema is the base file PLUS every numbered migration. New
+   tables are added by migration, never by editing the base schema, so comparing
+   only the base file against the API reports every new table as a phantom. */
+const migrationSources = (() => {
+  const dir = path.join(ROOT, "scripts", "migrations");
+  if (!fs.existsSync(dir)) return "";
+  return fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()
+    .map((f) => fs.readFileSync(path.join(dir, f), "utf8")).join("\n");
+})();
+const pgTableSet = tableNames(pgSrc + "\n" + migrationSources, /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)/gi);
 const sqliteTableSet = tableNames(serverSrc, /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([a-z_][a-z0-9_]*)/gi);
 
 const facts = {

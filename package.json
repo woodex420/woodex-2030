@@ -44,6 +44,8 @@
     "docs:verify": "node scripts/verify-docs.mjs",
     "test:integrity": "node scripts/test-integrity.mjs",
     "test:blocks": "node scripts/test-block-coverage.mjs",
+    "test:public": "node scripts/test-public-surface.mjs",
+    "test:stock": "node scripts/test-stock-ledger.mjs",
     "db:migrate:status": "node scripts/migrate.mjs --status"
   },
   "engines": {

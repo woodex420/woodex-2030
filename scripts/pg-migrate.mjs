@@ -36,7 +36,7 @@ if (!dsn && !fs) process.exit(2);
 const TABLES = ["products","materials","services","leads","quotes","quote_versions","quote_templates","orders","invoices","payments","returns",
   "clients","client_links","tasks","site_visits","pages","page_blocks","page_versions","saved_sections","track_events",
   "projects","project_milestones","boq_lines","project_files",
-  "conversations","messages","users","sessions","meta"];
+  "conversations","messages","users","sessions","meta","stock_movements","stock_reservations"];
 const PK = { products:"id", materials:"id", services:"id", sessions:"token", meta:"key" }; // TEXT-PK tables (also pages.slug unique — id ordered fine)
 
 /* ---- backends ---- */
