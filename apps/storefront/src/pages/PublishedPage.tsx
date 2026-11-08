@@ -275,7 +275,13 @@ export default function PublishedPage() {
         let can = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
         if (!can) { can = document.createElement("link"); can.rel = "canonical"; document.head.appendChild(can); }
         can.href = url;
-      } catch { setErr("Tracking service unreachable — try again"); }
+      } catch (e) {
+        // This block only runs when the fetch or a DOM/meta write failed. Say which.
+        // (Previously every failure was reported as "tracking service unreachable",
+        // which sent debugging after the analytics pipeline instead of the network.)
+        console.error("[published-page] load failed for", slug, e);
+        setErr("Could not load this page — check your connection and try again.");
+      }
     })();
   }, [slug, draft, sig, exp]);
 
