@@ -93,9 +93,23 @@ try {
   const metaBlock = headerBlocks.nth(2);
   /* Drag by the grab handle: a press on the block's centre lands on an <input>,
      where Chromium starts a text selection instead of an HTML5 drag. */
+  await page.evaluate(() => {
+    const log = [];
+    globalThis.__dragLog = log;
+    for (const type of ["dragstart", "dragover", "drop", "dragend"]) {
+      document.addEventListener(type, (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        log.push(`${type}:${target?.getAttribute("data-block-drag-handle") != null ? "handle" : target?.getAttribute("data-block-row") != null ? "row" : target?.tagName ?? "?"}`);
+      }, true);
+    }
+  });
   await titleBlock.locator("[data-block-drag-handle]").dragTo(metaBlock);
+  const dragLog = await page.evaluate(() => globalThis.__dragLog);
+  const handleCount = await titleBlock.locator("[data-block-drag-handle]").count();
+  const box = await titleBlock.locator("[data-block-drag-handle]").boundingBox().catch(() => null);
   const headerOrder = await headerSection.locator('[data-block-row] input:not([type="checkbox"])').evaluateAll((inputs) => inputs.map((input) => input.value));
-  requireCondition(headerOrder[1] === "Date and reference" && headerOrder[2] === "Quotation", `Drag reorder did not update header order: ${headerOrder.join(" | ")}`);
+  requireCondition(headerOrder[1] === "Date and reference" && headerOrder[2] === "Quotation",
+    `Drag reorder did not update header order: ${headerOrder.join(" | ")} :: events=[${dragLog.join(",")}] handles=${handleCount} box=${JSON.stringify(box)}`);
 
   const footerSection = designer.locator("section").filter({ hasText: "Footer blocks" }).first();
   const thankYouBlock = footerSection.locator("[data-block-row]").nth(3);
