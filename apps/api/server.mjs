@@ -1018,9 +1018,13 @@ app.get("/api/quotes/:id", wrap(async (req, res) => {
    Staff building a quote in the dashboard keep full authority over custom pricing. */
 async function applyCatalogPricingToPublicIntake(quote) {
   const priced = [];
+  const unpriced = [];
   for (const [index, item] of quote.items.entries()) {
     const productId = String(item.productId ?? item.id ?? "").trim();
-    if (!productId) { priced.push({ ...item, price: 0, lineTotal: 0 }); continue; }
+    /* A bespoke line (no catalog id) is a legitimate request for a quote, but it
+       has no price yet. Anonymous visitors must never supply the price, so flag
+       the quote for sales instead of silently storing a PKR 0 figure. */
+    if (!productId) { unpriced.push(item.name || `item ${index + 1}`); priced.push({ ...item, price: 0, lineTotal: 0 }); continue; }
     if (!PRODUCT_ID_RE.test(productId)) throw quoteInputError(`item ${index + 1} is not an available catalog product`);
     const product = await db.prepare("SELECT id,json,price,in_stock,stock_qty FROM products WHERE id=?").get(productId);
     if (!product) throw quoteInputError(`item ${index + 1} is not an available catalog product`);
@@ -1034,6 +1038,8 @@ async function applyCatalogPricingToPublicIntake(quote) {
   const details = { ...quote.details, discountPercent: 0, taxPercent: 0, shipping: 0 };
   const total = subtotal;
   details.calculation = { currency: details.currency ?? "PKR", subtotal, discount: 0, tax: 0, shipping: 0, total };
+  if (unpriced.length) details.pricingReview = { required: true, unpricedLines: unpriced };
+  else delete details.pricingReview;
   return { ...quote, items: priced, total, details };
 }
 

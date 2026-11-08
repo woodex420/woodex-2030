@@ -157,7 +157,10 @@ const Quotation = () => {
           phone: clientInfo.whatsapp, siteAddress: clientInfo.location, source: "storefront", leadSource: "E-Quotation Builder",
           captureLead: true, interest, note: interest, preferredChannel: "whatsapp", contactConsent: true,
           ...getLeadAttribution(),
-          items: items.map((item) => ({ name: item.name, price: item.price, qty: item.quantity ?? 1, material: item.color })),
+          /* `productId` is mandatory: the server re-prices every anonymous line from
+             the catalog and zeroes any item it cannot identify. Omitting it (as this
+             path used to) saved a quotation with a PKR 0 total. */
+          items: items.map((item) => ({ productId: item.id, name: item.name, qty: item.quantity ?? 1, material: item.color })),
         });
         const leadId = Number(result?.leadId);
         if (!result || !Number.isSafeInteger(leadId) || leadId < 1) throw new Error("The quotation request could not be saved.");

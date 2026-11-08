@@ -134,6 +134,8 @@ export type ApiQuoteDetails = {
   shipping?: number;
   terms?: string;
   calculation?: { currency: string; subtotal: number; discount: number; tax: number; shipping: number; total: number };
+  /** Set by the public intake when a bespoke line arrived without a catalog price. */
+  pricingReview?: { required: boolean; unpricedLines: string[] };
 };
 export type ApiQuoteVersion = {
   id: number;

@@ -41,7 +41,22 @@ const quoteCols: Column<ApiQuote>[] = [
   },
   { key: "customer", header: "Customer", cell: (r) => <span className="text-small text-slate-700">{r.customer}</span> },
   { key: "created", header: "Created", cell: (r) => <span className="text-caption text-muted">{timeAgo(r.createdAt)}</span> },
-  { key: "total", header: "Total", align: "right", cell: (r) => <span className="text-small font-semibold text-ink">{fmtPKR(r.total)}</span> },
+  {
+    key: "total",
+    header: "Total",
+    align: "right",
+    cell: (r) => (
+      <span className="flex flex-col items-end gap-1">
+        <span className="text-small font-semibold text-ink">{fmtPKR(r.total)}</span>
+        {/* A bespoke request arrives unpriced on purpose — sales must quote it by hand. */}
+        {r.details?.pricingReview?.required && (
+          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning-strong">
+            Needs pricing
+          </span>
+        )}
+      </span>
+    ),
+  },
   { key: "status", header: "Stage", cell: (r) => <StatusBadge status={r.status} /> },
 ];
 
