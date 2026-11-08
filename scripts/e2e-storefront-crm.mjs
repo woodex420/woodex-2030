@@ -272,7 +272,16 @@ try {
   requireCondition(Number.isSafeInteger(basketClientId) && basketClientId > 0, "Basket request did not return a linked client id.");
   cleanupTargets.push({ leadId: basketLeadId, clientId: basketClientId, clientName: basketName, quoteId: basketQuoteId });
   requireCondition(quote.status === "Draft" && quote.source === "storefront", "Basket request was not persisted as a storefront draft quote.");
-  requireCondition(quote.items?.length === 1 && quote.items[0].name === product.name && Math.abs(Number(quote.total) - product.price) < 0.01, "Basket line item or server total did not match the selected catalog item.");
+  /* Three separate things, three separate messages — the combined assertion this
+     replaces could not tell you which one broke, and the first CI run that reached
+     it named none of them.
+     Note the wire name: quote lines carry `qty` (the storefront sends `qty`, the
+     server stores `qty`), not `quantity`. */
+  requireCondition(quote.items?.length === 1, `Basket quote should carry 1 line item, got ${quote.items?.length}.`);
+  requireCondition(quote.items[0].name === product.name, `Basket line name "${quote.items[0].name}" != catalog "${product.name}".`);
+  const lineQty = Number(quote.items[0].qty ?? quote.items[0].quantity);
+  requireCondition(lineQty === 1, `Basket line qty should be 1, got ${lineQty}.`);
+  requireCondition(Math.abs(Number(quote.total) - product.price) < 0.01, `Basket total ${quote.total} != catalog price ${product.price}.`);
   requireCondition(basketLeadId > 0 && builderHandoffResponse.status() === 201, "Basket quote was not linked to a lead or its handoff was not logged.");
   const builderHandoff = await builderHandoffResponse.json();
   requireCondition(builderHandoff.leadId === basketLeadId && builderHandoff.delivery === "manual_handoff_not_sent", "Basket handoff was not logged as manual/not-sent.");
