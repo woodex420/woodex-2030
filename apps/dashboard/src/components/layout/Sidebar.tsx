@@ -39,7 +39,7 @@ const groups: NavGroup[] = [
       { label: "Product Catalog", to: "/catalog", icon: Package },
       { label: "Orders", to: "/orders", icon: ShoppingBag },
       { label: "Operations", to: "/operations", icon: Wrench },
-      { label: "Projects (Prototype)", to: "/projects", icon: FolderKanban },
+      { label: "Projects", to: "/projects", icon: FolderKanban },
     ],
   },
   {

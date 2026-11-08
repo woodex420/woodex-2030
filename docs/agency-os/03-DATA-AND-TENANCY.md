@@ -4,13 +4,13 @@
 **Tenancy is not implemented.** Do not onboard a second organisation until every
 requirement in §5 is green.
 
-**Baseline:** `main` @ `15e6242` — 30 PostgreSQL tables, 31 SQLite tables.
+**Baseline:** `main` @ `43aba70` — 29 PostgreSQL tables, 29 SQLite tables (the same set).
 
 ---
 
 ## 1. Current data model
 
-29–30 tables, grouped by bounded context. Both schemas are kept in step by hand;
+29 tables, grouped by bounded context. Both schemas are kept in step by hand;
 `check:migration` fails if they diverge in migrator coverage.
 
 | Context | Tables |
@@ -44,15 +44,35 @@ add real columns for the fields that reporting actually filters on.
 
 ## 2. Integrity: what is and is not enforced
 
-**Currently weak.** The review was right:
+**Now enforced** (was: "currently weak" — corrected after the Phase A work landed):
 
-- Most tables have a primary key and little else.
-- Foreign keys are largely absent (SQLite did not enforce them; PostgreSQL would).
-- No `CHECK` constraints on money, quantities or status values.
-- No migration ledger — schema changes are applied by running a full DDL file.
+- Every one of the 29 tables has a primary key. `client_links` was the last one
+  without a key; it is now keyed on `(entity, entity_id)`, which also states the
+  invariant that a record belongs to exactly one client.
+- **26 foreign keys**, each with a deliberate `ON DELETE`: `CASCADE` where the
+  application already deletes children by hand, `SET NULL` for history that
+  should outlive its parent, `RESTRICT` where no delete path exists and one
+  would need a decision rather than a default.
+- **21 CHECK constraints** on money, quantities, percentages and the status
+  vocabularies the API treats as closed sets.
+- **An ordered migration ledger** (`schema_migrations`) with a SHA-256 per file.
+  Editing an applied migration is a hard error, not a warning.
 
-**Consequence:** a bug in application code can write an order pointing at a
-non-existent client, or a negative quantity. Nothing at the storage layer stops it.
+Everything above is applied by `scripts/migrations/*.sql` through
+`scripts/migrate.mjs`, and rehearsed on a throwaway database by
+`npm run test:integrity` — which asserts each constraint *rejects* the data it
+is meant to reject, because an unenforced constraint looks identical to a
+correct one until something tries to break it.
+
+**Still not enforced, deliberately:** `returns.state` and `invoices.status` are
+open vocabularies in the code (the seed writes values the API's own enum does
+not list). `tasks.priority` is free text — the dashboard sends `high`, QA sends
+`High`, seeds use both. Constraining these before the API normalises input would
+turn working requests into 500s. That is a code change first, migration second.
+
+**Consequence of the gap that remains:** a bug can still write an order in a
+state the UI cannot render, or a task priority nothing matches. Nothing at the
+storage layer stops that yet.
 
 ### 2.1 Contract for new and changed tables
 

@@ -32,6 +32,14 @@ run(["run", "check:migration"]);
 /* Documentation that disagrees with the code gets acted on, and misleads. The
    previous drift claimed 87 routes, 96 checks and a single-file main. */
 run(["run", "docs:verify"]);
+/* The editor offers block types that three files must agree on. A registry
+   entry with no storefront case publishes a silently empty section. */
+run(["run", "test:blocks"]);
+/* Constraints and the migration ledger, rehearsed on a throwaway Postgres.
+   Proves the constraints exist AND that each one rejects the data it is
+   supposed to reject — an unenforced constraint looks identical to a correct
+   one until something tries to break it. */
+run(["run", "test:integrity"]);
 
 const output = path.join(ROOT, "dist");
 fs.rmSync(output, { recursive: true, force: true });
