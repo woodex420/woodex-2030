@@ -88,32 +88,35 @@ try {
   await designer.getByLabel("Logo mark").fill("WX");
 
   const headerSection = designer.locator("section").filter({ hasText: "Header blocks" }).first();
-  const headerBlocks = headerSection.locator("[data-block-row]");
-  const titleBlock = headerBlocks.nth(1);
-  const metaBlock = headerBlocks.nth(2);
-  /* Drag by the grab handle: a press on the block's centre lands on an <input>,
-     where Chromium starts a text selection instead of an HTML5 drag. */
-  await page.evaluate(() => {
-    const log = [];
-    globalThis.__dragLog = log;
-    document.addEventListener("drop", () => {
-      queueMicrotask(() => log.push("afterDrop:" + [...document.querySelectorAll('[data-block-row] input:not([type="checkbox"])')].map((i) => i.value).join("/")));
-    }, true);
-    for (const type of ["dragstart", "dragover", "drop", "dragend"]) {
-      document.addEventListener(type, (event) => {
-        const target = event.target instanceof Element ? event.target : null;
-        log.push(`${type}:${target?.getAttribute("data-block-drag-handle") != null ? "handle" : target?.getAttribute("data-block-row") != null ? "row" : target?.tagName ?? "?"}`);
-      }, true);
-    }
-  });
-  await titleBlock.locator("[data-block-drag-handle]").dragTo(metaBlock);
-  await page.waitForTimeout(200);
-  const dragLog = await page.evaluate(() => globalThis.__dragLog);
-  const handleCount = await titleBlock.locator("[data-block-drag-handle]").count();
-  const box = await titleBlock.locator("[data-block-drag-handle]").boundingBox().catch(() => null);
+  /* Drive the block reorder through the component's real drag handlers.
+     Playwright's dragTo relies on native HTML5 drag synthesis, which is not
+     faithful in headless Chromium (the press is taken as a text selection), so
+     we dispatch genuine DragEvents with a real DataTransfer instead. */
+  const dispatchDrag = (sourceIndex, targetIndex) => page.evaluate(({ sourceIndex, targetIndex }) => {
+    const swap = () => {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", "block");
+      return dt;
+    };
+    const fire = (el, type, dataTransfer = swap()) =>
+      el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer }));
+    const rows = [...document.querySelectorAll("[data-block-row]")].filter((row) => row.closest("section")?.textContent.includes("Header blocks"));
+    const sourceRow = rows[sourceIndex];
+    const targetRow = rows[targetIndex];
+    const source = sourceRow.querySelector("[data-block-drag-handle]") ?? sourceRow;
+    const target = targetRow.querySelector('input:not([type="checkbox"])') ?? targetRow;
+    const dt = swap();
+    fire(source, "dragstart", dt);
+    fire(target, "dragover", dt);
+    fire(target, "drop", dt);
+    fire(source, "dragend", dt);
+  }, { sourceIndex, targetIndex });
+
+  await dispatchDrag(1, 2);
+  await page.waitForTimeout(100);
   const headerOrder = await headerSection.locator('[data-block-row] input:not([type="checkbox"])').evaluateAll((inputs) => inputs.map((input) => input.value));
   requireCondition(headerOrder[1] === "Date and reference" && headerOrder[2] === "Quotation",
-    `Drag reorder did not update header order: ${headerOrder.join(" | ")} :: events=[${dragLog.join(",")}] handles=${handleCount} box=${JSON.stringify(box)}`);
+    `Drag reorder did not update header order: ${headerOrder.join(" | ")}`);
 
   const footerSection = designer.locator("section").filter({ hasText: "Footer blocks" }).first();
   const thankYouBlock = footerSection.locator("[data-block-row]").nth(3);
