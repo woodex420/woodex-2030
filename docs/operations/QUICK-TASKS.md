@@ -1,8 +1,13 @@
 # WOODEX 2030 — QUICK TASKS
 
-> Companion to `docs/audits/WOODEX-2030-STACK-AUDIT-2026-11-08.md` (see its §11 for the shipped detail).
-> **Q1, Q2, Q5 and the commit-race fix are already done and tested on this branch.** What remains is either 🔑 owner-gated (Q3, Q4, Q19–Q23) or engineering work with no decision needed.
-> Every open item has a file and a proof of done.
+> **HISTORICAL as of 2026-11-08.** This list was the working backlog before
+> `docs/product/MASTER-PLAN.md` became the only plan. Items here have since been
+> shipped, and the ones that remain are tracked in MASTER-PLAN §8. It is kept for
+> the reasoning, not as a to-do list — **do not start work from this file.**
+>
+> Shipped since this was written: Q4 (deployment runbook →
+> `docs/DEPLOYMENT.md`), Q6 (indexes + schema parity, verified by a QA test),
+> `npm run db:migrate`, and the test count is now 107/107, not 96/96.
 
 ---
 
@@ -39,10 +44,10 @@ Vercel project `woodex-2030` (`prj_NZ35RoMsW…`) has **`env: []`**; `server.mjs
 ### ✅ Q-(new) · Respond-before-commit race — **DONE**
 `wrapTx()` answered inside the transaction, so a client's very next request could miss the row (`404` on payment, unreadable tracking digest). Reproduced deterministically on SQLite, fixed with `wrapTxJson()` across **9** mutating routes. Covered by the existing suite, which now passes 96/96 on both drivers.
 
-### Q6 · Postgres integrity pass — 1 d
+### ✅ Q6 · Postgres integrity pass — **SHIPPED 2026-11-08** (indexes + schema agreement test; `CHECK` constraints and `session` indexes still open — see MASTER-PLAN §8)
 Add to `scripts/schema.postgres.sql` + a new `migrations/0002_constraints.sql`:
 `FOREIGN KEY (client_id) REFERENCES clients(id)`, `CHECK (status IN (…))` for `orders/quotes/returns`, `DEFAULT now()` audit columns, `idx_leads_status_created`, `idx_orders_stage`, `idx_invoices_status`, `idx_sessions_expires_at`. Add a `schema_migrations` table and a `npm run db:migrate` that applies ordered files.
-**Done when:** `qa-full` + `qa:pg` still **96/96** with constraints enabled.
+**Done when:** `qa-full` + `qa:pg` still green with constraints enabled. *(Was 96/96; now 107/107.)*
 
 ### Q7 · One React / Vite / Tailwind — ✅ SHIPPED 2026-11-08
 Storefront declared React `^18.3.1` while the dashboard declared `^19.2.0`, so npm hoisted React 19

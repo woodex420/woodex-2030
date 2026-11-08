@@ -80,16 +80,21 @@ npm run dev:preview:storefront      # storefront :5174 → :3002
 ## Verify it
 
 ```bash
-npm run qa            # 96 checks: auth, RBAC, public surface, CRUD, CMS, cleanup
-npm run qa:pg         # the same battery against PostgreSQL semantics (PGlite)
-npm run typecheck     # dashboard TypeScript build
-npm run vercel:build  # combined storefront + dashboard + img output in dist/
-npm run secret-scan   # credential pattern scan over every tracked file
+npm run qa               # 107 checks: auth, RBAC, public surface, CRUD, CMS, perf, backups
+npm run qa:pg            # the same battery against PostgreSQL semantics (PGlite)
+npm run typecheck:all    # both apps
+npm run smoke:render     # both apps actually mount (catches duplicate-React white screens)
+npm run vercel:build     # storefront + dashboard + img in dist/, 76 routes prerendered
+npm run smoke:hostinger  # all-in-one deployment serves real HTML (needs a build first)
+npm run secret-scan      # credential pattern scan over every tracked file
 ```
 
-Current state: **96/96 on SQLite and 96/96 on PGlite.** What was fixed and what
-is still open is recorded in `docs/audits/WOODEX-2030-STACK-AUDIT-2026-11-08.md`
-and `docs/operations/QUICK-TASKS.md`.
+Current state: **107/107 on SQLite and 107/107 on PGlite.** The full
+definition-of-done and the traps that make each command non-optional are in
+[`AGENTS.md`](AGENTS.md) — read that before changing anything.
+
+What was fixed and what is still open is recorded in
+`docs/product/MASTER-PLAN.md` (the only plan) and §8 of it for the progress log.
 
 ---
 
@@ -116,13 +121,21 @@ copies the files to `dist/img`.
 
 ## Deploy
 
-Single Vercel project: storefront at `/`, dashboard at `/dashboard`, API at
-`/api/*`, PostgreSQL through `DATABASE_URL`. The serverless build fails closed
-without a database and never seeds demo content. Full steps, bootstrap-owner
-variables and release gates: `docs/operations/VERCEL-RUNBOOK-2026-11-06.md`.
+Two supported targets, both from the same commit:
 
-Canonical product plan: `docs/product/AGENCY-OS-MASTER-PLAN-V2.md`.
+- **Vercel** — one project: storefront at `/`, dashboard at `/dashboard`, API at
+  `/api/*`, PostgreSQL through `DATABASE_URL`. Fails closed without a database
+  and never seeds demo content. SSE is disabled serverless by design.
+- **Hostinger shared** — recommended shape is one Node process
+  (`npm run start:hostinger`) serving the prerendered build, the dashboard and
+  the API together, with SQLite or Postgres.
+
+Full steps, environment variables, post-deploy checks and backups:
+**[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**.
+
+Canonical product plan: `docs/product/MASTER-PLAN.md`.
 Canonical architecture: `docs/architecture/ARCHITECTURE.md`.
+Agent contract (read first): [`AGENTS.md`](AGENTS.md).
 
 ## Security
 

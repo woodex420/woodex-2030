@@ -1,5 +1,11 @@
 # WOODEX 2030 — FULL-STACK AUDIT & REIMAGINE REPORT
 
+> **Point-in-time snapshot.** Numbers below (96/96 tests, the file inventory and
+> the open-item list) describe the tree at the audited commit, not today. The
+> suite is now 107/107 on both SQLite and Postgres, and several findings here are
+> fixed — see `docs/product/MASTER-PLAN.md` §8 for what shipped. Read this for the
+> analysis; read MASTER-PLAN for the current state.
+
 **Audit date:** 2026-11-08
 **Audited tree:** `woodex420/woodex-2030` @ `arena/01a10a97-woodex-2030` (`6ad3f2f`, 2026-11-06) — 738 files
 **Baseline (this branch):** `main` @ `e7b7d15` contains **only `README.md`**
