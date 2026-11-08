@@ -123,10 +123,17 @@ export function QuoteTemplateDesigner({
      lands on an <input>, so the grab affordance is its own drag source. The row
      stays draggable for presses on its padding. */
   const startDrag = (event: DragEvent, region: Region, id: string) => {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", id);
+    /* Record the source before touching dataTransfer: not every drag source
+       provides one (notably synthesized drags), and a throw here would abort the
+       drag silently and leave the drop with nothing to move. */
     dragRef.current = { region, id };
     setDragging({ region, id });
+    try {
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", id);
+      }
+    } catch { /* the ref is the source of truth */ }
   };
   const endDrag = () => {
     dragRef.current = null;

@@ -106,17 +106,8 @@ try {
       }, true);
     }
   });
-  /* Drive the drag explicitly instead of relying on dragTo's synthesis so the
-     sequence is deterministic: hover the target (dragover) before releasing. */
-  const source = await titleBlock.locator("[data-block-drag-handle]").boundingBox();
-  const target = await metaBlock.boundingBox();
-  requireCondition(source && target, "drag blocks were not measurable");
-  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
-  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2 + 1, { steps: 2 });
-  await page.mouse.up();
-  await page.waitForTimeout(150);
+  await titleBlock.locator("[data-block-drag-handle]").dragTo(metaBlock);
+  await page.waitForTimeout(200);
   const dragLog = await page.evaluate(() => globalThis.__dragLog);
   const handleCount = await titleBlock.locator("[data-block-drag-handle]").count();
   const box = await titleBlock.locator("[data-block-drag-handle]").boundingBox().catch(() => null);
