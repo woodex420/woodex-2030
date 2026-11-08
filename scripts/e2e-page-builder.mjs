@@ -31,18 +31,29 @@ const requireCondition = (condition, message) => { if (!condition) throw new Err
    the journey needs to inspect is read the instant it arrives — before the app
    can leave the page. */
 function captureJson(page, predicate) {
-  const captured = { value: null, error: null, status: null };
+  /* The body is read the instant the response arrives (Playwright discards it on
+     navigation), and the parse promise is awaited — resolving the wait before the
+     JSON has settled would hand back null. */
+  let parse = null;
+  const captured = { status: null };
   const ready = page.waitForResponse((response) => {
     if (!predicate(response)) return false;
     captured.status = response.status();
-    response.json().then(
-      (json) => { captured.value = json; },
-      (error) => { captured.error = error; },
-    );
+    parse = response.json().catch((error) => {
+      captured.error = error;
+      return null;
+    });
     return true;
-  }).then(() => captured).catch(() => captured);
+  }).then(async () => {
+    captured.value = parse ? await parse : null;
+    return captured;
+  }).catch((error) => {
+    captured.error = captured.error ?? error;
+    return captured;
+  });
   return { ready, captured };
 }
+
 
 function cleanup() {
   const dbPath = process.env.E2E_SQLITE_DB ?? fileURLToPath(new URL("../data/woodex.db", import.meta.url));
@@ -135,9 +146,9 @@ try {
   };
   const saveCapture = captureJson(page, blocksPredicate);
   await page.getByRole("button", { name: "Save draft" }).click();
-  const { value: saved, status: saveStatus } = await saveCapture.ready;
+  const { value: saved, status: saveStatus, error: saveError } = await saveCapture.ready;
   requireCondition(saveStatus === 200, `Draft save returned HTTP ${saveStatus}.`);
-  requireCondition(saved, "the saved draft payload was not readable");
+  requireCondition(saved, `the saved draft payload was not readable (${saveError?.message ?? "empty body"})`);
   requireCondition(saved.blocks?.[0]?.type === "cta-band" && saved.blocks?.[0]?.props?.heading === ctaHeading, "Saved draft did not retain the reordered and edited CTA block.");
   requireCondition(saved.blocks?.[1]?.type === "hero" && saved.blocks?.[1]?.props?.heading === heroHeading, "Saved draft did not retain the second block in order.");
 
