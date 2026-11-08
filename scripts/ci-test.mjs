@@ -57,6 +57,32 @@ function runChecked(command, args, env, label, timeoutMs = 240_000) {
   });
 }
 
+/* GitHub annotations are readable through the API even when the raw job log is
+   not. Anything a journey reports on stderr is re-emitted as an annotation so a
+   failing CI run explains itself in `gh api …/annotations`. */
+const annotate = (message) => {
+  const one = String(message).replace(/\r?\n/g, " ⏎ ").slice(0, 900);
+  if (process.env.GITHUB_ACTIONS === "true") console.log(`::error title=CI journey::${one}`);
+};
+
+function runJourney(script, env, label, timeoutMs = 300_000) {
+  return new Promise((resolve, reject) => {
+    const child = start(process.execPath, ["--experimental-sqlite", script], env, label);
+    let tail = "";
+    child.stdout?.on("data", (c) => { tail = (tail + c).slice(-1500); });
+    child.stderr?.on("data", (c) => { tail = (tail + c).slice(-1500); });
+    const timer = setTimeout(() => {
+      stop(child).finally(() => { annotate(`${label} timed out`); reject(new Error(`${label} timed out`)); });
+    }, timeoutMs);
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) return resolve();
+      annotate(`${label} exited ${code}: ${tail.trim() || "(no output)"}`);
+      reject(new Error(`${label} exited ${code}`));
+    });
+  });
+}
+
 async function waitFor(url, child, label) {
   const deadline = Date.now() + 60_000;
   let lastError = "not responding yet";
@@ -161,7 +187,7 @@ try {
   ];
   for (const [label, script] of browserJourneys) {
     try {
-      await runChecked(process.execPath, ["--experimental-sqlite", script], browserEnv, label, 300_000);
+      await runJourney(script, browserEnv, label);
     } catch (error) {
       console.error(`[ci] ${label} failed — see the [${label}] lines above for the cause.`);
       console.error(`[ci] dashboard=${dashboardBase} storefront=${storefrontBase} api=${apiBase}`);
