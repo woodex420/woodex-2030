@@ -16,6 +16,13 @@ function run(args, env = process.env) {
 run(["-w", "@woodex/dashboard", "run", "build"], { ...process.env, VITE_BASE_PATH: "/dashboard/" });
 run(["-w", "@woodex/storefront", "run", "build"]);
 
+/* Fail the build, not production. Two defects shipped as a READY deployment and
+   left every /api request answering 405 while the database stayed empty:
+   the seed snapshot drifting from the storefront sources, and /api not being
+   rewritten to the function. Both are cheap to check here. */
+run(["run", "seed:data:check"]);
+run(["run", "check:deploy"]);
+
 const output = path.join(ROOT, "dist");
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });

@@ -9,6 +9,14 @@
       "destination": "/api/sitemap"
     },
     {
+      "source": "/api",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index"
+    },
+    {
       "source": "/admin",
       "destination": "/dashboard"
     },

@@ -35,7 +35,10 @@
     "db:verify-backup": "node scripts/backup.mjs --verify",
     "start:hostinger": "WOODEX_SERVE_STATIC=dist node --experimental-sqlite apps/api/server.mjs",
     "smoke:hostinger": "node scripts/smoke-hostinger.mjs",
-    "db:migrate": "node scripts/pg-migrate.mjs"
+    "db:migrate": "node scripts/pg-migrate.mjs",
+    "seed:data": "node scripts/build-seed-data.mjs",
+    "seed:data:check": "node scripts/build-seed-data.mjs --check",
+    "check:deploy": "node scripts/check-deploy-config.mjs"
   },
   "engines": {
     "node": ">=22.5"
