@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { img } from "@/assets/img";
+import { brand } from "@/config/brand";
 
 const showrooms = [
-  { city: "Lahore (HQ)", address: "123 Gulberg III, Main Boulevard, Lahore", phone: "+92 42 111 WOODEX", hours: "Mon–Sat: 9am–7pm" },
+  { city: "Lahore (HQ)", address: `${brand.address.street}, ${brand.address.city}`, phone: brand.phone, hours: brand.hours },
   { city: "Karachi", address: "456 Clifton Block 5, Karachi", phone: "+92 21 111 WOODEX", hours: "Mon–Sat: 9am–7pm" },
   { city: "Islamabad", address: "789 Blue Area, F-7, Islamabad", phone: "+92 51 111 WOODEX", hours: "Mon–Sat: 10am–6pm" },
 ];
@@ -95,10 +96,10 @@ const Contact = () => {
               <div className="space-y-4">
                 <h2 className="text-xl font-bold mb-6">Contact Information</h2>
                 {[
-                  { icon: Phone, title: "Call Us", lines: ["+92 300 1234567", "+92 42 111 WOODEX"] },
-                  { icon: Mail, title: "Email Us", lines: ["info@woodex.pk", "sales@woodex.pk"] },
-                  { icon: MapPin, title: "Head Office", lines: ["123 Gulberg III", "Lahore, Pakistan"] },
-                  { icon: Clock, title: "Business Hours", lines: ["Mon–Sat: 9am–7pm", "Sun: Closed"] },
+                  { icon: Phone, title: "Call Us", lines: [brand.phone, "sales@woodex.pk"] },
+                  { icon: Mail, title: "Email Us", lines: [brand.email] },
+                  { icon: MapPin, title: "Head Office", lines: [brand.address.street, `${brand.address.city}, Pakistan`] },
+                  { icon: Clock, title: "Business Hours", lines: [brand.hours, "Sun: Closed"] },
                 ].map((item) => (
                   <div key={item.title} className="flex gap-4 p-4 border border-border rounded-sm hover:border-accent transition-colors">
                     <div className="w-10 h-10 rounded-sm bg-hon-green-pale flex items-center justify-center flex-shrink-0">

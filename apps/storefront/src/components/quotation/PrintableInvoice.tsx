@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { brand } from "@/config/brand";
 import { QuoteItem } from "@/contexts/QuoteContext";
 import { formatPKR } from "@/data/products";
 import woodexLogo from "@/assets/woodex-logo.png";
@@ -44,7 +45,7 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
         {/* Company Info Bar */}
         <div className="invoice-info-bar">
           <span>📍 LG 89 Zainab Tower, Model Town, Link Road, Lahore</span>
-          <span>📞 0322 4000768</span>
+          <span>📞 {brand.phone}</span>
           <span>✉ info@woodex.pk</span>
           <span>🌐 www.woodex.pk</span>
         </div>
@@ -134,13 +135,13 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
 
         {/* Footer */}
         <div className="invoice-footer">
-          <div className="invoice-footer-thanks">THANK YOU FOR CHOOSING WOODEX!</div>
+          <div className="invoice-footer-thanks">THANK YOU FOR CHOOSING {brand.name.toUpperCase()}!</div>
           <div className="invoice-footer-contact">
             <span>🌐 www.woodex.pk</span>
             <span>•</span>
-            <span>📞 0322 4000768</span>
+            <span>📞 {brand.phone}</span>
             <span>•</span>
-            <span>💬 WhatsApp: 0322 4000768</span>
+            <span>💬 WhatsApp: {brand.phone}</span>
             <span>•</span>
             <span>✉ info@woodex.pk</span>
           </div>
@@ -148,7 +149,7 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
             This is an enquiry estimate, not a formal quotation. Final payment terms will be included in formal quotation; final pricing, validity, delivery and warranty terms will also be provided there.
           </div>
           <div className="invoice-footer-brand">
-            WOODEX — Premium Office & Home Furniture | Made in Pakistan
+            {brand.name} — Premium Office & Home Furniture | Made in Pakistan
           </div>
         </div>
       </div>

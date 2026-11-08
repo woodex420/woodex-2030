@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { brand } from "@/config/brand";
 import { Link } from "react-router-dom";
 import { MapPin, Phone, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,10 +10,10 @@ import { img } from "@/assets/img";
 const showrooms = [
   {
     city: "Lahore (HQ)",
-    address: "123 Gulberg III, Main Boulevard, Lahore",
-    phone: "+92 42 111 WOODEX",
-    whatsapp: "+923001234567",
-    hours: "Mon–Sat: 9am–7pm",
+    address: `${brand.address.street}, ${brand.address.city}`,
+    phone: brand.phone,
+    whatsapp: `+${brand.whatsapp}`,
+    hours: brand.hours,
     lat: 31.5204,
     lng: 74.3587,
     isHQ: true,

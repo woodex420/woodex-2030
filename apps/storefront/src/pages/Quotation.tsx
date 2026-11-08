@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useQuote } from "@/contexts/QuoteContext";
 import { formatPKR, products } from "@/data/products";
+import { brand } from "@/config/brand";
 import { useEffect } from "react";
 import PrintableInvoice, { ClientInfo } from "@/components/quotation/PrintableInvoice";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -120,7 +121,7 @@ const Quotation = () => {
 
   const buildManualWhatsAppHref = (ref: string, interest: string) => {
     const message = encodeURIComponent(`Hello Woodex, I submitted quote request${ref ? ` ${ref}` : ""}${interest ? ` about ${interest}` : ""}. Please follow up with me.`);
-    return `https://wa.me/923224000768?text=${message}`;
+    return `https://wa.me/${brand.whatsapp}?text=${message}`;
   };
 
   const openLoggedWhatsApp = async (handoff: { leadId: number; ref: string; interest: string }) => {
@@ -579,7 +580,7 @@ const Quotation = () => {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="client-whatsapp">WhatsApp Number *</Label>
-              <Input id="client-whatsapp" type="tel" placeholder="+92 322 4000768" value={clientInfo.whatsapp} onChange={(e) => setClientInfo(prev => ({ ...prev, whatsapp: e.target.value }))} />
+              <Input id="client-whatsapp" type="tel" placeholder={brand.phone} value={clientInfo.whatsapp} onChange={(e) => setClientInfo(prev => ({ ...prev, whatsapp: e.target.value }))} />
             </div>
             {pendingAction === "whatsapp" && (
               <label className="flex items-start gap-2.5 text-sm text-muted-foreground">

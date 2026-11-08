@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { brand } from "@/config/brand";
 import { Link, useLocation } from "react-router-dom";
 import { Search, FileText, Menu, X, ChevronDown, ShoppingBag, ShoppingCart, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -180,7 +181,7 @@ const Header = () => {
               {/* Logo */}
               <Link to="/" className="flex items-center gap-2 flex-shrink-0">
                 <div className="flex items-center gap-1">
-                  <span className="text-2xl font-black tracking-tight text-primary">WOODEX</span>
+                  <span className="text-2xl font-black tracking-tight text-primary">{brand.name}</span>
                   <span className="hidden sm:block text-xs text-muted-foreground font-normal ml-2 border-l pl-2 border-border leading-tight">
                     Make your<br />space work
                   </span>

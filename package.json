@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "qa": "node scripts/qa-full.mjs",
+    "qa-full": "node scripts/qa-full.mjs",
     "e2e": "node scripts/e2e-login.mjs",
     "e2e:storefront-crm": "node scripts/e2e-storefront-crm.mjs",
     "e2e:quotation-template": "node scripts/e2e-quotation-template.mjs",

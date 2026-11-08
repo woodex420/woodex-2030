@@ -31,7 +31,7 @@ This reframes the whole request. The blocker is not features, it is **integratio
 | Area | Evidence |
 |---|---|
 | API | 2,959 LOC, 37 GET + mutating routes, SQLite/Postgres/PGlite drivers |
-| Tests | `qa-full` **96/96** on SQLite *and* 96/96 on PGlite |
+| Tests | `npm run qa` **100/100** on SQLite *and* `npm run qa:pg` 100/100 on PGlite |
 | Build | `vercel:build` exit 0, `dist/` 12 MB |
 | Types | storefront `tsc -b` **0 errors**, dashboard **0 errors** |
 | Render | both apps mount (`smoke:render`), storefront 91 KB of DOM |
@@ -102,7 +102,7 @@ Cost: ~1 day. Benefit: the single biggest SEO gap closes without a migration.
 1. `brand.ts` single source (0.5 d)
 2. Prerender public routes (1 d)
 3. Single-source the catalogue (0.5 d)
-4. Delete junk, verify `smoke:render` + `qa-full` (0.5 d)
+4. Delete junk, verify `smoke:render` + `npm run qa` (0.5 d)
 
 ---
 
@@ -169,7 +169,7 @@ There is no agent contract in the repo today, which is why different sessions fo
   4. Never `pkill` in the same shell call as a launch.
   5. Never point the workspace at a hosted DB; servers run on SQLite/PGlite.
 - **Definition of done** (the command set that must be green):
-  `qa-full` 96/96 → `qa:pg` 96/96 → `typecheck:all` → `smoke:render` → `vercel:build` → `secret-scan`.
+  `npm run qa` 100/100 → `npm run qa:pg` 100/100 → `typecheck:all` → `smoke:render` → `vercel:build` → `secret-scan`.
 - **File-ownership map**: which files are safe to edit per area, which are load-bearing.
 - **One-plan rule**: `docs/product/MASTER-PLAN.md` is the only plan an agent reads; everything in `docs/archive/` is history.
 
@@ -280,7 +280,7 @@ render invented numbers.
 - `/api/events` accepts `?token=` because EventSource cannot set headers — scoped
   to that one route.
 
-**Verification:** `qa-full` **100/100** SQLite and **100/100** PGlite (4 new
+**Verification:** `npm run qa` **100/100** SQLite and **100/100** PGlite (4 new
 project groups), `typecheck:all` clean, `smoke:render` both apps, `vercel:build`
 exit 0, `secret-scan` clean. Rendered for real: `/projects` shows `PRJ-1001`,
 Rs 2,500,000 planned, Rs 948,000 BOQ total; `/analytics` shows PKR 1,201,000

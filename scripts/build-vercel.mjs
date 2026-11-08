@@ -26,4 +26,12 @@ fs.cpSync(path.join(ROOT, "apps/api/public/img"), path.join(output, "img"), { re
 for (const required of ["index.html", "dashboard/index.html", "robots.txt", "img"]) {
   if (!fs.existsSync(path.join(output, required))) throw new Error(`Vercel output is missing ${required}`);
 }
-console.log("[vercel-build] Storefront at /, Dashboard at /dashboard, shared API imagery at /img.");
+/* Prerender the public storefront routes so crawlers get real HTML.
+   Runs after the dist assembly (it needs the shell + the copied catalogue). */
+{
+  const pr = spawnSync(process.execPath, ["scripts/prerender.mjs"], { cwd: ROOT, env: process.env, stdio: "inherit" });
+  if (pr.error) throw pr.error;
+  if (pr.status !== 0) process.exit(pr.status ?? 1);
+}
+
+console.log("[vercel-build] Storefront at /, Dashboard at /dashboard, shared API imagery at /img. Public routes prerendered.");

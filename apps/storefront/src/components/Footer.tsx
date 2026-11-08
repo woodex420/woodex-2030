@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Phone, Mail, MapPin, Clock, Facebook, Twitter, Linkedin, Instagram, Youtube, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { brand } from "@/config/brand";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
@@ -25,25 +26,24 @@ const Footer = () => {
           {/* Col 1: Brand */}
           <div className="lg:col-span-1">
             <div className="mb-4">
-              <span className="text-2xl font-black tracking-tight">WOODEX</span>
-              <p className="text-xs text-primary-foreground/50 font-normal mt-0.5">Make your space work®</p>
+              <span className="text-2xl font-black tracking-tight">{brand.name}</span>
+              <p className="text-xs text-primary-foreground/50 font-normal mt-0.5">{brand.tagline}</p>
             </div>
             <p className="text-sm text-primary-foreground/70 leading-relaxed mb-6">
-              Pakistan's premium office furniture manufacturer delivering exceptional design-to-delivery
-              solutions for modern workspaces.
+              {brand.description}
             </p>
             <div className="space-y-2.5 text-sm text-primary-foreground/70">
               <div className="flex items-center gap-2.5">
                 <Phone className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <span>+92 300 1234567</span>
+                <a href={`tel:${brand.phone.replace(/\s/g, "")}`} className="hover:text-accent transition-colors">{brand.phone}</a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <span>info@woodex.pk</span>
+                <a href={`mailto:${brand.email}`} className="hover:text-accent transition-colors">{brand.email}</a>
               </div>
               <div className="flex items-center gap-2.5">
                 <MapPin className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <span>Lahore, Pakistan</span>
+                <span>{brand.address.city}, Pakistan</span>
               </div>
             </div>
             <div className="flex items-center gap-3 mt-6">
@@ -135,11 +135,11 @@ const Footer = () => {
             <div className="space-y-3 text-sm text-primary-foreground/70 mb-6">
               <div className="flex items-start gap-2.5">
                 <MapPin className="h-3.5 w-3.5 text-accent flex-shrink-0 mt-0.5" />
-                <span>123 Gulberg III, Main Boulevard,<br />Lahore, Pakistan</span>
+                <span>{brand.address.street},<br />{brand.address.city}, Pakistan</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <span>+92 42 111 WOODEX</span>
+                <a href={`tel:${brand.phone.replace(/\s/g, "")}`} className="hover:text-accent transition-colors">{brand.phone}</a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="h-3.5 w-3.5 text-accent flex-shrink-0" />

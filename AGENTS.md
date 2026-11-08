@@ -17,7 +17,7 @@ several are superseded.
 
 ---
 
-## 2. The five traps
+## 2. The six traps
 
 ### Trap 1 — Duplicate React (or Vite) gives a blank page with a green build
 
@@ -68,6 +68,32 @@ Putting a hosted URL in a local env silently mutates production data. The API
 refuses to boot on Vercel without `DATABASE_URL`; respect that split.
 
 ---
+
+### Trap 6 — Prerender can "succeed" while shipping an empty shell
+
+`scripts/prerender.mjs` renders the public routes in jsdom and writes
+`dist/<route>/index.html`. Three failure modes all report **76/76 routes
+written** while the HTML contains nothing:
+
+- **`React.lazy` never settles.** Every route is lazy-loaded, and inside a single
+  `w.eval` there is no module loader to resolve the dynamic import, so the page
+  stays on `Loading page…`. The bundle must rewrite `lazy(() => import("x"))`
+  into a static import — that is what the `prerender-eager-lazy` esbuild plugin
+  does. If the regex stops matching, every page silently becomes a 529-byte
+  fallback.
+- **Polling for the wrong thing.** The toast portal mounts immediately, so
+  `root.children.length > 0` is true before the route commits. Wait for
+  `children.length > 1` **and** the absence of `Loading page`.
+- **Replacing a root that is not there.** Matching the literal
+  `<div id="root"></div>` no-ops when the shell is a previous prerender. The
+  swap is anchored on `</body>` instead, and re-running strips old JSON-LD so
+  structured data does not double.
+
+Guard when you touch it: `PRERENDER_ONLY=/about node scripts/prerender.mjs`
+renders one route in under a second. Assert the root is **> 5 kB** and does not
+contain `Loading page` before believing a run. Always `process.exit(0)` at the
+end — leftover jsdom handles otherwise hang the build for minutes after the
+work is done.
 
 ## 3. Definition of done
 
