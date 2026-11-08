@@ -97,11 +97,14 @@ try {
     return url.pathname === "/api/pages" && response.request().method() === "POST";
   });
   await createDialog.getByRole("button", { name: "Create & edit" }).click();
-  const { value: created, status: createStatus, error: createError } = await createCapture.ready;
+  const { status: createStatus } = await createCapture.ready;
   requireCondition(createStatus === 201, `Page creation returned HTTP ${createStatus}.`);
-  requireCondition(created?.id != null, `the created page id was not readable from the POST /api/pages response (${createError?.message ?? "empty body"})`);
-  pageId = created.id;
-  await page.waitForURL(new RegExp(`/website/edit/${pageId}$`));
+  /* The editor immediately navigates to /website/edit/<id>, and that is the most
+     reliable place to read the new page id — the response body is already gone. */
+  await page.waitForURL(/\/website\/edit\/\d+$/);
+  const pageIdFromUrl = Number(new URL(page.url()).pathname.split("/").pop());
+  requireCondition(Number.isInteger(pageIdFromUrl) && pageIdFromUrl > 0, `editor URL did not carry a page id: ${page.url()}`);
+  pageId = pageIdFromUrl;
   await page.getByText("Empty page").waitFor();
 
   const addBlock = async (label) => {
