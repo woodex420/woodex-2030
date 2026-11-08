@@ -115,15 +115,22 @@ export function QuoteTemplateDesigner({
     moveBlock(region, id, items[next].id);
   };
 
-  const dragRegionRef = useRef<Region | null>(null);
+  /* The drag payload lives in a ref, not in component state: the drop can land
+     before React has committed the dragstart re-render, and dataTransfer reads
+     are not reliable for every Chromium drag source. */
+  const dragRef = useRef<{ region: Region; id: string } | null>(null);
   /* Chromium starts a text selection instead of an HTML5 drag when the press
      lands on an <input>, so the grab affordance is its own drag source. The row
      stays draggable for presses on its padding. */
   const startDrag = (event: DragEvent, region: Region, id: string) => {
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", id);
-    dragRegionRef.current = region;
+    dragRef.current = { region, id };
     setDragging({ region, id });
+  };
+  const endDrag = () => {
+    dragRef.current = null;
+    setDragging(null);
   };
 
   const addCustomBlock = (region: Region) => {
@@ -217,17 +224,13 @@ export function QuoteTemplateDesigner({
             data-block-row=""
             draggable={!saving}
             onDragStart={(event) => startDrag(event, region, item.id)}
-            onDragEnd={() => { dragRegionRef.current = null; setDragging(null); }}
+            onDragEnd={endDrag}
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
-              /* Read the source from the payload first: relying on React state alone
-                 made the drop a no-op whenever the dragstart re-render had not
-                 committed yet (as seen in headless Chromium). */
-              const fromId = event.dataTransfer.getData("text/plain") || dragging?.id;
-              const fromRegion = dragging?.region ?? dragRegionRef.current;
-              if (fromId && fromRegion === region) moveBlock(region, fromId, item.id);
-              setDragging(null);
+              const source = dragRef.current;
+              if (source && source.region === region && source.id !== item.id) moveBlock(region, source.id, item.id);
+              endDrag();
             }}
             className={`rounded-control border bg-white p-3 transition-colors ${dragging?.id === item.id ? "border-primary-500 opacity-60" : "border-line"}`}
           >
