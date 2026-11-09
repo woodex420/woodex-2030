@@ -1,6 +1,6 @@
 # WOODEX 2030 — Master Implementation Tracker
 
-**Updated:** 2026-11-09 · **Baseline:** migration `013` (`finance`)
+**Updated:** 2026-11-09 · **Baseline:** migration `014` (`crm`)
 **Companions:** [`00-CURRENT-STATE.md`](agency-os/00-CURRENT-STATE.md) is authoritative for facts; this file is authoritative for *plan and status*.
 
 > Rule: a status may only move to **Verified** when a named command passes and
@@ -16,6 +16,7 @@
 | Catalogue / Products | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
 | Quotations + versions | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
 | CRM (leads/clients/tasks) | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
+| Companies / contacts / meetings / activity (§11.1) | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
 | Orders | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
 | Returns | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
 | Projects / BOQ / files | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
@@ -89,7 +90,7 @@ Each item is sized by *kind* of work, because that is what determines duration.
 | 7 | ~~Warehouses, locations, transfers, reservations~~ **DONE** | New module | — | ✅ `012` + UI |
 | 8 | ~~Finance depth: journal, expenses, credit notes, schedules~~ **DONE** | New module | — | ✅ `013` + UI |
 | 8b | Tax capture on invoice/bill issuance | Code | 2–3 d | `013` |
-| 9 | CRM depth: companies, contacts, meetings, attachments, activity history | New module | 1–2 wk | — |
+| 9 | ~~CRM depth: companies, contacts, meetings, attachments, activity history~~ **DONE** | New module | — | ✅ `014` + UI |
 | 10 | Delivery + installation | New module | 2–3 wk | — |
 | 11 | Support + warranty | New module | 2 wk | 10 |
 | 12 | **Tenant schema + context + RLS + cross-tenant tests** | **Architecture** | 2–3 wk | D-1 answered |
@@ -503,6 +504,95 @@ trigger checks at COMMIT" into prose that cannot be mistaken for a declaration.
 `test:procurement` · `test:production` · `test:bills` · `test:stock-ledger` ·
 `test:audit-log` 14/14 · `test:upgrade` · `check:migration` 56=56=56 ·
 `docs:verify` clean · `check:deploy` · dashboard `tsc -b && vite build`, 42 routes.
+---
+
+## 4c. Increment 7 — CRM depth (014)
+
+Phase 5's CRM half, and section 11.1's "companies, contacts, meetings, site
+visits, notes, attachments, activity history".
+
+### A person was a string
+
+`leads.contact` and `clients.company` were TEXT, so the same customer arriving
+from two channels was two rows that nothing joined, and "everything we have ever
+done with them" was a LIKE across a free-text column — which missed the
+spellings the typist got wrong.
+
+`companies` holds one row per real company with `name_norm` UNIQUE: the name
+lowercased, punctuation and legal suffixes stripped, so "Clifton Villa (Pvt)
+Ltd.", "clifton villa private limited" and "Clifton Villa" collide on purpose.
+The collision is the feature. The second attempt gets a 409 naming the first and
+carrying its id, so the operator opens it instead of inventing a third spelling.
+
+Over-folding is the opposite failure and it is worse: a duplicate is visible and
+a wrong merge is not. Only suffixes that carry no identifying information are
+removed, so "Clifton Heights" survives as its own company. Both directions are
+tested.
+
+The first version of the fold left brackets behind — `(Pvt) Ltd.` became `( )` —
+and let the duplicate through. The rehearsal caught it; the fix is in the fold
+and the case is pinned by a test, with the spellings real intake produces rather
+than a clean name.
+
+### The timeline is written, not derived
+
+The cheap timeline is a UNION over audit_logs, tasks, meetings and payments. It
+is a trap: a UNION silently omits every table nobody remembered to add, and the
+failure mode is not an error — it is a timeline that looks complete and is
+missing the deliveries. So `activities` is a table each route appends to inside
+its own transaction. Scheduling a meeting writes to the meeting's history and to
+its company's in the same transaction, which is why a company timeline does not
+omit the meetings nobody filed by hand.
+
+It is append-only, refused by trigger, for the same reason `journal_lines` is:
+a history that can be edited is not a history. Proven in PostgreSQL — UPDATE and
+DELETE both come back `P0001 activities are append-only`, the original event
+survives both attempts, and appending still works.
+
+### A meeting that happened says what came of it
+
+`meetings` is not a site visit. A visit is a measurement at a property; a meeting
+is a conversation and can be a video call with nobody at any site. Folding them
+together would force every video call to claim a site, so visits keep their own
+table and meetings keep `channel`.
+
+Marking a meeting `held` without an outcome is refused with `outcome_required`.
+A calendar that records attendance and not results is a diary, and the outcome
+is the only part anyone rereads. `occurred_at` is separate from `created_at`, so
+a Monday call logged on Friday keeps Monday's place in the history — tested.
+
+### Attachments are pointers
+
+The table stores `path` and `checksum`, never bytes: a `bytea` column makes every
+database backup a backup of the file store, and it cannot be streamed to a CDN.
+The checksum is what distinguishes revision 2 from revision 1 when the filenames
+are identical. Identical bytes on the same entity are refused (409 naming the
+existing copy); identical bytes on a different entity are allowed, because one
+drawing can belong to a company and to the project it describes.
+
+### Rollback is guarded, and proven
+
+`rollback/014_crm.rollback.sql` refuses while any activity or attachment exists
+— dropping a timeline does not undo the conversations, it destroys the only
+evidence of them. Verified in PGlite: the guard fires with 1 activity row, and
+with the timeline empty the rollback removes exactly the five tables, drops
+`leads.company_id`, and 014 re-applies cleanly on top.
+
+### Files
+
+- `scripts/migrations/014_crm.sql` — 5 tables, 7 named FKs, 9 CHECKs, 2 triggers
+- `scripts/migrations/rollback/014_crm.rollback.sql` — guarded
+- `apps/api/server.mjs` — 14 handlers: companies (4), contacts (3), meetings (3),
+  activities (2), attachments (2); `writeActivity` is the single timeline writer
+- `apps/dashboard/src/pages/Companies.tsx`, `Meetings.tsx`
+- `scripts/test-crm.mjs` — 67 checks
+
+**Verified:** `test:crm` **67/67** · `test:integrity` 68/68 FK, 105/105 CHECK ·
+`test:audit` 14/14 · `test:finance` 68/68 · `test:inventory` · `test:procurement`
+· `test:production` · `test:bills` · `test:stock-ledger` · `test:audit-log` 14/14 ·
+`check:migration` 61=61=61 · `docs:verify` clean · `check:deploy` · dashboard
+`tsc -b && vite build`, 44 routes.
+
 
 ---
 

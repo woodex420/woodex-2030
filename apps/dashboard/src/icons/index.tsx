@@ -371,6 +371,13 @@ export const Phone = (p: IconProps) => (
   </Icon>
 );
 
+export const Video = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="6" width="13" height="12" rx="2" />
+    <path d="m15 11 6-3.5v9L15 13" />
+  </Icon>
+);
+
 export const Mail = (p: IconProps) => (
   <Icon {...p}>
     <rect x="2" y="5" width="20" height="15" rx="2" />

@@ -13,9 +13,11 @@ import Ecommerce from "@/pages/Ecommerce";
 import Orders from "@/pages/Orders";
 import OrderDetail from "@/pages/OrderDetail";
 import Clients from "@/pages/Clients";
+import Companies from "@/pages/Companies";
 import Website, { PageEditor } from "@/pages/Website";
 import ThemeStudio from "@/pages/ThemeStudio";
 import Marketing from "@/pages/Marketing";
+import Meetings from "@/pages/Meetings";
 import Inbox from "@/pages/Inbox";
 import Invoices from "@/pages/Invoices";
 import Projects from "@/pages/Projects";
@@ -110,6 +112,8 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="/crm" element={<Crm />} />
             <Route path="/clients" element={<Clients />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/meetings" element={<Meetings />} />
             <Route path="/quotations" element={<QuotationsList />} />
             <Route path="/quotations/new" element={<QuotationBuilder />} />
             <Route path="/catalog" element={<Catalog />} />

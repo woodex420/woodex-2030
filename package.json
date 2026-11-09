@@ -58,7 +58,8 @@
     "test:stock-ledger": "node --experimental-sqlite scripts/test-stock-ledger.mjs",
     "test:ops": "node scripts/test-ops-api.mjs",
     "test:inventory": "node scripts/test-inventory.mjs",
-    "test:finance": "node scripts/test-finance.mjs"
+    "test:finance": "node scripts/test-finance.mjs",
+    "test:crm": "node scripts/test-crm.mjs"
   },
   "engines": {
     "node": ">=22.5"
