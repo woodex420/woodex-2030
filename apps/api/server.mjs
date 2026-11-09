@@ -673,6 +673,47 @@ const rowInvoice = (r) => ({ id: r.id, ref: r.ref, quoteId: r.quote_id, orderId:
 const decorateInvoice = (r) => { const j = rowInvoice(r);
   if (j.due && j.balance > 0 && ["Issued", "Partially Paid"].includes(j.status) && j.due < now().slice(0, 10)) j.status = "Overdue";
   return j; };
+
+/* ── invoice status: what is stored vs what is shown ──────────────────────
+   This distinction is the whole difficulty of constraining the column.
+
+   STORED:    Issued · Partially Paid · Paid · Cancelled
+   COMPUTED:  Overdue  — decorateInvoice derives it on read from due/balance,
+                         so it must never be written to the column.
+   NOT A STATE AT ALL: Draft — the dashboard's union offers it, but no code
+                         path ever produces an invoice in it.
+
+   A CHECK can only guard the stored set. It cannot stop a Cancelled invoice
+   from being flipped back to Paid by the payment route, which is why the
+   transition guard below exists and has to land with the constraint. */
+
+const INVOICE_STORED_STATUSES = ["Issued", "Partially Paid", "Paid", "Cancelled"];
+/* Derived from what has been paid. Setting these by hand would contradict the
+   money, so the PATCH route refuses them and points at the payments endpoint. */
+const INVOICE_DERIVED_STATUSES = ["Paid", "Partially Paid"];
+
+const INVOICE_STATUS_ALIASES = new Map([
+  ["issued", "Issued"], ["issue", "Issued"], ["unpaid", "Issued"], ["open", "Issued"],
+  ["pending", "Issued"], ["sent", "Issued"], ["new", "Issued"],
+  ["partially paid", "Partially Paid"], ["partial", "Partially Paid"], ["part paid", "Partially Paid"],
+  ["partiallypaid", "Partially Paid"],
+  ["paid", "Paid"], ["settled", "Paid"], ["complete", "Paid"], ["completed", "Paid"],
+  ["cancelled", "Cancelled"], ["canceled", "Cancelled"], ["cancel", "Cancelled"],
+  ["void", "Cancelled"], ["voided", "Cancelled"],
+]);
+/* Returns null for a value that cannot be stored, so callers can answer 400
+   with the reason instead of writing something the CHECK would later reject as
+   a 500. Overdue is the interesting refusal: it is a real status to a reader,
+   but storing it would freeze a value that is supposed to be recomputed. */
+const normInvoiceStatus = (v) => {
+  const raw = String(v ?? "").trim();
+  if (!raw) return null;
+  const key = raw.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (key === "overdue") return { error: "Overdue is derived from the due date and balance, not set directly" };
+  if (key === "draft") return { error: "an invoice does not have a Draft state; use Issued" };
+  const hit = INVOICE_STATUS_ALIASES.get(key);
+  return hit ? { status: hit } : null;
+};
 const rowReturn = (r) => ({ id: r.id, ref: r.ref, orderId: r.order_id, customer: r.customer, item: r.item, reason: r.reason,
   state: r.state, refundAmount: r.refund_amount, resolution: r.resolution, createdAt: r.created_at, updatedAt: r.updated_at });
 const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((e) => {
@@ -2678,9 +2719,28 @@ app.patch("/api/invoices/:id", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const b = req.body ?? {};
-  emit("invoices", { title: "Invoice " + r.ref + " → " + (b.status ?? r.status), who: r.customer });
+
+  /* Status is normalised and validated before anything is written. Before this,
+     PATCH stored whatever arrived — so "cancelled" (lowercase) would have become
+     a raw value, and under the new CHECK that is a 500 instead of a clear 400.
+     Paid and Partially Paid are derived from what has been paid: accepting them
+     here would let an operator mark an invoice settled without any money, and
+     the balance would immediately disagree with the status. */
+  let nextStatus = r.status;
+  if (b.status !== undefined) {
+    const norm = normInvoiceStatus(b.status);
+    if (!norm) return res.status(400).json({ error: `status must be one of ${INVOICE_STORED_STATUSES.join(", ")}` });
+    if (norm.error) return res.status(400).json({ error: norm.error });
+    if (INVOICE_DERIVED_STATUSES.includes(norm.status))
+      return res.status(409).json({ error: `${norm.status} is set by recording a payment, not directly. Use POST /api/invoices/${r.id}/payments.` });
+    if (r.status === "Cancelled" && norm.status !== "Cancelled")
+      return res.status(409).json({ error: "this invoice is cancelled; a cancelled invoice cannot be reopened" });
+    nextStatus = norm.status;
+  }
+
+  emit("invoices", { title: "Invoice " + r.ref + " → " + nextStatus, who: r.customer });
   (await (db.prepare("UPDATE invoices SET status=?, due=?, notes=?, discount=?, tax=?, shipping=?, total=?, updated_at=? WHERE id=?").run(
-    b.status ?? r.status, b.due ?? r.due, b.notes ?? r.notes,
+    nextStatus, b.due ?? r.due, b.notes ?? r.notes,
     b.discount ?? r.discount, b.tax ?? r.tax, b.shipping ?? r.shipping,
     b.total ?? (b.discount != null || b.tax != null || b.shipping != null
       ? Math.max(0, r.subtotal - (b.discount ?? r.discount) + (b.tax ?? r.tax) + (b.shipping ?? r.shipping)) : r.total),
@@ -2690,6 +2750,13 @@ app.patch("/api/invoices/:id", wrap(async (req, res) => {
 app.post("/api/invoices/:id/payments", wrapTxJson(async (req, afterCommit) => {
   const r = (await (db.prepare("SELECT * FROM invoices WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return { status: 404, body: { error: "not found" } };
+  /* The transition the CHECK cannot prevent. This route sets the status
+     unconditionally from the running total, so recording a payment against a
+     cancelled invoice used to flip it straight back to Paid/Partially Paid and
+     quietly undo the cancellation. Refuse it instead of silently resurrecting
+     an invoice somebody deliberately voided. */
+  if (r.status === "Cancelled")
+    return { status: 409, body: { error: "this invoice is cancelled and cannot take payments" } };
   const amount = Number(req.body?.amount);
   if (!(amount > 0)) return { status: 400, body: { error: "amount must be > 0" } };
   const t = now();

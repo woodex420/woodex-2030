@@ -155,6 +155,12 @@ try {
        restock branch — which compares against the literal "Closed" — never ran. */
     ["CHECK · lowercase return state ('closed' silently skipped the restock)", `INSERT INTO returns(ref,customer,reason,state) VALUES ('T-R1','c','r','closed')`],
     ["CHECK · unknown return state (the value the seed never actually wrote)", `INSERT INTO returns(ref,customer,reason,state) VALUES ('T-R2','c','r','Approved')`],
+    /* The invoice statuses that must never reach the column. 'Overdue' is the
+       interesting one: it is a legitimate status to a reader, derived on read,
+       and storing it would freeze a value that has to stay recomputed. */
+    ["CHECK · lowercase invoice status ('cancelled' is what a client sends)", `INSERT INTO invoices(ref,customer,items,status) VALUES ('T-I1','c','[]','cancelled')`],
+    ["CHECK · stored invoice status 'Overdue' (derived on read, never stored)", `INSERT INTO invoices(ref,customer,items,status) VALUES ('T-I2','c','[]','Overdue')`],
+    ["CHECK · stored invoice status 'Draft' (no code path creates one)", `INSERT INTO invoices(ref,customer,items,status) VALUES ('T-I3','c','[]','Draft')`],
     ["CHECK · project progress above 100", `INSERT INTO projects(ref,name,client_id,progress) VALUES ('T-P2','p',1,140)`],
     ["CHECK · negative BOQ quantity", `INSERT INTO boq_lines(project_id,description,qty) VALUES (1,'d',-2)`],
     ["CHECK · quote version below 1", `INSERT INTO quotes(ref,customer,items,version) VALUES ('T-Q2','c','[]',0)`],
@@ -203,6 +209,15 @@ try {
        must be identical, or the restock silently stops again. */
     { constraint: "returns_state_known", table: "returns", column: "state",
       code: new Set([...(serverSrc.match(/const RETURN_STATES = \[([^\]]+)\]/) ?? ["", ""])[1]
+        .matchAll(/"([A-Za-z ]+)"/g)].map((m) => m[1])) },
+    /* invoices.status is the only one where the column holds less than the API
+       exposes. "Overdue" is derived at read time by decorateInvoice and must
+       never be stored; "Draft" is offered by the dashboard's union but no code
+       path creates one. Deriving this set from INVOICE_STORED_STATUSES — the
+       list the normaliser validates against — is what keeps the constraint and
+       the code from drifting apart. */
+    { constraint: "invoices_status_known", table: "invoices", column: "status",
+      code: new Set([...(serverSrc.match(/const INVOICE_STORED_STATUSES = \[([^\]]+)\]/) ?? ["", ""])[1]
         .matchAll(/"([A-Za-z ]+)"/g)].map((m) => m[1])) },
   ];
   for (const v of vocab) {
