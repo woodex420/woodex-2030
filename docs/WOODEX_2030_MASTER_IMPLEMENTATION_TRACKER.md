@@ -1,6 +1,6 @@
 # WOODEX 2030 — Master Implementation Tracker
 
-**Updated:** 2026-11-09 · **Baseline:** migration `014` (`crm`)
+**Updated:** 2026-11-09 · **Baseline:** migration `015` (`delivery`)
 **Companions:** [`00-CURRENT-STATE.md`](agency-os/00-CURRENT-STATE.md) is authoritative for facts; this file is authoritative for *plan and status*.
 
 > Rule: a status may only move to **Verified** when a named command passes and
@@ -42,7 +42,7 @@
 | Page builder | 🟡 Partial | ✅ | 🟡 | ✅ | 🟡 | P2 |
 | Analytics | 🟡 Partial | ✅ | ✅ | ✅ | 🟡 | P2 |
 | Integrations | 🟡 Partial | 🟡 | 🟡 | 🟡 | ❌ | P2 |
-| Delivery | 🟡 Partial | 🟡 | 🟡 | 🟡 | ❌ | P2 |
+| Delivery & installation (§11.2) | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
 | **Tenancy / RLS** | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | **P0** |
 | **Hosted drift audit** | ⚠️ Blocked | ✅ runtime check | — | — | ✅ | **P0** |
 | Platform admin | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
@@ -91,7 +91,7 @@ Each item is sized by *kind* of work, because that is what determines duration.
 | 8 | ~~Finance depth: journal, expenses, credit notes, schedules~~ **DONE** | New module | — | ✅ `013` + UI |
 | 8b | Tax capture on invoice/bill issuance | Code | 2–3 d | `013` |
 | 9 | ~~CRM depth: companies, contacts, meetings, attachments, activity history~~ **DONE** | New module | — | ✅ `014` + UI |
-| 10 | Delivery + installation | New module | 2–3 wk | — |
+| 10 | ~~Delivery + installation~~ **DONE** | New module | — | ✅ `015` + UI |
 | 11 | Support + warranty | New module | 2 wk | 10 |
 | 12 | **Tenant schema + context + RLS + cross-tenant tests** | **Architecture** | 2–3 wk | D-1 answered |
 | 13 | Configurable roles/permissions | Schema + code | 1 wk | 12 |
@@ -593,6 +593,102 @@ with the timeline empty the rollback removes exactly the five tables, drops
 `check:migration` 61=61=61 · `docs:verify` clean · `check:deploy` · dashboard
 `tsc -b && vite build`, 44 routes.
 
+
+---
+
+## 4d. Increment 8 — delivery and installation (015)
+
+`orders.stage` is a single current word: production, qc, dispatch, delivery,
+installation. It cannot answer who drove, what was on the vehicle, which items
+arrived in which run, who signed for them, or when the warranty on a particular
+worktop started. Those are the questions a delivery raises. When an installation
+went wrong the only record was a message in a chat group.
+
+### Three things a stage transition is not
+
+- **A dispatch run** — a vehicle, a crew, a date, and a departure time. It is
+  what "goods left the building" means.
+- **A delivery** — an arrival at an address, with what it carried and who took
+  receipt. Several belong to one order.
+- **An installed asset** — a physical object in a room, with a warranty that
+  starts when it went in.
+
+### Partial delivery is the normal case
+
+A kitchen arrives in three runs. Modelling "the order was delivered" as a
+boolean forces the system to lie twice: once when the first run arrives and the
+order is not delivered, and again when the last one does and the earlier runs
+must be retconned into existence. `delivery_lines` records what each run carried
+and how many units; the shortfall endpoint computes `expected − arrived` from
+the lines, so "how much of this order is still outstanding" is a number rather
+than a stage someone set by hand. An unsigned run does not count as arrived,
+which is tested.
+
+### Proof, not a checkbox
+
+A delivery marked `delivered` requires a signature and at least one line. No
+signature → `400 signature_required`. No lines → `409 no_lines`, because nothing
+says what arrived and so the record proves nothing. `condition='damaged'`
+without a note → `400 damage_note_required`, because damage with no note is a
+claim nobody can act on. A signed delivery's contents are frozen: adding a line
+afterwards is `409 delivery_signed` — what it carried is what the signature
+attests to.
+
+"Delivered" with no evidence is worse than no delivery record at all, because it
+looks authoritative.
+
+### A departure time is stamped once
+
+Rewriting it would make a late run look punctual, which destroys the only thing
+the record is for. Enforced by a trigger, not by a route, so a repair script is
+refused by the same mechanism. The fields a dispatcher may still correct —
+vehicle, driver, crew, address — stay writable, and the suite proves both halves
+by opening SQLite directly.
+
+### The warranty starts at installation, and is stored
+
+Not at order, not at delivery. A worktop that sat in a warehouse for six weeks
+has not been in use for six weeks, and a customer told the warranty began before
+they could use the product has a legitimate complaint.
+
+`warranty_until` is computed from `installed_on` at install time and stored, then
+**locked**: re-sending a different date is `409 warranty_locked` naming the date
+already promised. Recomputing it later from the product row would let a change
+to a warranty term silently shorten a warranty already given to a customer.
+Re-sending the same date is not a change and is allowed.
+
+### One query for a delivery
+
+The create response read the bare row while the list response joined, so
+`orderRef` came back null from POST and correct from GET. Every route that
+returns a delivery now reads through one `deliverySql`, and the suite pins the
+agreement — a screen that creates a record and then cannot say what it belongs
+to looks broken, and the inconsistency is invisible in code review.
+
+The create response then said **0 lines and 0 units** to the screen that had just
+sent two, because the row was read back before its lines were written. That looks
+exactly like "my line was not saved". Lines are now written first and the counts
+are read after, and both are pinned.
+
+### Rollback is guarded, and proven
+
+`rollback/015_delivery.rollback.sql` refuses while any delivery or installed
+asset exists: dropping an installed asset does not remove the furniture, it
+removes the only record that Woodex put it there and owes anything on it.
+Verified in PGlite — the guard fires with 1 delivery; with the tables empty the
+rollback removes exactly the four tables and 015 re-applies cleanly.
+
+### Files
+
+- `scripts/migrations/015_delivery.sql` — 4 tables, 6 named FKs, 12 CHECKs, 1 trigger
+- `apps/api/server.mjs` — 12 handlers: dispatch runs (3), deliveries (5), assets (2), plus shortfall
+- `apps/dashboard/src/pages/Deliveries.tsx` — deliveries / runs / assets in one screen
+- `scripts/test-delivery.mjs` — 53 checks
+
+**Verified:** `test:delivery` **53/53** · `test:crm` 67/67 · `test:integrity` ·
+`test:audit` 14/14 · `test:finance` · `test:inventory` · `test:procurement` ·
+`test:production` · `test:bills` · `test:stock-ledger` · `check:migration`
+65 = 65 = 65 · `docs:verify` clean · dashboard `tsc -b && vite build`, 45 routes.
 
 ---
 
