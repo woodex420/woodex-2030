@@ -91,6 +91,18 @@ if (db.kind === "sqlite") {
     await db.exec("ALTER TABLE stock_movements ADD COLUMN location_id INTEGER");
     console.log("[woodex-api] migrated stock_movements.location_id (012)");
   }
+  /* 014 adds company_id to leads and clients. Same trap as 011 and 012: the
+     CREATE TABLE is IF NOT EXISTS, so an existing database never gains the
+     column and the CREATE INDEX that follows fails at boot. A FRESH database
+     has no table yet (zero columns) and gets the column from the CREATE, so
+     the ALTER is gated on the table already existing. */
+  for (const table of ["leads", "clients"]) {
+    const cols = await db.prepare(`PRAGMA table_info(${table})`).all();
+    if (cols.length && !cols.some((c) => c.name === "company_id")) {
+      await db.exec(`ALTER TABLE ${table} ADD COLUMN company_id INTEGER`);
+      console.log(`[woodex-api] migrated ${table}.company_id (014)`);
+    }
+  }
   const resCols = await db.prepare("PRAGMA table_info(stock_reservations)").all();
   if (resCols.length && !resCols.some((c) => c.name === "released_at")) {
     await db.exec("ALTER TABLE stock_reservations ADD COLUMN released_at TEXT");
@@ -266,6 +278,66 @@ CREATE TABLE IF NOT EXISTS payment_schedules(
   UNIQUE (invoice_id, seq)
 );
 CREATE INDEX IF NOT EXISTS idx_payment_schedules_due ON payment_schedules(due_date, status);
+/* CRM depth — mirror of scripts/migrations/014_crm.sql.
+   companies and contacts replace the free-text company and contact fields as
+   the place a person actually lives. activities is the append-only timeline,
+   guarded here by the same triggers production uses, so a local database
+   cannot do what PostgreSQL refuses. */
+CREATE TABLE IF NOT EXISTS companies(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_norm TEXT NOT NULL UNIQUE,
+  industry TEXT, website TEXT, phone TEXT, email TEXT, tax_ref TEXT, city TEXT, address TEXT,
+  account_owner TEXT, notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (trim(name) <> ''), CHECK (trim(name_norm) <> ''));
+CREATE INDEX IF NOT EXISTS idx_companies_owner ON companies(account_owner);
+CREATE INDEX IF NOT EXISTS idx_companies_city ON companies(city);
+CREATE TABLE IF NOT EXISTS contacts(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, company_id INTEGER, client_id INTEGER,
+  name TEXT NOT NULL, email TEXT, email_norm TEXT, phone TEXT, phone_norm TEXT,
+  role TEXT, is_primary INTEGER NOT NULL DEFAULT 0, notes TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (trim(name) <> ''), CHECK (is_primary IN (0,1)));
+CREATE UNIQUE INDEX IF NOT EXISTS uq_contacts_email
+  ON contacts(email_norm) WHERE email_norm IS NOT NULL AND email_norm <> '';
+CREATE INDEX IF NOT EXISTS idx_contacts_company ON contacts(company_id, is_primary DESC);
+CREATE INDEX IF NOT EXISTS idx_contacts_client ON contacts(client_id);
+CREATE TABLE IF NOT EXISTS meetings(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
+  company_id INTEGER, client_id INTEGER, lead_id INTEGER, starts_at TEXT NOT NULL,
+  minutes INTEGER NOT NULL DEFAULT 30, location TEXT, channel TEXT NOT NULL DEFAULT 'in-person',
+  owner TEXT, status TEXT NOT NULL DEFAULT 'scheduled', attendees TEXT, agenda TEXT, outcome TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (status IN ('scheduled','held','cancelled','no_show')),
+  CHECK (channel IN ('in-person','phone','video')),
+  CHECK (minutes > 0), CHECK (trim(title) <> ''));
+CREATE INDEX IF NOT EXISTS idx_meetings_starts ON meetings(starts_at, status);
+CREATE INDEX IF NOT EXISTS idx_meetings_owner ON meetings(owner, starts_at DESC);
+CREATE INDEX IF NOT EXISTS idx_meetings_company ON meetings(company_id);
+CREATE TABLE IF NOT EXISTS attachments(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL, entity_id INTEGER NOT NULL,
+  filename TEXT NOT NULL, mime_type TEXT, size_bytes INTEGER, path TEXT, checksum TEXT,
+  uploaded_by TEXT, notes TEXT, created_at TEXT NOT NULL,
+  CHECK (trim(filename) <> ''), CHECK (size_bytes IS NULL OR size_bytes >= 0));
+CREATE INDEX IF NOT EXISTS idx_attachments_entity ON attachments(entity_type, entity_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_attachments_checksum_per_entity
+  ON attachments(entity_type, entity_id, checksum) WHERE checksum IS NOT NULL;
+CREATE TABLE IF NOT EXISTS activities(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL, entity_id INTEGER NOT NULL,
+  kind TEXT NOT NULL, summary TEXT NOT NULL, detail TEXT, actor TEXT,
+  occurred_at TEXT NOT NULL, created_at TEXT NOT NULL,
+  CHECK (trim(summary) <> ''),
+  CHECK (kind IN ('call','meeting','note','email','status_change','document','payment','system')));
+CREATE INDEX IF NOT EXISTS idx_activities_entity ON activities(entity_type, entity_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activities_occurred ON activities(occurred_at DESC);
+CREATE TRIGGER IF NOT EXISTS trg_activities_no_update
+  BEFORE UPDATE ON activities
+BEGIN
+  SELECT RAISE(ABORT, 'activities are append-only: a history that can be edited is not a history');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_activities_no_delete
+  BEFORE DELETE ON activities
+BEGIN
+  SELECT RAISE(ABORT, 'activities are append-only: a history that can be edited is not a history');
+END;
 
 /* Procurement — mirror of scripts/migrations/009_procurement.sql.
    Column sets must match the PostgreSQL definitions name-for-name: pg-migrate
@@ -427,7 +499,7 @@ CREATE TABLE IF NOT EXISTS leads(
   interest TEXT, source TEXT, contact TEXT, status TEXT DEFAULT 'New', owner TEXT,
   note TEXT, email TEXT, phone TEXT, preferred_channel TEXT, contact_consent INTEGER, is_returning INTEGER, identity_review INTEGER,
   consent_at TEXT, consent_version TEXT, landing_path TEXT, referrer TEXT,
-  utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, created_at TEXT, updated_at TEXT
+  utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, company_id INTEGER, created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS quotes(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, customer TEXT NOT NULL, contact TEXT, lead_id INTEGER,
@@ -466,7 +538,7 @@ CREATE TABLE IF NOT EXISTS returns(
 CREATE TABLE IF NOT EXISTS clients(
   id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, company TEXT, email TEXT, email_norm TEXT,
   phone TEXT, phone_norm TEXT, city TEXT, tags TEXT DEFAULT '[]', notes TEXT, source TEXT,
-  merged_into INTEGER, created_at TEXT, updated_at TEXT);
+  merged_into INTEGER, company_id INTEGER, created_at TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS client_links(client_id INTEGER NOT NULL, entity TEXT NOT NULL, entity_id INTEGER NOT NULL,
   UNIQUE(entity, entity_id));
 CREATE TABLE IF NOT EXISTS tasks(
@@ -548,6 +620,17 @@ CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id INTEGER NOT 
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
+
+/* Indexes on the columns 014 adds to tables created later in the DDL above.
+   They cannot live in that batch: CREATE INDEX ... ON leads(company_id) would
+   run before CREATE TABLE leads and SQLite refuses with "no such table:
+   main.leads". PostgreSQL has no such ordering problem, so the migration file
+   keeps them inline. */
+if (db.kind === "sqlite") {
+  await db.exec("CREATE INDEX IF NOT EXISTS idx_leads_company ON leads(company_id)");
+  await db.exec("CREATE INDEX IF NOT EXISTS idx_clients_company ON clients(company_id)");
+}
+
 
 /* The opening chart of accounts — mirror of the INSERT at the end of
    013_finance.sql. Seeded here as well so a fresh SQLite database and a
@@ -1123,7 +1206,8 @@ async function ensureQuoteVersionBaselines() {
   }
 }
 const rowLead = (r) => ({
-  id: r.id, ref: r.ref, name: r.name, company: r.company, interest: r.interest, source: r.source,
+  id: r.id, ref: r.ref, name: r.name, company: r.company, companyId: r.company_id ?? null,
+  interest: r.interest, source: r.source,
   contact: r.contact, email: r.email, phone: r.phone, preferredChannel: r.preferred_channel,
   contactConsent: r.contact_consent == null ? null : !!Number(r.contact_consent),
   returning: r.is_returning == null ? null : !!Number(r.is_returning),
@@ -1187,7 +1271,22 @@ const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).ca
   const status = Number(e.statusCode) || 500;
   // 5xx bodies stay generic: driver/stack detail belongs in the server log, not the response.
   if (status >= 500) console.error(`[woodex-api] ${req.method} ${req.originalUrl} → 500 ·`, e?.stack ?? e);
-  if (!res.headersSent) res.status(status).json({ error: status >= 500 ? "internal error" : String(e.message || e) });
+  if (!res.headersSent) {
+    /* A refusal the caller cannot act on is a dead end. Client errors keep the
+       handler's machine-readable `code` and the id of the record that caused
+       the refusal, so "already exists" arrives with the id that already exists
+       and the caller can open it instead of inventing a variant spelling —
+       which creates the duplicate the refusal was there to prevent. 5xx stays
+       a bare message on purpose: driver detail belongs in the log. */
+    const body = { error: status >= 500 ? "internal error" : String(e.message || e) };
+    if (status < 500) {
+      if (typeof e?.code === "string") body.code = e.code;
+      for (const k of ["companyId", "contactId", "attachmentId", "productId", "locationId"]) {
+        if (e?.[k] !== undefined) body[k] = e[k];
+      }
+    }
+    res.status(status).json(body);
+  }
   else res.end();
 });
 /* TODO-2 (QA): compound write flows run atomically — a mid-flow throw rolls the whole
@@ -2081,7 +2180,19 @@ app.patch("/api/leads/:id", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM leads WHERE id=? OR ref=?").get(req.params.id, req.params.id)));
   if (!r) return res.status(404).json({ error: "not found" });
   const { status, owner } = req.body ?? {};
-  (await (db.prepare("UPDATE leads SET status=?, owner=?, updated_at=? WHERE id=?").run(status ?? r.status, owner ?? r.owner, now(), r.id)));
+  /* companyId links the lead to the real company record. Nullable, and
+     deliberately NOT auto-matched from the free-text `company` column: guessing
+     wrong attaches a lead to the wrong customer, and nobody ever notices. */
+  let companyId = r.company_id ?? null;
+  if (req.body?.companyId !== undefined) {
+    if (req.body.companyId === null) companyId = null;
+    else {
+      const co = await db.prepare("SELECT id FROM companies WHERE id = ?").get(Number(req.body.companyId));
+      if (!co) throw Object.assign(new Error("company not found: " + req.body.companyId), { statusCode: 404 });
+      companyId = co.id;
+    }
+  }
+  (await (db.prepare("UPDATE leads SET status=?, owner=?, company_id=?, updated_at=? WHERE id=?").run(status ?? r.status, owner ?? r.owner, companyId, now(), r.id)));
   const leadOut = rowLead((await (db.prepare("SELECT * FROM leads WHERE id=?").get(r.id))));
   emit("leads", { title: "Lead " + r.ref + " → " + (req.body?.status ?? r.status), who: req.actor ?? "CRM" });
   res.json(leadOut);
@@ -3986,6 +4097,500 @@ const purchaseOrderFull = async (r) => {
 const supplierById = async (id) => (await db.prepare("SELECT * FROM suppliers WHERE id=?").get(id));
 const purchaseOrderById = async (id) => (await db.prepare("SELECT * FROM purchase_orders WHERE id=? OR ref=?").get(id, id));
 
+
+
+/* ═══════════════════════════════ CRM depth (014) ═══════════════════════════════
+   Companies, contacts, meetings, attachments and the activity timeline.
+
+   Before this block a person was a string: leads.contact and clients.company
+   were TEXT, so the same human arriving twice from two channels was two rows and
+   "everything with this company" was a LIKE across a free-text column. The merge
+   endpoint on clients exists to clean up after that model — it is a symptom, not
+   a feature.
+
+   The timeline is a table rather than a view over audit_logs/tasks/meetings/
+   payments because a UNION silently loses any event whose table nobody added to
+   it, and the failure looks like a complete timeline rather than an error. */
+
+/* Fold a name for matching. Lowercase; punctuation, brackets and hyphens become
+   spaces; the legal suffixes that carry no identifying information are dropped.
+   "Clifton Villa (Pvt) Ltd." and "clifton villa private limited" must fold to
+   the same key or the duplicate check is decoration.
+
+   Deliberately conservative: "pvt", "ltd", "llc" and friends go, and nothing
+   else does. The words that distinguish one company from another stay, because
+   over-folding merges two real customers and nobody ever notices — a duplicate
+   is visible, a wrong merge is not. */
+const foldName = (v) => String(v ?? "")
+  .toLowerCase()
+  .replace(/[.,()[\]{}#'"\-–—&@/\\|]/g, " ")
+  .replace(/\b(pvt|private|ltd|limited|llc|inc|co|company|corp|corporation)\b/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+const foldEmail = (v) => String(v ?? "").trim().toLowerCase();
+const foldPhone = (v) => String(v ?? "").replace(/[^\d]/g, "").replace(/^92/, "").replace(/^0/, "");
+
+const rowCompany = (r) => ({
+  id: r.id, name: r.name, industry: r.industry, website: r.website, phone: r.phone,
+  email: r.email, taxRef: r.tax_ref, city: r.city, address: r.address,
+  accountOwner: r.account_owner, notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at,
+  contactCount: Number(r.contact_count ?? 0), clientCount: Number(r.client_count ?? 0),
+});
+const rowContact = (r) => ({
+  id: r.id, companyId: r.company_id, companyName: r.company_name ?? null,
+  clientId: r.client_id, name: r.name, email: r.email, phone: r.phone, role: r.role,
+  isPrimary: !!r.is_primary, notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowMeeting = (r) => ({
+  id: r.id, ref: r.ref, title: r.title, companyId: r.company_id, companyName: r.company_name ?? null,
+  clientId: r.client_id, leadId: r.lead_id, startsAt: r.starts_at, minutes: Number(r.minutes),
+  location: r.location, channel: r.channel, owner: r.owner, status: r.status,
+  attendees: r.attendees, agenda: r.agenda, outcome: r.outcome,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowAttachment = (r) => ({
+  id: r.id, entityType: r.entity_type, entityId: r.entity_id, filename: r.filename,
+  mimeType: r.mime_type, sizeBytes: r.size_bytes === null ? null : Number(r.size_bytes),
+  path: r.path, checksum: r.checksum, uploadedBy: r.uploaded_by, notes: r.notes, createdAt: r.created_at,
+});
+const rowActivity = (r) => ({
+  id: r.id, entityType: r.entity_type, entityId: r.entity_id, kind: r.kind,
+  summary: r.summary, detail: r.detail, actor: r.actor, occurredAt: r.occurred_at, createdAt: r.created_at,
+});
+
+/* One writer for the timeline, called from the route that performed the change
+   inside its own transaction — the same shape as writeAudit, so an activity
+   exists only if the thing it describes committed. Never throws: failing to
+   record a note must not fail the route that already wrote the row. */
+const ACTIVITY_KINDS = new Set(["call", "meeting", "note", "email", "status_change", "document", "payment", "system"]);
+async function writeActivity({ entityType, entityId, kind, summary, detail = null, actor = "system", occurredAt = null }) {
+  if (!ACTIVITY_KINDS.has(kind)) {
+    auditWriteFailures += 1;
+    console.error(`[activity] rejected unknown kind ${JSON.stringify(kind)}`);
+    return;
+  }
+  try {
+    await db.prepare(
+      "INSERT INTO activities(entity_type, entity_id, kind, summary, detail, actor, occurred_at, created_at) VALUES(?,?,?,?,?,?,?,?)"
+    ).run(entityType, Number(entityId), kind, String(summary).slice(0, 400),
+      detail ? String(detail).slice(0, 4000) : null, String(actor).slice(0, 80),
+      occurredAt ?? now(), now());
+  } catch (e) {
+    auditWriteFailures += 1;
+    console.error("[activity] failed to record:", e?.message ?? e);
+  }
+}
+
+/* ──────────────────────────── companies ──────────────────────────── */
+
+app.get("/api/companies", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.q) {
+    const like = "%" + String(req.query.q) + "%";
+    where.push("(c.name LIKE ? OR c.name_norm LIKE ? OR c.email LIKE ? OR c.city LIKE ?)");
+    params.push(like, "%" + foldName(req.query.q) + "%", like, like);
+  }
+  if (req.query.owner) { where.push("c.account_owner = ?"); params.push(String(req.query.owner)); }
+  const rows = await db.prepare(
+    `SELECT c.*,
+            (SELECT COUNT(*) FROM contacts x WHERE x.company_id = c.id) AS contact_count,
+            (SELECT COUNT(*) FROM clients k WHERE k.company_id = c.id) AS client_count
+       FROM companies c ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY c.name LIMIT 300`
+  ).all(...params);
+  res.json({ total: rows.length, items: rows.map(rowCompany) });
+}));
+
+app.get("/api/companies/:id", wrap(async (req, res) => {
+  const row = await db.prepare("SELECT * FROM companies WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("company not found"), { statusCode: 404 });
+  const contacts = (await db.prepare("SELECT * FROM contacts WHERE company_id = ? ORDER BY is_primary DESC, name").all(row.id)).map(rowContact);
+  /* Everything this company touches, in one call. The whole point of a real
+     company record is that "show me everything" is a query, not a search. */
+  const clients = await db.prepare("SELECT id, name, email, phone FROM clients WHERE company_id = ? ORDER BY name").all(row.id);
+  const leads = await db.prepare("SELECT id, ref, name, status FROM leads WHERE company_id = ? ORDER BY id DESC LIMIT 50").all(row.id);
+  const meetings = (await db.prepare("SELECT * FROM meetings WHERE company_id = ? ORDER BY starts_at DESC LIMIT 50").all(row.id)).map(rowMeeting);
+  const timeline = (await db.prepare("SELECT * FROM activities WHERE entity_type = 'company' AND entity_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 100").all(row.id)).map(rowActivity);
+  const attachments = (await db.prepare("SELECT * FROM attachments WHERE entity_type = 'company' AND entity_id = ? ORDER BY id DESC").all(row.id)).map(rowAttachment);
+  res.json({
+    company: rowCompany({ ...row, contact_count: contacts.length, client_count: clients.length }),
+    contacts, clients, leads, meetings, timeline, attachments,
+  });
+}));
+
+app.post("/api/companies", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const name = String(b.name ?? "").trim();
+  if (!name) throw Object.assign(new Error("name is required"), { statusCode: 400 });
+  const norm = foldName(name);
+  if (!norm) throw Object.assign(new Error("name must contain at least one letter or digit"), { statusCode: 400 });
+  const dupe = await db.prepare("SELECT id, name FROM companies WHERE name_norm = ?").get(norm);
+  if (dupe) {
+    /* 409 that names the existing record, so the caller can open it instead of
+       being told "no" with nowhere to go — which is what produces the third
+       spelling of the same customer. */
+    throw Object.assign(new Error(`"${dupe.name}" already exists as company #${dupe.id}`),
+      { statusCode: 409, code: "company_exists", companyId: dupe.id });
+  }
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO companies(name, name_norm, industry, website, phone, email, tax_ref, city, address, account_owner, notes, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(name, norm, b.industry ?? null, b.website ?? null, b.phone ?? null, b.email ?? null,
+    b.taxRef ?? null, b.city ?? null, b.address ?? null, b.accountOwner ?? null, b.notes ?? null, t, t);
+  const created = rowCompany(await db.prepare("SELECT * FROM companies WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "company.created", entityType: "company", entityId: created.id, after: created });
+  await writeActivity({ entityType: "company", entityId: created.id, kind: "system",
+    summary: `Company created: ${created.name}`, actor: req.user?.name ?? "system" });
+  return { status: 201, body: { company: created } };
+}));
+
+app.patch("/api/companies/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM companies WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("company not found"), { statusCode: 404 });
+  const before = rowCompany(row);
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries({ industry: "industry", website: "website", phone: "phone",
+    email: "email", taxRef: "tax_ref", city: "city", address: "address", accountOwner: "account_owner", notes: "notes" })) {
+    if (b[k] === undefined) continue;
+    sets.push(`${col} = ?`); params.push(b[k] === null ? null : String(b[k]));
+  }
+  if (b.name !== undefined) {
+    const name = String(b.name).trim();
+    if (!name) throw Object.assign(new Error("name cannot be empty"), { statusCode: 400 });
+    const norm = foldName(name);
+    const clash = await db.prepare("SELECT id, name FROM companies WHERE name_norm = ? AND id <> ?").get(norm, row.id);
+    if (clash) throw Object.assign(new Error(`"${clash.name}" already exists as company #${clash.id}`),
+      { statusCode: 409, code: "company_exists", companyId: clash.id });
+    sets.push("name = ?", "name_norm = ?"); params.push(name, norm);
+  }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE companies SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = rowCompany(await db.prepare("SELECT * FROM companies WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: "company.updated", entityType: "company", entityId: row.id, before, after });
+  if (before.name !== after.name) {
+    await writeActivity({ entityType: "company", entityId: row.id, kind: "status_change",
+      summary: `Renamed from "${before.name}" to "${after.name}"`, actor: req.user?.name ?? "system" });
+  }
+  return { company: after };
+}));
+
+/* ──────────────────────────── contacts ──────────────────────────── */
+
+app.get("/api/contacts", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.company_id) { where.push("c.company_id = ?"); params.push(Number(req.query.company_id)); }
+  if (req.query.client_id) { where.push("c.client_id = ?"); params.push(Number(req.query.client_id)); }
+  if (req.query.q) {
+    const like = "%" + String(req.query.q) + "%";
+    where.push("(c.name LIKE ? OR c.email LIKE ? OR c.phone LIKE ?)");
+    params.push(like, like, like);
+  }
+  const rows = await db.prepare(
+    `SELECT c.*, co.name AS company_name FROM contacts c
+       LEFT JOIN companies co ON co.id = c.company_id
+      ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY c.is_primary DESC, c.name LIMIT 500`
+  ).all(...params);
+  res.json({ total: rows.length, items: rows.map(rowContact) });
+}));
+
+app.post("/api/contacts", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const name = String(b.name ?? "").trim();
+  if (!name) throw Object.assign(new Error("name is required"), { statusCode: 400 });
+  let companyId = b.companyId ?? null;
+  if (companyId !== null) {
+    const co = await db.prepare("SELECT id FROM companies WHERE id = ?").get(Number(companyId));
+    if (!co) throw Object.assign(new Error("company not found: " + companyId), { statusCode: 404 });
+    companyId = co.id;
+  }
+  let clientId = b.clientId ?? null;
+  if (clientId !== null) {
+    const cl = await db.prepare("SELECT id FROM clients WHERE id = ?").get(Number(clientId));
+    if (!cl) throw Object.assign(new Error("client not found: " + clientId), { statusCode: 404 });
+    clientId = cl.id;
+  }
+  const email = b.email ? String(b.email).trim() : null;
+  const emailNorm = email ? foldEmail(email) : null;
+  if (emailNorm) {
+    const dupe = await db.prepare("SELECT id, name FROM contacts WHERE email_norm = ?").get(emailNorm);
+    if (dupe) {
+      throw Object.assign(new Error(`${email} already belongs to contact #${dupe.id} (${dupe.name})`),
+        { statusCode: 409, code: "contact_exists", contactId: dupe.id });
+    }
+  }
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO contacts(company_id, client_id, name, email, email_norm, phone, phone_norm, role, is_primary, notes, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(companyId, clientId, name, email, emailNorm, b.phone ?? null,
+    b.phone ? foldPhone(b.phone) : null, b.role ?? null, b.isPrimary === true ? 1 : 0, b.notes ?? null, t, t);
+  const created = rowContact(await db.prepare(
+    "SELECT c.*, co.name AS company_name FROM contacts c LEFT JOIN companies co ON co.id = c.company_id WHERE c.id = ?"
+  ).get(info.lastInsertRowid));
+  await writeAudit(req, { action: "contact.created", entityType: "contact", entityId: created.id, after: created });
+  if (companyId) {
+    await writeActivity({ entityType: "company", entityId: companyId, kind: "system",
+      summary: `Contact added: ${created.name}${created.role ? ` (${created.role})` : ""}`,
+      actor: req.user?.name ?? "system" });
+  }
+  return { status: 201, body: { contact: created } };
+}));
+
+app.patch("/api/contacts/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM contacts WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("contact not found"), { statusCode: 404 });
+  const before = rowContact(row);
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries({ name: "name", role: "role", notes: "notes", phone: "phone" })) {
+    if (b[k] === undefined) continue;
+    sets.push(`${col} = ?`); params.push(b[k] === null ? null : String(b[k]));
+  }
+  if (b.email !== undefined) {
+    const email = b.email ? String(b.email).trim() : null;
+    const norm = email ? foldEmail(email) : null;
+    if (norm) {
+      const clash = await db.prepare("SELECT id, name FROM contacts WHERE email_norm = ? AND id <> ?").get(norm, row.id);
+      if (clash) throw Object.assign(new Error(`${email} already belongs to contact #${clash.id} (${clash.name})`),
+        { statusCode: 409, code: "contact_exists", contactId: clash.id });
+    }
+    sets.push("email = ?", "email_norm = ?"); params.push(email, norm);
+  }
+  if (b.isPrimary !== undefined) {
+    sets.push("is_primary = ?"); params.push(b.isPrimary === true ? 1 : 0);
+  }
+  if (b.companyId !== undefined) {
+    if (b.companyId === null) sets.push("company_id = NULL");
+    else {
+      const co = await db.prepare("SELECT id FROM companies WHERE id = ?").get(Number(b.companyId));
+      if (!co) throw Object.assign(new Error("company not found: " + b.companyId), { statusCode: 404 });
+      sets.push("company_id = ?"); params.push(co.id);
+    }
+  }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE contacts SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = rowContact(await db.prepare(
+    "SELECT c.*, co.name AS company_name FROM contacts c LEFT JOIN companies co ON co.id = c.company_id WHERE c.id = ?"
+  ).get(row.id));
+  await writeAudit(req, { action: "contact.updated", entityType: "contact", entityId: row.id, before, after });
+  return { contact: after };
+}));
+
+/* ──────────────────────────── meetings ──────────────────────────── */
+
+const MEETING_STATUSES = new Set(["scheduled", "held", "cancelled", "no_show"]);
+
+app.get("/api/meetings", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.status) { where.push("m.status = ?"); params.push(String(req.query.status)); }
+  if (req.query.company_id) { where.push("m.company_id = ?"); params.push(Number(req.query.company_id)); }
+  if (req.query.client_id) { where.push("m.client_id = ?"); params.push(Number(req.query.client_id)); }
+  if (req.query.from) { where.push("m.starts_at >= ?"); params.push(String(req.query.from)); }
+  if (req.query.to) { where.push("m.starts_at <= ?"); params.push(String(req.query.to) + "T23:59:59.999Z"); }
+  const rows = await db.prepare(
+    `SELECT m.*, co.name AS company_name FROM meetings m
+       LEFT JOIN companies co ON co.id = m.company_id
+      ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY m.starts_at DESC LIMIT 300`
+  ).all(...params);
+  const items = rows.map(rowMeeting);
+  const nowIso = now();
+  res.json({
+    total: items.length,
+    upcoming: items.filter((m) => m.status === "scheduled" && m.startsAt >= nowIso).length,
+    items,
+  });
+}));
+
+app.post("/api/meetings", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const title = String(b.title ?? "").trim();
+  const startsAt = String(b.startsAt ?? "").trim();
+  if (!title) throw Object.assign(new Error("title is required"), { statusCode: 400 });
+  if (!startsAt) throw Object.assign(new Error("startsAt is required"), { statusCode: 400 });
+  const parsed = Date.parse(startsAt);
+  if (!Number.isFinite(parsed)) throw Object.assign(new Error("startsAt must be a valid date and time"), { statusCode: 400 });
+  const channel = String(b.channel ?? "in-person");
+  if (!["in-person", "phone", "video"].includes(channel)) {
+    throw Object.assign(new Error("channel must be in-person, phone or video"), { statusCode: 400 });
+  }
+  const minutes = Number(b.minutes ?? 30);
+  if (!Number.isInteger(minutes) || minutes <= 0) {
+    throw Object.assign(new Error("minutes must be a positive whole number"), { statusCode: 400 });
+  }
+  const ref = await nextRef("meetings", "MTG-", 1000);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO meetings(ref, title, company_id, client_id, lead_id, starts_at, minutes, location, channel, owner, status, attendees, agenda, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,'scheduled',?,?,?,?)`
+  ).run(ref, title, b.companyId ?? null, b.clientId ?? null, b.leadId ?? null,
+    new Date(parsed).toISOString(), minutes, b.location ?? null, channel,
+    b.owner ?? req.user?.name ?? null, b.attendees ?? null, b.agenda ?? null, t, t);
+  const created = rowMeeting(await db.prepare(
+    "SELECT m.*, co.name AS company_name FROM meetings m LEFT JOIN companies co ON co.id = m.company_id WHERE m.id = ?"
+  ).get(info.lastInsertRowid));
+  await writeAudit(req, { action: "meeting.created", entityType: "meeting", entityId: created.id, after: created });
+  await writeActivity({ entityType: "meeting", entityId: created.id, kind: "meeting",
+    summary: `${created.title} scheduled for ${created.startsAt.slice(0, 16).replace("T", " ")}`,
+    actor: req.user?.name ?? "system", occurredAt: created.startsAt });
+  if (created.companyId) {
+    await writeActivity({ entityType: "company", entityId: created.companyId, kind: "meeting",
+      summary: `Meeting scheduled: ${created.title}`, actor: req.user?.name ?? "system" });
+  }
+  return { status: 201, body: { meeting: created } };
+}));
+
+app.patch("/api/meetings/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM meetings WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("meeting not found"), { statusCode: 404 });
+  const before = rowMeeting(row);
+  const sets = [];
+  const params = [];
+  if (b.status !== undefined) {
+    const status = String(b.status).toLowerCase();
+    if (!MEETING_STATUSES.has(status)) {
+      throw Object.assign(new Error(`status must be one of ${[...MEETING_STATUSES].join(", ")}`), { statusCode: 400 });
+    }
+    /* Being held requires an outcome. A calendar that records attendance and
+       not results is a diary, and the outcome is the only part anyone rereads. */
+    if (status === "held" && !String(b.outcome ?? row.outcome ?? "").trim()) {
+      throw Object.assign(new Error("recording a meeting as held requires an outcome — what came of it?"),
+        { statusCode: 400, code: "outcome_required" });
+    }
+    sets.push("status = ?"); params.push(status);
+  }
+  for (const [k, col] of Object.entries({ title: "title", location: "location",
+    attendees: "attendees", agenda: "agenda", outcome: "outcome", owner: "owner" })) {
+    if (b[k] === undefined) continue;
+    sets.push(`${col} = ?`); params.push(b[k] === null ? null : String(b[k]));
+  }
+  if (b.startsAt !== undefined) {
+    const parsed = Date.parse(String(b.startsAt));
+    if (!Number.isFinite(parsed)) throw Object.assign(new Error("startsAt must be a valid date and time"), { statusCode: 400 });
+    sets.push("starts_at = ?"); params.push(new Date(parsed).toISOString());
+  }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE meetings SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = rowMeeting(await db.prepare(
+    "SELECT m.*, co.name AS company_name FROM meetings m LEFT JOIN companies co ON co.id = m.company_id WHERE m.id = ?"
+  ).get(row.id));
+  await writeAudit(req, { action: "meeting.updated", entityType: "meeting", entityId: row.id, before, after });
+  if (before.status !== after.status) {
+    await writeActivity({ entityType: "meeting", entityId: row.id, kind: "status_change",
+      summary: `Status ${before.status} → ${after.status}${after.outcome ? `: ${after.outcome}` : ""}`,
+      actor: req.user?.name ?? "system" });
+    if (after.companyId) {
+      await writeActivity({ entityType: "company", entityId: after.companyId, kind: "meeting",
+        summary: `${after.title} — ${after.status}${after.outcome ? `: ${after.outcome}` : ""}`,
+        actor: req.user?.name ?? "system" });
+    }
+  }
+  return { meeting: after };
+}));
+
+/* ──────────────────────────── activity ────────────────────────────
+   The timeline for any entity. Append-only: UPDATE and DELETE are refused by
+   triggers, so the only way to correct a history is to add to it. */
+
+app.get("/api/activities", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.entity_type) { where.push("entity_type = ?"); params.push(String(req.query.entity_type)); }
+  if (req.query.entity_id) { where.push("entity_id = ?"); params.push(Number(req.query.entity_id)); }
+  if (req.query.kind) { where.push("kind = ?"); params.push(String(req.query.kind)); }
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
+  const rows = await db.prepare(
+    `SELECT * FROM activities ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY occurred_at DESC, id DESC LIMIT ?`
+  ).all(...params, limit);
+  res.json({ total: rows.length, kinds: [...ACTIVITY_KINDS], items: rows.map(rowActivity) });
+}));
+
+/* Log a note, a call, an email — anything a person did that the system did not
+   otherwise observe. The only write path into the timeline not driven by
+   another route. */
+app.post("/api/activities", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const entityType = String(b.entityType ?? "").trim();
+  const entityId = Number(b.entityId);
+  const kind = String(b.kind ?? "note").toLowerCase();
+  const summary = String(b.summary ?? "").trim();
+  if (!entityType) throw Object.assign(new Error("entityType is required"), { statusCode: 400 });
+  if (!Number.isInteger(entityId)) throw Object.assign(new Error("entityId is required"), { statusCode: 400 });
+  if (!summary) throw Object.assign(new Error("summary is required"), { statusCode: 400 });
+  if (!ACTIVITY_KINDS.has(kind)) {
+    throw Object.assign(new Error(`kind must be one of ${[...ACTIVITY_KINDS].join(", ")}`), { statusCode: 400 });
+  }
+  let occurredAt = now();
+  if (b.occurredAt) {
+    const parsed = Date.parse(String(b.occurredAt));
+    if (!Number.isFinite(parsed)) throw Object.assign(new Error("occurredAt must be a valid date and time"), { statusCode: 400 });
+    occurredAt = new Date(parsed).toISOString();
+  }
+  const info = await db.prepare(
+    "INSERT INTO activities(entity_type, entity_id, kind, summary, detail, actor, occurred_at, created_at) VALUES(?,?,?,?,?,?,?,?)"
+  ).run(entityType, entityId, kind, summary.slice(0, 400),
+    b.detail ? String(b.detail).slice(0, 4000) : null, req.user?.name ?? "system", occurredAt, now());
+  const created = rowActivity(await db.prepare("SELECT * FROM activities WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "activity.recorded", entityType, entityId, after: created });
+  return { status: 201, body: { activity: created } };
+}));
+
+/* ──────────────────────────── attachments ──────────────────────────── */
+
+app.get("/api/attachments", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.entity_type) { where.push("entity_type = ?"); params.push(String(req.query.entity_type)); }
+  if (req.query.entity_id) { where.push("entity_id = ?"); params.push(Number(req.query.entity_id)); }
+  const rows = await db.prepare(
+    `SELECT * FROM attachments ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY id DESC LIMIT 300`
+  ).all(...params);
+  res.json({ total: rows.length, items: rows.map(rowAttachment) });
+}));
+
+app.post("/api/attachments", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const entityType = String(b.entityType ?? "").trim();
+  const entityId = Number(b.entityId);
+  const filename = String(b.filename ?? "").trim();
+  if (!entityType) throw Object.assign(new Error("entityType is required"), { statusCode: 400 });
+  if (!Number.isInteger(entityId)) throw Object.assign(new Error("entityId is required"), { statusCode: 400 });
+  if (!filename) throw Object.assign(new Error("filename is required"), { statusCode: 400 });
+  /* The checksum is what stops the same drawing being attached twice and what
+     lets a later reader tell revision 2 from revision 1 when the name is
+     identical. The same bytes under a different entity are legitimate. */
+  const checksum = b.checksum ? String(b.checksum).trim() : null;
+  if (checksum) {
+    const dupe = await db.prepare(
+      "SELECT id FROM attachments WHERE entity_type = ? AND entity_id = ? AND checksum = ?"
+    ).get(entityType, entityId, checksum);
+    if (dupe) throw Object.assign(new Error(`this exact file is already attached as #${dupe.id}`),
+      { statusCode: 409, code: "attachment_exists", attachmentId: dupe.id });
+  }
+  const size = b.sizeBytes === undefined || b.sizeBytes === null ? null : Math.max(0, Number(b.sizeBytes) || 0);
+  const info = await db.prepare(
+    `INSERT INTO attachments(entity_type, entity_id, filename, mime_type, size_bytes, path, checksum, uploaded_by, notes, created_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?)`
+  ).run(entityType, entityId, filename, b.mimeType ?? null, size, b.path ?? null,
+    checksum, req.user?.name ?? null, b.notes ?? null, now());
+  const created = rowAttachment(await db.prepare("SELECT * FROM attachments WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "attachment.created", entityType, entityId, after: created });
+  await writeActivity({ entityType, entityId, kind: "document",
+    summary: `Attached ${filename}`, actor: req.user?.name ?? "system" });
+  return { status: 201, body: { attachment: created } };
+}));
 
 /* ══════════════════════════════ finance (013) ══════════════════════════════
    A double-entry journal, plus the documents that post into it.

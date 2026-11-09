@@ -21,7 +21,9 @@ const groups: NavGroup[] = [
     items: [
       { label: "Shared Inbox", to: "/omnichannel", icon: MessagesSquare },
       { label: "Leads & Pipeline", to: "/crm", icon: Users },
-      { label: "Clients & Companies", to: "/clients", icon: Building },
+      { label: "Companies", to: "/companies", icon: Building },
+      { label: "Clients", to: "/clients", icon: Users },
+      { label: "Meetings", to: "/meetings", icon: Calendar },
       { label: "Tasks & Follow-ups", to: "/tasks", icon: Kanban },
     ],
   },

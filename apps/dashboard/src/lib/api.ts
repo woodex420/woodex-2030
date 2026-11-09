@@ -269,8 +269,34 @@ export async function mutate<T = unknown>(path: string, body?: unknown, method =
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((j as { error?: string }).error || "HTTP " + res.status);
+  /* Keep what the server said, not just its sentence. A refusal that names the
+     record causing it ("that company already exists, #14") is only actionable
+     if the caller can read the id — a bare Error drops it, and the only
+     reachable next step becomes retyping the name with a different spelling,
+     which creates the duplicate the refusal was there to prevent. */
+  if (!res.ok) throw new ApiError((j as { error?: string }).error || "HTTP " + res.status, res.status, j);
   return j as T;
+}
+
+/** A refused request, carrying the fields the server attached to the refusal. */
+export class ApiError extends Error {
+  status: number;
+  body: Record<string, unknown>;
+  constructor(message: string, status: number, body: Record<string, unknown>) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body ?? {};
+  }
+  /** The id of the record that caused the refusal, when the server supplied one. */
+  idOf(key: string): number | null {
+    const v = this.body?.[key];
+    return typeof v === "number" ? v : null;
+  }
+  get code(): string | null {
+    const v = this.body?.code;
+    return typeof v === "string" ? v : null;
+  }
 }
 
 /* P5 finance */
