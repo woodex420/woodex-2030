@@ -33,7 +33,7 @@
 | Delivery | 🟡 Partial | 🟡 | 🟡 | 🟡 | ❌ | P2 |
 | **Tenancy / RLS** | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | **P0** |
 | **Audit log** | ✅ Verified | ✅ | ✅ (API) | ✅ | ✅ | **P0** |
-| **Hosted drift audit** | ⛔ Blocked | — | — | — | ❌ | **P0** |
+| **Hosted drift audit** | ⚠️ Blocked | ✅ runtime check | — | — | ✅ | **P0** |
 | Platform admin | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
 | Procurement | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
 | Production / BOM | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
@@ -142,6 +142,44 @@ same transaction, so a rollback leaves no row):
 **Proof:** `npm run test:audit-log` → **9/9**. Mutating `writeAudit` to a no-op
 produces **4 failures**, including the control assertion that exists precisely
 so the three absence-checks cannot pass vacuously.
+
+### The deploy/migration ordering gap, and the guard for it
+
+Migration 008 was **not** applied to production when the code shipped. The
+deploy went READY, the API answered every request, and every audit write failed
+silently — because `writeAudit` deliberately swallows errors so a logging
+failure cannot break a payment. The feature's own safety design made its absence
+invisible.
+
+Nothing here applies migrations to a hosted database automatically:
+`vercel:build` rehearses them on a throwaway Postgres and never touches
+production. So the deployed code and the real schema first meet at runtime, and
+nothing was checking that they agree.
+
+`GET /api/audit/migrations` now does:
+
+| `status` | Meaning |
+|---|---|
+| `aligned` | every migration-owned table exists on PostgreSQL |
+| `misaligned` → **503** | a table the migrations create is gone; the payload names it |
+| `not-applicable` | SQLite — no ledger by design, so nothing is claimed |
+| `pending` | no migrations recorded; a fresh environment, not a broken one |
+
+Deliberately **not** a boot-time check: throwing at startup over a soft
+dependency takes the whole API down, and a 503 for an audit gap is a worse
+outage than the gap. It is on-demand and owner-gated, and returns a **table
+name**, not a count — "one table is missing" is not actionable.
+
+Tested in `test:audit-log` (14/14) against a real pglite database with a genuine
+checksum ledger: aligned → 200, then drop `audit_logs`, restart, → 503 naming
+it. Mutating the check to always report `aligned` fails the suite.
+
+**The pglite lesson:** the adapter reports three kinds — `sqlite`, `pglite`,
+`postgres` — and pglite *is* PostgreSQL: it has the ledger and
+`information_schema`. The first version tested `!== "postgres"`, sent pglite down
+the `sqlite_master` path, and threw `relation "sqlite_master" does not exist`.
+The rehearsal engine must take the same path as production or the rehearsal
+proves nothing.
 
 **Append-only is enforced statically:** the test greps every file in `scripts/`
 and `apps/api/server.mjs` for `UPDATE`/`DELETE` against `audit_logs` and fails if
