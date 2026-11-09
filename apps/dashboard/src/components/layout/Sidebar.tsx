@@ -41,6 +41,7 @@ const groups: NavGroup[] = [
       { label: "Product Catalog", to: "/catalog", icon: Package },
       { label: "Orders", to: "/orders", icon: ShoppingBag },
       { label: "Delivery & Installation", to: "/deliveries", icon: Truck },
+      { label: "Support & Warranty", to: "/support", icon: Wrench },
       { label: "Operations", to: "/operations", icon: Wrench },
       { label: "Projects", to: "/projects", icon: FolderKanban },
     ],

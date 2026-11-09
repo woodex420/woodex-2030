@@ -60,7 +60,8 @@
     "test:inventory": "node scripts/test-inventory.mjs",
     "test:finance": "node scripts/test-finance.mjs",
     "test:crm": "node scripts/test-crm.mjs",
-    "test:delivery": "node scripts/test-delivery.mjs"
+    "test:delivery": "node scripts/test-delivery.mjs",
+    "test:support": "node scripts/test-support.mjs"
   },
   "engines": {
     "node": ">=22.5"

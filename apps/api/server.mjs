@@ -382,6 +382,61 @@ CREATE TABLE IF NOT EXISTS installed_assets(
 CREATE INDEX IF NOT EXISTS idx_installed_assets_order ON installed_assets(order_id);
 CREATE INDEX IF NOT EXISTS idx_installed_assets_project ON installed_assets(project_id);
 CREATE INDEX IF NOT EXISTS idx_installed_assets_warranty ON installed_assets(warranty_until) WHERE warranty_until IS NOT NULL;
+/* Support and warranty — mirror of scripts/migrations/016_support.sql.
+   A ticket is the customer's claim, a visit is Woodex's response, a claim is
+   the answer about coverage recorded with the date it was decided. */
+CREATE TABLE IF NOT EXISTS tickets(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, customer TEXT NOT NULL,
+  client_id INTEGER, company_id INTEGER, order_id INTEGER, project_id INTEGER, asset_id INTEGER,
+  subject TEXT NOT NULL, description TEXT, category TEXT NOT NULL DEFAULT 'other',
+  channel TEXT NOT NULL DEFAULT 'phone', priority TEXT NOT NULL DEFAULT 'normal',
+  status TEXT NOT NULL DEFAULT 'open', waiting_on TEXT NOT NULL DEFAULT 'us', owner TEXT,
+  first_response_at TEXT, respond_by TEXT, resolve_by TEXT, resolved_at TEXT,
+  resolution TEXT, closed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (trim(customer) <> ''), CHECK (trim(subject) <> ''),
+  CHECK (status IN ('open','in_progress','waiting','resolved','closed')),
+  CHECK (priority IN ('low','normal','high','urgent')),
+  CHECK (channel IN ('phone','email','whatsapp','visit','web')),
+  CHECK (waiting_on IN ('us','them')),
+  CHECK (category IN ('damage','defect','missing_part','fitting','finish','delivery','other')),
+  CHECK (resolved_at IS NULL OR resolved_at >= created_at));
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status, priority);
+CREATE INDEX IF NOT EXISTS idx_tickets_asset ON tickets(asset_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tickets_customer ON tickets(customer);
+CREATE TABLE IF NOT EXISTS ticket_messages(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ticket_id INTEGER NOT NULL, author TEXT,
+  body TEXT NOT NULL, internal INTEGER NOT NULL DEFAULT 0, channel TEXT, created_at TEXT NOT NULL,
+  CHECK (trim(body) <> ''), CHECK (internal IN (0,1)));
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id, created_at);
+CREATE TABLE IF NOT EXISTS service_visits(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, ticket_id INTEGER NOT NULL,
+  scheduled_for TEXT, technician TEXT, address TEXT, status TEXT NOT NULL DEFAULT 'scheduled',
+  arrived_at TEXT, completed_at TEXT, work_done TEXT, parts_used TEXT,
+  chargeable INTEGER NOT NULL DEFAULT 0, charge_amount REAL, notes TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (status IN ('scheduled','attended','completed','missed','cancelled')),
+  CHECK (charge_amount IS NULL OR charge_amount >= 0),
+  CHECK (completed_at IS NULL OR arrived_at IS NULL OR completed_at >= arrived_at));
+CREATE INDEX IF NOT EXISTS idx_service_visits_ticket ON service_visits(ticket_id, scheduled_for DESC);
+CREATE INDEX IF NOT EXISTS idx_service_visits_status ON service_visits(status, scheduled_for);
+CREATE TABLE IF NOT EXISTS warranty_claims(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, ticket_id INTEGER,
+  asset_id INTEGER, customer TEXT NOT NULL, part TEXT, fault TEXT NOT NULL,
+  claimed_on TEXT NOT NULL, warranty_until_on_claim TEXT, verdict TEXT NOT NULL DEFAULT 'pending',
+  decided_on TEXT, decided_by TEXT, reason TEXT, cost_to_woodex REAL,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (trim(customer) <> ''), CHECK (trim(fault) <> ''),
+  CHECK (verdict IN ('pending','covered','not_covered','goodwill')),
+  CHECK (verdict = 'pending' OR decided_on IS NOT NULL),
+  CHECK (cost_to_woodex IS NULL OR cost_to_woodex >= 0));
+CREATE INDEX IF NOT EXISTS idx_warranty_claims_asset ON warranty_claims(asset_id);
+CREATE INDEX IF NOT EXISTS idx_warranty_claims_verdict ON warranty_claims(verdict, claimed_on DESC);
+CREATE TRIGGER IF NOT EXISTS trg_tickets_freeze_sla
+  BEFORE UPDATE ON tickets
+  WHEN OLD.resolve_by IS NOT NULL AND NEW.resolve_by IS NOT OLD.resolve_by
+BEGIN
+  SELECT RAISE(ABORT, 'the SLA deadline is set once, from the priority at intake: moving it after the fact makes a breach disappear');
+END;
 CREATE TRIGGER IF NOT EXISTS trg_dispatch_runs_departure
   BEFORE UPDATE ON dispatch_runs
   WHEN OLD.departed_at IS NOT NULL AND NEW.departed_at IS NOT OLD.departed_at
@@ -5021,6 +5076,44 @@ app.get("/api/installed-assets", wrap(async (req, res) => {
   });
 }));
 
+/* One asset, with its whole life: what was installed, when the warranty ends,
+   what has been reported wrong with it, and which visits and claims followed.
+   This is the page a technician reads before driving out — it answers "has this
+   happened before" without asking anyone. */
+app.get("/api/installed-assets/:id", wrap(async (req, res) => {
+  const row = await db.prepare("SELECT * FROM installed_assets WHERE id = ? OR tag = ?")
+    .get(Number(req.params.id), String(req.params.id));
+  if (!row) throw Object.assign(new Error("installed asset not found"), { statusCode: 404 });
+  const order = row.order_id
+    ? await db.prepare("SELECT ref, customer FROM orders WHERE id = ?").get(row.order_id) : null;
+  const project = row.project_id
+    ? await db.prepare("SELECT name FROM projects WHERE id = ?").get(row.project_id) : null;
+  const tickets = (await db.prepare(
+    `${ticketSql("t.asset_id = ?")} ORDER BY t.created_at DESC`
+  ).all(row.id)).map(rowTicket);
+  const claims = (await db.prepare(
+    "SELECT * FROM warranty_claims WHERE asset_id = ? ORDER BY claimed_on DESC, id DESC"
+  ).all(row.id)).map(rowWarrantyClaim);
+  /* Visits belong to tickets, not to assets, so they are reached through the
+     tickets raised about this asset — a visit with no ticket has nothing to do
+     with this object and would be noise here. */
+  const visits = tickets.length ? (await db.prepare(
+    `SELECT v.*, t.ref AS ticket_ref FROM service_visits v JOIN tickets t ON t.id = v.ticket_id
+      WHERE v.ticket_id IN (${tickets.map(() => "?").join(",")})
+      ORDER BY v.scheduled_for DESC, v.id DESC`
+  ).all(...tickets.map((t) => t.id))).map(rowServiceVisit) : [];
+  const timeline = (await db.prepare(
+    "SELECT * FROM activities WHERE entity_type = 'installed_asset' AND entity_id = ? ORDER BY occurred_at DESC, id DESC"
+  ).all(row.id)).map(rowActivity);
+  res.json({
+    asset: rowInstalledAsset(row),
+    orderRef: order?.ref ?? null,
+    customer: order?.customer ?? null,
+    projectName: project?.name ?? null,
+    tickets, claims, visits, timeline,
+  });
+}));
+
 /* Install an asset. The warranty end is computed here and stored — see the
    migration header for why it is not recomputed later. */
 app.post("/api/installed-assets", wrapTxJson(async (req, res) => {
@@ -5104,6 +5197,478 @@ app.patch("/api/installed-assets/:id", wrapTxJson(async (req, res) => {
       summary: `${after.name}: ${before.status} → ${after.status}`, actor: req.user?.name ?? "system" });
   }
   return { asset: after };
+}));
+
+
+/* ═══════════════════════════ support & warranty (016) ═══════════════════════════
+   Tickets, messages, service visits, warranty claims.
+
+   A ticket is the customer's claim. A visit is Woodex's response. A claim is the
+   answer about coverage, recorded with the date it was decided. Collapsing them
+   means a ticket can only ever have one attempt, or the attempts end up in a
+   notes field where nothing can be reported on.
+
+   The SLA is arithmetic, not a colour judgement: deadlines are computed from the
+   priority at intake and frozen, so a breach cannot be made to disappear by
+   downgrading a ticket, waiting, and upgrading it again. */
+
+/* Hours to first response and to resolution, by priority. The promise made at
+   intake; changing it later does not move a deadline already set. */
+const SLA_HOURS = {
+  urgent: { respond: 2, resolve: 24 },
+  high:   { respond: 8, resolve: 72 },
+  normal: { respond: 24, resolve: 168 },
+  low:    { respond: 72, resolve: 336 },
+};
+
+const addHours = (iso, hours) => new Date(Date.parse(iso) + hours * 3600_000).toISOString();
+
+const rowTicket = (r) => {
+  const nowIso = new Date().toISOString();
+  const open = !r.resolved_at && !r.closed_at;
+  return {
+    id: r.id, ref: r.ref, customer: r.customer, clientId: r.client_id, companyId: r.company_id,
+    orderId: r.order_id, projectId: r.project_id, assetId: r.asset_id, assetTag: r.asset_tag ?? null,
+    assetName: r.asset_name ?? null, subject: r.subject, description: r.description,
+    category: r.category, channel: r.channel, priority: r.priority, status: r.status,
+    waitingOn: r.waiting_on, owner: r.owner,
+    firstResponseAt: r.first_response_at, respondBy: r.respond_by, resolveBy: r.resolve_by,
+    resolvedAt: r.resolved_at, resolution: r.resolution, closedAt: r.closed_at,
+    createdAt: r.created_at, updatedAt: r.updated_at,
+    /* Derived, never stored: the moment the deadline passes the flag must flip
+       without anybody writing to the row. */
+    responseBreached: open && !r.first_response_at && !!r.respond_by && nowIso > r.respond_by,
+    resolutionBreached: open && !!r.resolve_by && nowIso > r.resolve_by,
+    ageHours: Math.max(0, Math.round((Date.now() - Date.parse(r.created_at)) / 3600_000)),
+  };
+};
+const rowTicketMessage = (r) => ({
+  id: r.id, ticketId: r.ticket_id, author: r.author, body: r.body,
+  internal: !!r.internal, channel: r.channel, createdAt: r.created_at,
+});
+const rowServiceVisit = (r) => ({
+  id: r.id, ref: r.ref, ticketId: r.ticket_id, ticketRef: r.ticket_ref ?? null,
+  scheduledFor: r.scheduled_for, technician: r.technician, address: r.address,
+  status: r.status, arrivedAt: r.arrived_at, completedAt: r.completed_at,
+  workDone: r.work_done, partsUsed: r.parts_used,
+  chargeable: !!r.chargeable,
+  chargeAmount: r.charge_amount === null ? null : Number(r.charge_amount),
+  notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowWarrantyClaim = (r) => ({
+  id: r.id, ref: r.ref, ticketId: r.ticket_id, assetId: r.asset_id, customer: r.customer,
+  part: r.part, fault: r.fault, claimedOn: r.claimed_on,
+  warrantyUntilOnClaim: r.warranty_until_on_claim, verdict: r.verdict,
+  decidedOn: r.decided_on, decidedBy: r.decided_by, reason: r.reason,
+  costToWooodex: r.cost_to_woodex === null ? null : Number(r.cost_to_woodex),
+  createdAt: r.created_at, updatedAt: r.updated_at,
+});
+
+const ticketSql = (where) => `SELECT t.*, a.tag AS asset_tag, a.name AS asset_name
+  FROM tickets t LEFT JOIN installed_assets a ON a.id = t.asset_id WHERE ${where}`;
+
+/* ───────────────────────────────── tickets ───────────────────────────────── */
+
+app.get("/api/tickets", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.status) { where.push("t.status = ?"); params.push(String(req.query.status)); }
+  if (req.query.priority) { where.push("t.priority = ?"); params.push(String(req.query.priority)); }
+  if (req.query.asset_id) { where.push("t.asset_id = ?"); params.push(Number(req.query.asset_id)); }
+  if (req.query.customer) { where.push("t.customer LIKE ?"); params.push("%" + String(req.query.customer) + "%"); }
+  if (req.query.open === "1") { where.push("t.status IN ('open','in_progress','waiting')"); }
+  const rows = await db.prepare(
+    `${ticketSql(where.length ? where.join(" AND ") : "1=1")}
+      ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
+               t.created_at DESC LIMIT 300`
+  ).all(...params);
+  const items = rows.map(rowTicket);
+  res.json({
+    total: items.length,
+    open: items.filter((t) => ["open", "in_progress", "waiting"].includes(t.status)).length,
+    breached: items.filter((t) => t.responseBreached || t.resolutionBreached).length,
+    items,
+  });
+}));
+
+app.get("/api/tickets/:id", wrap(async (req, res) => {
+  const row = await db.prepare(ticketSql("t.id = ? OR t.ref = ?")).get(req.params.id, req.params.id);
+  if (!row) throw Object.assign(new Error("ticket not found"), { statusCode: 404 });
+  const messages = (await db.prepare("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at, id").all(row.id)).map(rowTicketMessage);
+  const visits = (await db.prepare(
+    `SELECT v.*, t.ref AS ticket_ref FROM service_visits v JOIN tickets t ON t.id = v.ticket_id
+      WHERE v.ticket_id = ? ORDER BY v.scheduled_for DESC, v.id DESC`
+  ).all(row.id)).map(rowServiceVisit);
+  const claims = (await db.prepare("SELECT * FROM warranty_claims WHERE ticket_id = ? ORDER BY id").all(row.id)).map(rowWarrantyClaim);
+  const timeline = (await db.prepare("SELECT * FROM activities WHERE entity_type = 'ticket' AND entity_id = ? ORDER BY occurred_at DESC, id DESC").all(row.id)).map(rowActivity);
+  res.json({ ticket: rowTicket(row), messages, visits, claims, timeline });
+}));
+
+app.post("/api/tickets", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const customer = String(b.customer ?? "").trim();
+  const subject = String(b.subject ?? "").trim();
+  if (!customer) throw Object.assign(new Error("customer is required"), { statusCode: 400 });
+  if (!subject) throw Object.assign(new Error("a ticket needs a subject saying what is wrong"), { statusCode: 400 });
+
+  const priority = String(b.priority ?? "normal").toLowerCase();
+  if (!Object.keys(SLA_HOURS).includes(priority)) {
+    throw Object.assign(new Error(`priority must be ${Object.keys(SLA_HOURS).join(", ")}`), { statusCode: 400 });
+  }
+  const channel = String(b.channel ?? "phone").toLowerCase();
+  if (!["phone", "email", "whatsapp", "visit", "web"].includes(channel)) {
+    throw Object.assign(new Error("channel must be phone, email, whatsapp, visit or web"), { statusCode: 400 });
+  }
+  const category = String(b.category ?? "other").toLowerCase();
+  if (!["damage", "defect", "missing_part", "fitting", "finish", "delivery", "other"].includes(category)) {
+    throw Object.assign(new Error("category must be damage, defect, missing_part, fitting, finish, delivery or other"), { statusCode: 400 });
+  }
+
+  let asset = null;
+  if (b.assetId !== undefined && b.assetId !== null && b.assetId !== "") {
+    asset = await db.prepare("SELECT * FROM installed_assets WHERE id = ? OR tag = ?").get(Number(b.assetId), String(b.assetId));
+    if (!asset) throw Object.assign(new Error("installed asset not found: " + b.assetId), { statusCode: 404 });
+  }
+
+  const t = now();
+  const sla = SLA_HOURS[priority];
+  const ref = await nextRef("tickets", "TCK-", 4000);
+  const info = await db.prepare(
+    `INSERT INTO tickets(ref, customer, client_id, company_id, order_id, project_id, asset_id,
+       subject, description, category, channel, priority, status, waiting_on, owner,
+       respond_by, resolve_by, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,'open','us',?,?,?,?,?)`
+  ).run(ref, customer, b.clientId ?? null, b.companyId ?? null, b.orderId ?? null,
+    b.projectId ?? null, asset?.id ?? null, subject, b.description || null, category,
+    channel, priority, b.owner ?? req.user?.name ?? null,
+    addHours(t, sla.respond), addHours(t, sla.resolve), t, t);
+  const id = Number(info.lastInsertRowid);
+
+  /* The description typed at intake becomes the opening message, so the thread
+     reads as a conversation from its first line instead of starting with a
+     reply to something nobody can see. */
+  if (b.description && String(b.description).trim()) {
+    await db.prepare("INSERT INTO ticket_messages(ticket_id, author, body, internal, channel, created_at) VALUES(?,?,?,0,?,?)")
+      .run(id, customer, String(b.description).trim(), channel, t);
+  }
+
+  const created = rowTicket(await db.prepare(ticketSql("t.id = ?")).get(id));
+  await writeAudit(req, { action: "ticket.created", entityType: "ticket", entityId: id, after: created });
+  await writeActivity({ entityType: "ticket", entityId: id, kind: "system",
+    summary: `Ticket ${created.ref} opened: ${subject}`, actor: req.user?.name ?? "system" });
+  /* A ticket about an installed asset belongs on that asset's history too —
+     that is the whole point of the warranty register. */
+  if (asset) {
+    await writeActivity({ entityType: "installed_asset", entityId: asset.id, kind: "status_change",
+      summary: `Reported fault (${created.ref}): ${subject}`, actor: req.user?.name ?? "system" });
+  }
+  return { status: 201, body: { ticket: created } };
+}));
+
+/* Adding a message. The first OUTBOUND message stamps `first_response_at` — an
+   internal note does not, which is why this cannot be set at creation. */
+app.post("/api/tickets/:id/messages", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM tickets WHERE id = ? OR ref = ?").get(req.params.id, req.params.id);
+  if (!row) throw Object.assign(new Error("ticket not found"), { statusCode: 404 });
+  const body = String(b.body ?? "").trim();
+  if (!body) throw Object.assign(new Error("a message needs a body"), { statusCode: 400 });
+  if (row.closed_at) {
+    throw Object.assign(new Error("a closed ticket is reopened before it is written to, so the reopening is visible"),
+      { statusCode: 409, code: "ticket_closed" });
+  }
+  const internal = b.internal === true;
+  const t = now();
+  const info = await db.prepare(
+    "INSERT INTO ticket_messages(ticket_id, author, body, internal, channel, created_at) VALUES(?,?,?,?,?,?)"
+  ).run(row.id, b.author ?? req.user?.name ?? "system", body, internal ? 1 : 0, b.channel ?? null, t);
+
+  const sets = ["updated_at = ?"];
+  const params = [t];
+  /* Only an outbound message counts as a response. An internal note is the team
+     talking to itself, and counting it would let a ticket look answered while
+     the customer has heard nothing. */
+  if (!internal && !row.first_response_at) {
+    sets.push("first_response_at = ?"); params.push(t);
+  }
+  if (row.waiting_on === "them" && !internal) { sets.push("waiting_on = 'us'"); }
+  params.push(row.id);
+  await db.prepare(`UPDATE tickets SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+
+  const created = rowTicketMessage(await db.prepare("SELECT * FROM ticket_messages WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: internal ? "ticket.note" : "ticket.reply", entityType: "ticket", entityId: row.id, after: created });
+  const after = rowTicket(await db.prepare(ticketSql("t.id = ?")).get(row.id));
+  return { status: 201, body: { message: created, ticket: after } };
+}));
+
+app.patch("/api/tickets/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM tickets WHERE id = ? OR ref = ?").get(req.params.id, req.params.id);
+  if (!row) throw Object.assign(new Error("ticket not found"), { statusCode: 404 });
+  const before = rowTicket(row);
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries({ owner: "owner", resolution: "resolution", subject: "subject", description: "description" })) {
+    if (b[k] === undefined) continue;
+    sets.push(`${col} = ?`); params.push(b[k] === null ? null : String(b[k]));
+  }
+  if (b.status !== undefined) {
+    const status = String(b.status).toLowerCase();
+    if (!["open", "in_progress", "waiting", "resolved", "closed"].includes(status)) {
+      throw Object.assign(new Error("status must be open, in_progress, waiting, resolved or closed"), { statusCode: 400 });
+    }
+    if (status === "resolved") {
+      const resolution = String(b.resolution ?? row.resolution ?? "").trim();
+      if (!resolution) {
+        throw Object.assign(new Error("resolving a ticket needs a resolution saying what fixed it"),
+          { statusCode: 400, code: "resolution_required" });
+      }
+      sets.push("resolution = ?"); params.push(resolution);
+      sets.push("resolved_at = ?"); params.push(row.resolved_at ?? now());
+    }
+    if (status === "closed") {
+      if (!row.resolved_at && !b.resolution) {
+        throw Object.assign(new Error("a ticket is resolved before it is closed — otherwise nobody knows what fixed it"),
+          { statusCode: 409, code: "not_resolved" });
+      }
+      sets.push("closed_at = ?"); params.push(now());
+    }
+    if (status === "waiting") {
+      sets.push("waiting_on = ?"); params.push(b.waitingOn === "us" ? "us" : "them");
+    }
+    if (status === "open" || status === "in_progress") { sets.push("waiting_on = 'us'"); }
+    sets.push("status = ?"); params.push(status);
+  }
+  if (b.waitingOn !== undefined && b.status === undefined) {
+    const w = String(b.waitingOn);
+    if (!["us", "them"].includes(w)) throw Object.assign(new Error("waitingOn must be us or them"), { statusCode: 400 });
+    sets.push("waiting_on = ?"); params.push(w);
+  }
+  /* Re-raising the priority is allowed; moving the SLA deadline is not. The
+     trigger refuses it, and refusing here too gives a message that says why. */
+  if (b.priority !== undefined) {
+    const priority = String(b.priority).toLowerCase();
+    if (!Object.keys(SLA_HOURS).includes(priority)) {
+      throw Object.assign(new Error(`priority must be ${Object.keys(SLA_HOURS).join(", ")}`), { statusCode: 400 });
+    }
+    sets.push("priority = ?"); params.push(priority);
+  }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE tickets SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = rowTicket(await db.prepare(ticketSql("t.id = ?")).get(row.id));
+  await writeAudit(req, { action: "ticket.updated", entityType: "ticket", entityId: row.id, before, after });
+  if (before.status !== after.status) {
+    await writeActivity({ entityType: "ticket", entityId: row.id, kind: "status_change",
+      summary: `${after.ref}: ${before.status} → ${after.status}${after.resolution ? `: ${after.resolution}` : ""}`,
+      actor: req.user?.name ?? "system" });
+  }
+  return { ticket: after };
+}));
+
+/* ─────────────────────────── service visits ─────────────────────────── */
+
+app.get("/api/service-visits", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.status) { where.push("v.status = ?"); params.push(String(req.query.status)); }
+  if (req.query.ticket_id) { where.push("v.ticket_id = ?"); params.push(Number(req.query.ticket_id)); }
+  const rows = await db.prepare(
+    `SELECT v.*, t.ref AS ticket_ref FROM service_visits v JOIN tickets t ON t.id = v.ticket_id
+      ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY v.scheduled_for DESC, v.id DESC LIMIT 300`
+  ).all(...params);
+  res.json({ total: rows.length, items: rows.map(rowServiceVisit) });
+}));
+
+app.post("/api/service-visits", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const ticket = await db.prepare("SELECT * FROM tickets WHERE id = ? OR ref = ?").get(Number(b.ticketId), String(b.ticketId ?? ""));
+  if (!ticket) throw Object.assign(new Error("ticket not found: " + b.ticketId), { statusCode: 404 });
+  let scheduledFor = null;
+  if (b.scheduledFor) {
+    const parsed = Date.parse(String(b.scheduledFor));
+    if (!Number.isFinite(parsed)) throw Object.assign(new Error("scheduledFor must be a valid date and time"), { statusCode: 400 });
+    scheduledFor = new Date(parsed).toISOString();
+  }
+  const ref = await nextRef("service_visits", "VIS-", 2000);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO service_visits(ref, ticket_id, scheduled_for, technician, address, status, notes, created_at, updated_at)
+     VALUES(?,?,?,?,?,'scheduled',?,?,?)`
+  ).run(ref, ticket.id, scheduledFor, b.technician ?? null, b.address ?? ticket.address ?? null,
+    b.notes ?? null, t, t);
+  const created = rowServiceVisit(await db.prepare(
+    "SELECT v.*, t.ref AS ticket_ref FROM service_visits v JOIN tickets t ON t.id = v.ticket_id WHERE v.id = ?"
+  ).get(info.lastInsertRowid));
+  await writeAudit(req, { action: "service_visit.created", entityType: "service_visit", entityId: created.id, after: created });
+  await writeActivity({ entityType: "ticket", entityId: ticket.id, kind: "meeting",
+    summary: `Visit ${created.ref} scheduled${created.technician ? ` with ${created.technician}` : ""}`,
+    actor: req.user?.name ?? "system" });
+  return { status: 201, body: { visit: created } };
+}));
+
+app.patch("/api/service-visits/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM service_visits WHERE id = ? OR ref = ?").get(req.params.id, req.params.id);
+  if (!row) throw Object.assign(new Error("visit not found"), { statusCode: 404 });
+  const before = rowServiceVisit(row);
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries({ technician: "technician", address: "address",
+    workDone: "work_done", partsUsed: "parts_used", notes: "notes" })) {
+    if (b[k] === undefined) continue;
+    sets.push(`${col} = ?`); params.push(b[k] === null ? null : String(b[k]));
+  }
+  if (b.scheduledFor !== undefined) {
+    const parsed = Date.parse(String(b.scheduledFor));
+    if (!Number.isFinite(parsed)) throw Object.assign(new Error("scheduledFor must be a valid date and time"), { statusCode: 400 });
+    sets.push("scheduled_for = ?"); params.push(new Date(parsed).toISOString());
+  }
+  if (b.chargeable !== undefined) { sets.push("chargeable = ?"); params.push(b.chargeable === true ? 1 : 0); }
+  if (b.chargeAmount !== undefined) {
+    const amount = b.chargeAmount === null ? null : Number(b.chargeAmount);
+    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+      throw Object.assign(new Error("chargeAmount must be zero or more"), { statusCode: 400 });
+    }
+    sets.push("charge_amount = ?"); params.push(amount);
+  }
+  if (b.status !== undefined) {
+    const status = String(b.status).toLowerCase();
+    if (!["scheduled", "attended", "completed", "missed", "cancelled"].includes(status)) {
+      throw Object.assign(new Error("status must be scheduled, attended, completed, missed or cancelled"), { statusCode: 400 });
+    }
+    if (status === "attended" && !row.arrived_at) { sets.push("arrived_at = ?"); params.push(now()); }
+    if (status === "completed") {
+      /* A completed visit says what was done. "Completed" with no work recorded
+         is the same as no visit at all, except that it closes the ticket. */
+      const workDone = String(b.workDone ?? row.work_done ?? "").trim();
+      if (!workDone) {
+        throw Object.assign(new Error("completing a visit needs a note of what was actually done"),
+          { statusCode: 400, code: "work_done_required" });
+      }
+      sets.push("work_done = ?"); params.push(workDone);
+      sets.push("completed_at = ?"); params.push(row.completed_at ?? now());
+      if (!row.arrived_at) { sets.push("arrived_at = ?"); params.push(now()); }
+    }
+    sets.push("status = ?"); params.push(status);
+  }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE service_visits SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = rowServiceVisit(await db.prepare(
+    "SELECT v.*, t.ref AS ticket_ref FROM service_visits v JOIN tickets t ON t.id = v.ticket_id WHERE v.id = ?"
+  ).get(row.id));
+  await writeAudit(req, { action: "service_visit.updated", entityType: "service_visit", entityId: row.id, before, after });
+  if (before.status !== after.status) {
+    await writeActivity({ entityType: "ticket", entityId: row.ticket_id, kind: "status_change",
+      summary: `Visit ${after.ref}: ${before.status} → ${after.status}${after.workDone ? ` — ${after.workDone}` : ""}`,
+      actor: req.user?.name ?? "system" });
+  }
+  return { visit: after };
+}));
+
+/* ─────────────────────────── warranty claims ─────────────────────────── */
+
+app.get("/api/warranty-claims", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.verdict) { where.push("verdict = ?"); params.push(String(req.query.verdict)); }
+  if (req.query.asset_id) { where.push("asset_id = ?"); params.push(Number(req.query.asset_id)); }
+  const rows = await db.prepare(
+    `SELECT * FROM warranty_claims ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY claimed_on DESC, id DESC LIMIT 300`
+  ).all(...params);
+  res.json({ total: rows.length, items: rows.map(rowWarrantyClaim) });
+}));
+
+/* Open a claim. The warranty date is copied from the asset **at the moment of
+   the claim** and stored: the asset can be edited and a product's term can
+   change, but what the customer was told on the day cannot be re-derived. */
+app.post("/api/warranty-claims", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const customer = String(b.customer ?? "").trim();
+  const fault = String(b.fault ?? "").trim();
+  if (!customer) throw Object.assign(new Error("customer is required"), { statusCode: 400 });
+  if (!fault) throw Object.assign(new Error("say what the fault is"), { statusCode: 400 });
+  let asset = null;
+  if (b.assetId !== undefined && b.assetId !== null && b.assetId !== "") {
+    asset = await db.prepare("SELECT * FROM installed_assets WHERE id = ? OR tag = ?").get(Number(b.assetId), String(b.assetId));
+    if (!asset) throw Object.assign(new Error("installed asset not found: " + b.assetId), { statusCode: 404 });
+  }
+  const ref = await nextRef("warranty_claims", "WCL-", 300);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO warranty_claims(ref, ticket_id, asset_id, customer, part, fault, claimed_on,
+       warranty_until_on_claim, verdict, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?,'pending',?,?)`
+  ).run(ref, b.ticketId ?? null, asset?.id ?? null, customer, b.part ?? null, fault,
+    String(b.claimedOn ?? new Date().toISOString().slice(0, 10)), asset?.warranty_until ?? null, t, t);
+  const created = rowWarrantyClaim(await db.prepare("SELECT * FROM warranty_claims WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "warranty_claim.created", entityType: "warranty_claim", entityId: created.id, after: created });
+  await writeActivity({ entityType: "warranty_claim", entityId: created.id, kind: "system",
+    summary: `Claim ${created.ref}: ${fault}${created.warrantyUntilOnClaim ? ` (warranty to ${created.warrantyUntilOnClaim})` : ""}`,
+    actor: req.user?.name ?? "system" });
+  return { status: 201, body: { claim: created } };
+}));
+
+app.patch("/api/warranty-claims/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM warranty_claims WHERE id = ? OR ref = ?").get(req.params.id, req.params.id);
+  if (!row) throw Object.assign(new Error("claim not found"), { statusCode: 404 });
+  if (row.verdict !== "pending") {
+    throw Object.assign(new Error(`this claim was already decided (${row.verdict}) on ${row.decided_on}; a decided answer is not reopened, a new claim is raised`),
+      { statusCode: 409, code: "claim_decided" });
+  }
+  const verdict = String(b.verdict ?? "").toLowerCase();
+  if (!["covered", "not_covered", "goodwill"].includes(verdict)) {
+    throw Object.assign(new Error("verdict must be covered, not_covered or goodwill"), { statusCode: 400 });
+  }
+  const reason = String(b.reason ?? "").trim();
+  if (!reason) {
+    throw Object.assign(new Error("a verdict needs a reason — the customer is told it, and finance acts on it"),
+      { statusCode: 400, code: "reason_required" });
+  }
+  /* Covered and goodwill mean Woodex pays. Not covered means the customer does.
+     Recording the cost only where Woodex bears it keeps the support P&L honest. */
+  let cost = b.costToWooodex === undefined || b.costToWooodex === null ? null : Number(b.costToWooodex);
+  if (cost !== null && (!Number.isFinite(cost) || cost < 0)) {
+    throw Object.assign(new Error("cost must be zero or more"), { statusCode: 400 });
+  }
+  const decidedOn = String(b.decidedOn ?? new Date().toISOString().slice(0, 10));
+  await db.prepare(
+    "UPDATE warranty_claims SET verdict = ?, decided_on = ?, decided_by = ?, reason = ?, cost_to_woodex = ?, updated_at = ? WHERE id = ?"
+  ).run(verdict, decidedOn, req.user?.name ?? "system", reason, cost, now(), row.id);
+  const after = rowWarrantyClaim(await db.prepare("SELECT * FROM warranty_claims WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: "warranty_claim.decided", entityType: "warranty_claim", entityId: row.id,
+    before: rowWarrantyClaim(row), after });
+  await writeActivity({ entityType: "warranty_claim", entityId: row.id, kind: "status_change",
+    summary: `Claim ${after.ref} decided: ${verdict} — ${reason}`, actor: req.user?.name ?? "system" });
+  return { claim: after };
+}));
+
+/* Support in one number: what is open, what is late, and what the warranty
+   decisions have cost. This is the page a manager reads on Monday. */
+app.get("/api/support/summary", wrap(async (req, res) => {
+  const nowIso = now();
+  const today = nowIso.slice(0, 10);
+  const open = (await db.prepare("SELECT * FROM tickets WHERE status IN ('open','in_progress','waiting')").all()).map(rowTicket);
+  const claims = await db.prepare("SELECT * FROM warranty_claims").all();
+  const visits = await db.prepare("SELECT status, COUNT(*) AS n FROM service_visits GROUP BY status").all();
+  const expired = await db.prepare(
+    "SELECT COUNT(*) AS n FROM installed_assets WHERE warranty_until IS NOT NULL AND warranty_until < ?"
+  ).get(today);
+  res.json({
+    openTickets: open.length,
+    responseBreached: open.filter((t) => t.responseBreached).length,
+    resolutionBreached: open.filter((t) => t.resolutionBreached).length,
+    waitingOnCustomer: open.filter((t) => t.waitingOn === "them").length,
+    unclaimedDecisions: claims.filter((c) => String(c.verdict) === "pending").length,
+    coveredCost: claims.filter((c) => ["covered", "goodwill"].includes(String(c.verdict)))
+      .reduce((a, c) => a + Number(c.cost_to_woodex ?? 0), 0),
+    visitsByStatus: visits.reduce((acc, v) => ({ ...acc, [String(v.status)]: Number(v.n) }), {}),
+    assetsOutOfWarranty: Number(expired?.n ?? 0),
+  });
 }));
 
 /* ══════════════════════════════ finance (013) ══════════════════════════════

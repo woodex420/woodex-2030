@@ -1,6 +1,6 @@
 # WOODEX 2030 — Master Implementation Tracker
 
-**Updated:** 2026-11-09 · **Baseline:** migration `015` (`delivery`)
+**Updated:** 2026-11-09 · **Baseline:** migration `016` (`support`)
 **Companions:** [`00-CURRENT-STATE.md`](agency-os/00-CURRENT-STATE.md) is authoritative for facts; this file is authoritative for *plan and status*.
 
 > Rule: a status may only move to **Verified** when a named command passes and
@@ -46,7 +46,7 @@
 | **Tenancy / RLS** | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | **P0** |
 | **Hosted drift audit** | ⚠️ Blocked | ✅ runtime check | — | — | ✅ | **P0** |
 | Platform admin | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
-| Support / warranty | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
+| Support / warranty (§11.3) | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
 | Automation / AI | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
 | Queues | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
 
@@ -92,7 +92,7 @@ Each item is sized by *kind* of work, because that is what determines duration.
 | 8b | Tax capture on invoice/bill issuance | Code | 2–3 d | `013` |
 | 9 | ~~CRM depth: companies, contacts, meetings, attachments, activity history~~ **DONE** | New module | — | ✅ `014` + UI |
 | 10 | ~~Delivery + installation~~ **DONE** | New module | — | ✅ `015` + UI |
-| 11 | Support + warranty | New module | 2 wk | 10 |
+| 11 | ~~Support + warranty~~ **DONE** | New module | — | ✅ `016` + UI |
 | 12 | **Tenant schema + context + RLS + cross-tenant tests** | **Architecture** | 2–3 wk | D-1 answered |
 | 13 | Configurable roles/permissions | Schema + code | 1 wk | 12 |
 | 14 | Password reset + email adapter | Code | 2–3 d | SMTP creds |
@@ -689,6 +689,102 @@ rollback removes exactly the four tables and 015 re-applies cleanly.
 `test:audit` 14/14 · `test:finance` · `test:inventory` · `test:procurement` ·
 `test:production` · `test:bills` · `test:stock-ledger` · `check:migration`
 65 = 65 = 65 · `docs:verify` clean · dashboard `tsc -b && vite build`, 45 routes.
+
+---
+
+## 4e. Increment 9 — support and warranty (016)
+
+015 leaves the system knowing which physical objects are in which room and until
+when each is under warranty. It cannot answer the question that follows:
+**something is wrong with one of them, and what happens now?**
+
+Today that lives in a chat group. The second complaint about the same hinge is
+handled by whoever remembers the first, the warranty status is argued rather than
+looked up, and the technician who fixed it last time is whoever is free.
+
+### Three tables, because they have different lifespans
+
+- **`tickets`** — the customer's claim. Opened once, closed once.
+- **`service_visits`** — Woodex's response. Scheduled, attended, missed; several
+  per ticket when the first attempt does not fix a mis-aligned door.
+- **`warranty_claims`** — the answer about coverage, with the date it was decided.
+
+Collapsing them means a ticket can only ever have one attempt, or the attempts
+are smuggled into a notes field where nothing can be reported on.
+
+### The SLA is arithmetic, not a colour
+
+Deadlines are computed once from the **priority at intake** and frozen by
+trigger. A breach cannot be made to disappear by downgrading a ticket, waiting,
+and upgrading it again — proven by attempting to move the deadline in SQLite and
+in Postgres (`P0001 the SLA deadline is set once`). Raising the priority is still
+allowed; the deadline simply does not move.
+
+`responseBreached` and `resolutionBreached` are derived from the clock on every
+read, so the flag flips when the deadline passes without anyone writing to the
+row. `waiting_on` separates "blocked on the customer" from "ignored by us",
+because conflating the two makes every ageing report wrong.
+
+### An internal note is not a response
+
+`first_response_at` is stamped only by an **outbound** message. A team talking to
+itself must not make a ticket look answered while the customer has heard nothing
+— that is the single most misleading number a support dashboard can show, and it
+is tested directly.
+
+### Resolved before closed
+
+Resolving requires a resolution (`400 resolution_required`); closing requires a
+resolution first (`409 not_resolved`). A resolved ticket with no resolution tells
+the next person nothing, and it is the field they read first. Writing to a closed
+ticket is refused (`409 ticket_closed`) so the reopening is visible rather than
+implied.
+
+A completed visit must say what was **actually done** (`400
+work_done_required`) — "completed" with no work recorded is the same as no visit
+at all, except that it closes the ticket.
+
+### The warranty answer is copied, then frozen
+
+A claim copies `installed_assets.warranty_until` at the moment it is raised. The
+asset can be edited and a product's warranty term can change; what the customer
+was told on this day cannot be re-derived. `verdict` requires a reason
+(`400 reason_required`) because the customer is told it and finance acts on it,
+and a decided claim is not reopened (`409 claim_decided`) — a new claim is raised
+instead, so the first answer stays on the record.
+
+`goodwill` is a separate verdict from `covered`: both cost Woodex money, and the
+difference is exactly the information a manager wants when the term ran out but
+the customer was right.
+
+### The asset now has a history to read
+
+`GET /api/installed-assets/:id` returns the asset with its order, its tickets,
+its visits, its claims and its activity timeline. A fault reported through a
+ticket is written onto the **asset's** history as well as the ticket's — that is
+the whole point of the warranty register, and it is the page a technician reads
+before driving out.
+
+### Rollback is guarded, and proven
+
+`rollback/016_support.rollback.sql` refuses while any ticket, visit or claim
+exists: dropping them does not resolve the complaints, it destroys the record
+that they were ever made. Verified in PGlite — the guard fires with 1 ticket;
+with the tables empty the rollback removes exactly the four tables and 016
+re-applies cleanly.
+
+### Files
+
+- `scripts/migrations/016_support.sql` — 4 tables, 5 named FKs, 17 CHECKs, 1 trigger
+- `apps/api/server.mjs` — 13 handlers; `SLA_HOURS` is the only place a deadline is derived
+- `apps/dashboard/src/pages/Support.tsx` — queue ordered by breach then priority
+- `scripts/test-support.mjs` — 60 checks
+
+**Verified:** `test:support` **60/60** · `test:delivery` 53/53 · `test:crm` 67/67 ·
+`test:integrity` · `test:audit` 14/14 · `test:finance` · `test:inventory` ·
+`test:procurement` · `test:production` · `test:bills` · `test:stock-ledger` ·
+`check:migration` 69 = 69 = 69 · `docs:verify` clean · dashboard build, 46 routes ·
+PGlite: 16 migrations, 69 tables, 84 FKs, rollback guard + re-apply.
 
 ---
 

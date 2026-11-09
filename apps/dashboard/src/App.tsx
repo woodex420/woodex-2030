@@ -24,6 +24,7 @@ import Invoices from "@/pages/Invoices";
 import Projects from "@/pages/Projects";
 import Operations from "@/pages/Operations";
 import Suppliers from "@/pages/Suppliers";
+import Support from "@/pages/Support";
 import PurchaseOrders from "@/pages/PurchaseOrders";
 import GoodsReceipts from "@/pages/GoodsReceipts";
 import SupplierInvoices from "@/pages/SupplierInvoices";
@@ -116,6 +117,7 @@ export default function App() {
             <Route path="/companies" element={<Companies />} />
             <Route path="/meetings" element={<Meetings />} />
             <Route path="/deliveries" element={<Deliveries />} />
+            <Route path="/support" element={<Support />} />
             <Route path="/quotations" element={<QuotationsList />} />
             <Route path="/quotations/new" element={<QuotationBuilder />} />
             <Route path="/catalog" element={<Catalog />} />
