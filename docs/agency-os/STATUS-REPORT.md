@@ -2,8 +2,13 @@
 
 **Date:** 2026-11-09
 **Production:** https://woodex-2030.vercel.app
-**Commit:** `7f17fd7` · deploy `dpl_86P1Nkf3jJxathWkhA3WFE3uz2gc` (READY, PROMOTED)
-**Database:** Supabase `krtncckcfvzirnrcdjrm` · 4 migrations applied
+**Snapshot commit:** `7f17fd7` · deploy `dpl_86P1Nkf3jJxathWkhA3WFE3uz2gc` (READY, PROMOTED)
+
+> This report is a **point-in-time snapshot** taken at the commit above. The
+> figures below it — 26 FKs, 20 CHECKs, 4 migrations — were accurate then and are
+> deliberately not rewritten, because the narrative around them describes a
+> specific milestone. For what is true *now*, see `00-CURRENT-STATE.md`, which is
+> authoritative: **28 FKs, 28 CHECKs, 7 migrations**, `main @ 2df2b6d`.
 **Local preview:** storefront `:5174` · dashboard `:3001` · API `:3002`
 
 ---
@@ -18,8 +23,8 @@ proves they exist.
 
 | Item | Result |
 |---|---|
-| Foreign keys | **26** enforced in production |
-| CHECK constraints | **20** enforced in production |
+| Foreign keys | **26** enforced in production (28 today) |
+| CHECK constraints | **20** enforced in production (28 today) |
 | Migration ledger | `schema_migrations` records every applied file with a sha256 |
 | Migration runner | `pg-migrate.mjs` applies files in order, idempotently |
 | Integrity rehearsal | `test:integrity` proves each constraint *rejects* bad data |

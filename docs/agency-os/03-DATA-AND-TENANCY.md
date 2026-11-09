@@ -49,11 +49,14 @@ add real columns for the fields that reporting actually filters on.
 - Every one of the 29 tables has a primary key. `client_links` was the last one
   without a key; it is now keyed on `(entity, entity_id)`, which also states the
   invariant that a record belongs to exactly one client.
-- **26 foreign keys**, each with a deliberate `ON DELETE`: `CASCADE` where the
+- **28 foreign keys**, each with a deliberate `ON DELETE`: `CASCADE` where the
   application already deletes children by hand, `SET NULL` for history that
   should outlive its parent, `RESTRICT` where no delete path exists and one
-  would need a decision rather than a default.
-- **21 CHECK constraints** on money, quantities, percentages and the status
+  would need a decision rather than a default. 26 come from `002`; the stock
+  ledger adds two more in `003` (`stock_movements.product_id` and
+  `stock_reservations.product_id`, both `RESTRICT` — deleting a product that
+  has stock history would erase the audit trail).
+- **28 CHECK constraints** on money, quantities, percentages and the status
   vocabularies the API treats as closed sets.
 - **An ordered migration ledger** (`schema_migrations`) with a SHA-256 per file.
   Editing an applied migration is a hard error, not a warning.
@@ -89,15 +92,59 @@ read-only, and it is verified to exit 1 on drift (a dropped
 against a database it just created, proves the files are correct and says
 nothing about the one that is serving traffic.
 
-**Still not enforced, deliberately:** `returns.state` and `invoices.status` are
-open vocabularies in the code (the seed writes values the API's own enum does
-not list). `tasks.priority` is free text — the dashboard sends `high`, QA sends
-`High`, seeds use both. Constraining these before the API normalises input would
-turn working requests into 500s. That is a code change first, migration second.
+**Closed since this document was first written:** `tasks.priority`,
+`returns.state` and `invoices.status` were all open vocabularies. All three are
+now constrained, and in every case the order was **code first, migration
+second** — normalise at the API boundary, prove it live, then let the CHECK
+enforce it:
 
-**Consequence of the gap that remains:** a bug can still write an order in a
-state the UI cannot render, or a task priority nothing matches. Nothing at the
-storage layer stops that yet.
+| Column | Constraint | What the open column was hiding |
+|---|---|---|
+| `tasks.priority` | `tasks_priority_known` | Free text. Dashboard sent `high`, QA sent `High`, seeds used both. |
+| `returns.state` | `returns_state_known` | `PATCH` restocked inventory only when the state was literally `"Closed"`, so `"closed"` resolved the RMA and **silently skipped the restock**. Separately, order lines without an `id` — every seeded or imported order — were skipped entirely. |
+| `invoices.status` | `invoices_status_known` | Recording a payment on a cancelled invoice flipped it back to `Paid`, **silently undoing the cancellation**. |
+
+Two of those three were live data bugs, not tidiness. The general lesson:
+an unconstrained enum is not a cosmetic gap, because the code eventually starts
+comparing against its values as though they were guaranteed.
+
+**A correction worth recording:** `002` left `returns.state` open on the stated
+grounds that the demo seed wrote `Approved`, `Rejected` and `Completed`. It
+never did — nothing in the codebase ever wrote those to a return. The column was
+open because nobody normalised it, and a wrong reason in a migration comment
+survives long enough to be trusted. `002` is immutable, so the correction ships
+in `006`.
+
+**Still not enforced, deliberately:** `invoices.status` admits only what is
+**stored** (`Issued`, `Partially Paid`, `Paid`, `Cancelled`). `Overdue` is
+derived on read by `decorateInvoice` from the due date and remaining balance,
+and the CHECK rejects it: storing a derived value freezes it, and the first
+payment would leave a permanently stale `Overdue` behind. `Draft` is rejected
+because no code path produces an invoice in that state.
+
+**What a constraint still cannot do:** guard sequences. `invoices_status_known`
+cannot stop a cancelled invoice being flipped back to `Paid`, because that is a
+transition rather than an illegal value. Those are code-level guards in the
+routes (`409`), shipped alongside each migration — never a substitute for the
+CHECK, and never expressible as one.
+
+**What is still open at the storage layer**, checked rather than assumed:
+`orders.status` and `orders.stage` *are* constrained. The remaining gaps are
+`quotes.status` and `leads.status`:
+
+- **`quotes.status` is validated in code but not in the database.** The routes
+  check against `QUOTE_STATUSES` and return `400` for anything else, so the
+  behaviour is correct — but nothing at the storage layer backs it up, and any
+  future write path that bypasses those routes could store a value the twelve-
+  member enum does not describe.
+- **`leads.status` is neither.** It is written directly by several flows
+  (`Site visit booked`, `Site visit completed`, `Qualified`, …) with no
+  allow-list anywhere.
+
+Neither is urgent — both are validated or generated internally, unlike the three
+columns that leaked into inventory and payment logic. Recording them here so the
+next person does not have to re-derive it, and so "all vocabularies are closed"
+is never claimed without the caveat.
 
 ### 2.1 Contract for new and changed tables
 

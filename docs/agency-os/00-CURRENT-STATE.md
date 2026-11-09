@@ -3,8 +3,8 @@
 **Status:** authoritative. This file records what the repository *does today*, with
 evidence, not what the roadmap intends.
 
-**Baseline:** `main` @ `15e6242` (merge of PR #6)
-**Last verified:** 2026-11-08
+**Baseline:** `main` @ `2df2b6d` (merge of PR #15)
+**Last verified:** 2026-11-09
 **Verification method:** counts taken from source and from a green gate run. Where
 something was not independently verified, it is marked **UNVERIFIED** rather than
 assumed.
@@ -39,6 +39,8 @@ be standardised until it is resolved.
 | Dashboard routes | **29** | `<Route` in `apps/dashboard/src/App.tsx` |
 | PostgreSQL tables | **31** | base schema + `scripts/migrations/*.sql` (distinct names) |
 | SQLite tables | **31** | `apps/api/server.mjs` (distinct names; two are created twice) |
+| Migrations applied | **7** | `scripts/migrations/*.sql`, all recorded in `schema_migrations` |
+| CHECK constraints | **28** | distinct `<table>_<rule>` names declared across the migrations |
 | Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json` |
 | Prerendered storefront routes | **76** | `npm run vercel:build` |
 | QA checks | **107** (sqlite) and **107** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |
@@ -104,9 +106,10 @@ Listed to stop anyone assuming otherwise. None of this exists today:
 | P0 | No tenant isolation | Cross-company data leakage if a second tenant is onboarded |
 | ~~P0~~ | ~~No tested backup/restore drill~~ **FIXED** | `npm run test:restore` backs up a populated database, restores it into a separate one, and compares every table row for row. The first real execution found a restore that reported success and wrote nothing |
 | P1 | In-process rate limiting | Limits are not shared across serverless instances |
-| ~~P1~~ | ~~PostgreSQL schema lacks FK/CHECK constraints~~ **FIXED** | 26 FKs + 21 CHECKs enforced. `test:integrity` proves each rejects bad data and now compares constraint **names** — a count let `tasks_done_boolean` go missing in production for weeks. `npm run audit:schema` compares a live database against its migrations |
-| ~~P1~~ | ~~No ordered migration ledger~~ **FIXED** | `schema_migrations` + `scripts/migrate.mjs`; checksum drift is a hard error |
-| P1 | `tasks.priority`, `returns.state`, `invoices.status` are open vocabularies | No constraint possible until the API normalises input — see 03 §2 |
+| ~~P1~~ | ~~PostgreSQL schema lacks FK/CHECK constraints~~ **FIXED** | 28 FKs + 28 CHECKs enforced. `test:integrity` proves each rejects bad data and compares constraint **names** — a count let `tasks_done_boolean` go missing in production for weeks. `npm run audit:schema` compares a live database against its migrations |
+| ~~P1~~ | ~~No ordered migration ledger~~ **FIXED** | `schema_migrations` + `scripts/migrate.mjs`; checksum drift is a hard error. 7 migrations applied, each with a recorded sha256 |
+| ~~P1~~ | ~~`tasks.priority`, `returns.state`, `invoices.status` are open vocabularies~~ **FIXED** | All three closed in `005`, `006` and `007`, in that order — normalise at the API boundary, prove it live, then constrain. Two of the three were hiding live data bugs: returns silently skipped the inventory restock, and a payment silently undid a cancellation. See 03 §2 |
+| P2 | `quotes.status` and `leads.status` still open at the storage layer | `quotes.status` is validated in code (`400` on anything outside `QUOTE_STATUSES`) but has no CHECK; `leads.status` has no allow-list at all. Low risk — neither feeds inventory or payments — but see 03 §2 |
 | P2 | Tailwind 3 / 4 split | Two styling systems; design tokens cannot be shared |
 | P2 | Vite rather than Next.js | No SSR; SEO relies on prerendering (76 routes) |
 | P2 | SSE unavailable on Vercel | Polling fallback only in production |
