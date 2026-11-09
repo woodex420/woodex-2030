@@ -3,7 +3,7 @@
  * Express + async DB facade (SQLite default; PostgreSQL via DATABASE_URL).
  *
  *   GET  /api/health                 status + row counts
- *   GET  /api/products[?q&sub]       full catalog (price/stock edits merged)
+ *   GET  /api/products[?q&sub&limit&offset]  catalog (price/stock edits merged)
  *   GET  /api/products/overrides     changed rows only (storefront polling)
  *   GET  /api/products/:id           one product
  *   PATCH/api/products/:id           {price?, inStock?, stockQty?}  → both apps see it live
@@ -999,6 +999,33 @@ app.get("/api/diagnostics/queries", (req, res) => {
 });
 
 const PRODUCT_ID_RE = /^[a-z0-9][a-z0-9-]{0,78}[a-z0-9]$/;
+
+/* Bounds for ?limit/?offset. MAX_PAGE keeps a single response small; MAX_WINDOW
+   stops a caller from making the server walk an arbitrary distance through the
+   catalogue to discard it. */
+const MAX_PAGE = 500;
+const MAX_WINDOW = 5000;
+
+/* Parses ?limit & ?offset into integers, or returns an error string.
+   Absent/empty => null, meaning "no bound". Anything present must be a
+   non-negative integer: 'abc', '1.5', '-1' and '' are rejected rather than
+   coerced, because Math.trunc(Number('abc')) is NaN and a NaN limit silently
+   becomes an unbounded query — the exact failure being fixed here. */
+function parseWindow(query) {
+  const int = (raw, { min, max, name }) => {
+    if (raw === undefined || raw === "") return { value: null };
+    if (!/^\d+$/.test(String(raw))) return { error: `${name} must be a non-negative integer` };
+    const n = Number(raw);
+    if (n < min) return { error: `${name} must be at least ${min}` };
+    if (max !== undefined && n > max) return { error: `${name} must be at most ${max}` };
+    return { value: n };
+  };
+  const l = int(query.limit, { min: 0, max: MAX_PAGE, name: "limit" });
+  if (l.error) return { error: l.error };
+  const o = int(query.offset, { min: 0, max: MAX_WINDOW, name: "offset" });
+  if (o.error) return { error: o.error };
+  return { limit: l.value, offset: o.value ?? 0 };
+}
 const productImageRef = (value) => {
   const image = String(value ?? "").trim();
   if (/^https:\/\//i.test(image)) return image;
@@ -1065,11 +1092,23 @@ function normalizeProduct(input, base = {}, id = base.id) {
 app.get("/api/products", wrap(async (req, res) => {
   const q = String(req.query.q || "").toLowerCase();
   const sub = req.query.sub || "";
+
+  /* limit/offset are accepted but must never be silently ignored: a caller that
+     asks for 1 product and receives 148 has no way to tell whether it asked
+     wrong or the API ignored it. Absent means "everything". */
+  const { limit, offset, error } = parseWindow(req.query);
+  if (error) return res.status(400).json({ error });
+
   let rows = (await (db.prepare("SELECT * FROM products ORDER BY id").all()));
   let items = rows.map(rowProduct);
   if (sub) items = items.filter((p) => p.subcategory === sub);
   if (q) items = items.filter((p) => (p.name + " " + (p.series ?? "") + " " + (p.category ?? "")).toLowerCase().includes(q));
-  res.json({ total: items.length, items });
+  /* total is the size of the filtered set, before the window: a paginated client
+     needs both "how many matched" and "these are the ones I asked for". */
+  const total = items.length;
+  const start = Math.min(offset, total);
+  const page = items.slice(start, limit === null ? undefined : start + limit);
+  res.json({ total, items: page, limit, offset });
 }));
 
 app.get("/api/products/overrides", wrap(async (req, res) => {

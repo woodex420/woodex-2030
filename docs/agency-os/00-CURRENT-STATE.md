@@ -43,7 +43,7 @@ be standardised until it is resolved.
 | CHECK constraints | **28** | distinct `<table>_<rule>` names declared across the migrations |
 | Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json` |
 | Prerendered storefront routes | **76** | `npm run vercel:build` |
-| QA checks | **107** (sqlite) and **107** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |
+| QA checks | **108** (sqlite) and **108** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |
 
 Counts rot. `npm run docs:verify` re-checks them and fails when this file drifts.
 
@@ -120,8 +120,8 @@ Every gate below runs in CI and/or inside `vercel:build`.
 
 | Command | Covers |
 |---|---|
-| `npm run qa` | 107 API checks against SQLite |
-| `npm run qa:pg` | 107 checks against a PostgreSQL rehearsal |
+| `npm run qa` | 108 API checks against SQLite |
+| `npm run qa:pg` | 108 checks against a PostgreSQL rehearsal |
 | `npm run typecheck:all` | Both apps |
 | `npm run secret-scan` | Tracked files |
 | `npm run smoke:render` | Both apps mount in jsdom |
@@ -136,7 +136,9 @@ Every gate below runs in CI and/or inside `vercel:build`.
 
 ```bash
 curl -s https://woodex-2030.vercel.app/api/health          # {"ok":true,...}
-curl -s "https://woodex-2030.vercel.app/api/products?limit=1" | head -c 80
+curl -s "https://woodex-2030.vercel.app/api/products?limit=1"   # 1 item, total 148
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "https://woodex-2030.vercel.app/api/products?limit=abc"        # expect 400
 
 curl -s -X POST https://woodex-2030.vercel.app/api/auth/login \
   -H 'content-type: application/json' \

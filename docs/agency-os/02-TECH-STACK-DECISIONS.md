@@ -44,7 +44,7 @@ overturn this are listed in §7.
 | Cache | **Deferred** — no Redis | Single critical path is fast; no measured need. |
 | Search | **PostgreSQL full-text** when needed | Not yet needed at 148 products. |
 | File storage | **Deferred** — metadata/URL references only | Real upload/storage is a gap, tracked. |
-| Testing | **Node test scripts + jsdom** | 107 QA checks, both engines, plus 4 build guards. |
+| Testing | **Node test scripts + jsdom** | 108 QA checks, both engines, plus 4 build guards. |
 | CI/CD | **GitHub Actions** | In place. |
 | Hosting | **Vercel (current)** vs **Hostinger VPS (documented)** — *undecided* | See §5. |
 
@@ -65,7 +65,7 @@ does not damage SEO.
 ### 2.2 On Laravel specifically
 
 Laravel's advantages are Eloquent, queues, Sanctum and Reverb. The existing code
-already has sessions, RBAC and an API that passes 107 checks. The cost of moving
+already has sessions, RBAC and an API that passes 108 checks. The cost of moving
 is a full re-implementation of 103 routes in PHP, plus the loss of the current
 deployment pipeline.
 
@@ -79,7 +79,7 @@ replacement behind a routing layer, with exactly one writer per table at a time.
 | Master plan says | We are doing | Why |
 |---|---|---|
 | Next.js frontend | Vite + React | Works; SSR not required yet |
-| Laravel backend | Express | Works; 107 passing checks |
+| Laravel backend | Express | Works; 108 passing checks |
 | Eloquent ORM | Custom SQL | Already supports 3 engines |
 | Redis | Not yet | No measured need |
 | Laravel Reverb / WebSockets | SSE + polling | Serverless has no socket server |

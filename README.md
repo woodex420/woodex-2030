@@ -35,7 +35,7 @@ apps/
   storefront/     customer app — 25 routes, React 19 · Vite 8 · Tailwind 3
     src/assets/img.ts   the one helper that builds /img URLs
 api/              Vercel serverless entry (index.mjs) + sitemap
-scripts/          QA battery (107 checks), e2e specs, PG migrator, deploy & doc guards
+scripts/          QA battery (108 checks), e2e specs, PG migrator, deploy & doc guards
 docs/             see docs/README.md — product · architecture · audits · operations · archive
 vercel.json       install/build/output + SPA rewrites
 ```
@@ -81,7 +81,7 @@ npm run dev:preview:storefront      # storefront :5174 → :3002
 ## Verify it
 
 ```bash
-npm run qa               # 107 checks: auth, RBAC, public surface, CRUD, CMS, perf, backups
+npm run qa               # 108 checks: auth, RBAC, public surface, CRUD, CMS, perf, backups
 npm run qa:pg            # the same battery against PostgreSQL semantics (PGlite)
 npm run typecheck:all    # both apps
 npm run smoke:render     # both apps actually mount (catches duplicate-React white screens)
