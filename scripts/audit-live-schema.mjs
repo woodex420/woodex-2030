@@ -62,13 +62,35 @@ const declaredChecks = new Set([
 /* Foreign keys: the VALUES list carries (child_table, child_col, parent, 'id', …)
    and later migrations use inline FOREIGN KEY clauses. Only the VALUES form can
    be attributed to a table name from the source, so both are collected and
-   compared by the generated name Postgres will use. */
+   compared by the generated name Postgres will use.
+
+   Three declaration styles exist in this repo, and missing the third was a real
+   bug — not a hypothetical one:
+
+     1. 002 in a VALUES list:  ('tasks','client_id','clients','id','SET NULL', …)
+     2. ALTER TABLE … ADD CONSTRAINT x FOREIGN KEY      (none today, kept for safety)
+     3. 003 inline inside CREATE TABLE:
+          CONSTRAINT stock_movements_product_fkey FOREIGN KEY (product_id)
+
+   Style 3 was missing, so this script declared 26 foreign keys when the
+   migrations define 28. The consequence was worse than an undercount: with
+   stock_movements_product_fkey deliberately dropped from a fully migrated
+   database, the audit still reported "all 26 declared foreign keys present" and
+   exited 0. A drift detector that reports no drift on a drifted database is
+   worse than no detector, because it is what you consult to decide whether
+   production can be trusted.
+
+   Style 3 is matched by name only. The `CONSTRAINT <name> FOREIGN KEY` form
+   always carries an explicit name, so there is nothing to derive — unlike
+   style 1, where Postgres generates <table>_<column>_fkey. */
 const declaredFks = new Set([
   ...[...read("scripts/migrations/002_integrity_constraints.sql")
     .matchAll(/^\s*\('(\w+)',\s*'(\w+)',\s*'\w+',\s*'id',\s*'(?:NO ACTION|CASCADE|SET NULL|RESTRICT)',/gm)]
     .map((m) => `${m[1]}_${m[2]}_fkey`),
   ...[...migrationSql.matchAll(/ALTER TABLE (\w+) ADD CONSTRAINT (\w+) FOREIGN KEY/gi)]
     .map((m) => m[2]),
+  ...[...migrationSql.matchAll(/CONSTRAINT\s+(\w+)\s+FOREIGN\s+KEY/gi)]
+    .map((m) => m[1]),
 ]);
 
 /* Tables the base schema creates. */

@@ -32,3 +32,19 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: PostgreSQL rehearsal, API security QA, and browser acceptance
         run: node scripts/ci-test.mjs
+      # Drift audit against the HOSTED database. Every other DB check here runs
+      # against a throwaway Postgres, so none of them can see a hosted database
+      # that disagrees with its migrations — which is exactly how
+      # tasks_done_boolean went missing in production for weeks.
+      #
+      # Skipped when the secret is absent (forks, and any run without it) rather
+      # than faked: an audit that silently does nothing is the failure mode this
+      # whole file exists to prevent.
+      - name: Hosted schema drift audit
+        if: ${{ secrets.PRODUCTION_DATABASE_URL != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: npm run audit:schema
+      - name: Note when the hosted audit was skipped
+        if: ${{ secrets.PRODUCTION_DATABASE_URL == '' }}
+        run: echo "::notice::PRODUCTION_DATABASE_URL is not set — hosted schema drift audit skipped. Production is unverified this run."
