@@ -11,6 +11,18 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # A step-level `if` cannot read the `secrets` context. Referencing it
+      # there does not fail the step, it invalidates the entire workflow file,
+      # and GitHub then creates no jobs at all -- the run dies in 0s with an
+      # empty job list, which reads like an infrastructure blip rather than the
+      # syntax error it is. `env` is readable from a step-level `if`, so the
+      # availability of the secret is published here as a bare flag.
+      #
+      # Only the flag goes at job level. The credential itself stays on the one
+      # step that needs it, so `npm ci` and the other steps never have the
+      # production connection string in their environment.
+      HAS_PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,10 +53,10 @@ jobs:
       # than faked: an audit that silently does nothing is the failure mode this
       # whole file exists to prevent.
       - name: Hosted schema drift audit
-        if: ${{ secrets.PRODUCTION_DATABASE_URL != '' }}
+        if: env.HAS_PRODUCTION_DATABASE_URL == 'true'
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: npm run audit:schema
       - name: Note when the hosted audit was skipped
-        if: ${{ secrets.PRODUCTION_DATABASE_URL == '' }}
+        if: env.HAS_PRODUCTION_DATABASE_URL != 'true'
         run: echo "::notice::PRODUCTION_DATABASE_URL is not set — hosted schema drift audit skipped. Production is unverified this run."
