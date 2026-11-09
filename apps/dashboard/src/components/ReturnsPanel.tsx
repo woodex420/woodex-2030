@@ -17,8 +17,17 @@ export function ReturnsPanel() {
   const { push } = useToast();
   const items = data?.items ?? [];
 
+  /* indexOf returns -1 for a state outside STATES, which used to render
+     "Move to Requested" and walk the RMA backwards. The API normalises now, but
+     a stale cached row must still not offer a backwards move: clamp an unknown
+     state to the start of the ladder instead of stepping off it. */
+  const nextState = (state: string) => {
+    const i = STATES.indexOf(state as (typeof STATES)[number]);
+    return STATES[Math.min((i < 0 ? 0 : i) + 1, STATES.length - 1)];
+  };
+
   const advance = async (r: ApiReturn) => {
-    const next = STATES[Math.min(STATES.indexOf(r.state as (typeof STATES)[number]) + 1, 3)];
+    const next = nextState(r.state);
     try {
       await mutate(`/api/returns/${r.id}`, { state: next });
       push({ tone: "primary", title: `${r.ref} → ${next}`, desc: `${r.customer} — storefront tracker updates live.` });
@@ -49,7 +58,7 @@ export function ReturnsPanel() {
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 <Badge tone={TONE[r.state] ?? "primary"} dot>{r.state}</Badge>
-                {r.state !== "Closed" && <Button size="sm" onClick={() => void advance(r)}>Move to {STATES[STATES.indexOf(r.state as (typeof STATES)[number]) + 1]}</Button>}
+                {r.state !== "Closed" && <Button size="sm" onClick={() => void advance(r)}>Move to {nextState(r.state)}</Button>}
               </span>
             </li>
           ))}

@@ -150,6 +150,11 @@ try {
     ["CHECK · unknown user role", `INSERT INTO users(email,name,role) VALUES ('r@x.pk','N','emperor')`],
     ["CHECK · unknown task priority (the column that was free text for months)", `INSERT INTO tasks(title,priority) VALUES ('t','URGENT-ish')`],
     ["CHECK · capitalised task priority ('High' was a real caller value)", `INSERT INTO tasks(title,priority) VALUES ('t2','High')`],
+    /* These two are the bug 006 exists to stop. Before normalisation they were
+       accepted verbatim, and "closed" in particular looked resolved while the
+       restock branch — which compares against the literal "Closed" — never ran. */
+    ["CHECK · lowercase return state ('closed' silently skipped the restock)", `INSERT INTO returns(ref,customer,reason,state) VALUES ('T-R1','c','r','closed')`],
+    ["CHECK · unknown return state (the value the seed never actually wrote)", `INSERT INTO returns(ref,customer,reason,state) VALUES ('T-R2','c','r','Approved')`],
     ["CHECK · project progress above 100", `INSERT INTO projects(ref,name,client_id,progress) VALUES ('T-P2','p',1,140)`],
     ["CHECK · negative BOQ quantity", `INSERT INTO boq_lines(project_id,description,qty) VALUES (1,'d',-2)`],
     ["CHECK · quote version below 1", `INSERT INTO quotes(ref,customer,items,version) VALUES ('T-Q2','c','[]',0)`],
@@ -190,6 +195,15 @@ try {
     { constraint: "tasks_priority_known", table: "tasks", column: "priority",
       code: new Set([...(serverSrc.match(/const TASK_PRIORITIES = new Set\(\[([^\]]+)\]/) ?? ["", ""])[1]
         .matchAll(/"([a-z]+)"/g)].map((m) => m[1])) },
+    /* returns.state is the inverse lesson. The column was open for a reason 002
+       invented — that the seed wrote Approved/Rejected/Completed — and nothing
+       ever did. Meanwhile PATCH keys its restock on the literal string "Closed",
+       so an off-vocabulary state resolved the RMA and skipped the inventory
+       write. The set the normaliser can produce and the set this CHECK allows
+       must be identical, or the restock silently stops again. */
+    { constraint: "returns_state_known", table: "returns", column: "state",
+      code: new Set([...(serverSrc.match(/const RETURN_STATES = \[([^\]]+)\]/) ?? ["", ""])[1]
+        .matchAll(/"([A-Za-z ]+)"/g)].map((m) => m[1])) },
   ];
   for (const v of vocab) {
     const def = (await q(`SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = $1`, [v.constraint]))[0]?.def;
