@@ -34,13 +34,13 @@ be standardised until it is resolved.
 
 | Thing | Count | Evidence |
 |---|---|---|
-| API route handlers | **124** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
+| API route handlers | **132** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
 | Storefront routes | **25** | `<Route` in `apps/storefront/src/App.tsx` |
 | Dashboard routes | **29** | `<Route` in `apps/dashboard/src/App.tsx` |
-| PostgreSQL tables | **40** | base schema + `scripts/migrations/*.sql` (distinct names) |
-| SQLite tables | **40** | `apps/api/server.mjs` (distinct names; two are created twice) |
-| Migrations applied | **10** | `scripts/migrations/*.sql`, all recorded in `schema_migrations` |
-| CHECK constraints | **50** | distinct `<table>_<rule>` names declared across the migrations |
+| PostgreSQL tables | **44** | base schema + `scripts/migrations/*.sql` (distinct names) |
+| SQLite tables | **44** | `apps/api/server.mjs` (distinct names; two are created twice) |
+| Migrations applied | **11** | `scripts/migrations/*.sql`, all recorded in `schema_migrations` |
+| CHECK constraints | **62** | distinct `<table>_<rule>` names declared across the migrations |
 | Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json` |
 | Prerendered storefront routes | **76** | `npm run vercel:build` |
 | QA checks | **108** (sqlite) and **108** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |
@@ -61,6 +61,19 @@ Counts rot. `npm run docs:verify` re-checks them and fails when this file drifts
 - **CMS and page builder.** Typed block editor, block ordering, saved sections,
   signed iframe preview, versions, publish, rollback.
 - **Finance (partial).** Invoices and manual payment records.
+- **Procurement (009).** Suppliers, purchase orders, goods receipts; receiving
+  posts a `receipt` ledger movement.
+- **Payables (010).** Supplier invoices, three-way matching, an audited variance
+  override and a payment ceiling.
+- **Production (011).** BOMs (versioned, one active per product), job cards whose
+  materials are snapshotted from the recipe at raise time, material issue, the
+  `queued → in_progress → qc → done` path, and a QC gate that makes `done`
+  unreachable without a recorded pass. Issuing consumes stock through the ledger
+  exactly once (keyed on the cumulative total per line, so partial issues can be
+  topped up and retries collide); a finish code moves no stock; completing with
+  components still unissued is refused unless explicitly overridden, and the
+  override is audited. `npm run test:production` proves each of those, and
+  `npm run test:upgrade` proves an existing database still boots.
 - **Real-time.** SSE on the persistent runtime; polling fallback on Vercel.
 - **Deployment guards.** Routing, seed-snapshot, router-basename and migration
   coverage checks all run inside `vercel:build`.
@@ -89,9 +102,11 @@ All four are now guarded by `npm run check:deploy` and `npm run test:router`.
 Listed to stop anyone assuming otherwise. None of this exists today:
 
 - Multi-tenancy: no `tenant_id`, no tenant context, no RLS, no control plane.
-- Stock movement ledger: products carry `stock_qty` as a mutable number only.
-- Procurement: no suppliers, RFQs, purchase orders or goods receiving.
-- Production: no BOM, job cards, work centres or QC.
+- Procurement: suppliers, purchase orders and goods receiving **shipped (009)**.
+- Payables: supplier invoices and three-way matching **shipped (010)**.
+- Production: BOMs, job cards, material issue, stages and QC **shipped (011)**.
+- Work centres and machine capacity: not modelled. A job card records what is
+  built and by whom, not which bench it occupied.
 - Delivery: no dispatch, POD or installation workflow.
 - Support / warranty: `/support` renders a placeholder.
 - Payment gateway: checkout creates an order request, not a payment.

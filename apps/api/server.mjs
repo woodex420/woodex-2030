@@ -53,6 +53,35 @@ console.log("[woodex-api] driver=" + db.kind);
 const now = () => new Date().toISOString();
 const fmtMoney = (n) => "PKR " + Math.round(n).toLocaleString("en-PK");
 
+/* ---- pre-DDL column migrations ----
+   011 adds stock_movements.idem_key, and 011's unique index — created in the
+   DDL immediately below — references it. Putting the column in the CREATE
+   TABLE statement is not enough: that statement is IF NOT EXISTS, so on a
+   database created before this change it does nothing, and the CREATE INDEX
+   then fails with "no such column". The API would not start, which is exactly
+   what happened on any machine holding an older woodex.db.
+   So the column is added here, before the DDL, guarded by a pragma probe
+   (SQLite has no ADD COLUMN IF NOT EXISTS.)
+
+   Both halves are needed and neither is redundant: the column is declared in
+   the CREATE TABLE below so a NEW database is born with it, and added here so
+   an EXISTING one acquires it. `cols.length` distinguishes the two — an empty
+   pragma result means the table does not exist yet and the CREATE will handle
+   it. */
+if (db.kind === "sqlite") {
+  const cols = await db.prepare("PRAGMA table_info(stock_movements)").all();
+  if (cols.length && !cols.some((c) => c.name === "idem_key")) {
+    await db.exec("ALTER TABLE stock_movements ADD COLUMN idem_key TEXT");
+    console.log("[woodex-api] migrated stock_movements.idem_key (011)");
+  }
+  /* An earlier revision of 011 created this index with the wrong predicate —
+     one movement per material line — which forbids the partial-issue-then-top-up
+     that a real build needs. IF NOT EXISTS never removes it, so a database that
+     ran that revision would keep enforcing the stricter rule. Dropped explicitly
+     so every database converges on the same rule. */
+  await db.exec("DROP INDEX IF EXISTS uq_stock_movements_production_issue");
+}
+
 /* ---------------- schema ---------------- */
 if (db.kind === "sqlite") await db.exec(`
 CREATE TABLE IF NOT EXISTS products(
@@ -71,7 +100,7 @@ CREATE TABLE IF NOT EXISTS stock_movements(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   product_id TEXT NOT NULL, delta INTEGER NOT NULL CHECK (delta <> 0),
   reason TEXT NOT NULL, ref_type TEXT, ref_id INTEGER, note TEXT,
-  created_by TEXT, created_at TEXT NOT NULL
+  created_by TEXT, created_at TEXT NOT NULL, idem_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON stock_movements(product_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_ref ON stock_movements(ref_type, ref_id);
@@ -136,6 +165,61 @@ CREATE INDEX IF NOT EXISTS idx_goods_receipt_lines_line ON goods_receipt_lines(p
 CREATE UNIQUE INDEX IF NOT EXISTS uq_stock_movements_receipt_ref
   ON stock_movements(ref_type, ref_id, product_id)
   WHERE reason = 'receipt' AND ref_type = 'goods_receipt' AND ref_id IS NOT NULL;
+/* Production: BOMs, job cards, consumption — mirror of 011_production.sql.
+   A job card names the product and quantity it builds, because orders.items is
+   a JSON array of {name, price, qty} with no product id: a line saying
+   "BALLMER Executive Desk" cannot be resolved to a products row without
+   fuzzy-matching a display name. Deriving consumption from a sales order needs
+   order creation to persist product ids — a separate change, recorded as open.
+   NOTE: no backticks inside this template literal. */
+CREATE TABLE IF NOT EXISTS boms(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ref TEXT NOT NULL UNIQUE, product_id TEXT NOT NULL, name TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1, output_qty INTEGER NOT NULL DEFAULT 1,
+  active INTEGER NOT NULL DEFAULT 1, notes TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_boms_active_product ON boms(product_id) WHERE active = 1;
+CREATE INDEX IF NOT EXISTS idx_boms_product ON boms(product_id, version DESC);
+CREATE TABLE IF NOT EXISTS bom_lines(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bom_id INTEGER NOT NULL, line_no INTEGER NOT NULL,
+  item_kind TEXT NOT NULL, item_id TEXT NOT NULL,
+  qty_per_output INTEGER NOT NULL, unit TEXT, note TEXT,
+  UNIQUE (bom_id, line_no)
+);
+CREATE INDEX IF NOT EXISTS idx_bom_lines_bom ON bom_lines(bom_id, line_no);
+CREATE TABLE IF NOT EXISTS job_cards(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ref TEXT NOT NULL UNIQUE, bom_id INTEGER, product_id TEXT NOT NULL, order_id INTEGER,
+  qty_to_build INTEGER NOT NULL, qty_built INTEGER NOT NULL DEFAULT 0,
+  stage TEXT NOT NULL DEFAULT 'queued', assigned_to TEXT,
+  started_at TEXT, completed_at TEXT, qc_passed_at TEXT, qc_by TEXT, qc_note TEXT,
+  due_at TEXT, notes TEXT, created_by TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_job_cards_stage ON job_cards(stage, id DESC);
+CREATE INDEX IF NOT EXISTS idx_job_cards_order ON job_cards(order_id);
+CREATE INDEX IF NOT EXISTS idx_job_cards_product ON job_cards(product_id);
+CREATE TABLE IF NOT EXISTS job_card_materials(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  job_card_id INTEGER NOT NULL, line_no INTEGER NOT NULL,
+  item_kind TEXT NOT NULL, item_id TEXT NOT NULL,
+  qty_required INTEGER NOT NULL, qty_issued INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  UNIQUE (job_card_id, line_no),
+  UNIQUE (job_card_id, item_kind, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_jcm_job ON job_card_materials(job_card_id, line_no);
+/* The issue and output guards — same predicates as migration 011. */
+/* Idempotency by cumulative state: an issue is keyed on the total the line
+   reaches, so replaying it collides while a genuine top-up does not. */
+CREATE UNIQUE INDEX IF NOT EXISTS uq_stock_movements_idem_key
+  ON stock_movements(ref_type, idem_key) WHERE idem_key IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_stock_movements_production_output
+  ON stock_movements(ref_type, ref_id, product_id)
+  WHERE reason = 'production' AND ref_type = 'job_card_output' AND ref_id IS NOT NULL;
+
 /* Supplier invoices (payables) — mirror of 010_supplier_invoices.sql.
    Deliberately separate from "invoices": that table is receivables (money in,
    customer by name). Merging them would make every receivables query need a
@@ -515,8 +599,12 @@ async function ensureCrmDemo() {
       earlier; it now writes only its own columns and lets the ledger own
       stock_qty, so a concurrent sale cannot be silently overwritten by an
       edit form that loaded the page a minute ago. */
-const STOCK_REASONS = new Set(["receipt", "sale", "return", "adjustment", "transfer", "wastage"]);
-const applyStockMovement = async ({ productId, delta, reason, refType = null, refId = null, note = null, actor = "system" }) => {
+/* "production" is a real reason: components issued into a build and the
+   finished item coming out. Filing those under "adjustment" would hide real
+   consumption inside the bucket reserved for corrections. Migration 011 widens
+   the PostgreSQL CHECK to match — the two must always move together. */
+const STOCK_REASONS = new Set(["receipt", "sale", "return", "adjustment", "transfer", "wastage", "production"]);
+const applyStockMovement = async ({ productId, delta, reason, refType = null, refId = null, note = null, actor = "system", idemKey = null }) => {
   const d = Number(delta);
   if (!Number.isInteger(d) || d === 0) throw Object.assign(new Error("stock delta must be a non-zero whole number"), { statusCode: 400 });
   if (!STOCK_REASONS.has(reason)) throw Object.assign(new Error("unknown stock reason: " + reason), { statusCode: 400 });
@@ -533,9 +621,23 @@ const applyStockMovement = async ({ productId, delta, reason, refType = null, re
     if (!res.changes) throw Object.assign(new Error("product not found: " + productId), { statusCode: 404, code: "product_not_found", productId });
   }
 
-  const info = await db.prepare(
-    "INSERT INTO stock_movements(product_id, delta, reason, ref_type, ref_id, note, created_by, created_at) VALUES(?,?,?,?,?,?,?,?)"
-  ).run(productId, d, reason, refType, refId, note, String(actor).slice(0, 80), now());
+  let info;
+  try {
+    info = await db.prepare(
+      "INSERT INTO stock_movements(product_id, delta, reason, ref_type, ref_id, note, created_by, created_at, idem_key) VALUES(?,?,?,?,?,?,?,?,?)"
+    ).run(productId, d, reason, refType, refId, note, String(actor).slice(0, 80), now(), idemKey);
+  } catch (error) {
+    /* The idempotency index fired: this exact movement was already recorded.
+       Surfacing the driver message would make a correct refusal look like a
+       server fault, and a caller retrying on 5xx would keep hammering it.
+       The stock decrement above is rolled back with the transaction. */
+    const duplicate = /UNIQUE constraint failed|duplicate key value/i.test(String(error?.message ?? ""));
+    if (duplicate && idemKey) {
+      throw Object.assign(new Error("this movement has already been recorded (idempotency key " + idemKey + ")"),
+        { statusCode: 409, code: "duplicate_movement" });
+    }
+    throw error;
+  }
   return { id: info.lastInsertRowid, productId, delta: d, reason };
 };
 
@@ -997,6 +1099,12 @@ const ROLE_CAPS = {
      because reads check the cap for /api/products… see capsFor below, where
      purchasing gets an explicit read allowance rather than a write one. */
   purchasing: ["purchasing.manage", "catalog.view"],
+  /* Production owns recipes (BOMs) and job cards. It needs to read the
+     catalogue to know what it is building, and it needs NOTHING on stock —
+     consumption and output post through applyStockMovement, which is a
+     production write, not a catalogue one. Giving it catalog.manage would let
+     the floor edit prices; catalog.view is the honest grant. */
+  production: ["production.manage", "catalog.view"],
   viewer: [],
 };
 const ROLES = Object.keys(ROLE_CAPS);
@@ -1019,6 +1127,11 @@ const capsFor = (m, path) => {
   if (path.startsWith("/api/supplier-invoices")) return "finance.manage";
   if (path.startsWith("/api/invoices") || path.startsWith("/api/payments") || path.startsWith("/api/returns")) return "finance.manage";
   if (path.startsWith("/api/suppliers") || path.startsWith("/api/purchase-orders") || path.startsWith("/api/goods-receipts")) return "purchasing.manage";
+  /* Recipes and job cards belong to the floor. Deliberately NOT folded into
+     purchasing.manage: the person who buys the timber is not the person who
+     decides how much of it a chair takes, and a shared cap would make the
+     separation meaningless. */
+  if (path.startsWith("/api/boms") || path.startsWith("/api/job-cards")) return "production.manage";
   if (path.startsWith("/api/products") || path.startsWith("/api/materials") || path.startsWith("/api/services") || path.startsWith("/api/categories") || path.startsWith("/api/collections")) return "catalog.manage";
   return "owner-only";
 };
@@ -2468,6 +2581,427 @@ async function migrationAlignment() {
     fix: aligned ? null : "run: DATABASE_URL=... npm run db:migrate — the deployed code expects these tables",
   };
 }
+
+/* ══════════════════════════ production / BOM ══════════════════════════
+   Bills of materials, job cards, material issue and finished output.
+
+   The rule this block exists to enforce: issuing a component DECREMENTS stock
+   exactly once (and a finish code never at all), and a job card cannot be
+   marked done without passing QC. Both are asserted in
+   scripts/test-production.mjs, including the direction neither check would
+   catch on its own — that the output credit is not double-counted.
+
+   Nothing here writes stock_qty directly. Every movement goes through
+   applyStockMovement, with reason 'production'. */
+
+const JC_STAGES = new Set(["queued", "in_progress", "qc", "done", "cancelled"]);
+/* The forward path. Anything not listed is refused, including going backwards:
+   work does not un-happen, and a stage that can regress makes every report
+   built on it unreliable. */
+const JC_NEXT = {
+  queued: ["in_progress", "cancelled"],
+  in_progress: ["qc", "cancelled"],
+  qc: ["done", "in_progress"],
+  done: [],
+  cancelled: [],
+};
+
+const rowBomLine = (r) => ({
+  id: r.id, bomId: r.bom_id, lineNo: r.line_no, itemKind: r.item_kind, itemId: r.item_id,
+  qtyPerOutput: r.qty_per_output, unit: r.unit, note: r.note,
+});
+const rowBom = (r) => ({
+  id: r.id, ref: r.ref, productId: r.product_id, name: r.name, version: r.version,
+  outputQty: r.output_qty, active: !!r.active, notes: r.notes,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowJobCard = (r) => ({
+  id: r.id, ref: r.ref, bomId: r.bom_id, productId: r.product_id, orderId: r.order_id,
+  qtyToBuild: r.qty_to_build, qtyBuilt: r.qty_built, stage: r.stage, assignedTo: r.assigned_to,
+  startedAt: r.started_at, completedAt: r.completed_at, dueAt: r.due_at, notes: r.notes,
+  qcPassedAt: r.qc_passed_at, qcBy: r.qc_by, qcNote: r.qc_note,
+  createdBy: r.created_by, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowJcMaterial = (r) => ({
+  id: r.id, jobCardId: r.job_card_id, lineNo: r.line_no, itemKind: r.item_kind, itemId: r.item_id,
+  qtyRequired: r.qty_required, qtyIssued: r.qty_issued,
+  qtyOutstanding: Math.max(0, r.qty_required - r.qty_issued),
+});
+
+/* ids are BIGINT on Postgres. Binding "BOM-1001" to the id parameter is a cast
+   error there, not a miss, so the numeric branch is taken only when the input
+   actually looks numeric. (The older routes use `id=? OR ref=?` throughout and
+   are fine because callers pass ids; these helpers are given refs by humans.) */
+const looksNumeric = (v) => /^\d+$/.test(String(v ?? "").trim());
+const bomById = async (id) =>
+  looksNumeric(id)
+    ? await db.prepare("SELECT * FROM boms WHERE id=? OR ref=?").get(Number(id), String(id))
+    : await db.prepare("SELECT * FROM boms WHERE ref=?").get(String(id));
+const jobCardById = async (id) =>
+  looksNumeric(id)
+    ? await db.prepare("SELECT * FROM job_cards WHERE id=? OR ref=?").get(Number(id), String(id))
+    : await db.prepare("SELECT * FROM job_cards WHERE ref=?").get(String(id));
+const jobCardMaterials = async (jobCardId) =>
+  (await db.prepare("SELECT * FROM job_card_materials WHERE job_card_id=? ORDER BY line_no").all(jobCardId)).map(rowJcMaterial);
+
+/* A job card with its materials and the movements actually posted against it,
+   so "issued" is never merely what a column says. */
+const jobCardFull = async (r) => {
+  const materials = await jobCardMaterials(r.id);
+  const movements = (await db.prepare(
+    `SELECT id, product_id, delta, reason, ref_type, ref_id, note, created_by, created_at
+       FROM stock_movements
+      WHERE (ref_type = 'job_card_material' AND ref_id IN
+              (SELECT id FROM job_card_materials WHERE job_card_id = ?))
+         OR (ref_type = 'job_card_output' AND ref_id = ?)
+      ORDER BY id`).all(r.id, r.id))
+    .map((m) => ({ id: m.id, productId: m.product_id, delta: Number(m.delta), reason: m.reason,
+      refType: m.ref_type, refId: m.ref_id, note: m.note, by: m.created_by, at: m.created_at }));
+  return { ...rowJobCard(r), materials, movements };
+};
+
+/* ---------- bills of materials ---------- */
+
+app.get("/api/boms", wrap(async (req, res) => {
+  let rows = await db.prepare("SELECT * FROM boms ORDER BY id DESC").all();
+  if (req.query.active !== undefined) {
+    const want = ["1", "true", "yes"].includes(String(req.query.active).toLowerCase());
+    rows = rows.filter((b) => !!b.active === want);
+  }
+  if (req.query.product_id) rows = rows.filter((b) => b.product_id === req.query.product_id);
+  const items = [];
+  for (const b of rows) {
+    const lines = (await db.prepare("SELECT * FROM bom_lines WHERE bom_id=? ORDER BY line_no").all(b.id)).map(rowBomLine);
+    items.push({ ...rowBom(b), lines, componentCount: lines.length });
+  }
+  res.json({ total: items.length, active: items.filter((b) => b.active).length, items });
+}));
+
+app.get("/api/boms/:id", wrap(async (req, res) => {
+  const b = await bomById(req.params.id);
+  if (!b) return res.status(404).json({ error: "not found" });
+  const lines = (await db.prepare("SELECT * FROM bom_lines WHERE bom_id=? ORDER BY line_no").all(b.id)).map(rowBomLine);
+  res.json({ ...rowBom(b), lines });
+}));
+
+/* Create a BOM. Creating a second active BOM for the same product SUPERSEDES
+   the first rather than failing: versioning is the normal case in a workshop,
+   and forcing the operator to deactivate by hand first is how two "active"
+   recipes end up in use on the floor. */
+app.post("/api/boms", wrapTxJson(async (req) => {
+  const b = req.body ?? {};
+  const productId = String(b.productId ?? b.product_id ?? "").trim();
+  if (!productId) return { status: 400, body: { error: "productId is required" } };
+  const product = await db.prepare("SELECT * FROM products WHERE id=?").get(productId);
+  if (!product) return { status: 400, body: { error: `product '${productId}' does not exist` } };
+
+  const rawLines = Array.isArray(b.lines) ? b.lines : [];
+  if (!rawLines.length) return { status: 400, body: { error: "a BOM needs at least one component" } };
+
+  const prepared = [];
+  const seen = new Set();
+  for (const [i, line] of rawLines.entries()) {
+    const kind = String(line.itemKind ?? line.item_kind ?? "product").toLowerCase();
+    if (!["product", "material"].includes(kind))
+      return { status: 400, body: { error: `line ${i + 1}: itemKind must be product or material` } };
+    const itemId = String(line.itemId ?? line.item_id ?? "").trim();
+    if (!itemId) return { status: 400, body: { error: `line ${i + 1}: itemId is required` } };
+    const exists = kind === "product"
+      ? await db.prepare("SELECT 1 AS x FROM products WHERE id=?").get(itemId)
+      : await db.prepare("SELECT 1 AS x FROM materials WHERE id=?").get(itemId);
+    if (!exists) return { status: 400, body: { error: `line ${i + 1}: ${kind} '${itemId}' does not exist` } };
+    const key = kind + ":" + itemId;
+    if (seen.has(key)) return { status: 400, body: { error: `line ${i + 1}: ${kind} '${itemId}' appears twice` } };
+    if (kind === "product" && itemId === productId)
+      return { status: 400, body: { error: `line ${i + 1}: a product cannot contain itself` } };
+    seen.add(key);
+    const qty = Number(line.qtyPerOutput ?? line.qty_per_output ?? line.qty);
+    if (!Number.isInteger(qty) || qty <= 0)
+      return { status: 400, body: { error: `line ${i + 1}: qtyPerOutput must be a positive whole number` } };
+    prepared.push({ lineNo: i + 1, kind, itemId, qty, unit: line.unit ?? null, note: line.note ?? null });
+  }
+
+  const t = now();
+  const priorBom = await db.prepare("SELECT * FROM boms WHERE product_id=? AND active=1").get(productId);
+  const version = priorBom ? Number(priorBom.version) + 1 : 1;
+  if (priorBom) await db.prepare("UPDATE boms SET active=0, updated_at=? WHERE id=?").run(t, priorBom.id);
+
+  const ref = await nextRef("boms", "BOM-", 100);
+  const info = await db.prepare(
+    "INSERT INTO boms(ref,product_id,name,version,output_qty,active,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)"
+  ).run(ref, productId, b.name ?? `${safeJson(product.json, {})?.name ?? productId} — recipe`, version,
+    Number(b.outputQty ?? b.output_qty ?? 1), 1, b.notes ?? null, t, t);
+  const bomId = info.lastInsertRowid;
+  for (const l of prepared) {
+    await db.prepare("INSERT INTO bom_lines(bom_id,line_no,item_kind,item_id,qty_per_output,unit,note) VALUES(?,?,?,?,?,?,?)")
+      .run(bomId, l.lineNo, l.kind, l.itemId, l.qty, l.unit, l.note);
+  }
+  const out = { ...rowBom(await bomById(bomId)),
+    lines: (await db.prepare("SELECT * FROM bom_lines WHERE bom_id=? ORDER BY line_no").all(bomId)).map(rowBomLine) };
+  await writeAudit(req, { action: "bom.created", entityType: "bom", entityId: bomId,
+    after: { ref, productId, version, lines: prepared.length, superseded: priorBom?.id ?? null } });
+  return { status: 201, body: out };
+}));
+
+/* ---------- job cards ---------- */
+
+app.get("/api/job-cards", wrap(async (req, res) => {
+  let rows = await db.prepare("SELECT * FROM job_cards ORDER BY id DESC").all();
+  if (req.query.stage) {
+    const wanted = String(req.query.stage).split(",").map((s) => s.trim().toLowerCase());
+    rows = rows.filter((r) => wanted.includes(r.stage));
+  }
+  if (req.query.order_id) rows = rows.filter((r) => String(r.order_id) === String(req.query.order_id));
+  if (req.query.assigned_to) rows = rows.filter((r) => r.assigned_to === req.query.assigned_to);
+  const items = await Promise.all(rows.map(jobCardFull));
+  res.json({
+    total: items.length,
+    open: items.filter((j) => ["queued", "in_progress", "qc"].includes(j.stage)).length,
+    awaitingQc: items.filter((j) => j.stage === "qc").length,
+    items,
+  });
+}));
+
+app.get("/api/job-cards/:id", wrap(async (req, res) => {
+  const r = await jobCardById(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  res.json(await jobCardFull(r));
+}));
+
+/* Raise a job card. Materials are snapshotted from the active BOM at creation
+   time and copied into job_card_materials — NOT read live from the BOM later.
+   A recipe that changes mid-build must not silently change what an
+   already-issued job was supposed to consume. */
+app.post("/api/job-cards", wrapTxJson(async (req, afterCommit) => {
+  const b = req.body ?? {};
+  const productId = String(b.productId ?? b.product_id ?? "").trim();
+  if (!productId) return { status: 400, body: { error: "productId is required — a job must say what it builds" } };
+  const product = await db.prepare("SELECT * FROM products WHERE id=?").get(productId);
+  if (!product) return { status: 400, body: { error: `product '${productId}' does not exist` } };
+
+  const qty = Number(b.qtyToBuild ?? b.qty_to_build ?? b.qty);
+  if (!Number.isInteger(qty) || qty <= 0)
+    return { status: 400, body: { error: "qtyToBuild must be a positive whole number" } };
+
+  let orderId = b.orderId ?? b.order_id ?? null;
+  if (orderId != null && orderId !== "") {
+    const order = await db.prepare("SELECT * FROM orders WHERE id=?").get(orderId);
+    if (!order) return { status: 400, body: { error: "order not found" } };
+    orderId = order.id;
+  } else orderId = null;
+
+  const bom = b.bomId ?? b.bom_id
+    ? await bomById(b.bomId ?? b.bom_id)
+    : await db.prepare("SELECT * FROM boms WHERE product_id=? AND active=1").get(productId);
+  if (bom && bom.product_id !== productId)
+    return { status: 400, body: { error: `${bom.ref} is a recipe for ${bom.product_id}, not ${productId}` } };
+
+  const t = now();
+  const ref = await nextRef("job_cards", "JC-", 1000);
+  const info = await db.prepare(
+    `INSERT INTO job_cards(ref,bom_id,product_id,order_id,qty_to_build,qty_built,stage,assigned_to,due_at,notes,created_by,created_at,updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(ref, bom?.id ?? null, productId, orderId, qty, 0, "queued",
+    b.assignedTo ?? b.assigned_to ?? null, b.dueAt ?? b.due_at ?? null, b.notes ?? null,
+    req.actor ?? req.user?.name ?? "system", t, t);
+  const jcId = info.lastInsertRowid;
+
+  /* required = qtyPerOutput × number of BOM runs, rounded UP: coming up one
+     bracket short stops a build, and the shelf holds whole units. */
+  if (bom) {
+    const lines = await db.prepare("SELECT * FROM bom_lines WHERE bom_id=? ORDER BY line_no").all(bom.id);
+    const runs = Math.ceil(qty / Number(bom.output_qty || 1));
+    let lineNo = 1;
+    for (const l of lines) {
+      await db.prepare("INSERT INTO job_card_materials(job_card_id,line_no,item_kind,item_id,qty_required,qty_issued,created_at) VALUES(?,?,?,?,?,?,?)")
+        .run(jcId, lineNo++, l.item_kind, l.item_id, Number(l.qty_per_output) * runs, 0, t);
+    }
+  }
+
+  const out = await jobCardFull(await jobCardById(jcId));
+  /* After the commit, not before: emitting inside the transaction can announce a
+     job card that then rolls back. */
+  const who = req.actor;
+  const bomRef = bom ? bom.ref : "no BOM";
+  afterCommit.push(() => emit("job-cards", { title: `${ref} raised for ${qty} × ${productId}`, who, context: bomRef }));
+  await writeAudit(req, { action: "job_card.created", entityType: "job_card", entityId: jcId,
+    after: { ref, productId, qty, bomId: bom?.id ?? null, orderId, materials: out.materials.length } });
+  return { status: 201, body: out };
+}));
+
+/* Issue materials into a job. This is the consumption path.
+
+   Each row's issue posts ONE ledger movement keyed (ref_type='job_card_material',
+   ref_id=<row id>), so a retried request is refused by the unique index rather
+   than double-decrementing. Issuing the whole card is done by passing no lines. */
+app.post("/api/job-cards/:id/materials/issue", wrapTxJson(async (req, afterCommit) => {
+  const jc = await jobCardById(req.params.id);
+  if (!jc) return { status: 404, body: { error: "not found" } };
+  if (jc.stage === "cancelled") return { status: 409, body: { error: "this job is cancelled" } };
+  if (jc.stage === "done") return { status: 409, body: { error: "this job is already complete" } };
+
+  const rows = await jobCardMaterials(jc.id);
+  if (!rows.length) return { status: 409, body: { error: "this job has no materials to issue (no BOM)" } };
+
+  const wanted = Array.isArray(req.body?.lines) && req.body.lines.length
+    ? req.body.lines
+    : rows.filter((r) => r.qtyOutstanding > 0).map((r) => ({ lineId: r.id, qty: r.qtyOutstanding }));
+
+  const prepared = [];
+  const seen = new Set();
+  for (const [i, line] of wanted.entries()) {
+    const rowId = line.lineId ?? line.line_id ?? line.id;
+    const row = rows.find((r) => String(r.id) === String(rowId));
+    if (!row) return { status: 400, body: { error: `line ${i + 1}: not a material on ${jc.ref}` } };
+    if (seen.has(row.id)) return { status: 400, body: { error: `line ${i + 1}: ${row.itemId} appears twice` } };
+    seen.add(row.id);
+    const qty = Number(line.qty ?? row.qtyOutstanding);
+    if (!Number.isInteger(qty) || qty <= 0)
+      return { status: 400, body: { error: `line ${i + 1}: qty must be a positive whole number` } };
+    if (row.qtyIssued + qty > row.qtyRequired)
+      return { status: 409, body: { error: `line ${i + 1}: issuing ${qty} would exceed the ${row.qtyRequired} required (${row.qtyIssued} already issued)`, required: row.qtyRequired, issued: row.qtyIssued } };
+    // A product may already have a movement for this row; the index is the backstop.
+    prepared.push({ row, qty });
+  }
+  if (!prepared.length) return { status: 409, body: { error: "nothing outstanding to issue" } };
+
+  const t = now();
+  const posted = [];
+  const skipped = [];
+  for (const { row, qty } of prepared) {
+    if (row.itemKind === "product") {
+      /* Negative delta, through the one legal helper: it refuses to take stock
+         that is not there, which is the correct behaviour — a build cannot
+         consume components the store does not have. */
+      const mv = await applyStockMovement({
+        productId: row.itemId, delta: -qty, reason: "production",
+        refType: "job_card_material", refId: row.id,
+        /* Keyed on the total this line reaches, not on the delta. A replay of the
+           same request computes the same total and collides on the unique index;
+           an honest top-up computes a new one and is allowed. */
+        idemKey: `jc${jc.id}:line${row.id}:to${row.qtyIssued + qty}`,
+        note: `${jc.ref} consumed ${qty} (${row.qtyIssued + qty}/${row.qtyRequired})`,
+        actor: req.actor ?? req.user?.name ?? "system",
+      });
+      posted.push({ itemId: row.itemId, qty, movementId: mv.id });
+    } else {
+      /* A finish code has no quantity on hand. Recording that it was used and
+         moving no stock is the honest answer; inventing a quantity would make
+         the ledger claim inventory that does not exist. */
+      skipped.push({ itemId: row.itemId, qty, reason: "material has no stock dimension" });
+    }
+    await db.prepare("UPDATE job_card_materials SET qty_issued=qty_issued+? WHERE id=?").run(qty, row.id);
+  }
+
+  /* Starting to consume is starting the job. Reflecting that here means the
+     floor does not have to remember a second click to make the board truthful. */
+  if (jc.stage === "queued") await db.prepare("UPDATE job_cards SET stage='in_progress', started_at=?, updated_at=? WHERE id=?").run(t, t, jc.id);
+  else await db.prepare("UPDATE job_cards SET updated_at=? WHERE id=?").run(t, jc.id);
+
+  const out = await jobCardFull(await jobCardById(jc.id));
+  afterCommit.push(() => emit("job-cards", { title: `${jc.ref}: issued ${posted.length} component(s)`, who: req.actor }));
+  await writeAudit(req, { action: "job_card.materials_issued", entityType: "job_card", entityId: jc.id,
+    after: { posted, skipped } });
+  return { body: out };
+}));
+
+/* Move a job card. `done` records the finished quantity against stock, and is
+   unreachable without QC. */
+app.patch("/api/job-cards/:id", wrapTxJson(async (req, afterCommit) => {
+  const jc = await jobCardById(req.params.id);
+  if (!jc) return { status: 404, body: { error: "not found" } };
+  const before = rowJobCard(jc);
+  const b = req.body ?? {};
+  const t = now();
+
+  if (b.stage !== undefined) {
+    const next = String(b.stage).toLowerCase();
+    if (!JC_STAGES.has(next)) return { status: 400, body: { error: "stage must be " + [...JC_STAGES].join("|") } };
+    if (next === jc.stage) return { status: 409, body: { error: `job is already ${next}` } };
+    const allowed = JC_NEXT[jc.stage] ?? [];
+    if (!allowed.includes(next))
+      return { status: 409, body: { error: `cannot move a ${jc.stage} job to ${next}`, allowed } };
+
+    if (next === "in_progress") {
+      await db.prepare("UPDATE job_cards SET stage=?, started_at=COALESCE(started_at,?), updated_at=? WHERE id=?").run(next, t, t, jc.id);
+    } else if (next === "qc") {
+      /* Record how much was actually built before it can be inspected. Default
+         to everything asked for; a short build is recorded honestly. */
+      const built = b.qtyBuilt ?? b.qty_built ?? jc.qty_to_build;
+      const n = Number(built);
+      if (!Number.isInteger(n) || n <= 0 || n > jc.qty_to_build)
+        return { status: 400, body: { error: `qtyBuilt must be a whole number between 1 and ${jc.qty_to_build}` } };
+      await db.prepare("UPDATE job_cards SET stage=?, qty_built=?, updated_at=? WHERE id=?").run(next, n, t, jc.id);
+    } else if (next === "done") {
+      /* THE QC GATE. The schema refuses this too (jc_done_requires_qc); checking
+         here turns a 500 into a sentence that says what to do. */
+      if (!jc.qc_passed_at)
+        return { status: 409, body: { error: "a job cannot be completed without passing QC — record the inspection first", need: "qc_passed_at" } };
+      const built = Number(jc.qty_built) || 0;
+      if (built <= 0)
+        return { status: 409, body: { error: "nothing was recorded as built, so there is no output to add to stock" } };
+
+      /* THE CONSUMPTION GATE. Completing a build without issuing its components
+         would credit the shelf with goods made from nothing — the finished item
+         appears, the parts are still on the rack. That is the same class of
+         error as paying a bill for goods that never arrived, so it takes the
+         same shape: block by default, allow an explicit override, and audit the
+         override. A job whose parts were issued on an earlier card is the real
+         case for the override. */
+      const outstanding = (await jobCardMaterials(jc.id)).filter((m) => m.qtyOutstanding > 0);
+      const override = b.allowShortIssue === true || b.allow_short_issue === true;
+      if (outstanding.length && !override) {
+        return { status: 409, body: {
+          error: "materials have not been fully issued, so completing this job would create stock from nothing",
+          outstanding: outstanding.map((m) => ({ itemId: m.itemId, outstanding: m.qtyOutstanding, required: m.qtyRequired, issued: m.qtyIssued })),
+          override: "pass allowShortIssue:true to complete anyway; the shortfall is recorded in the audit trail",
+        } };
+      }
+      if (outstanding.length) {
+        await writeAudit(req, { action: "job_card.short_issue_override", entityType: "job_card", entityId: jc.id,
+          after: { outstanding, qtyBuilt: built, actor: req.actor } });
+      }
+      /* Output: the finished item is real inventory. One movement, keyed to the
+         job card itself, so a retry cannot double-credit the shelf. */
+      await applyStockMovement({
+        productId: jc.product_id, delta: built, reason: "production",
+        refType: "job_card_output", refId: jc.id,
+        note: `${jc.ref} output ${built}`, actor: req.actor ?? req.user?.name ?? "system",
+      });
+      await db.prepare("UPDATE job_cards SET stage=?, completed_at=?, updated_at=? WHERE id=?").run(next, t, t, jc.id);
+    } else {
+      await db.prepare("UPDATE job_cards SET stage=?, updated_at=? WHERE id=?").run(next, t, jc.id);
+    }
+  }
+
+  /* The QC verdict. Passing records who and when; failing sends the job back
+     to in_progress, because rework is work, not a terminal state. */
+  if (b.qcPassed !== undefined || b.qc_passed !== undefined) {
+    const passed = b.qcPassed === true || b.qc_passed === true;
+    if (passed) {
+      await db.prepare("UPDATE job_cards SET qc_passed_at=?, qc_by=?, qc_note=?, updated_at=? WHERE id=?")
+        .run(t, req.actor ?? req.user?.name ?? "system", b.qcNote ?? b.qc_note ?? null, t, jc.id);
+    } else {
+      await db.prepare("UPDATE job_cards SET qc_passed_at=NULL, qc_by=?, qc_note=?, stage='in_progress', updated_at=? WHERE id=?")
+        .run(req.actor ?? req.user?.name ?? "system", b.qcNote ?? b.qc_note ?? null, t, jc.id);
+    }
+  }
+
+  if (b.assignedTo !== undefined || b.assigned_to !== undefined)
+    await db.prepare("UPDATE job_cards SET assigned_to=?, updated_at=? WHERE id=?").run(b.assignedTo ?? b.assigned_to, t, jc.id);
+  if (b.dueAt !== undefined || b.due_at !== undefined)
+    await db.prepare("UPDATE job_cards SET due_at=?, updated_at=? WHERE id=?").run(b.dueAt ?? b.due_at, t, jc.id);
+  if (b.notes !== undefined) await db.prepare("UPDATE job_cards SET notes=?, updated_at=? WHERE id=?").run(b.notes, t, jc.id);
+
+  const out = await jobCardFull(await jobCardById(jc.id));
+  if (out.stage !== before.stage) {
+    await writeAudit(req, { action: "job_card." + (out.stage === "done" ? "completed" : "stage_changed"),
+      entityType: "job_card", entityId: out.id,
+      before: { stage: before.stage }, after: { stage: out.stage, qtyBuilt: out.qtyBuilt } });
+    afterCommit.push(() => emit("job-cards", { title: `${out.ref}: ${before.stage} → ${out.stage}`, who: req.actor }));
+  }
+  return { body: out };
+}));
 
 app.get("/api/audit/migrations", wrap(async (_req, res) => {
   const state = await migrationAlignment();

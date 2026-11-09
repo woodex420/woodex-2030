@@ -52,7 +52,9 @@
     "audit:schema": "node scripts/audit-live-schema.mjs",
     "test:audit-log": "node scripts/test-audit-log.mjs",
     "test:procurement": "node scripts/test-procurement.mjs",
-    "test:bills": "node scripts/test-supplier-invoices.mjs"
+    "test:bills": "node scripts/test-supplier-invoices.mjs",
+    "test:production": "node scripts/test-production.mjs",
+    "test:upgrade": "node --experimental-sqlite scripts/test-schema-upgrade.mjs"
   },
   "engines": {
     "node": ">=22.5"

@@ -38,7 +38,8 @@ const TABLES = ["products","materials","services","leads","quotes","quote_versio
   "projects","project_milestones","boq_lines","project_files",
   "conversations","messages","users","sessions","meta","stock_movements","stock_reservations","audit_logs",
   "suppliers","purchase_orders","purchase_order_lines","goods_receipts","goods_receipt_lines",
-  "supplier_invoices","supplier_invoice_lines","supplier_payments"];
+  "supplier_invoices","supplier_invoice_lines","supplier_payments",
+  "boms","bom_lines","job_cards","job_card_materials"];
 const PK = { products:"id", materials:"id", services:"id", sessions:"token", meta:"key" }; // TEXT-PK tables (also pages.slug unique — id ordered fine)
 
 /* ---- backends ---- */

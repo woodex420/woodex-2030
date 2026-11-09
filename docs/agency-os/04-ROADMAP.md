@@ -62,7 +62,7 @@ only adding history around them.
 Delivered as three increments, each useful alone:
 
 1. **Procurement** — suppliers, requisitions, POs, goods received. Creates ledger movements.
-2. **Production** — BOM, job cards, stages, QC. Consumes ledger movements.
+2. **Production** — BOM, job cards, stages, QC. Consumes ledger movements. **Shipped (011).**
 3. **Delivery** — dispatch, POD, installation checklist.
 
 **Exit per increment:** the corresponding rows move through their states in an
