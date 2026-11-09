@@ -3,7 +3,7 @@ import type { ComponentType } from "react";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
 import { Logo } from "@/components/layout/Logo";
-import { BarChart, Building, ChevronDown, ClipboardList, Factory, FolderKanban, Globe, Kanban, LayoutDashboard, Megaphone, MessagesSquare, Package, Settings, Settings2, ShoppingBag, Store, Users, Wrench, X, Receipt, Sparkles, Truck, Banknote, Lock } from "@/icons";
+import { BarChart, Building, ChevronDown, ClipboardList, Factory, FolderKanban, Globe, Kanban, LayoutDashboard, Megaphone, MessagesSquare, Package, Settings, Settings2, ShoppingBag, Store, Users, Wrench, X, Receipt, Sparkles, Truck, Banknote, Lock, Undo2, Calendar } from "@/icons";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
@@ -57,6 +57,15 @@ const groups: NavGroup[] = [
       { label: "Warehouses", to: "/warehouses", icon: Building },
       { label: "Stock Transfers", to: "/stock-transfers", icon: Truck },
       { label: "Reservations", to: "/stock-reservations", icon: Lock },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { label: "Ledger", to: "/ledger", icon: Receipt },
+      { label: "Expenses", to: "/expenses", icon: Banknote },
+      { label: "Credit Notes", to: "/credit-notes", icon: Undo2 },
+      { label: "Payment Schedules", to: "/payment-schedules", icon: Calendar },
     ],
   },
   {
