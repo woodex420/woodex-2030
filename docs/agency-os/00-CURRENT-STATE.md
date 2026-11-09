@@ -34,13 +34,13 @@ be standardised until it is resolved.
 
 | Thing | Count | Evidence |
 |---|---|---|
-| API route handlers | **181** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
+| API route handlers | **206** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
 | Storefront routes | **25** | `<Route` in `apps/storefront/src/App.tsx` |
-| Dashboard routes | **44** | `<Route` in `apps/dashboard/src/App.tsx` |
-| PostgreSQL tables | **61** | base schema + `scripts/migrations/*.sql` (distinct names) |
-| SQLite tables | **61** | `apps/api/server.mjs` (distinct names; two are created twice) |
-| Migrations applied | **14** | `scripts/migrations/*.sql`, all recorded in `schema_migrations` |
-| CHECK constraints | **106** | distinct `<table>_<rule>` names declared across the migrations |
+| Dashboard routes | **46** | `<Route` in `apps/dashboard/src/App.tsx` |
+| PostgreSQL tables | **69** | base schema + `scripts/migrations/*.sql` (distinct names) |
+| SQLite tables | **69** | `apps/api/server.mjs` (distinct names; two are created twice) |
+| Migrations applied | **16** | `scripts/migrations/*.sql`, all recorded in `schema_migrations` |
+| CHECK constraints | **135** | distinct `<table>_<rule>` names declared across the migrations |
 | Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json` |
 | Prerendered storefront routes | **76** | `npm run vercel:build` |
 | QA checks | **108** (sqlite) and **108** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |
