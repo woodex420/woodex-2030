@@ -2220,6 +2220,141 @@ app.patch("/api/users/:id", wrap(async (req, res) => {
   res.json(rowUserLite((await (db.prepare("SELECT * FROM users WHERE id=?").get(u.id)))));
 }));
 
+/* ---------- migration-alignment check ----------
+   A table can exist in the migrations, pass every local gate, ship to
+   production, and still not exist in the HOSTED database. That happened:
+   008_audit_log.sql merged, the deployment went READY, the API answered every
+   request, and every audit write failed silently — because writeAudit swallows
+   errors on purpose so a logging failure cannot break a payment.
+
+   Nothing in the build touches the hosted database, so this is the first point
+   in the whole pipeline where the deployed code and the real schema meet. It
+   runs on demand, not at boot: a boot-time throw would take the API down over a
+   soft dependency, and answering 503 for an audit gap is a worse outage than
+   the gap.
+
+   Tolerated by design: a completely bare database (schema never applied) reports
+   "pending" rather than "misaligned", because that is a fresh environment, not a
+   half-migrated one, and an alert that fires on every new environment gets muted.
+
+   Returns a MISSING TABLE NAME, not a count. "One table is missing" tells an
+   operator nothing they can act on. */
+
+/* Tables added by migrations, with the version that introduced them. The base
+   schema is excluded: if it were absent the application would not start at all,
+   so it is already covered by every other gate. */
+const MIGRATION_TABLES = [
+  { table: "stock_movements", version: 3 },
+  { table: "stock_reservations", version: 3 },
+  { table: "audit_logs", version: 8 },
+];
+
+async function migrationAlignment() {
+  /* Only PostgreSQL has a migration ledger. SQLite is built by CREATE TABLE IF
+     NOT EXISTS at boot and has no ordered ledger to compare against, so on
+     SQLite the honest answer is "not applicable" — reporting "aligned" would
+     claim verification that did not happen, and "misaligned" would fire on a
+     perfectly healthy local database.
+
+     The test is `sqlite`, NOT `postgres`, because the adapter reports three
+     kinds — sqlite, pglite and postgres — and pglite is PostgreSQL: it has the
+     ledger and information_schema. Testing for "postgres" sent pglite down the
+     sqlite_master branch, where it threw `relation "sqlite_master" does not
+     exist`. The rehearsal engine has to take the same path as production or the
+     rehearsal proves nothing. */
+  const isSqlite = db.kind === "sqlite";
+  if (isSqlite) {
+    const present = new Set();
+    for (const t of MIGRATION_TABLES) {
+      const row = (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(t.table));
+      if (row) present.add(t.table);
+    }
+    const missing = MIGRATION_TABLES.filter((t) => !present.has(t.table)).map((t) => t.table);
+    return {
+      status: "not-applicable",
+      driver: db.kind,
+      detail: `${db.kind} has no migration ledger; schema is created idempotently at boot`,
+      tables: MIGRATION_TABLES.map((t) => t.table),
+      missingTables: missing,
+      fix: null,
+    };
+  }
+
+  let ledger;
+  try {
+    ledger = (await db.prepare("SELECT version, name FROM schema_migrations ORDER BY version").all())
+      .map((r) => ({ version: Number(r.version), name: r.name }));
+  } catch {
+    /* No ledger table at all. Treat as un-migrated, not broken. */
+    return {
+      status: "pending",
+      applied: [],
+      expectedTable: MIGRATION_TABLES.length,
+      detail: "schema_migrations does not exist — the schema has never been applied here",
+      fix: "run: DATABASE_URL=... npm run db:migrate",
+    };
+  }
+  if (!ledger.length) {
+    return {
+      status: "pending",
+      applied: [],
+      expectedTable: MIGRATION_TABLES.length,
+      detail: "no migrations recorded — the schema has never been applied here",
+      fix: "run: DATABASE_URL=... npm run db:migrate",
+    };
+  }
+
+  const appliedVersions = new Set(ledger.map((r) => r.version));
+
+  /* Which of the tracked tables physically exist, asked once for all of them. */
+  let present;
+  const want = MIGRATION_TABLES.map((t) => t.table);
+  const placeholders = want.map(() => "?").join(",");
+  try {
+    if (!isSqlite) {
+      const rows = (await db.prepare(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN (" + placeholders + ")"
+      ).all(...want));
+      present = new Set(rows.map((r) => String(r.table_name ?? r.TABLE_NAME ?? "").toLowerCase()));
+    } else {
+      const rows = (await db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN (" + placeholders + ")"
+      ).all(...want));
+      present = new Set(rows.map((r) => String(r.name).toLowerCase()));
+    }
+  } catch (e) {
+    return { status: "unknown", applied: ledger, detail: `could not inspect the schema: ${e?.message ?? e}`, fix: null };
+  }
+
+  const missingTables = MIGRATION_TABLES.filter((t) => !present.has(t.table)).map((t) => t.table);
+  /* A migration recorded in the ledger whose file expects a table that is not
+     there means the ledger and the schema disagree — the exact drift this
+     exists to surface. */
+  const unappliedVersions = [...new Set(MIGRATION_TABLES.map((t) => t.version))]
+    .filter((v) => !appliedVersions.has(v));
+
+  const aligned = missingTables.length === 0;
+  return {
+    status: aligned ? "aligned" : "misaligned",
+    applied: ledger.map((r) => r.version),
+    latest: ledger.length ? ledger[ledger.length - 1].version : null,
+    tables: want,
+    missingTables,
+    unappliedVersions,
+    detail: aligned
+      ? `all ${want.length} migration-owned tables exist`
+      : `table(s) missing from the hosted database: ${missingTables.join(", ")}`,
+    fix: aligned ? null : "run: DATABASE_URL=... npm run db:migrate — the deployed code expects these tables",
+  };
+}
+
+app.get("/api/audit/migrations", wrap(async (_req, res) => {
+  const state = await migrationAlignment();
+  /* 503 when the deployment and the database disagree: a monitor polling this
+     should page, not shrug. Owner-gated like the rest of /api/audit. */
+  res.status(state.status === "misaligned" ? 503 : 200).json(state);
+}));
+
 /* Audit rows are evidence; they must not be editable through the API. Only
    reads are exposed, and only to an owner. */
 app.get("/api/audit", wrap(async (req, res) => {
