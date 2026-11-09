@@ -61,7 +61,8 @@
     "test:finance": "node scripts/test-finance.mjs",
     "test:crm": "node scripts/test-crm.mjs",
     "test:delivery": "node scripts/test-delivery.mjs",
-    "test:support": "node scripts/test-support.mjs"
+    "test:support": "node scripts/test-support.mjs",
+    "test:credentials": "node scripts/test-credentials.mjs"
   },
   "engines": {
     "node": ">=22.5"

@@ -722,6 +722,17 @@ CREATE TABLE IF NOT EXISTS users(
   role TEXT NOT NULL DEFAULT 'viewer', pass_salt TEXT, pass_hash TEXT,
   active INTEGER DEFAULT 1, created_at TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, created_at TEXT, expires_at TEXT);
+
+/* Credentials — mirror of scripts/migrations/017_credentials.sql.
+   Only the hash of a reset token is kept, so reading this table cannot reset
+   anybody's password. requested_by is the administrator who minted it. */
+CREATE TABLE IF NOT EXISTS password_resets(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+  reason TEXT NOT NULL DEFAULT 'forgotten', requested_by INTEGER,
+  created_at TEXT NOT NULL, expires_at TEXT NOT NULL, used_at TEXT, revoked_at TEXT,
+  CHECK (reason IN ('forgotten','compromised','offboarding','initial')),
+  CHECK (used_at IS NULL OR revoked_at IS NULL));
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -1383,8 +1394,13 @@ const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).ca
        and the caller can open it instead of inventing a variant spelling —
        which creates the duplicate the refusal was there to prevent. 5xx stays
        a bare message on purpose: driver detail belongs in the log. */
-    const body = { error: status >= 500 ? "internal error" : String(e.message || e) };
-    if (status < 500) {
+    /* 501 is a deliberate refusal, not a crash: "this system cannot do that
+       yet, and here is why" is exactly what the caller needs. Masking it as
+       "internal error" turns a designed answer into a bug report. */
+    const body = { error: status >= 500 && status !== 501 ? "internal error" : String(e.message || e) };
+    /* Client errors keep their machine-readable code. 501 joins them: it is a
+       refusal this system chose, so the caller can branch on the reason. */
+    if (status < 500 || status === 501) {
       if (typeof e?.code === "string") body.code = e.code;
       for (const k of ["companyId", "contactId", "attachmentId", "productId", "locationId"]) {
         if (e?.[k] !== undefined) body[k] = e[k];
@@ -1604,6 +1620,10 @@ const capsFor = (m, path) => {
   return "owner-only";
 };
 const isPublic = (m, p) =>
+  /* Spending a reset token is the one write that must work with no session at
+     all: the whole point is that the person cannot sign in. Everything else
+     that touches credentials still requires one. */
+  (m === "POST" && p === "/api/auth/reset-password") ||
   m === "GET" && (
     p === "/api/health" || p === "/api/theme" || p === "/api/auth/demo-available" ||
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
@@ -1725,7 +1745,12 @@ app.use(async (req, res, next) => { try {
     return res.status(403).json({ error: "team roster is owner-only", need: "users.manage" });
 
   const selfAuthRoute = (req.method === "GET" && req.path === "/api/auth/me")
-    || (req.method === "POST" && req.path === "/api/auth/logout");
+    || (req.method === "POST" && req.path === "/api/auth/logout")
+    /* Changing your OWN password is not team administration. A viewer who
+       cannot reach /api/users must still be able to improve their password —
+       otherwise the only people who can change it are the ones who least need
+       to, and everybody else is stuck with whatever they were handed. */
+    || (req.method === "POST" && req.path === "/api/auth/change-password");
   const need = capsFor(req.method, req.path);
   if (!selfAuthRoute && req.method === "GET") {
     const readOnlyMove = (need === "quote.manage" && caps.includes("quote.view-move"))
@@ -2914,6 +2939,207 @@ app.post("/api/auth/logout", wrap(async (req, res) => {
   if (token) (await (db.prepare("DELETE FROM sessions WHERE token=?").run(token)));
   res.json({ ok: true });
 }));
+/* ═══════════════════════════ credentials (017) ═══════════════════════════
+   Two ways to regain access, deliberately kept apart.
+
+   1. CHANGE — you know the current password. Self-service, immediate.
+   2. RESET  — you have forgotten it. A single-use, expiring, hashed token,
+      minted only by somebody who already holds `users.manage`.
+
+   Conflating them is how "password reset" becomes an account-takeover vector.
+   A reset that anybody can trigger and that never expires is not recovery, it
+   is a back door.
+
+   No email is sent: this system has no mail infrastructure. The token is
+   returned to the caller who asked for it and handed over by a channel the
+   administrator chooses. `channel: "email"` answers 501 and says which missing
+   decision it is waiting on, rather than pretending to have sent something. */
+
+const RESET_TTL_MINUTES = 60;
+/* Six characters is the floor this system already enforced when an owner sets
+   somebody's password. Self-service must not be a downgrade path, so it uses
+   the same floor — and says so by name, because "password too short" without a
+   number makes people guess. */
+const MIN_PASSWORD = 6;
+
+const hashToken = (t) => crypto.createHash("sha256").update(String(t)).digest("hex");
+const rowPasswordReset = (r) => ({
+  id: r.id, userId: r.user_id, reason: r.reason, requestedBy: r.requested_by,
+  createdAt: r.created_at, expiresAt: r.expires_at,
+  usedAt: r.used_at, revokedAt: r.revoked_at,
+  live: !r.used_at && !r.revoked_at && String(r.expires_at) > now(),
+});
+
+/* Which sessions should this password change end?
+   All of them, except the one making the change. A password change is the
+   moment somebody believes their old password may be known to someone else;
+   leaving other sessions alive means the change did not actually take the
+   access away. The current session survives so the person is not thrown out
+   of the screen they are standing on. */
+const revokeOtherSessions = async (userId, keepToken) => {
+  const rows = await db.prepare("SELECT token FROM sessions WHERE user_id = ?").all(userId);
+  let ended = 0;
+  for (const r of rows) {
+    if (keepToken && r.token === keepToken) continue;
+    await db.prepare("DELETE FROM sessions WHERE token = ?").run(r.token);
+    ended += 1;
+  }
+  return ended;
+};
+
+/* --- 1. change your own password --- */
+app.post("/api/auth/change-password", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const current = String(b.currentPassword ?? "");
+  const next = String(b.newPassword ?? "");
+  if (!current) throw Object.assign(new Error("your current password is required — a change is not a reset"),
+    { statusCode: 400, code: "current_required" });
+  if (next.length < MIN_PASSWORD) throw Object.assign(new Error(`a new password needs at least ${MIN_PASSWORD} characters`),
+    { statusCode: 400, code: "password_too_short" });
+  if (next === current) throw Object.assign(new Error("the new password is the same as the current one"),
+    { statusCode: 400, code: "password_unchanged" });
+  /* Re-read the row: req.user is the session projection and carries no hash. */
+  const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
+  if (!u) throw Object.assign(new Error("user not found"), { statusCode: 404 });
+  const guess = hashPass(current, u.pass_salt);
+  if (guess.hash !== u.pass_hash) {
+    throw Object.assign(new Error("that is not your current password"), { statusCode: 401, code: "wrong_password" });
+  }
+  const { salt, hash } = hashPass(next);
+  await db.prepare("UPDATE users SET pass_salt = ?, pass_hash = ?, updated_at = ? WHERE id = ?")
+    .run(salt, hash, now(), u.id);
+  const ended = await revokeOtherSessions(u.id, requestToken(req));
+  await writeAudit(req, { action: "auth.password_changed", entityType: "user", entityId: u.id,
+    after: { sessionsEnded: ended } });
+  /* Never the password, never the hash — only that it changed and what it cost. */
+  await writeActivity({ entityType: "user", entityId: u.id, kind: "system",
+    summary: `${u.name} changed their own password (${ended} other session(s) ended)`,
+    actor: u.name });
+  return { ok: true, sessionsEnded: ended };
+}));
+
+/* --- 2. an administrator mints a reset --- */
+app.post("/api/users/:id/password-reset", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const reason = String(b.reason ?? "forgotten").toLowerCase();
+  if (!["forgotten", "compromised", "offboarding", "initial"].includes(reason)) {
+    throw Object.assign(new Error("reason must be forgotten, compromised, offboarding or initial"),
+      { statusCode: 400, code: "bad_reason" });
+  }
+  /* Say plainly what it would take, rather than accepting the request and
+     quietly doing nothing. */
+  const channel = String(b.channel ?? "manual").toLowerCase();
+  if (channel === "email") {
+    throw Object.assign(new Error("this system has no mail infrastructure yet, so it cannot deliver a reset by email. The token is returned here for you to pass on directly (or set SMTP credentials and D-5 is answered)."),
+      { statusCode: 501, code: "email_not_configured", expose: true });
+  }
+  const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!u) throw Object.assign(new Error("user not found"), { statusCode: 404 });
+
+  /* Any earlier live token is retired first. Two live tokens for one account
+     means two valid keys, and nobody can tell which one the person will use —
+     so "cancel that link" stops being possible. */
+  const superseded = await db.prepare(
+    "SELECT id FROM password_resets WHERE user_id = ? AND used_at IS NULL AND revoked_at IS NULL"
+  ).all(u.id);
+  for (const s of superseded) {
+    await db.prepare("UPDATE password_resets SET revoked_at = ? WHERE id = ?").run(now(), s.id);
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const t = now();
+  const expiresAt = new Date(Date.now() + RESET_TTL_MINUTES * 60_000).toISOString();
+  const info = await db.prepare(
+    `INSERT INTO password_resets(user_id, token_hash, reason, requested_by, created_at, expires_at)
+     VALUES(?,?,?,?,?,?)`
+  ).run(u.id, hashToken(token), reason, req.user?.id ?? null, t, expiresAt);
+  const created = rowPasswordReset(await db.prepare("SELECT * FROM password_resets WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "auth.password_reset_issued", entityType: "user", entityId: u.id,
+    after: { reason, expiresAt, superseded: superseded.length } });
+  await writeActivity({ entityType: "user", entityId: u.id, kind: "system",
+    summary: `Password reset issued for ${u.email} (${reason}); expires in ${RESET_TTL_MINUTES} minutes`,
+    actor: req.user?.name ?? "system" });
+  /* The raw token appears exactly once, here. It is not stored, not logged, and
+     cannot be retrieved again — a reset that can be read back later is a
+     password held in plaintext by whoever can read the table. */
+  return { status: 201, body: {
+    reset: { ...created, token }, expiresInMinutes: RESET_TTL_MINUTES,
+    superseded: superseded.length,
+    notice: "This token is shown once. It is not stored and cannot be retrieved again.",
+  } };
+}));
+
+/* --- 3. the person spends it --- */
+app.post("/api/auth/reset-password", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const token = String(b.token ?? "").trim();
+  const next = String(b.newPassword ?? "");
+  /* One message for every failure — unknown, spent, revoked, expired. Telling
+     an anonymous caller which of those it was turns the endpoint into an oracle
+     for guessing tokens. */
+  const reject = () => Object.assign(
+    new Error("this reset link is not valid, has been used, or has expired — ask for a new one"),
+    { statusCode: 400, code: "reset_invalid" });
+  if (!token) { throw reject(); }
+  if (next.length < MIN_PASSWORD) throw Object.assign(new Error(`a new password needs at least ${MIN_PASSWORD} characters`),
+    { statusCode: 400, code: "password_too_short" });
+
+  const row = await db.prepare("SELECT * FROM password_resets WHERE token_hash = ?").get(hashToken(token));
+  if (!row) throw reject();
+  if (row.used_at) throw reject();
+  if (row.revoked_at) throw reject();
+  if (String(row.expires_at) <= now()) throw reject();
+  const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(row.user_id);
+  if (!u) throw reject();
+  if (!u.active) {
+    throw Object.assign(new Error("this account is disabled — ask an owner to re-enable it"),
+      { statusCode: 403, code: "account_disabled" });
+  }
+
+  const { salt, hash } = hashPass(next);
+  await db.prepare("UPDATE users SET pass_salt = ?, pass_hash = ?, updated_at = ? WHERE id = ?")
+    .run(salt, hash, now(), u.id);
+  await db.prepare("UPDATE password_resets SET used_at = ? WHERE id = ?").run(now(), row.id);
+  /* A reset is stronger than a change: the person was locked out, so every
+     session goes — including any belonging to whoever may have taken the
+     account. They sign in with the new password immediately. */
+  const ended = await revokeOtherSessions(u.id, null);
+  const req2 = { ...req, user: { id: u.id, email: u.email, name: u.name, role: u.role } };
+  await writeAudit(req2, { action: "auth.password_reset_used", entityType: "user", entityId: u.id,
+    after: { resetId: row.id, reason: row.reason, sessionsEnded: ended } });
+  await writeActivity({ entityType: "user", entityId: u.id, kind: "system",
+    summary: `${u.email} recovered their account with a reset token (${ended} session(s) ended)`,
+    actor: u.name });
+  return { ok: true, sessionsEnded: ended, email: u.email };
+}));
+
+/* --- 4. an administrator withdraws one --- */
+app.post("/api/users/:id/password-reset/revoke", wrapTxJson(async (req, res) => {
+  const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!u) throw Object.assign(new Error("user not found"), { statusCode: 404 });
+  const live = await db.prepare(
+    "SELECT id FROM password_resets WHERE user_id = ? AND used_at IS NULL AND revoked_at IS NULL"
+  ).all(u.id);
+  if (!live.length) throw Object.assign(new Error("there is no live reset for this user"),
+    { statusCode: 409, code: "no_live_reset" });
+  const t = now();
+  for (const r of live) await db.prepare("UPDATE password_resets SET revoked_at = ? WHERE id = ?").run(t, r.id);
+  await writeAudit(req, { action: "auth.password_reset_revoked", entityType: "user", entityId: u.id,
+    after: { revoked: live.length } });
+  return { ok: true, revoked: live.length };
+}));
+
+/* --- 5. who has a live reset, so nobody forgets one is outstanding --- */
+app.get("/api/users/:id/password-resets", wrap(async (req, res) => {
+  const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!u) throw Object.assign(new Error("user not found"), { statusCode: 404 });
+  const rows = await db.prepare(
+    "SELECT * FROM password_resets WHERE user_id = ? ORDER BY created_at DESC LIMIT 20"
+  ).all(u.id);
+  const items = rows.map(rowPasswordReset);
+  res.json({ total: items.length, live: items.filter((r) => r.live).length, items });
+}));
+
 app.get("/api/users", wrap(async (req, res) => res.json({ items: (await (db.prepare("SELECT * FROM users ORDER BY id").all())).map(rowUserLite), roles: ROLES, caps: ROLE_CAPS })));
 app.post("/api/users", wrap(async (req, res) => {
   const { email, name, role, password } = req.body ?? {};

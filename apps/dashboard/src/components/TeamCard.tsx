@@ -37,6 +37,27 @@ export function TeamCard() {
     push({ tone: "success", title: "Teammate added", desc: j.name + " · " + j.role });
     setNf(null); reload();
   };
+  /* Minting a reset is deliberately a separate act from setting a password.
+     Setting one is an owner deciding what somebody's password is — which means
+     the owner knows it. A reset token lets the person choose their own, and the
+     owner never learns it. */
+  const issueReset = async (u: TeamUser) => {
+    const r = await fetch(`/api/users/${u.id}/password-reset`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason: "forgotten" }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return push({ tone: "danger", title: "Reset blocked", desc: j.error ?? String(r.status) });
+    const token = j?.reset?.token;
+    if (token && navigator.clipboard) { try { await navigator.clipboard.writeText(token); } catch { /* clipboard may be unavailable */ } }
+    push({
+      tone: "success",
+      title: `Reset link ready for ${u.name}`,
+      desc: `${j.expiresInMinutes} min · single use · copied to clipboard. Anything older for this person is now dead.`,
+    });
+    if (token) window.prompt("Reset token — shown once, cannot be retrieved again. Give it to the person:", token);
+    reload();
+  };
   const roles = data?.roles ?? ["owner", "editor", "sales", "finance", "viewer"];
   return (
     <Card>
@@ -55,6 +76,10 @@ export function TeamCard() {
               <button onClick={() => void patch(u.id, { active: !u.active }, u.active ? "Sign-out" : "Re-activation")}
                 className={cn("inline-flex items-center gap-1 rounded-control border px-2 py-1 text-[10px] font-bold", u.active ? "border-hairline text-muted hover:border-danger/40 hover:text-danger-strong" : "border-primary-400 bg-primary-50 text-primary-800")}>
                 <Lock size={10} /> {u.active ? "disable" : "enable"}
+              </button>
+              <button onClick={() => void issueReset(u)} title="Issue a single-use reset token for this person"
+                className="inline-flex items-center gap-1 rounded-control border border-hairline px-2 py-1 text-[10px] font-bold text-muted hover:border-primary-400 hover:text-primary-800">
+                <Shield size={10} /> reset
               </button>
               {pwFor === u.id ? (
                 <span className="flex items-center gap-1">
