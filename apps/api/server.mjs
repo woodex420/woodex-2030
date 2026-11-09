@@ -339,6 +339,56 @@ BEGIN
   SELECT RAISE(ABORT, 'activities are append-only: a history that can be edited is not a history');
 END;
 
+/* Delivery and installation — mirror of scripts/migrations/015_delivery.sql.
+   dispatch_runs are trips; deliveries are arrivals with proof; delivery_lines
+   say what each arrival carried; installed_assets are the objects in the
+   building, with a warranty clock that starts when they were installed. */
+CREATE TABLE IF NOT EXISTS dispatch_runs(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, vehicle TEXT, driver TEXT,
+  crew TEXT, address TEXT, city TEXT, scheduled_for TEXT, departed_at TEXT, returned_at TEXT,
+  status TEXT NOT NULL DEFAULT 'planned', notes TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (status IN ('planned','dispatched','completed','cancelled')),
+  CHECK (returned_at IS NULL OR departed_at IS NULL OR returned_at >= departed_at));
+CREATE INDEX IF NOT EXISTS idx_dispatch_runs_status ON dispatch_runs(status, scheduled_for);
+CREATE TABLE IF NOT EXISTS deliveries(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, order_id INTEGER,
+  project_id INTEGER, dispatch_run_id INTEGER, customer TEXT NOT NULL, address TEXT,
+  delivered_at TEXT, received_by TEXT, signed_by TEXT, photo TEXT,
+  condition TEXT NOT NULL DEFAULT 'good', damage_notes TEXT,
+  status TEXT NOT NULL DEFAULT 'pending', notes TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (status IN ('pending','in_transit','delivered','failed','returned')),
+  CHECK (condition IN ('good','damaged','partial','rejected')),
+  CHECK (trim(customer) <> ''));
+CREATE INDEX IF NOT EXISTS idx_deliveries_order ON deliveries(order_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deliveries_project ON deliveries(project_id);
+CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status, delivered_at DESC);
+CREATE TABLE IF NOT EXISTS delivery_lines(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, delivery_id INTEGER NOT NULL, product_id TEXT,
+  description TEXT NOT NULL, qty INTEGER NOT NULL, unit TEXT, serial TEXT,
+  CHECK (qty > 0), CHECK (trim(description) <> ''));
+CREATE INDEX IF NOT EXISTS idx_delivery_lines_delivery ON delivery_lines(delivery_id);
+CREATE TABLE IF NOT EXISTS installed_assets(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, tag TEXT NOT NULL UNIQUE, order_id INTEGER,
+  project_id INTEGER, delivery_id INTEGER, product_id TEXT, name TEXT NOT NULL,
+  location TEXT, room TEXT, serial TEXT, installed_on TEXT, installed_by TEXT,
+  warranty_months INTEGER, warranty_until TEXT, status TEXT NOT NULL DEFAULT 'installed',
+  notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (trim(name) <> ''), CHECK (trim(tag) <> ''),
+  CHECK (status IN ('installed','removed','replaced','faulty')),
+  CHECK (warranty_months IS NULL OR warranty_months >= 0),
+  CHECK (warranty_until IS NULL OR installed_on IS NULL OR warranty_until >= installed_on));
+CREATE INDEX IF NOT EXISTS idx_installed_assets_order ON installed_assets(order_id);
+CREATE INDEX IF NOT EXISTS idx_installed_assets_project ON installed_assets(project_id);
+CREATE INDEX IF NOT EXISTS idx_installed_assets_warranty ON installed_assets(warranty_until) WHERE warranty_until IS NOT NULL;
+CREATE TRIGGER IF NOT EXISTS trg_dispatch_runs_departure
+  BEFORE UPDATE ON dispatch_runs
+  WHEN OLD.departed_at IS NOT NULL AND NEW.departed_at IS NOT OLD.departed_at
+BEGIN
+  SELECT RAISE(ABORT, 'a run that has departed keeps its departure time: rewriting it makes a late departure look punctual');
+END;
+
 /* Procurement — mirror of scripts/migrations/009_procurement.sql.
    Column sets must match the PostgreSQL definitions name-for-name: pg-migrate
    copies row-by-row into columns it reads from this schema, and reports a
@@ -4592,6 +4642,459 @@ app.post("/api/attachments", wrapTxJson(async (req, res) => {
   return { status: 201, body: { attachment: created } };
 }));
 
+
+/* ═══════════════════════════ delivery & installation (015) ═══════════════════════
+   Dispatch runs, deliveries with proof, delivery lines, installed assets.
+
+   `orders.stage` is a single current word. It cannot say who drove, what was on
+   the vehicle, which items arrived in which run, who signed for them, or when
+   the warranty on a particular worktop started. Those are the questions a
+   delivery raises, and this block answers them.
+
+   Partial delivery is the normal case: a kitchen arrives in three runs. The
+   order counts as delivered when the lines account for every unit, and until
+   then the shortfall is a number rather than an opinion. */
+
+const rowDispatchRun = (r) => ({
+  id: r.id, ref: r.ref, vehicle: r.vehicle, driver: r.driver, crew: r.crew,
+  address: r.address, city: r.city, scheduledFor: r.scheduled_for, departedAt: r.departed_at,
+  returnedAt: r.returned_at, status: r.status, notes: r.notes,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+  deliveryCount: Number(r.delivery_count ?? 0),
+});
+const rowDelivery = (r) => ({
+  id: r.id, ref: r.ref, orderId: r.order_id, orderRef: r.order_ref ?? null,
+  projectId: r.project_id, projectName: r.project_name ?? null,
+  dispatchRunId: r.dispatch_run_id, runRef: r.run_ref ?? null,
+  customer: r.customer, address: r.address, deliveredAt: r.delivered_at,
+  receivedBy: r.received_by, signedBy: r.signed_by, photo: r.photo,
+  condition: r.condition, damageNotes: r.damage_notes, status: r.status, notes: r.notes,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+  lineCount: Number(r.line_count ?? 0), units: Number(r.units ?? 0),
+});
+/* A delivery plus the references it points at. Every route that returns one
+   reads through this, because the same row was previously assembled in four
+   places and the POST response was missing the order it belonged to while the
+   GET response had it — the kind of inconsistency nobody reports as a bug and
+   everybody stops trusting. */
+const deliverySql = (where) => `SELECT d.*, o.ref AS linked_order_ref, p.name AS linked_project_name, r.ref AS linked_run_ref
+  FROM deliveries d
+  LEFT JOIN orders o ON o.id = d.order_id
+  LEFT JOIN projects p ON p.id = d.project_id
+  LEFT JOIN dispatch_runs r ON r.id = d.dispatch_run_id
+  WHERE ${where}`;
+const deliveryFromRow = (r) => rowDelivery({
+  ...r, order_ref: r.linked_order_ref, project_name: r.linked_project_name, run_ref: r.linked_run_ref,
+});
+const rowDeliveryLine = (r) => ({
+  id: r.id, deliveryId: r.delivery_id, productId: r.product_id, description: r.description,
+  qty: Number(r.qty), unit: r.unit, serial: r.serial,
+});
+const rowInstalledAsset = (r) => ({
+  id: r.id, tag: r.tag, orderId: r.order_id, projectId: r.project_id, deliveryId: r.delivery_id,
+  productId: r.product_id, name: r.name, location: r.location, room: r.room, serial: r.serial,
+  installedOn: r.installed_on, installedBy: r.installed_by,
+  warrantyMonths: r.warranty_months === null ? null : Number(r.warranty_months),
+  warrantyUntil: r.warranty_until, status: r.status, notes: r.notes,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+  inWarranty: r.warranty_until ? String(r.warranty_until) >= new Date().toISOString().slice(0, 10) : null,
+});
+
+/* Warranty end, from an install date and a term. Stored, never recomputed: a
+   later change to the product's warranty term must not silently shorten a
+   warranty that was already promised to a customer. */
+function warrantyEnd(installedOn, months) {
+  if (!installedOn || months === null || months === undefined) return null;
+  const d = new Date(String(installedOn) + "T00:00:00Z");
+  if (!Number.isFinite(d.getTime())) return null;
+  d.setUTCMonth(d.getUTCMonth() + Number(months));
+  return d.toISOString().slice(0, 10);
+}
+
+/* ─────────────────────────── dispatch runs ─────────────────────────── */
+
+app.get("/api/dispatch-runs", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.status) { where.push("r.status = ?"); params.push(String(req.query.status)); }
+  if (req.query.from) { where.push("r.scheduled_for >= ?"); params.push(String(req.query.from)); }
+  const rows = await db.prepare(
+    `SELECT r.*, (SELECT COUNT(*) FROM deliveries d WHERE d.dispatch_run_id = r.id) AS delivery_count
+       FROM dispatch_runs r ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY r.scheduled_for DESC, r.id DESC LIMIT 200`
+  ).all(...params);
+  res.json({ total: rows.length, items: rows.map(rowDispatchRun) });
+}));
+
+app.post("/api/dispatch-runs", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const ref = String(b.ref ?? "").trim() || await nextRef("dispatch_runs", "RUN-", 5000);
+  let scheduledFor = null;
+  if (b.scheduledFor) {
+    const parsed = Date.parse(String(b.scheduledFor));
+    if (!Number.isFinite(parsed)) throw Object.assign(new Error("scheduledFor must be a valid date and time"), { statusCode: 400 });
+    scheduledFor = new Date(parsed).toISOString();
+  }
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO dispatch_runs(ref, vehicle, driver, crew, address, city, scheduled_for, status, notes, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,'planned',?,?,?)`
+  ).run(ref, b.vehicle ?? null, b.driver ?? null, b.crew ?? null, b.address ?? null,
+    b.city ?? null, scheduledFor, b.notes ?? null, t, t);
+  const created = rowDispatchRun(await db.prepare("SELECT * FROM dispatch_runs WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "dispatch_run.created", entityType: "dispatch_run", entityId: created.id, after: created });
+  /* A run is a vehicle leaving the building, so it belongs on the timeline of
+     whatever it is going to — but a run has no company link yet, so the event
+     goes on the run itself and on each delivery it makes. */
+  await writeActivity({ entityType: "dispatch_run", entityId: created.id, kind: "system",
+    summary: `Run ${created.ref} planned${created.vehicle ? ` on ${created.vehicle}` : ""}`,
+    actor: req.user?.name ?? "system" });
+  return { status: 201, body: { run: created } };
+}));
+
+app.patch("/api/dispatch-runs/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM dispatch_runs WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("dispatch run not found"), { statusCode: 404 });
+  const before = rowDispatchRun(row);
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries({ vehicle: "vehicle", driver: "driver", crew: "crew",
+    address: "address", city: "city", notes: "notes" })) {
+    if (b[k] === undefined) continue;
+    sets.push(`${col} = ?`); params.push(b[k] === null ? null : String(b[k]));
+  }
+  if (b.status !== undefined) {
+    const status = String(b.status).toLowerCase();
+    if (!["planned", "dispatched", "completed", "cancelled"].includes(status)) {
+      throw Object.assign(new Error("status must be planned, dispatched, completed or cancelled"), { statusCode: 400 });
+    }
+    /* Departure is stamped once, here, and the trigger refuses to let it be
+       rewritten — a late run that can be re-timestamped is a run that is never
+       late, which makes the record worthless for the only thing it is for. */
+    sets.push("status = ?"); params.push(status);
+    if (status === "dispatched" && !row.departed_at) { sets.push("departed_at = ?"); params.push(now()); }
+    if (status === "completed") {
+      if (!row.departed_at) throw Object.assign(new Error("a run cannot be completed without having been dispatched"), { statusCode: 409, code: "not_dispatched" });
+      sets.push("returned_at = ?"); params.push(now());
+    }
+  }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE dispatch_runs SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = rowDispatchRun(await db.prepare("SELECT * FROM dispatch_runs WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: "dispatch_run.updated", entityType: "dispatch_run", entityId: row.id, before, after });
+  if (before.status !== after.status) {
+    await writeActivity({ entityType: "dispatch_run", entityId: row.id, kind: "status_change",
+      summary: `Run ${after.ref}: ${before.status} → ${after.status}`, actor: req.user?.name ?? "system" });
+  }
+  return { run: after };
+}));
+
+/* ──────────────────────────── deliveries ──────────────────────────── */
+
+app.get("/api/deliveries", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.status) { where.push("d.status = ?"); params.push(String(req.query.status)); }
+  if (req.query.order_id) { where.push("d.order_id = ?"); params.push(Number(req.query.order_id)); }
+  if (req.query.project_id) { where.push("d.project_id = ?"); params.push(Number(req.query.project_id)); }
+  if (req.query.run_id) { where.push("d.dispatch_run_id = ?"); params.push(Number(req.query.run_id)); }
+  const rows = await db.prepare(
+    `SELECT d.*, o.ref AS linked_order_ref, p.name AS linked_project_name, r.ref AS linked_run_ref,
+            (SELECT COUNT(*) FROM delivery_lines l WHERE l.delivery_id = d.id) AS line_count,
+            (SELECT COALESCE(SUM(l.qty), 0) FROM delivery_lines l WHERE l.delivery_id = d.id) AS units
+       FROM deliveries d
+       LEFT JOIN orders o ON o.id = d.order_id
+       LEFT JOIN projects p ON p.id = d.project_id
+       LEFT JOIN dispatch_runs r ON r.id = d.dispatch_run_id
+      ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY COALESCE(d.delivered_at, d.created_at) DESC LIMIT 300`
+  ).all(...params);
+  res.json({ total: rows.length, items: rows.map((r) => rowDelivery({
+    ...r, order_ref: r.linked_order_ref, project_name: r.linked_project_name, run_ref: r.linked_run_ref,
+  })) });
+}));
+
+app.get("/api/deliveries/:id", wrap(async (req, res) => {
+  /* d.* already carries `ref`, which is the delivery's own reference; the
+     joined references must not be given a name that collides with it or d.*
+     wins the spread and the delivery's ref is reported as the order's. */
+  const row = await db.prepare(deliverySql("d.id = ? OR d.ref = ?")).get(req.params.id, req.params.id);
+  if (!row) throw Object.assign(new Error("delivery not found"), { statusCode: 404 });
+  const lines = (await db.prepare("SELECT * FROM delivery_lines WHERE delivery_id = ? ORDER BY id").all(row.id)).map(rowDeliveryLine);
+  const assets = (await db.prepare("SELECT * FROM installed_assets WHERE delivery_id = ? ORDER BY id").all(row.id)).map(rowInstalledAsset);
+  const timeline = (await db.prepare("SELECT * FROM activities WHERE entity_type = 'delivery' AND entity_id = ? ORDER BY occurred_at DESC, id DESC").all(row.id)).map(rowActivity);
+  res.json({
+    delivery: rowDelivery({ ...row, order_ref: row.linked_order_ref, project_name: row.linked_project_name,
+      run_ref: row.linked_run_ref, line_count: lines.length, units: lines.reduce((a, l) => a + l.qty, 0) }),
+    lines, assets, timeline,
+  });
+}));
+
+app.post("/api/deliveries", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const customer = String(b.customer ?? "").trim();
+  if (!customer) throw Object.assign(new Error("customer is required"), { statusCode: 400 });
+  let orderId = b.orderId ?? null;
+  if (orderId !== null) {
+    const o = await db.prepare("SELECT id FROM orders WHERE id = ?").get(Number(orderId));
+    if (!o) throw Object.assign(new Error("order not found: " + orderId), { statusCode: 404 });
+    orderId = o.id;
+  }
+  let projectId = b.projectId ?? null;
+  if (projectId !== null) {
+    const p = await db.prepare("SELECT id FROM projects WHERE id = ?").get(Number(projectId));
+    if (!p) throw Object.assign(new Error("project not found: " + projectId), { statusCode: 404 });
+    projectId = p.id;
+  }
+  let runId = b.dispatchRunId ?? null;
+  if (runId !== null) {
+    const r = await db.prepare("SELECT id FROM dispatch_runs WHERE id = ?").get(Number(runId));
+    if (!r) throw Object.assign(new Error("dispatch run not found: " + runId), { statusCode: 404 });
+    runId = r.id;
+  }
+  const ref = String(b.ref ?? "").trim() || await nextRef("deliveries", "DLV-", 3000);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO deliveries(ref, order_id, project_id, dispatch_run_id, customer, address, status, condition, notes, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,'pending',?,?,?,?)`
+  ).run(ref, orderId, projectId, runId, customer, b.address ?? null,
+    b.condition ?? "good", b.notes ?? null, t, t);
+  const created = deliveryFromRow(await db.prepare(deliverySql("d.id = ?")).get(info.lastInsertRowid));
+  await writeAudit(req, { action: "delivery.created", entityType: "delivery", entityId: created.id, after: created });
+  await writeActivity({ entityType: "delivery", entityId: created.id, kind: "system",
+    summary: `Delivery ${created.ref} created for ${customer}`, actor: req.user?.name ?? "system" });
+
+  /* Lines are optional at creation and required before the delivery can be
+     marked delivered — a delivery whose contents are unknown cannot be checked
+     against the order, so it cannot prove anything arrived. */
+  if (Array.isArray(b.lines) && b.lines.length) {
+    for (const line of b.lines) {
+      const qty = Number(line.qty);
+      if (!Number.isInteger(qty) || qty <= 0) throw Object.assign(new Error("each line needs a positive whole quantity"), { statusCode: 400 });
+      if (!String(line.description ?? "").trim()) throw Object.assign(new Error("each line needs a description"), { statusCode: 400 });
+      await db.prepare(
+        "INSERT INTO delivery_lines(delivery_id, product_id, description, qty, unit, serial) VALUES(?,?,?,?,?,?)"
+      ).run(created.id, line.productId ?? null, String(line.description).trim(), qty,
+        line.unit ?? null, line.serial ?? null);
+    }
+  }
+  return { status: 201, body: { delivery: created } };
+}));
+
+/* Adding a line after the fact. Refused once the delivery is signed — the
+   contents of a signed delivery are what the signature attests to. */
+app.post("/api/deliveries/:id/lines", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM deliveries WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("delivery not found"), { statusCode: 404 });
+  if (row.status === "delivered") {
+    throw Object.assign(new Error("a signed delivery keeps its contents: what it carried is what the signature attests to"),
+      { statusCode: 409, code: "delivery_signed" });
+  }
+  const qty = Number(b.qty);
+  if (!Number.isInteger(qty) || qty <= 0) throw Object.assign(new Error("qty must be a positive whole number"), { statusCode: 400 });
+  const description = String(b.description ?? "").trim();
+  if (!description) throw Object.assign(new Error("description is required"), { statusCode: 400 });
+  const info = await db.prepare(
+    "INSERT INTO delivery_lines(delivery_id, product_id, description, qty, unit, serial) VALUES(?,?,?,?,?,?)"
+  ).run(row.id, b.productId ?? null, description, qty, b.unit ?? null, b.serial ?? null);
+  const created = rowDeliveryLine(await db.prepare("SELECT * FROM delivery_lines WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "delivery_line.created", entityType: "delivery", entityId: row.id, after: created });
+  return { status: 201, body: { line: created } };
+}));
+
+/* Marking a delivery delivered. This is the one transition that asserts
+   something about the physical world, so it demands the evidence. */
+app.patch("/api/deliveries/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM deliveries WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("delivery not found"), { statusCode: 404 });
+  const before = rowDelivery(row);
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries({ address: "address", photo: "photo",
+    damageNotes: "damage_notes", notes: "notes", receivedBy: "received_by" })) {
+    if (b[k] === undefined) continue;
+    sets.push(`${col} = ?`); params.push(b[k] === null ? null : String(b[k]));
+  }
+  if (b.condition !== undefined) {
+    const condition = String(b.condition).toLowerCase();
+    if (!["good", "damaged", "partial", "rejected"].includes(condition)) {
+      throw Object.assign(new Error("condition must be good, damaged, partial or rejected"), { statusCode: 400 });
+    }
+    sets.push("condition = ?"); params.push(condition);
+    /* Damage without a note is a claim nobody can act on. */
+    if (condition !== "good" && !String(b.damageNotes ?? row.damage_notes ?? "").trim()) {
+      throw Object.assign(new Error(`recording a delivery as ${condition} needs a note saying what was wrong`),
+        { statusCode: 400, code: "damage_note_required" });
+    }
+  }
+  if (b.status !== undefined) {
+    const status = String(b.status).toLowerCase();
+    if (!["pending", "in_transit", "delivered", "failed", "returned"].includes(status)) {
+      throw Object.assign(new Error("status must be pending, in_transit, delivered, failed or returned"), { statusCode: 400 });
+    }
+    if (status === "delivered") {
+      const lineCount = Number((await db.prepare("SELECT COUNT(*) AS n FROM delivery_lines WHERE delivery_id = ?").get(row.id))?.n ?? 0);
+      if (!lineCount) {
+        throw Object.assign(new Error("a delivery with no lines cannot be marked delivered — nothing says what arrived"),
+          { statusCode: 409, code: "no_lines" });
+      }
+      const signedBy = String(b.signedBy ?? row.signed_by ?? "").trim();
+      if (!signedBy) {
+        throw Object.assign(new Error("a delivery marked delivered needs the name of who signed for it"),
+          { statusCode: 400, code: "signature_required" });
+      }
+      sets.push("signed_by = ?"); params.push(signedBy);
+      sets.push("delivered_at = ?"); params.push(b.deliveredAt ?? now());
+    }
+    sets.push("status = ?"); params.push(status);
+  }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE deliveries SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = deliveryFromRow(await db.prepare(deliverySql("d.id = ?")).get(row.id));
+  await writeAudit(req, { action: "delivery.updated", entityType: "delivery", entityId: row.id, before, after });
+  if (before.status !== after.status) {
+    await writeActivity({ entityType: "delivery", entityId: row.id, kind: "status_change",
+      summary: `Delivery ${after.ref}: ${before.status} → ${after.status}${after.signedBy ? `, signed by ${after.signedBy}` : ""}`,
+      actor: req.user?.name ?? "system" });
+  }
+  return { delivery: after };
+}));
+
+/* How much of an order has actually arrived. The number that says whether
+   "delivered" is true, rather than a stage someone set by hand. */
+app.get("/api/deliveries/shortfall/:orderId", wrap(async (req, res) => {
+  const order = await db.prepare("SELECT * FROM orders WHERE id = ? OR ref = ?").get(req.params.orderId, req.params.orderId);
+  if (!order) throw Object.assign(new Error("order not found"), { statusCode: 404 });
+  let items = [];
+  try { items = JSON.parse(order.items ?? "[]"); } catch { items = []; }
+  const expected = items.reduce((a, i) => a + Number(i.qty ?? 1), 0);
+  const arrived = Number((await db.prepare(
+    `SELECT COALESCE(SUM(l.qty), 0) AS n FROM delivery_lines l
+       JOIN deliveries d ON d.id = l.delivery_id
+      WHERE d.order_id = ? AND d.status = 'delivered'`
+  ).get(order.id))?.n ?? 0);
+  res.json({
+    orderId: order.id, orderRef: order.ref,
+    expected, arrived, outstanding: Math.max(0, expected - arrived),
+    complete: expected > 0 && arrived >= expected,
+    /* A partial delivery is not a failure: it is three runs out of five. */
+    partial: arrived > 0 && arrived < expected,
+  });
+}));
+
+/* ─────────────────────────── installed assets ─────────────────────────── */
+
+app.get("/api/installed-assets", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.order_id) { where.push("order_id = ?"); params.push(Number(req.query.order_id)); }
+  if (req.query.project_id) { where.push("project_id = ?"); params.push(Number(req.query.project_id)); }
+  if (req.query.status) { where.push("status = ?"); params.push(String(req.query.status)); }
+  if (req.query.in_warranty === "1") {
+    where.push("warranty_until IS NOT NULL AND warranty_until >= ?"); params.push(new Date().toISOString().slice(0, 10));
+  }
+  const rows = await db.prepare(
+    `SELECT * FROM installed_assets ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY COALESCE(installed_on, created_at) DESC LIMIT 300`
+  ).all(...params);
+  const items = rows.map(rowInstalledAsset);
+  res.json({
+    total: items.length,
+    inWarranty: items.filter((a) => a.inWarranty === true).length,
+    items,
+  });
+}));
+
+/* Install an asset. The warranty end is computed here and stored — see the
+   migration header for why it is not recomputed later. */
+app.post("/api/installed-assets", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const name = String(b.name ?? "").trim();
+  if (!name) throw Object.assign(new Error("name is required"), { statusCode: 400 });
+  let orderId = b.orderId ?? null;
+  if (orderId !== null) {
+    const o = await db.prepare("SELECT id FROM orders WHERE id = ?").get(Number(orderId));
+    if (!o) throw Object.assign(new Error("order not found: " + orderId), { statusCode: 404 });
+    orderId = o.id;
+  }
+  let deliveryId = b.deliveryId ?? null;
+  if (deliveryId !== null) {
+    const d = await db.prepare("SELECT id FROM deliveries WHERE id = ?").get(Number(deliveryId));
+    if (!d) throw Object.assign(new Error("delivery not found: " + deliveryId), { statusCode: 404 });
+    deliveryId = d.id;
+  }
+  const installedOn = b.installedOn ? String(b.installedOn).slice(0, 10) : new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(installedOn) || !Number.isFinite(Date.parse(installedOn))) {
+    throw Object.assign(new Error("installedOn must be a date, YYYY-MM-DD"), { statusCode: 400 });
+  }
+  const months = b.warrantyMonths === undefined || b.warrantyMonths === null ? null : Number(b.warrantyMonths);
+  if (months !== null && (!Number.isInteger(months) || months < 0)) {
+    throw Object.assign(new Error("warrantyMonths must be a whole number of months, zero or more"), { statusCode: 400 });
+  }
+  const tag = String(b.tag ?? "").trim() || await nextRefColumn("installed_assets", "tag", "AST-", 7000);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO installed_assets(tag, order_id, project_id, delivery_id, product_id, name, location, room,
+      serial, installed_on, installed_by, warranty_months, warranty_until, status, notes, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'installed',?,?,?)`
+  ).run(tag, orderId, b.projectId ?? null, deliveryId, b.productId ?? null, name,
+    b.location ?? null, b.room ?? null, b.serial ?? null, installedOn,
+    b.installedBy ?? req.user?.name ?? null, months, warrantyEnd(installedOn, months),
+    b.notes ?? null, t, t);
+  const created = rowInstalledAsset(await db.prepare("SELECT * FROM installed_assets WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "installed_asset.created", entityType: "installed_asset", entityId: created.id, after: created });
+  await writeActivity({ entityType: "installed_asset", entityId: created.id, kind: "system",
+    summary: `${created.name} installed${created.room ? ` in ${created.room}` : ""}${created.warrantyUntil ? `, warranty to ${created.warrantyUntil}` : ""}`,
+    actor: req.user?.name ?? "system", occurredAt: installedOn + "T00:00:00.000Z" });
+  return { status: 201, body: { asset: created } };
+}));
+
+app.patch("/api/installed-assets/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM installed_assets WHERE id = ? OR tag = ?").get(req.params.id, req.params.id);
+  if (!row) throw Object.assign(new Error("installed asset not found"), { statusCode: 404 });
+  const before = rowInstalledAsset(row);
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries({ name: "name", location: "location", room: "room",
+    serial: "serial", notes: "notes", installedBy: "installed_by" })) {
+    if (b[k] === undefined) continue;
+    sets.push(`${col} = ?`); params.push(b[k] === null ? null : String(b[k]));
+  }
+  if (b.status !== undefined) {
+    const status = String(b.status).toLowerCase();
+    if (!["installed", "removed", "replaced", "faulty"].includes(status)) {
+      throw Object.assign(new Error("status must be installed, removed, replaced or faulty"), { statusCode: 400 });
+    }
+    sets.push("status = ?"); params.push(status);
+  }
+  /* Re-provisioning the warranty is refused once it has been promised: the
+     stored date is what the customer was told, and moving it after the fact is
+     the thing this column exists to prevent. */
+  if (b.warrantyUntil !== undefined) {
+    if (before.warrantyUntil && b.warrantyUntil !== before.warrantyUntil) {
+      throw Object.assign(new Error(`the warranty on this asset already runs to ${before.warrantyUntil}; a promised end date is not renegotiated by editing it`),
+        { statusCode: 409, code: "warranty_locked" });
+    }
+    sets.push("warranty_until = ?"); params.push(b.warrantyUntil);
+  }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE installed_assets SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = rowInstalledAsset(await db.prepare("SELECT * FROM installed_assets WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: "installed_asset.updated", entityType: "installed_asset", entityId: row.id, before, after });
+  if (before.status !== after.status) {
+    await writeActivity({ entityType: "installed_asset", entityId: row.id, kind: "status_change",
+      summary: `${after.name}: ${before.status} → ${after.status}`, actor: req.user?.name ?? "system" });
+  }
+  return { asset: after };
+}));
+
 /* ══════════════════════════════ finance (013) ══════════════════════════════
    A double-entry journal, plus the documents that post into it.
 
@@ -6444,6 +6947,15 @@ const insertInvoice = async ({ ref, quoteId, orderId, customer, items, subtotal,
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ref, quoteId ?? null, orderId ?? null, customer, JSON.stringify(items),
     subtotal ?? subtotalOf(items), discount ?? 0, tax ?? 0, shipping ?? 0, total, "Issued", due ?? null, notes ?? null, t, t)));
   return (await (db.prepare("SELECT * FROM invoices WHERE id=?").get(info.lastInsertRowid)));
+};
+/* Some tables name their reference column something other than `ref` — an
+   installed asset is identified by `tag`, because it is a label stuck on a
+   physical object rather than a document number. Parameterised rather than
+   guessing, because "no such column: ref" is a 500 at the moment a technician
+   is standing in a kitchen. */
+const nextRefColumn = async (table, column, prefix, floor = 0) => {
+  const m = (await (db.prepare(`SELECT MAX(CAST(substr(${column}, ?) AS INTEGER)) v FROM ${table}`).get(prefix.length + 1))).v ?? 0;
+  return prefix + String(Math.max(Number(m), floor) + 1);
 };
 const nextRef = async (table, prefix, floor = 0) => { // MAX-based: survives row deletion (QA TODO-3)
   const m = (await (db.prepare("SELECT MAX(CAST(substr(ref, ?) AS INTEGER)) v FROM " + table).get(prefix.length + 1))).v ?? 0;
