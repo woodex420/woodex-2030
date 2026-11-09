@@ -3,7 +3,7 @@ import type { ComponentType } from "react";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
 import { Logo } from "@/components/layout/Logo";
-import { BarChart, Building, ChevronDown, ClipboardList, FolderKanban, Globe, Kanban, LayoutDashboard, Megaphone, MessagesSquare, Package, Settings, Settings2, ShoppingBag, Store, Users, Wrench, X, Receipt, Sparkles } from "@/icons";
+import { BarChart, Building, ChevronDown, ClipboardList, Factory, FolderKanban, Globe, Kanban, LayoutDashboard, Megaphone, MessagesSquare, Package, Settings, Settings2, ShoppingBag, Store, Users, Wrench, X, Receipt, Sparkles, Truck, Banknote } from "@/icons";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
@@ -40,6 +40,20 @@ const groups: NavGroup[] = [
       { label: "Orders", to: "/orders", icon: ShoppingBag },
       { label: "Operations", to: "/operations", icon: Wrench },
       { label: "Projects", to: "/projects", icon: FolderKanban },
+    ],
+  },
+  {
+    /* Procurement and production. These had working backends since migrations
+       009-011 and no navigation entry at all, so from the dashboard the whole
+       business chain looked unbuilt. */
+    label: "Procurement & Production",
+    items: [
+      { label: "Suppliers", to: "/suppliers", icon: Building },
+      { label: "Purchase Orders", to: "/purchase-orders", icon: ClipboardList },
+      { label: "Goods Receipts", to: "/goods-receipts", icon: Truck },
+      { label: "Supplier Invoices", to: "/supplier-invoices", icon: Banknote },
+      { label: "Production", to: "/production", icon: Factory },
+      { label: "Stock Ledger", to: "/stock-ledger", icon: Package },
     ],
   },
   {

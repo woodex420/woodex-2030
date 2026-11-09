@@ -169,6 +169,13 @@ try {
   console.log("[ci] Rehearsing a schema upgrade from a pre-011 database.");
   await runChecked(process.execPath, ["--experimental-sqlite", "scripts/test-schema-upgrade.mjs"], baseEnv, "upgrade", 300_000);
 
+  /* The Operations screens' contract. These modules shipped backend-first and
+     stayed invisible for three increments; this suite asserts the read side the
+     screens depend on, including the fields whose absence renders an empty
+     table rather than an error. */
+  console.log("[ci] Rehearsing the Operations screens' API contract.");
+  await runChecked(process.execPath, ["scripts/test-ops-api.mjs"], baseEnv, "ops", 300_000);
+
   console.log("[ci] Starting isolated SQLite API for full API/security QA.");
   const api = start(process.execPath, ["--experimental-sqlite", "apps/api/server.mjs"], {
     ...baseEnv,

@@ -20,6 +20,12 @@ import Inbox from "@/pages/Inbox";
 import Invoices from "@/pages/Invoices";
 import Projects from "@/pages/Projects";
 import Operations from "@/pages/Operations";
+import Suppliers from "@/pages/Suppliers";
+import PurchaseOrders from "@/pages/PurchaseOrders";
+import GoodsReceipts from "@/pages/GoodsReceipts";
+import SupplierInvoices from "@/pages/SupplierInvoices";
+import Production from "@/pages/Production";
+import StockLedger from "@/pages/StockLedger";
 import Analytics from "@/pages/Analytics";
 import Tasks from "@/pages/Tasks";
 import UIComponents from "@/pages/UIComponents";
@@ -111,6 +117,15 @@ export default function App() {
             <Route path="/ui-components" element={<UIComponents />} />
             <Route path="/operations" element={<Operations />} />
             <Route path="/operations/:stage" element={<Operations />} />
+            {/* Operations modules. Each has had a working API since 009-011 and
+                no screen until now — the gap that made the whole backend look
+                "not implemented" from the outside. */}
+            <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/purchase-orders" element={<PurchaseOrders />} />
+            <Route path="/goods-receipts" element={<GoodsReceipts />} />
+            <Route path="/supplier-invoices" element={<SupplierInvoices />} />
+            <Route path="/production" element={<Production />} />
+            <Route path="/stock-ledger" element={<StockLedger />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/ecommerce" element={<Ecommerce />} />

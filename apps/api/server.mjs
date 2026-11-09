@@ -1137,7 +1137,7 @@ const capsFor = (m, path) => {
 };
 const isPublic = (m, p) =>
   m === "GET" && (
-    p === "/api/health" || p === "/api/theme" ||
+    p === "/api/health" || p === "/api/theme" || p === "/api/auth/demo-available" ||
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
     /^\/api\/pages\/[^/]+\/public$/.test(p) ||
     p.startsWith("/img/") || p === "/uploads" || /^\/(uploads|img)\//.test(p) ||
@@ -1291,6 +1291,38 @@ app.get("/api/health", (req, res) => {
   // Keep the public liveness response deliberately free of customer and finance counts.
   res.json({ ok: true, service: "woodex-api", ts: now() });
 });
+
+/* Does this deployment actually have the demo accounts?
+ *
+ * The login screen used to print "Demo access — user admin · pass admin" as a
+ * literal. That string shipped to production, where the demo owner is
+ * deliberately never created (the seed is skipped on Vercel) and the password
+ * is different. So the live site instructed every visitor to use credentials
+ * that cannot work, and the first thing a new user saw was "wrong email or
+ * password".
+ *
+ * The fix is not a better guess in the UI — it is to ask the database. This is
+ * public because the login screen must be able to ask BEFORE anyone signs in.
+ * It reveals only whether a well-known demo account exists and is active; it
+ * exposes no other account, no email address beyond the demo one, and no hash.
+ */
+app.get("/api/auth/demo-available", wrap(async (_req, res) => {
+  let demo = false;
+  try {
+    const u = await db.prepare(
+      "SELECT id, pass_salt FROM users WHERE email='admin@woodex.pk' AND active=1"
+    ).get();
+    /* The account existing is not enough: it must be the seeded demo one, whose
+       password is "admin". Without checking the hash a production owner who
+       registered admin@woodex.pk with a real password would advertise a login
+       that does not work — the same lie in a different disguise. */
+    if (u) {
+      const probe = hashPass("admin", u.pass_salt);
+      demo = probe.hash === (await db.prepare("SELECT pass_hash FROM users WHERE id=?").get(u.id)).pass_hash;
+    }
+  } catch { demo = false; }
+  res.json({ demo });
+}));
 /* N+1 hunting: `db.queries` is cumulative, so a test takes two readings around
    one request and asserts the delta does not grow with row count. Exposed as a
    capability so only tooling (never the dashboard) can read it. */
@@ -2659,6 +2691,83 @@ const jobCardFull = async (r) => {
       refType: m.ref_type, refId: m.ref_id, note: m.note, by: m.created_by, at: m.created_at }));
   return { ...rowJobCard(r), materials, movements };
 };
+
+/* ══════════════════════ stock ledger (read side) ══════════════════════
+
+   Until now the ledger was write-only: every stock change appended a row and
+   nothing could read them back. The history existed — it was just inaccessible
+   without psql, which means nobody could answer "why is this 85 and not 90?".
+
+   This is the read side, deliberately shaped around the one question that
+   matters: does the cached number on the product agree with its movements?
+   A drift row is not a warning to be scrolled past, it is the failure the whole
+   ledger exists to prevent, so it is computed here rather than left to a script. */
+
+const rowMovement = (r) => ({
+  id: r.id, productId: r.product_id, delta: Number(r.delta), reason: r.reason,
+  refType: r.ref_type, refId: r.ref_id, note: r.note, by: r.created_by, at: r.created_at,
+});
+
+app.get("/api/stock-movements", wrap(async (req, res) => {
+  const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 200));
+  const where = [];
+  const params = [];
+  if (req.query.product_id) { where.push("product_id = ?"); params.push(String(req.query.product_id)); }
+  if (req.query.reason) { where.push("reason = ?"); params.push(String(req.query.reason).toLowerCase()); }
+  if (req.query.ref_type) { where.push("ref_type = ?"); params.push(String(req.query.ref_type)); }
+  if (req.query.ref_id) { where.push("ref_id = ?"); params.push(Number(req.query.ref_id)); }
+  const clause = where.length ? "WHERE " + where.join(" AND ") + " " : "";
+  const rows = (await db.prepare(
+    `SELECT * FROM stock_movements ${clause}ORDER BY id DESC LIMIT ?`
+  ).all(...params, limit)).map(rowMovement);
+
+  /* Totals for the filtered set, so a page of 200 rows still reports the true
+     in/out for the whole slice rather than for the page. */
+  const totals = await db.prepare(
+    `SELECT COALESCE(SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END),0) AS inn,
+            COALESCE(SUM(CASE WHEN delta < 0 THEN -delta ELSE 0 END),0) AS out
+       FROM stock_movements ${clause}`
+  ).get(...params);
+
+  res.json({
+    total: rows.length,
+    in: Number(totals?.inn ?? 0),
+    out: Number(totals?.out ?? 0),
+    items: rows,
+  });
+}));
+
+/* Reconciliation: every product's cached stock_qty against the sum of its
+   movements. This is the Phase 7 acceptance criterion expressed as an endpoint —
+   "inventory balances reconcile with the stock movement ledger" — and it must
+   be observable in the running product, not only inside a test. */
+app.get("/api/stock-movements/reconcile", wrap(async (_req, res) => {
+  const products = await db.prepare("SELECT id, stock_qty, json FROM products").all();
+  const sums = new Map(
+    (await db.prepare("SELECT product_id, COALESCE(SUM(delta),0) AS q FROM stock_movements GROUP BY product_id").all())
+      .map((r) => [r.product_id, Number(r.q)])
+  );
+  const drifted = [];
+  for (const p of products) {
+    const ledger = sums.get(p.id) ?? 0;
+    const cached = Number(p.stock_qty) || 0;
+    if (ledger !== cached) {
+      drifted.push({
+        productId: p.id,
+        name: safeJson(p.json, {})?.name ?? p.id,
+        stockQty: cached, ledgerQty: ledger, difference: cached - ledger,
+      });
+    }
+  }
+  const movements = (await db.prepare("SELECT COUNT(*) AS n FROM stock_movements").get())?.n ?? 0;
+  res.json({
+    ok: drifted.length === 0,
+    products: products.length,
+    movements: Number(movements),
+    drifted: drifted.length,
+    items: drifted,
+  });
+}));
 
 /* ---------- bills of materials ---------- */
 
