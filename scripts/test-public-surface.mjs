@@ -26,9 +26,16 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-public-${process.pid}`);
 const problems = [];
 
+/* Every spelling of the sitemap, because three separate production bugs came
+   from testing only the spelling someone assumed Vercel delivers. The rewrite
+   sends /sitemap.xml to /api/index; Vercel strips the /api prefix for the
+   catch-all; api/index.mjs puts it back. Which spelling Express sees is a
+   consequence of those two behaviours, so all of them are public and routed —
+   the sitemap must not depend on getting that chain right. */
 const mustBePublic = [
   ["/sitemap.xml", "application/xml", "sitemap at the root path"],
-  ["/api/sitemap", "application/xml", "sitemap at the path Vercel actually delivers"],
+  ["/api/sitemap", "application/xml", "sitemap, short API spelling"],
+  ["/api/sitemap.xml", "application/xml", "the path the catch-all actually delivers"],
   ["/api/health", "application/json", "liveness probe"],
   ["/api/products?limit=1", "application/json", "public catalogue"],
   ["/api/materials", "application/json", "public materials"],
@@ -88,11 +95,24 @@ try {
   }
 
   /* The sitemap must be a real sitemap, not an error document with an XML
-     content-type — which is how a "passing" check still ships a broken URL. */
-  const sm = await get("/api/sitemap");
-  if (!/<urlset[\s>]/.test(sm.body)) problems.push("/api/sitemap did not return a <urlset> document");
-  else if (!/<loc>/.test(sm.body)) problems.push("/api/sitemap returned a urlset with no <loc> entries");
-  else console.log(`  ✓ /api/sitemap is a real urlset (${(sm.body.match(/<loc>/g) ?? []).length} locations)`);
+     content-type — which is how a "passing" check still ships a broken URL.
+     Every spelling must also return the SAME document: three paths that each
+     pass individually could still be three different pages. */
+  const bodies = [];
+  for (const p of ["/sitemap.xml", "/api/sitemap", "/api/sitemap.xml"]) {
+    const r = await get(p);
+    bodies.push([p, r.body]);
+    if (!/<urlset[\s>]/.test(r.body)) problems.push(`${p} did not return a <urlset> document`);
+    else if (!/<loc>/.test(r.body)) problems.push(`${p} returned a urlset with no <loc> entries`);
+    else console.log(`  ✓ ${p} is a real urlset (${(r.body.match(/<loc>/g) ?? []).length} locations)`);
+  }
+  const [first, ...rest] = bodies;
+  for (const [p, body] of rest) {
+    if (body !== first[1]) problems.push(`${p} returned a different sitemap than ${first[0]} — one document, three spellings`);
+  }
+  if (rest.length && rest.every(([, b]) => b === first[1])) {
+    console.log(`  ✓ all ${bodies.length} sitemap spellings return an identical document`);
+  }
 
   console.log("\n[public] paths that must stay locked");
   for (const [p, why] of mustBePrivate) {

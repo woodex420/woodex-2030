@@ -91,20 +91,35 @@ for (const p of apiPaths) {
 }
 if (!failures.length) ok(`every /api path resolves to the function (${apiPaths.length} cases)`);
 
-/* /sitemap.xml must reach a handler that serves the ROOT path.
-   The old rule sent it to /api/sitemap, a single path segment, so Vercel
-   rewrote it onward to /api/index — the API's own entry — where the auth gate
-   saw a private-looking path and answered 401 to every crawler. It had been
-   "routed to the API" the whole time, which is why the check above passed while
-   the feature never worked. Reaching a function is not the same as reaching the
-   right path. */
+/* /sitemap.xml must resolve to the API's own entry, and nothing must be left
+   that resets the path before it gets there.
+
+   History, because this check has been wrong in both directions. It first
+   accepted any destination "reaching the API", which passed while the sitemap
+   401'd to every crawler. It was then tightened to demand the single path
+   /api/sitemap and its dedicated adapter — which was also broken, because that
+   adapter reset req.url to /sitemap.xml and then called the catch-all, which
+   prefixed it back to /api/sitemap.xml: no route, no allow-list entry, 401.
+
+   The lesson is that a rewrite destination alone cannot prove a path works, so
+   this check now enforces the property that actually matters: exactly one
+   function prefixes the path, so it is prefixed exactly once. */
 const sitemapRule = resolveRewrite("/sitemap.xml");
 if (!sitemapRule) {
   fail("/sitemap.xml has no rewrite rule — crawlers would get the SPA shell");
-} else if (!/^\/api\/sitemap(\.[a-z]+)?$/.test(sitemapRule.destination)) {
-  fail(`/sitemap.xml → "${sitemapRule.destination}" — must go to /api/sitemap (the root-path adapter), not through a catch-all`);
+} else if (sitemapRule.destination !== "/api/index") {
+  fail(`/sitemap.xml → "${sitemapRule.destination}" — must go to /api/index; a second adapter re-prefixes the path and 401s`);
 } else {
-  ok(`/sitemap.xml → ${sitemapRule.destination} (root-path adapter)`);
+  ok(`/sitemap.xml → ${sitemapRule.destination} (single prefix, no second adapter)`);
+}
+
+/* A dedicated adapter for the sitemap cannot work: it must either reset the
+   path (and be re-prefixed by the catch-all) or duplicate the catch-all's
+   prefixing. Both were tried. One entrypoint, one prefix. */
+if (fs.existsSync(path.join(ROOT, "api/sitemap.mjs"))) {
+  fail("api/sitemap.mjs exists — the sitemap must be served through /api/index, not a second entrypoint");
+} else {
+  ok("no competing sitemap entrypoint");
 }
 
 /* The SPA shell must not swallow API traffic, and must still serve app routes. */
