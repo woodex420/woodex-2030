@@ -4861,14 +4861,14 @@ app.post("/api/deliveries", wrapTxJson(async (req, res) => {
      VALUES(?,?,?,?,?,?,'pending',?,?,?,?)`
   ).run(ref, orderId, projectId, runId, customer, b.address ?? null,
     b.condition ?? "good", b.notes ?? null, t, t);
-  const created = deliveryFromRow(await db.prepare(deliverySql("d.id = ?")).get(info.lastInsertRowid));
-  await writeAudit(req, { action: "delivery.created", entityType: "delivery", entityId: created.id, after: created });
-  await writeActivity({ entityType: "delivery", entityId: created.id, kind: "system",
-    summary: `Delivery ${created.ref} created for ${customer}`, actor: req.user?.name ?? "system" });
+  const deliveryId = Number(info.lastInsertRowid);
 
   /* Lines are optional at creation and required before the delivery can be
      marked delivered — a delivery whose contents are unknown cannot be checked
-     against the order, so it cannot prove anything arrived. */
+     against the order, so it cannot prove anything arrived. They are written
+     BEFORE the row is read back: reading first returned a delivery reporting
+     zero lines and zero units to the screen that had just sent two, which
+     reads as "my line was not saved" even though it was. */
   if (Array.isArray(b.lines) && b.lines.length) {
     for (const line of b.lines) {
       const qty = Number(line.qty);
@@ -4876,10 +4876,21 @@ app.post("/api/deliveries", wrapTxJson(async (req, res) => {
       if (!String(line.description ?? "").trim()) throw Object.assign(new Error("each line needs a description"), { statusCode: 400 });
       await db.prepare(
         "INSERT INTO delivery_lines(delivery_id, product_id, description, qty, unit, serial) VALUES(?,?,?,?,?,?)"
-      ).run(created.id, line.productId ?? null, String(line.description).trim(), qty,
+      ).run(deliveryId, line.productId ?? null, String(line.description).trim(), qty,
         line.unit ?? null, line.serial ?? null);
     }
   }
+
+  const counted = await db.prepare(
+    "SELECT COUNT(*) AS line_count, COALESCE(SUM(qty), 0) AS units FROM delivery_lines WHERE delivery_id = ?"
+  ).get(deliveryId);
+  const created = deliveryFromRow({
+    ...(await db.prepare(deliverySql("d.id = ?")).get(deliveryId)),
+    line_count: counted?.line_count ?? 0, units: counted?.units ?? 0,
+  });
+  await writeAudit(req, { action: "delivery.created", entityType: "delivery", entityId: created.id, after: created });
+  await writeActivity({ entityType: "delivery", entityId: created.id, kind: "system",
+    summary: `Delivery ${created.ref} created for ${customer}`, actor: req.user?.name ?? "system" });
   return { status: 201, body: { delivery: created } };
 }));
 

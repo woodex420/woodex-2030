@@ -130,6 +130,13 @@ try {
      to looks broken and, worse, is not obviously wrong in code review. */
   check(del.json?.delivery?.orderRef === order.ref,
     "and the create response names the order, not just the list response", `got ${del.json?.delivery?.orderRef}`);
+  /* The response said 0 lines and 0 units to the screen that had just sent
+     two, because the row was read back before the lines were written. It looks
+     exactly like "my line was not saved". */
+  check(del.json?.delivery?.lineCount === 2,
+    "and reports the lines it was given", `lineCount=${del.json?.delivery?.lineCount}`);
+  check(del.json?.delivery?.units === 3,
+    "and their units", `units=${del.json?.delivery?.units}`);
 
   const listed = await api(`/api/deliveries?order_id=${order.id}`, { token });
   const listedRow = (listed.json?.items ?? []).find((d) => d.id === delId);

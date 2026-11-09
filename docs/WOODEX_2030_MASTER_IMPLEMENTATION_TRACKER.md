@@ -665,6 +665,11 @@ returns a delivery now reads through one `deliverySql`, and the suite pins the
 agreement — a screen that creates a record and then cannot say what it belongs
 to looks broken, and the inconsistency is invisible in code review.
 
+The create response then said **0 lines and 0 units** to the screen that had just
+sent two, because the row was read back before its lines were written. That looks
+exactly like "my line was not saved". Lines are now written first and the counts
+are read after, and both are pinned.
+
 ### Rollback is guarded, and proven
 
 `rollback/015_delivery.rollback.sql` refuses while any delivery or installed
@@ -678,9 +683,9 @@ rollback removes exactly the four tables and 015 re-applies cleanly.
 - `scripts/migrations/015_delivery.sql` — 4 tables, 6 named FKs, 12 CHECKs, 1 trigger
 - `apps/api/server.mjs` — 12 handlers: dispatch runs (3), deliveries (5), assets (2), plus shortfall
 - `apps/dashboard/src/pages/Deliveries.tsx` — deliveries / runs / assets in one screen
-- `scripts/test-delivery.mjs` — 51 checks
+- `scripts/test-delivery.mjs` — 53 checks
 
-**Verified:** `test:delivery` **51/51** · `test:crm` 67/67 · `test:integrity` ·
+**Verified:** `test:delivery` **53/53** · `test:crm` 67/67 · `test:integrity` ·
 `test:audit` 14/14 · `test:finance` · `test:inventory` · `test:procurement` ·
 `test:production` · `test:bills` · `test:stock-ledger` · `check:migration`
 65 = 65 = 65 · `docs:verify` clean · dashboard `tsc -b && vite build`, 45 routes.
