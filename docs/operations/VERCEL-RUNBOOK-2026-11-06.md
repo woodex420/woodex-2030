@@ -1,8 +1,22 @@
 # Woodex 2030 — single-project Vercel runbook
 
-**Status: deployment shape implemented and Vercel build settings configured; no new deployment has been made.** This runbook records the user-approved shape for the Vercel project `woodex-2030`: one project for the Storefront, Dashboard, and API, with a persistent PostgreSQL database. It is not a production-readiness declaration.
+**Status: superseded in the two places it described an unbuilt system — deployments now exist and environment variables are set. Everything about the deployment *shape* below still stands.**
 
-The Vercel project is connected to `woodex420/woodex-2030`, uses `main` as its production branch, and retains the repository root as its project root. Its build command is `npm run vercel:build`, install command is `npm ci --legacy-peer-deps`, and output directory is `dist`. The connected project currently has no environment variables. No deployment was triggered by these settings changes.
+> **README FIRST — this document mixes two tenses.** It was written on
+> 2026-11-06 to record the approved shape *before* the first deploy, and parts of
+> it still read that way. What is true **now** (verified 2026-11-09):
+>
+> | Claim in this document | Actually true now |
+> |---|---|
+> | "no new deployment has been made" | Many. Production runs from `main`; the live deployment at the time of writing was `dpl_BHkbaV27NVdZLmijHwQe66samoq1` (commit `f583ac0`) |
+> | "the connected project currently has no environment variables" | It has four: `DATABASE_URL` (sensitive), `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`, `SITE_URL` |
+> | "Not a production-readiness declaration" | Still accurate. `https://woodex-2030.vercel.app` serves real traffic |
+> | QA counts quoted below | Now 108/108, both engines |
+>
+> The **shape** — one project, root build command, `dist` output, one function
+> entry — is unchanged and is what this runbook is actually for.
+
+The Vercel project is connected to `woodex420/woodex-2030`, uses `main` as its production branch, and retains the repository root as its project root. Its build command is `npm run vercel:build`, install command is `npm ci --legacy-peer-deps`, and output directory is `dist`. (Environment variables and deployment state: see the banner above — both statements that used to sit here are no longer true.)
 
 ## Request routing and build
 
