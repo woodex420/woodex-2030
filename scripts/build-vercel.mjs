@@ -40,6 +40,15 @@ run(["run", "test:blocks"]);
    supposed to reject — an unenforced constraint looks identical to a correct
    one until something tries to break it. */
 run(["run", "test:integrity"]);
+/* test:integrity proves the migration FILES are correct. It never talks to a
+   hosted database, so it cannot prove production matches them — that is what
+   audit-live-schema.mjs is for. Nothing tested THAT tool, and it turned out to
+   be blind to the inline CONSTRAINT … FOREIGN KEY style 003 uses: it declared
+   26 of the 28 foreign keys and reported "no drift" with one of the missing two
+   physically dropped. This self-test builds a real database, asserts a clean
+   one passes, then removes constraints one at a time and asserts each removal
+   FAILS. A guard that cannot fail is not a guard. */
+run(["run", "test:audit"]);
 /* The paths a signed-out visitor and a crawler must reach, tested at the path
    production actually delivers them on. /sitemap.xml passed every local check
    for weeks while returning 401 in production, because production rewrites it
