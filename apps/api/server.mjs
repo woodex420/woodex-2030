@@ -136,6 +136,46 @@ CREATE INDEX IF NOT EXISTS idx_goods_receipt_lines_line ON goods_receipt_lines(p
 CREATE UNIQUE INDEX IF NOT EXISTS uq_stock_movements_receipt_ref
   ON stock_movements(ref_type, ref_id, product_id)
   WHERE reason = 'receipt' AND ref_type = 'goods_receipt' AND ref_id IS NOT NULL;
+/* Supplier invoices (payables) — mirror of 010_supplier_invoices.sql.
+   Deliberately separate from "invoices": that table is receivables (money in,
+   customer by name). Merging them would make every receivables query need a
+   direction filter, and one missed filter reports a payable as revenue.
+   NOTE: no backticks anywhere inside this template literal — a stray one ends
+   the SQL string and the syntax error points at the line that opened it. */
+CREATE TABLE IF NOT EXISTS supplier_invoices(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ref TEXT NOT NULL UNIQUE, supplier_id INTEGER NOT NULL,
+  purchase_order_id INTEGER, goods_receipt_id INTEGER,
+  supplier_ref TEXT NOT NULL, invoice_date TEXT NOT NULL, due_date TEXT,
+  currency TEXT NOT NULL DEFAULT 'PKR',
+  subtotal REAL NOT NULL DEFAULT 0, tax REAL NOT NULL DEFAULT 0,
+  total REAL NOT NULL DEFAULT 0, paid REAL NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft', match_state TEXT, match_json TEXT,
+  matched_at TEXT, note TEXT, created_by TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_supplier_invoices_supplier_ref
+  ON supplier_invoices(supplier_id, supplier_ref);
+CREATE INDEX IF NOT EXISTS idx_supplier_invoices_po ON supplier_invoices(purchase_order_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_invoices_status ON supplier_invoices(status, id DESC);
+CREATE TABLE IF NOT EXISTS supplier_invoice_lines(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  supplier_invoice_id INTEGER NOT NULL, purchase_order_line_id INTEGER,
+  line_no INTEGER NOT NULL, description TEXT,
+  qty_billed INTEGER NOT NULL, unit_cost REAL NOT NULL DEFAULT 0,
+  line_total REAL NOT NULL DEFAULT 0,
+  UNIQUE (supplier_invoice_id, line_no),
+  UNIQUE (supplier_invoice_id, purchase_order_line_id)
+);
+CREATE INDEX IF NOT EXISTS idx_supplier_invoice_lines_invoice ON supplier_invoice_lines(supplier_invoice_id, line_no);
+CREATE INDEX IF NOT EXISTS idx_supplier_invoice_lines_pol ON supplier_invoice_lines(purchase_order_line_id);
+CREATE TABLE IF NOT EXISTS supplier_payments(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  supplier_invoice_id INTEGER NOT NULL, amount REAL NOT NULL,
+  method TEXT DEFAULT 'Bank transfer', reference TEXT, note TEXT,
+  paid_at TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_supplier_payments_invoice ON supplier_payments(supplier_invoice_id, id DESC);
 
 CREATE TABLE IF NOT EXISTS audit_logs(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -865,6 +905,13 @@ const wrapTxJson = (fn) => wrap(async (req, res) => {
     try { effect(); } catch (error) { console.error("[woodex-api] post-commit effect failed:", error.message); }
   }
   const status = Number.isInteger(result?.status) ? result.status : 200;
+  /* A handler may attach headers. This exists for one caller — the supplier
+     invoice POST, which signals a match variance in the response header as well
+     as the body, so a client that only reads the body still cannot claim it was
+     not told. Ignoring the field would have made that claim false. */
+  if (result?.headers && typeof result.headers === "object") {
+    for (const [k, v] of Object.entries(result.headers)) { try { res.setHeader(k, v); } catch { /* invalid header name: not worth failing the write */ } }
+  }
   res.status(status).json(result?.body ?? result ?? { ok: true });
 });
 
@@ -966,6 +1013,10 @@ const capsFor = (m, path) => {
   if (path.startsWith("/api/quotes") || path.startsWith("/api/quote-templates")) return "quote.manage";
   if (path.startsWith("/api/projects")) return "project.manage";
   if (path.startsWith("/api/orders")) return "order.manage";
+  /* Supplier invoices are money OUT and belong to finance, not to purchasing:
+     the person who raises a PO must not also be the person who approves paying
+     it. Same cap as receivables, different direction. */
+  if (path.startsWith("/api/supplier-invoices")) return "finance.manage";
   if (path.startsWith("/api/invoices") || path.startsWith("/api/payments") || path.startsWith("/api/returns")) return "finance.manage";
   if (path.startsWith("/api/suppliers") || path.startsWith("/api/purchase-orders") || path.startsWith("/api/goods-receipts")) return "purchasing.manage";
   if (path.startsWith("/api/products") || path.startsWith("/api/materials") || path.startsWith("/api/services") || path.startsWith("/api/categories") || path.startsWith("/api/collections")) return "catalog.manage";
@@ -2842,6 +2893,421 @@ app.post("/api/goods-receipts", wrapTxJson(async (req) => {
   emit("goods-receipts", { title: `${ref} received against ${po.ref}`, who: req.actor, context: `${moved.length} product line(s) moved stock` });
   await writeAudit(req, { action: "goods_receipt.received", entityType: "goods_receipt", entityId: grnId, after: body });
   return { status: 201, body };
+}));
+
+/* ══════════════════ supplier invoices + 3-way matching ══════════════════
+   The third leg of procurement. A purchase order says what was ordered, a
+   goods receipt says what arrived, and a supplier invoice says what is being
+   charged. Matching compares all three, per line.
+
+   The verdict is stored WITH its numbers. "matched" with no figures behind it
+   is a claim, not evidence, and the first person to dispute a payment will ask
+   which numbers disagreed.
+
+   Matching never blocks RECORDING an invoice: a supplier's bill is a fact that
+   arrives whether or not it agrees with us, and refusing to log it only moves
+   the argument to a spreadsheet. It blocks PAYMENT. */
+
+const SUPPLIER_INVOICE_STATUSES = new Set(["draft", "posted", "paid", "cancelled"]);
+
+/* The tolerance is configuration, not a constant. It lives in meta so an
+   installation can tighten it to 0 (exact) or loosen it for freight-heavy
+   supply without a deployment. Defaults to 0 when unset — the strict reading,
+   because a missing setting should not silently permit a variance. */
+const readMatchTolerance = async () => {
+  const row = (await db.prepare("SELECT value FROM meta WHERE key='procurement.match_tolerance'").get());
+  const n = Number(row?.value ?? 0);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+const rowSupplierInvoice = (r) => ({
+  id: r.id, ref: r.ref, supplierId: r.supplier_id,
+  purchaseOrderId: r.purchase_order_id ?? null, goodsReceiptId: r.goods_receipt_id ?? null,
+  supplierRef: r.supplier_ref, invoiceDate: r.invoice_date, dueDate: r.due_date,
+  currency: r.currency, subtotal: Number(r.subtotal) || 0, tax: Number(r.tax) || 0,
+  total: Number(r.total) || 0, paid: Number(r.paid) || 0,
+  balance: Math.max(0, (Number(r.total) || 0) - (Number(r.paid) || 0)),
+  status: r.status, matchState: r.match_state, matchedAt: r.matched_at,
+  match: safeJson(r.match_json, null), note: r.note, createdBy: r.created_by,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowSupplierInvoiceLine = (r) => ({
+  id: r.id, supplierInvoiceId: r.supplier_invoice_id, purchaseOrderLineId: r.purchase_order_line_id ?? null,
+  lineNo: r.line_no, description: r.description, qtyBilled: r.qty_billed,
+  unitCost: Number(r.unit_cost) || 0, lineTotal: Number(r.line_total) || 0,
+});
+
+/* ── the match itself ──────────────────────────────────────────────────────
+   Per PO line: how much was ordered, how much arrived, how much is billed
+   (across every non-cancelled invoice, not just this one). Three separate
+   disagreements, and they mean different things:
+
+     billed > received  we are being charged for goods that never arrived
+     received > ordered we received more than we asked for (usually a gift or
+                        a supplier rounding up — harmless but worth seeing)
+     billed > ordered   the classic over-invoice
+
+   Unlinked lines (no PO line) are "unlinked", not "variance": there is nothing
+   to compare against, and calling that a variance would cry wolf on perfectly
+   ordinary standalone bills. */
+async function matchSupplierInvoice(invoice, lines) {
+  const tolerance = await readMatchTolerance();
+  const findings = [];
+  let worst = "matched";
+
+  const bump = (state) => {
+    const rank = { matched: 0, tolerance: 1, variance: 2 };
+    if (rank[state] > rank[worst]) worst = state;
+  };
+
+  const orderedQty = new Map();      // pol.id -> qty ordered
+  const receivedQty = new Map();     // pol.id -> qty received
+  const billedBefore = new Map();    // pol.id -> qty billed on OTHER invoices
+
+  if (invoice.purchase_order_id) {
+    for (const l of await db.prepare("SELECT * FROM purchase_order_lines WHERE purchase_order_id=?").all(invoice.purchase_order_id))
+      orderedQty.set(Number(l.id), Number(l.qty_ordered));
+    for (const [lineId, qty] of await receivedByLine(invoice.purchase_order_id))
+      receivedQty.set(lineId, qty);
+    /* Everything already billed against this order, EXCLUDING this invoice,
+       so re-matching an edited invoice does not count itself. */
+    const prior = (await db.prepare(`
+      SELECT sil.purchase_order_line_id AS line_id, COALESCE(SUM(sil.qty_billed),0) AS qty
+        FROM supplier_invoice_lines sil
+        JOIN supplier_invoices si ON si.id = sil.supplier_invoice_id
+       WHERE si.purchase_order_id = ? AND si.id <> ? AND si.status <> 'cancelled'
+         AND sil.purchase_order_line_id IS NOT NULL
+       GROUP BY sil.purchase_order_line_id`).all(invoice.purchase_order_id, invoice.id));
+    for (const r of prior) billedBefore.set(Number(r.line_id), Number(r.qty));
+  }
+
+  const perLine = [];
+  for (const line of lines) {
+    /* `lines` are rowSupplierInvoiceLine() output, so the keys are camelCase.
+       Reading the DB column names here made every line "unlinked" and every
+       total zero — the match ran, and silently verified nothing. */
+    if (!line.purchaseOrderLineId) {
+      perLine.push({ ...line, state: "unlinked", ordered: null, received: null, previouslyBilled: null, billingNow: line.qtyBilled });
+      continue;
+    }
+    const lineId = Number(line.purchaseOrderLineId);
+    const ordered = orderedQty.get(lineId) ?? 0;
+    const received = receivedQty.get(lineId) ?? 0;
+    const before = billedBefore.get(lineId) ?? 0;
+    const after = before + Number(line.qtyBilled);
+    let state = "matched";
+    const reasons = [];
+
+    if (after > ordered) { state = "variance"; reasons.push(`billed ${after} > ordered ${ordered}`); findings.push({ lineId, kind: "over_invoiced", billed: after, ordered }); }
+    if (after > received) { state = "variance"; reasons.push(`billed ${after} > received ${received}`); findings.push({ lineId, kind: "billed_beyond_receipt", billed: after, received }); }
+    if (received > ordered) { if (state === "matched") state = "tolerance"; reasons.push(`received ${received} > ordered ${ordered}`); findings.push({ lineId, kind: "over_received", received, ordered }); }
+    /* Escalate the document verdict. Without this the per-line states were
+       computed correctly and then thrown away, so a document whose only line
+       was a variance still reported "matched" — a verdict that contradicted
+       its own findings array. */
+    bump(state);
+
+    perLine.push({ ...line, state, ordered, received, previouslyBilled: before, billingNow: Number(line.qtyBilled), billedTotal: after, reasons });
+  }
+
+  /* Total-level comparison catches what line quantities miss: a supplier who
+     bills the right quantity at the wrong price. */
+  /* Totals, for the record. The line-level findings above are the verdict; this
+     is the document's own arithmetic, kept so a dispute can be settled from the
+     stored match without re-reading the invoice. */
+  const billedSubtotal = lines.reduce((n, l) => n + (Number(l.lineTotal) || 0), 0);
+  const billedTotal = Number(invoice.subtotal) || billedSubtotal + (Number(invoice.tax) || 0);
+
+  /* An invoice with no purchase order has nothing to match against. Calling
+     that "matched" would claim a verification that never happened; calling it a
+     variance would cry wolf on every ordinary standalone bill. It is "unlinked"
+     — a recorded fact about what was compared, not a verdict on honesty. */
+  if (!invoice.purchase_order_id) worst = "unlinked";
+  /* Otherwise, if nothing disagreed and every line was comparable, the verdict
+     is already "matched". A line that is unlinked inside a PO-linked invoice
+     stays visible per line without downgrading the whole document. */
+
+  return {
+    state: worst,
+    tolerance,
+    at: now(),
+    lines: perLine,
+    findings,
+    totals: { billedSubtotal, tax: Number(invoice.tax) || 0, billedTotal },
+  };
+}
+
+/* Totals are derived from the lines rather than trusted from the body: a caller
+   that sends a subtotal disagreeing with its own lines has produced a document
+   nobody can reconcile. */
+const recalcInvoiceTotals = (lines, tax) => {
+  /* `prepared` carries `lineTotal`; this used to read `line_total`, so every
+     invoice totalled zero while its lines were correct. */
+  const subtotal = lines.reduce((n, l) => n + (Number(l.lineTotal) || 0), 0);
+  return { subtotal, total: subtotal + (Number(tax) || 0) };
+};
+
+const supplierInvoiceById = async (id) => (await db.prepare("SELECT * FROM supplier_invoices WHERE id=? OR ref=?").get(id, id));
+const supplierInvoiceLines = async (id) => (await db.prepare("SELECT * FROM supplier_invoice_lines WHERE supplier_invoice_id=? ORDER BY line_no").all(id)).map(rowSupplierInvoiceLine);
+
+/* ---------- routes ---------- */
+
+app.get("/api/supplier-invoices", wrap(async (req, res) => {
+  let rows = await db.prepare("SELECT * FROM supplier_invoices ORDER BY id DESC").all();
+  if (req.query.status) {
+    const wanted = String(req.query.status).split(",").map((s) => s.trim().toLowerCase());
+    rows = rows.filter((r) => wanted.includes(r.status));
+  }
+  if (req.query.match_state) rows = rows.filter((r) => r.match_state === req.query.match_state);
+  if (req.query.supplier_id) rows = rows.filter((r) => String(r.supplier_id) === String(req.query.supplier_id));
+  if (req.query.purchase_order_id) rows = rows.filter((r) => String(r.purchase_order_id) === String(req.query.purchase_order_id));
+  const items = rows.map(rowSupplierInvoice);
+  res.json({
+    total: items.length,
+    payable: items.filter((i) => i.status !== "cancelled").reduce((n, i) => n + i.balance, 0),
+    outstanding: items.filter((i) => ["posted"].includes(i.status) && i.balance > 0).length,
+    variance: items.filter((i) => i.matchState === "variance").length,
+    items,
+  });
+}));
+
+/* The payables summary a finance person actually wants: how much is owed, how
+   much of it is disputed, and what is overdue. */
+app.get("/api/supplier-invoices/summary", wrap(async (_req, res) => {
+  const rows = (await db.prepare("SELECT * FROM supplier_invoices WHERE status<>'cancelled'").all()).map(rowSupplierInvoice);
+  const today = now().slice(0, 10);
+  res.json({
+    payable: rows.reduce((n, r) => n + r.balance, 0),
+    bills: rows.length,
+    variance: rows.filter((r) => r.matchState === "variance").length,
+    varianceValue: rows.filter((r) => r.matchState === "variance").reduce((n, r) => n + r.balance, 0),
+    overdue: rows.filter((r) => r.dueDate && r.dueDate < today && r.balance > 0).length,
+    overdueValue: rows.filter((r) => r.dueDate && r.dueDate < today && r.balance > 0).reduce((n, r) => n + r.balance, 0),
+  });
+}));
+
+
+app.get("/api/supplier-invoices/:id", wrap(async (req, res) => {
+  const r = await supplierInvoiceById(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  const payments = (await db.prepare("SELECT * FROM supplier_payments WHERE supplier_invoice_id=? ORDER BY id").all(r.id))
+    .map((p) => ({ id: p.id, amount: Number(p.amount) || 0, method: p.method, reference: p.reference, note: p.note, paidAt: p.paid_at, createdAt: p.created_at }));
+  res.json({ ...rowSupplierInvoice(r), lines: await supplierInvoiceLines(r.id), payments });
+}));
+
+/* Record a supplier's bill. Never refused for disagreeing with us — the
+   variance is recorded, not the invoice rejected. */
+app.post("/api/supplier-invoices", wrapTxJson(async (req) => {
+  const b = req.body ?? {};
+  const supplierId = b.supplierId ?? b.supplier_id;
+  if (!supplierId) return { status: 400, body: { error: "supplierId is required" } };
+  const supplier = await supplierById(supplierId);
+  if (!supplier) return { status: 400, body: { error: "supplier not found" } };
+
+  const supplierRef = String(b.supplierRef ?? b.supplier_ref ?? "").trim();
+  if (!supplierRef) return { status: 400, body: { error: "supplierRef is required — it is the number on their document" } };
+
+  /* The duplicate guard, checked before insert so the 409 can say which
+     invoice already holds that number. The unique index is the backstop. */
+  const dupe = await db.prepare("SELECT id, ref, status FROM supplier_invoices WHERE supplier_id=? AND supplier_ref=?")
+    .get(supplier.id, supplierRef);
+  if (dupe) {
+    return { status: 409, body: {
+      error: `supplier invoice ${supplierRef} is already recorded as ${dupe.ref} (${dupe.status})`,
+      code: "duplicate_supplier_invoice", existingId: dupe.id, existingRef: dupe.ref,
+    } };
+  }
+
+  const poRef = b.purchaseOrderId ?? b.purchase_order_id;
+  let po = null;
+  if (poRef != null && poRef !== "") {
+    po = await purchaseOrderById(poRef);
+    if (!po) return { status: 400, body: { error: "purchase order not found" } };
+  }
+  let grnId = b.goodsReceiptId ?? b.goods_receipt_id ?? null;
+  if (grnId != null && grnId !== "") {
+    const grn = await db.prepare("SELECT * FROM goods_receipts WHERE id=?").get(grnId);
+    if (!grn) return { status: 400, body: { error: "goods receipt not found" } };
+    if (po && String(grn.purchase_order_id) !== String(po.id))
+      return { status: 400, body: { error: "that goods receipt belongs to a different purchase order" } };
+    if (!po) po = await purchaseOrderById(grn.purchase_order_id);
+  } else grnId = null;
+
+  const rawLines = Array.isArray(b.lines) ? b.lines : [];
+  if (!rawLines.length) return { status: 400, body: { error: "at least one line is required" } };
+
+  /* Validate everything before writing, for the same reason PO creation does:
+     a half-written invoice has a ref, appears in the payables list, and nobody
+     can tell whether it was ever real. */
+  const poLines = po ? new Map((await db.prepare("SELECT * FROM purchase_order_lines WHERE purchase_order_id=?").all(po.id))
+    .map((l) => [Number(l.id), l])) : new Map();
+  const prepared = [];
+  const seenPol = new Set();
+  for (const [i, line] of rawLines.entries()) {
+    const polished = line.purchaseOrderLineId ?? line.purchase_order_line_id ?? line.lineId;
+    let polId = null;
+    if (polished != null && polished !== "") {
+      polId = Number(polished);
+      if (!poLines.has(polId)) return { status: 400, body: { error: `line ${i + 1}: not a line on ${po ? po.ref : "any purchase order"}` } };
+      if (seenPol.has(polId)) return { status: 400, body: { error: `line ${i + 1}: the same PO line appears twice` } };
+      seenPol.add(polId);
+    }
+    const qty = Number(line.qtyBilled ?? line.qty_billed ?? line.qty);
+    if (!Number.isInteger(qty) || qty <= 0)
+      return { status: 400, body: { error: `line ${i + 1}: qtyBilled must be a positive whole number` } };
+    const cost = Number(line.unitCost ?? line.unit_cost ?? (polId ? poLines.get(polId).unit_cost : 0));
+    if (!Number.isFinite(cost) || cost < 0)
+      return { status: 400, body: { error: `line ${i + 1}: unitCost must be zero or more` } };
+    prepared.push({ lineNo: i + 1, polId, description: line.description ?? (polId ? poLines.get(polId).description : null), qty, cost, lineTotal: qty * cost });
+  }
+
+  const tax = Number(b.tax ?? 0);
+  if (!Number.isFinite(tax) || tax < 0) return { status: 400, body: { error: "tax must be zero or more" } };
+  const { subtotal, total } = recalcInvoiceTotals(prepared, tax);
+
+  const t = now();
+  const ref = await nextRef("supplier_invoices", "BILL-", 100);
+  const info = await db.prepare(
+    `INSERT INTO supplier_invoices(ref,supplier_id,purchase_order_id,goods_receipt_id,supplier_ref,invoice_date,due_date,
+       currency,subtotal,tax,total,paid,status,note,created_by,created_at,updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(ref, supplier.id, po?.id ?? null, grnId, supplierRef,
+    b.invoiceDate ?? b.invoice_date ?? t.slice(0, 10), b.dueDate ?? b.due_date ?? null,
+    b.currency ?? supplier.currency ?? "PKR", subtotal, tax, total, 0, "draft",
+    b.note ?? null, req.actor ?? req.user?.name ?? "system", t, t);
+  const invoiceId = info.lastInsertRowid;
+  for (const l of prepared) {
+    await db.prepare(
+      `INSERT INTO supplier_invoice_lines(supplier_invoice_id,purchase_order_line_id,line_no,description,qty_billed,unit_cost,line_total)
+       VALUES(?,?,?,?,?,?,?)`
+    ).run(invoiceId, l.polId, l.lineNo, l.description, l.qty, l.cost, l.lineTotal);
+  }
+
+  const row = await supplierInvoiceById(invoiceId);
+  const lines = await supplierInvoiceLines(invoiceId);
+  const match = await matchSupplierInvoice(row, lines);
+  await db.prepare("UPDATE supplier_invoices SET match_state=?, match_json=?, matched_at=?, updated_at=? WHERE id=?")
+    .run(match.state, JSON.stringify(match), match.at, t, invoiceId);
+
+  const out = { ...rowSupplierInvoice(await supplierInvoiceById(invoiceId)), lines };
+  emit("supplier-invoices", { title: `Supplier bill ${supplierRef} recorded`, who: req.actor, context: `${match.state} vs ${po ? po.ref : "no PO"}` });
+  await writeAudit(req, { action: "supplier_invoice.recorded", entityType: "supplier_invoice", entityId: invoiceId,
+    after: { ref: out.ref, supplierRef, total, matchState: match.state } });
+
+  /* 201 with the verdict visible: a caller that ignores `match.state` still
+     cannot claim they were not told. A variance is reported as a header, not
+     buried in the body. */
+  return {
+    status: 201,
+    body: out,
+    headers: match.state === "variance" ? { "x-match-state": "variance" } : undefined,
+  };
+}));
+
+/* Recompute the verdict on every sibling invoice for an order. A cancellation
+   changes what the others have been billed for, so leaving them alone would
+   make a cancelled duplicate's siblings look over-invoiced for ever. */
+const rematchOrderInvoices = async (purchaseOrderId) => {
+  const rows = await db.prepare("SELECT * FROM supplier_invoices WHERE purchase_order_id=? AND status<>'cancelled'").all(purchaseOrderId);
+  for (const row of rows) {
+    const lines = await supplierInvoiceLines(row.id);
+    const match = await matchSupplierInvoice(row, lines);
+    await db.prepare("UPDATE supplier_invoices SET match_state=?, match_json=?, matched_at=?, updated_at=? WHERE id=?")
+      .run(match.state, JSON.stringify(match), match.at, now(), row.id);
+  }
+};
+
+/* Post / cancel / re-match. Posting is the point at which the bill becomes a
+   payable; a draft is a note. */
+app.patch("/api/supplier-invoices/:id", wrapTxJson(async (req) => {
+  const r = await supplierInvoiceById(req.params.id);
+  if (!r) return { status: 404, body: { error: "not found" } };
+  const before = rowSupplierInvoice(r);
+  const b = req.body ?? {};
+  const t = now();
+
+  if (b.status !== undefined) {
+    const next = String(b.status).toLowerCase();
+    if (!SUPPLIER_INVOICE_STATUSES.has(next))
+      return { status: 400, body: { error: "status must be " + [...SUPPLIER_INVOICE_STATUSES].join("|") } };
+    if (next === r.status) return { status: 409, body: { error: `invoice is already ${next}` } };
+    const allowed = { draft: ["posted", "cancelled"], posted: ["cancelled"], paid: [], cancelled: [] }[r.status] ?? [];
+    if (!allowed.includes(next)) return { status: 409, body: { error: `cannot move a ${r.status} invoice to ${next}`, allowed } };
+
+    if (next === "cancelled" && Number(r.paid) > 0)
+      return { status: 409, body: { error: `cannot cancel: ${r.paid} already paid against this bill` } };
+
+    await db.prepare("UPDATE supplier_invoices SET status=?, updated_at=? WHERE id=?").run(next, t, r.id);
+    /* A cancellation changes what other invoices on the same order have been
+       billed for, so their verdicts are recomputed too. Without this a
+       cancelled duplicate leaves its siblings looking over-invoiced forever. */
+    if (next === "cancelled" && r.purchase_order_id) await rematchOrderInvoices(r.purchase_order_id);
+  }
+
+  if (b.dueDate !== undefined || b.due_date !== undefined)
+    await db.prepare("UPDATE supplier_invoices SET due_date=?, updated_at=? WHERE id=?").run(b.dueDate ?? b.due_date, t, r.id);
+  if (b.note !== undefined) await db.prepare("UPDATE supplier_invoices SET note=?, updated_at=? WHERE id=?").run(b.note, t, r.id);
+
+  /* Re-match on demand. Cheap, and the honest answer after any change. */
+  const row = await supplierInvoiceById(r.id);
+  const lines = await supplierInvoiceLines(r.id);
+  const match = await matchSupplierInvoice(row, lines);
+  await db.prepare("UPDATE supplier_invoices SET match_state=?, match_json=?, matched_at=?, updated_at=? WHERE id=?")
+    .run(match.state, JSON.stringify(match), match.at, t, r.id);
+
+  const out = { ...rowSupplierInvoice(await supplierInvoiceById(r.id)), lines };
+  if (out.status !== before.status) {
+    await writeAudit(req, { action: "supplier_invoice." + (out.status === "cancelled" ? "cancelled" : "posted"),
+      entityType: "supplier_invoice", entityId: out.id, before: { status: before.status }, after: { status: out.status } });
+  }
+  return { body: out };
+}));
+
+
+/* Record money OUT. The variance rule lives here: an invoice that disagrees
+   with the goods can be recorded, but paying it requires an explicit override
+   that is named in the request and written to the audit log. A silent override
+   would defeat the entire purpose of matching. */
+app.post("/api/supplier-invoices/:id/payments", wrapTxJson(async (req) => {
+  const r = await supplierInvoiceById(req.params.id);
+  if (!r) return { status: 404, body: { error: "not found" } };
+  if (r.status === "cancelled") return { status: 409, body: { error: "this bill is cancelled and cannot be paid" } };
+  if (r.status === "draft") return { status: 409, body: { error: "post the bill before paying it" } };
+
+  const amount = Number(req.body?.amount);
+  if (!(amount > 0)) return { status: 400, body: { error: "amount must be > 0" } };
+
+  const outstanding = Number(r.total) - Number(r.paid);
+  /* The ceiling the receivables side lacks: money cannot leave twice for the
+     same bill. 0.005 absorbs floating-point cents. */
+  if (amount > outstanding + 0.005)
+    return { status: 409, body: { error: `payment of ${amount} exceeds the ${Math.round(outstanding * 100) / 100} outstanding on ${r.ref}`, outstanding } };
+
+  const override = req.body?.overrideVariance === true;
+  if (r.match_state === "variance" && !override) {
+    const match = safeJson(r.match_json, null);
+    return { status: 409, body: {
+      error: "this bill does not match the purchase order and receipt — review the findings or pass overrideVariance to pay anyway",
+      code: "match_variance", matchState: r.match_state,
+      findings: match?.findings ?? [],
+    } };
+  }
+
+  const t = now();
+  await db.prepare("INSERT INTO supplier_payments(supplier_invoice_id,amount,method,reference,note,paid_at,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(r.id, amount, req.body?.method ?? "Bank transfer", req.body?.reference ?? null, req.body?.note ?? null, t, t);
+  const paid = Number(r.paid) + amount;
+  const status = paid >= Number(r.total) - 0.005 ? "paid" : "posted";
+  await db.prepare("UPDATE supplier_invoices SET paid=?, status=?, updated_at=? WHERE id=?").run(paid, status, t, r.id);
+
+  await writeAudit(req, {
+    action: "supplier_invoice.payment_recorded", entityType: "supplier_invoice", entityId: r.id,
+    before: { paid: Number(r.paid), status: r.status }, after: { paid, status, amount, overrideVariance: override },
+  });
+  emit("supplier-invoices", { title: `Payment ${amount} to supplier on ${r.ref}`, who: req.actor, context: status });
+
+  const out = rowSupplierInvoice(await supplierInvoiceById(r.id));
+  return { body: { ...out, lines: await supplierInvoiceLines(r.id) } };
 }));
 
 /* Audit rows are evidence; they must not be editable through the API. Only

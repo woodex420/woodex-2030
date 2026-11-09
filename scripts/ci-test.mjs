@@ -149,6 +149,12 @@ try {
   console.log("[ci] Rehearsing procurement: suppliers, purchase orders, goods receiving.");
   await runChecked(process.execPath, ["scripts/test-procurement.mjs"], baseEnv, "procurement", 300_000);
 
+  /* Payables and three-way matching. Money leaves the business here, so this
+     runs in the same gated job: a variance that stops blocking payment is a
+     financial regression, not a missing feature. */
+  console.log("[ci] Rehearsing supplier invoices and three-way matching.");
+  await runChecked(process.execPath, ["scripts/test-supplier-invoices.mjs"], baseEnv, "bills", 300_000);
+
   console.log("[ci] Starting isolated SQLite API for full API/security QA.");
   const api = start(process.execPath, ["--experimental-sqlite", "apps/api/server.mjs"], {
     ...baseEnv,
