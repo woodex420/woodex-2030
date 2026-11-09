@@ -49,6 +49,11 @@ run(["run", "test:public"]);
    it. Before Phase B, checkout checked availability and never decremented, so a
    99-unit product could be sold without limit. */
 run(["run", "test:stock"]);
+/* A backup that cannot be restored is not a backup. This drill was described in
+   a docstring for weeks without ever being executed; the first execution found
+   a restore that reported success and wrote nothing. It runs here so that
+   cannot regress silently. */
+run(["run", "test:restore"]);
 
 const output = path.join(ROOT, "dist");
 fs.rmSync(output, { recursive: true, force: true });

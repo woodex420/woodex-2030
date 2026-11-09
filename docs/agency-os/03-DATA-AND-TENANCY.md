@@ -64,6 +64,31 @@ Everything above is applied by `scripts/migrations/*.sql` through
 is meant to reject, because an unenforced constraint looks identical to a
 correct one until something tries to break it.
 
+### 2.0 Production drifted, and the rehearsal could not see it
+
+`tasks_done_boolean` was declared in `002_integrity_constraints.sql` and was
+**absent from the hosted database for weeks**. Production had applied 002
+partially and nothing reported it.
+
+The rehearsal passed the whole time, and the reason matters: it asserted a
+**floor** — `checks >= 21`. That holds whether the missing constraint is
+`tasks_done_boolean` or any other one, and it holds when exactly the wrong
+twenty are present. A count cannot distinguish "the right twenty-one" from
+"twenty-one of twenty-two". It now compares constraint **names** as a set and
+reports the missing one by name.
+
+The second half of the gap is that `test:integrity` only ever builds a *fresh*
+database, so by construction it cannot see a hosted database that disagrees with
+its files. `npm run audit:schema` closes that: it connects to a real database
+and compares it against the migrations — every CHECK by name, every FK present
+*and validated*, every expected table, and every ledger checksum. It is
+read-only, and it is verified to exit 1 on drift (a dropped
+`tasks_done_boolean` is caught and named) and 0 when clean.
+
+**The lesson generalises:** a test that asserts a count of constraints, run
+against a database it just created, proves the files are correct and says
+nothing about the one that is serving traffic.
+
 **Still not enforced, deliberately:** `returns.state` and `invoices.status` are
 open vocabularies in the code (the seed writes values the API's own enum does
 not list). `tasks.priority` is free text — the dashboard sends `high`, QA sends

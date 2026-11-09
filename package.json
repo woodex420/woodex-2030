@@ -46,7 +46,9 @@
     "test:blocks": "node scripts/test-block-coverage.mjs",
     "test:public": "node scripts/test-public-surface.mjs",
     "test:stock": "node scripts/test-stock-ledger.mjs",
-    "db:migrate:status": "node scripts/migrate.mjs --status"
+    "db:migrate:status": "node scripts/migrate.mjs --status",
+    "test:restore": "node scripts/test-restore-drill.mjs",
+    "audit:schema": "node scripts/audit-live-schema.mjs"
   },
   "engines": {
     "node": ">=22.5"

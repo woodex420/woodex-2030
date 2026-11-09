@@ -29,6 +29,11 @@ first find the rows that already violate them.
 - Introduce an ordered migration ledger (`schema_migrations`), so drift is
   detectable and rollback is possible.
 - Automated encrypted backup plus **one performed restore drill**, recorded.
+  **Done** — `npm run test:restore` and a `backup.mjs --restore` implementation.
+  The drill is the point: the restore path had only ever been described, and on
+  first execution it reported "9 rows restored" and wrote none. A sequence-reset
+  step ran inside the transaction with its error swallowed, so COMMIT degraded
+  to ROLLBACK. Row-for-row comparison is what caught it.
 - Move rate limiting to a shared store or edge control.
 
 **Exit:** restore drill passes from a real backup; `schema_migrations` reflects
