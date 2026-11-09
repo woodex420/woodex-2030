@@ -148,6 +148,8 @@ try {
     ["CHECK · unknown order stage", `INSERT INTO orders(customer,items,stage) VALUES ('c','[]','teleported')`],
     ["CHECK · unknown order status", `INSERT INTO orders(customer,items,status) VALUES ('c','[]','Vibing')`],
     ["CHECK · unknown user role", `INSERT INTO users(email,name,role) VALUES ('r@x.pk','N','emperor')`],
+    ["CHECK · unknown task priority (the column that was free text for months)", `INSERT INTO tasks(title,priority) VALUES ('t','URGENT-ish')`],
+    ["CHECK · capitalised task priority ('High' was a real caller value)", `INSERT INTO tasks(title,priority) VALUES ('t2','High')`],
     ["CHECK · project progress above 100", `INSERT INTO projects(ref,name,client_id,progress) VALUES ('T-P2','p',1,140)`],
     ["CHECK · negative BOQ quantity", `INSERT INTO boq_lines(project_id,description,qty) VALUES (1,'d',-2)`],
     ["CHECK · quote version below 1", `INSERT INTO quotes(ref,customer,items,version) VALUES ('T-Q2','c','[]',0)`],
@@ -180,6 +182,14 @@ try {
     { constraint: "site_visits_status_known", table: "site_visits", column: "status",
       code: new Set([...(serverSrc.match(/const SITE_VISIT_STATUSES = new Set\(\[([^\]]+)\]/) ?? ["", ""])[1]
         .matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1])) },
+    /* tasks.priority is the reason this whole check exists. The column was free
+       text for months because the code wrote low/normal/high while callers sent
+       "High" and "medium" — a constraint over any one casing would have rejected
+       working requests. The API now normalises at the boundary, so the set it can
+       produce and the set the constraint allows must be the same set. */
+    { constraint: "tasks_priority_known", table: "tasks", column: "priority",
+      code: new Set([...(serverSrc.match(/const TASK_PRIORITIES = new Set\(\[([^\]]+)\]/) ?? ["", ""])[1]
+        .matchAll(/"([a-z]+)"/g)].map((m) => m[1])) },
   ];
   for (const v of vocab) {
     const def = (await q(`SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = $1`, [v.constraint]))[0]?.def;

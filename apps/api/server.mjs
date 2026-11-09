@@ -1934,6 +1934,27 @@ async function clientFull(c) {
   return { ...rowClientLite(c), lifetime, outstanding, quotes: quotes.length, orders: orders.length,
     openBalance: outstanding, lastActivity: tl[0]?.time ?? c.updated_at, timeline: tl, tasks };
 }
+/* Task priority was free text: the dashboard sends low/normal/high, QA posted
+   "High", seeds wrote both, and POST /api/tasks stored whatever arrived. That is
+   why no CHECK constraint existed on the column — any single-casing predicate
+   would have rejected working requests.
+
+   The vocabulary is closed here, at the boundary, so the column can hold one.
+   Anything unrecognised becomes "normal" rather than erroring: a task with an
+   odd priority is not worth a failed request, and silently dropping the caller's
+   intent is worse than a sensible default. */
+const TASK_PRIORITIES = new Set(["low", "normal", "high"]);
+const normPriority = (v) => {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return "normal";
+  if (TASK_PRIORITIES.has(s)) return s;
+  /* "medium" and "urgent" are what people actually type; map them rather than
+     flattening both to normal, which would lose the distinction. */
+  if (s === "medium" || s === "med") return "normal";
+  if (s === "urgent" || s === "critical" || s === "asap") return "high";
+  return "normal";
+};
+
 const rowTask = (r) => ({ id: r.id, clientId: r.client_id, leadId: r.lead_id, quoteId: r.quote_id, orderId: r.order_id, siteVisitId: r.site_visit_id ?? null,
   title: r.title, due: r.due, owner: r.owner, priority: r.priority, done: !!r.done, createdAt: r.created_at, updatedAt: r.updated_at });
 const SITE_VISIT_STATUSES = new Set(["Scheduled", "Confirmed", "Completed", "Cancelled"]);
@@ -2148,7 +2169,7 @@ app.post("/api/tasks", wrap(async (req, res) => {
   const b = req.body ?? {}; if (!b.title) return res.status(400).json({ error: "title required" });
   const t = now();
   const info = (await (db.prepare("INSERT INTO tasks(client_id,lead_id,quote_id,order_id,title,due,owner,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-    .run(b.client_id ?? null, b.lead_id ?? null, b.quote_id ?? null, b.order_id ?? null, b.title, b.due ?? null, b.owner ?? "You", b.priority ?? "normal", t, t)));
+    .run(b.client_id ?? null, b.lead_id ?? null, b.quote_id ?? null, b.order_id ?? null, b.title, b.due ?? null, b.owner ?? "You", normPriority(b.priority), t, t)));
   const out = rowTask((await (db.prepare("SELECT * FROM tasks WHERE id=?").get(info.lastInsertRowid))));
   emit("tasks", { title: "Task added: " + b.title.slice(0, 60), who: b.owner ?? "You" });
   res.status(201).json(out);
@@ -2158,7 +2179,7 @@ app.patch("/api/tasks/:id", wrap(async (req, res) => {
   if (!r) return res.status(404).json({ error: "not found" });
   const b = req.body ?? {};
   (await (db.prepare("UPDATE tasks SET title=?, due=?, owner=?, priority=?, done=?, updated_at=? WHERE id=?").run(
-    b.title ?? r.title, b.due ?? r.due, b.owner ?? r.owner, b.priority ?? r.priority,
+    b.title ?? r.title, b.due ?? r.due, b.owner ?? r.owner, b.priority !== undefined ? normPriority(b.priority) : r.priority,
     b.done !== undefined ? (b.done ? 1 : 0) : r.done, now(), r.id)));
   res.json(rowTask((await (db.prepare("SELECT * FROM tasks WHERE id=?").get(r.id)))));
 }));
