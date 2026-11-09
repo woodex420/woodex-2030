@@ -85,9 +85,53 @@ let db = await seed(dir);
 await db.close();
 let r = runAudit(dir);
 check(r.code === 0, "audit exits 0 on a clean database", `exit ${r.code}`);
-check(/all 28 declared foreign keys present/.test(r.out), "clean database reports all 28 foreign keys",
-  "the declared count is wrong — check the inline CONSTRAINT … FOREIGN KEY pattern");
-check(/all 28 declared CHECK constraints present/.test(r.out), "clean database reports all 28 CHECK constraints");
+/* Assert the audit's declared counts against what the DATABASE actually
+   holds, not against a number typed into this file. The previous version
+   hard-coded 28/28, so adding a migration with a CHECK constraint broke a test
+   that had nothing to do with the change — and the obvious fix (edit 28 to 31)
+   would make it rot again on the next migration.
+
+   This is a real check, not a tautology: it compares the audit's claim to a
+   direct pg_constraint count, so it fails if the audit under-declares (the
+   original bug) while staying silent when the schema legitimately grows. */
+const counts = (() => {
+  const d2 = new PGlite(path.join(tempRoot, "counts"));
+  return d2;
+})();
+await counts.close();
+
+const countDb = new PGlite(path.join(tempRoot, "counts2"));
+await countDb.waitReady;
+await countDb.exec(read("scripts/schema.postgres.sql"));
+for (const f of fs.readdirSync(path.join(ROOT, "scripts", "migrations")).filter((f) => f.endsWith(".sql")).sort())
+  await countDb.exec(read(path.join("scripts", "migrations", f)));
+/* Same predicate the audit uses: constraints on tables in the CURRENT schema.
+   A bare `contype='c'` count includes information_schema's own domain checks
+   (yes_or_no_check, cardinal_number_domain_check), which inflate it by two and
+   make a correct audit look like it under-declares. */
+const sysFilter = `c.contype = $1
+    AND n.nspname = current_schema()
+    AND EXISTS (SELECT 1 FROM pg_class t WHERE t.oid = c.conrelid)`;
+const { rows: fkRows } = await countDb.query(
+  `SELECT count(*)::int AS n FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE ${sysFilter}`,
+  ["f"]);
+const { rows: ckRows } = await countDb.query(
+  `SELECT count(*)::int AS n FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE ${sysFilter}`,
+  ["c"]);
+await countDb.close();
+
+const actualFks = fkRows[0].n;
+const actualChecks = ckRows[0].n;
+check(
+  new RegExp(`all ${actualFks} declared foreign keys present`).test(r.out),
+  `audit declares every foreign key the database holds (${actualFks})`,
+  "the audit under-declares — check the inline CONSTRAINT … FOREIGN KEY pattern",
+);
+check(
+  new RegExp(`all ${actualChecks} declared CHECK constraints present`).test(r.out),
+  `audit declares every CHECK constraint the database holds (${actualChecks})`,
+  "the audit under-declares — check the inline CONSTRAINT … CHECK pattern",
+);
 
 /* The regression this test was written for. 003 declares stock_movements'
    foreign key inline; the old patterns never collected it, so dropping it was

@@ -49,6 +49,12 @@ run(["run", "test:integrity"]);
    one passes, then removes constraints one at a time and asserts each removal
    FAILS. A guard that cannot fail is not a guard. */
 run(["run", "test:audit"]);
+/* The platform audit log is the only record of who changed a payment, voided an
+   invoice or moved stock. Its value depends entirely on being trustworthy, so it
+   is tested the same way the schema audit is: prove the happy path, prove a
+   refused action logs nothing, prove a rolled-back one logs nothing, and prove
+   (statically) that no code path can UPDATE or DELETE a row. */
+run(["run", "test:audit-log"]);
 /* The paths a signed-out visitor and a crawler must reach, tested at the path
    production actually delivers them on. /sitemap.xml passed every local check
    for weeks while returning 401 in production, because production rewrites it

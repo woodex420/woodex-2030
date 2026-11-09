@@ -85,6 +85,15 @@ CREATE TABLE IF NOT EXISTS stock_reservations(
   expires_at TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_stock_reservations_product ON stock_reservations(product_id, status);
+CREATE TABLE IF NOT EXISTS audit_logs(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_id INTEGER, actor_email TEXT, actor_name TEXT, actor_role TEXT,
+  action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT,
+  before_json TEXT, after_json TEXT, ip TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor  ON audit_logs(actor_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action, id DESC);
 CREATE TABLE IF NOT EXISTS leads(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT, name TEXT NOT NULL, company TEXT,
   interest TEXT, source TEXT, contact TEXT, status TEXT DEFAULT 'New', owner TEXT,
@@ -726,6 +735,70 @@ const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).ca
 /* TODO-2 (QA): compound write flows run atomically — a mid-flow throw rolls the whole
    route back (no order-without-invoice half-state). */
 const wtx = (fn) => db.transaction(fn);
+
+/* ---------- audit trail ----------
+   One writer, called from the route that performed the change, inside the same
+   transaction wherever one exists. Two rules make it worth having:
+
+     1. It never throws. An audit write that can fail a payment because the log
+        row was rejected would be worse than the gap it fixes — but a swallowed
+        failure is invisible, so failures are counted and exposed on
+        /api/audit/health rather than silently dropped.
+
+     2. It is called only after the change succeeded. Logging an attempt that
+        rolled back would be a lie, and the tests assert rollback leaves no row. */
+const AUDIT_JSON_LIMIT = 4000; // keeps a snapshot bounded; the row is evidence, not a backup
+let auditWriteFailures = 0;
+
+function auditSnapshot(value) {
+  if (value === undefined || value === null) return null;
+  let json;
+  try { json = JSON.stringify(value); } catch { return null; }
+  if (json === undefined) return null;
+  return json.length > AUDIT_JSON_LIMIT ? JSON.stringify({ truncated: true, bytes: json.length }) : json;
+}
+
+async function writeAudit(req, { action, entityType, entityId = null, before = null, after = null }) {
+  /* `<entity>.<verb>`, both lowercase snake-ish. Underscores ARE allowed in the
+     verb — 'payment_recorded' is the honest name for the action, and an earlier
+     version of this pattern rejected it, which meant the single most important
+     audit point in the system silently logged nothing while reporting success.
+     A validator that rejects the real vocabulary is worse than no validator. */
+  if (!/^[a-z][a-z0-9_-]*\.[a-z][a-z0-9_-]*$/.test(String(action))) {
+    /* A malformed action is a programming error, not a user error. Count it and
+       carry on: refusing the caller's real write over a logging typo would be
+       the tail wagging the dog. */
+    auditWriteFailures += 1;
+    console.error(`[audit] rejected malformed action ${JSON.stringify(action)}`);
+    return;
+  }
+  const u = req?.user ?? null;
+  try {
+    await db.prepare(
+      `INSERT INTO audit_logs(actor_id,actor_email,actor_name,actor_role,action,entity_type,entity_id,before_json,after_json,ip,created_at)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(
+      u?.id ?? null,
+      u?.email ?? null,
+      /* Anonymous writes still need an attribution line. req.actor is set for
+         staff acting through a public route; "storefront" is the honest label
+         for an unauthenticated visitor. */
+      u?.name ?? req?.actor ?? (u ? null : "storefront"),
+      u?.role ?? null,
+      action,
+      entityType,
+      entityId === null || entityId === undefined ? null : String(entityId),
+      auditSnapshot(before),
+      auditSnapshot(after),
+      req?.ip ?? null,
+      now(),
+    );
+  } catch (e) {
+    auditWriteFailures += 1;
+    console.error(`[audit] failed to record ${action}:`, e?.message ?? e);
+  }
+}
+
 const wrapTx = (fn) => wrap(async (req, res) => wtx(() => fn(req, res)));
 /* Responding from inside a transaction races the commit: the client's next request
    (dashboard drill-down, payment, QA assertion) can open a snapshot that does not yet
@@ -985,7 +1058,6 @@ const hashPass = (pw, salt = crypto.randomBytes(8).toString("hex")) =>
   ({ salt, hash: crypto.scryptSync(String(pw), salt, 32).toString("hex") });
 const loginBucket = new Map();
 
-
 app.get("/api/health", (req, res) => {
   // Keep the public liveness response deliberately free of customer and finance counts.
   res.json({ ok: true, service: "woodex-api", ts: now() });
@@ -1178,6 +1250,16 @@ app.patch("/api/products/:id", wrapTxJson(async (req, afterCommit) => {
   }
 
   const out = rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(r.id));
+  /* Price and stock are the two fields where a silent edit costs real money. */
+  const priceChanged = Number(r.price) !== Number(product.price);
+  const stockMoved = req.body?.stockQty !== undefined && Number.isInteger(Number(req.body.stockQty)) && Number(out.stockQty) !== Number(r.stock_qty);
+  if (priceChanged || stockMoved) await writeAudit(req, {
+    action: "product.updated",
+    entityType: "product",
+    entityId: r.id,
+    before: { price: r.price, stockQty: r.stock_qty },
+    after: { price: product.price, stockQty: out.stockQty, priceChanged, stockMoved },
+  });
   afterCommit.push(() => emit("products", { title: "Product updated: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" }));
   return { body: out };
 }));
@@ -2123,8 +2205,37 @@ app.patch("/api/users/:id", wrap(async (req, res) => {
     (await (db.prepare("UPDATE users SET pass_salt=?, pass_hash=? WHERE id=?").run(salt, hash, u.id)));
   }
   if (active === false || password !== undefined) (await (db.prepare("DELETE FROM sessions WHERE user_id=?").run(u.id)));
+  /* Privilege changes are the classic insider-risk action: a role bump or a
+     password reset is how access is gained without anyone noticing. Never log
+     the password itself — only that it changed. */
+  if (role !== undefined || active !== undefined || password !== undefined)
+    await writeAudit(req, {
+      action: "user.privileges_changed",
+      entityType: "user",
+      entityId: u.id,
+      before: { role: u.role, active: !!u.active },
+      after: { role: role ?? u.role, active: active !== undefined ? !!active : !!u.active, passwordReset: password !== undefined },
+    });
   emit("users", { title: "Team update: " + u.name, who: req.actor });
   res.json(rowUserLite((await (db.prepare("SELECT * FROM users WHERE id=?").get(u.id)))));
+}));
+
+/* Audit rows are evidence; they must not be editable through the API. Only
+   reads are exposed, and only to an owner. */
+app.get("/api/audit", wrap(async (req, res) => {
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
+  const rows = (await db.prepare(
+    `SELECT id,actor_email,actor_name,actor_role,action,entity_type,entity_id,created_at
+       FROM audit_logs ORDER BY id DESC LIMIT ?`).all(limit));
+  res.json({ total: rows.length, items: rows.map((r) => ({
+    id: r.id, actor: r.actor_name, actorEmail: r.actor_email, actorRole: r.actor_role,
+    action: r.action, entityType: r.entity_type, entityId: r.entity_id, at: r.created_at,
+  })) });
+}));
+
+app.get("/api/audit/health", wrap(async (_req, res) => {
+  const row = (await db.prepare("SELECT COUNT(*) AS n FROM audit_logs").get());
+  res.json({ rows: Number(row?.n ?? 0), writeFailures: auditWriteFailures });
 }));
 
 /* ---- P3 realtime: Server-Sent Events bus ---- */
@@ -2778,12 +2889,24 @@ app.patch("/api/invoices/:id", wrap(async (req, res) => {
   }
 
   emit("invoices", { title: "Invoice " + r.ref + " → " + nextStatus, who: r.customer });
-  (await (db.prepare("UPDATE invoices SET status=?, due=?, notes=?, discount=?, tax=?, shipping=?, total=?, updated_at=? WHERE id=?").run(
+  const updateResult = (await (db.prepare("UPDATE invoices SET status=?, due=?, notes=?, discount=?, tax=?, shipping=?, total=?, updated_at=? WHERE id=?").run(
     nextStatus, b.due ?? r.due, b.notes ?? r.notes,
     b.discount ?? r.discount, b.tax ?? r.tax, b.shipping ?? r.shipping,
     b.total ?? (b.discount != null || b.tax != null || b.shipping != null
       ? Math.max(0, r.subtotal - (b.discount ?? r.discount) + (b.tax ?? r.tax) + (b.shipping ?? r.shipping)) : r.total),
     now(), r.id)));
+  /* Voiding an invoice is the financial action most likely to be questioned
+     later, and status is the field that carries it. Log every accepted change,
+     not just cancellation — a total edited without a matching payment is the
+     other way this row can stop making sense. */
+  const nextTotal = b.total ?? r.total;
+  await writeAudit(req, {
+    action: "invoice.updated",
+    entityType: "invoice",
+    entityId: r.id,
+    before: { status: r.status, total: r.total, paid: r.paid },
+    after: { status: nextStatus, total: nextTotal, paid: r.paid, changedFields: Object.keys(b) },
+  });
   res.json(rowInvoice((await (db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)))));
 }));
 app.post("/api/invoices/:id/payments", wrapTxJson(async (req, afterCommit) => {
@@ -2804,6 +2927,17 @@ app.post("/api/invoices/:id/payments", wrapTxJson(async (req, afterCommit) => {
   const paid = r.paid + amount;
   const status = paid >= r.total ? "Paid" : "Partially Paid";
   (await (db.prepare("UPDATE invoices SET paid=?, status=?, updated_at=? WHERE id=?").run(paid, status, t, r.id)));
+  /* Money moved. The before/after pair is the whole point: it records the
+     balance as it stood and as it became, so a later dispute can be settled
+     from the log alone rather than by re-deriving it from payments rows that
+     somebody may since have edited. */
+  await writeAudit(req, {
+    action: "invoice.payment_recorded",
+    entityType: "invoice",
+    entityId: r.id,
+    before: { paid: r.paid, status: r.status, balance: r.balance },
+    after: { paid, status, amount, method: req.body?.method ?? "Bank transfer", reference: req.body?.reference ?? null },
+  });
   emit("invoices", { title: "Payment " + (amount >= r.balance ? "" : "partial ") + fmtMoney(amount) + " on " + r.ref, who: r.customer });
   emit("payments", { amount, invoiceId: r.id, method: req.body?.method ?? "Bank transfer" });
   return { status: 201, body: { ...rowInvoice((await (db.prepare("SELECT * FROM invoices WHERE id=?").get(r.id)))),
@@ -2910,6 +3044,16 @@ app.patch("/api/returns/:id", wrapTxJson(async (req, afterCommit) => {
   }
 
   const rOut = rowReturn((await db.prepare("SELECT * FROM returns WHERE id=?").get(r.id)));
+  /* Closing a return restocks inventory — a physical consequence of a status
+     change. Log it with the restock flag so the ledger and the audit trail
+     agree on whether units came back. */
+  if (b.state) await writeAudit(req, {
+    action: "return.state_changed",
+    entityType: "return",
+    entityId: r.id,
+    before: { state: r.state, refundAmount: r.refund_amount },
+    after: { state: rOut.state, refundAmount: rOut.refundAmount, restocked: next === "Closed" && r.state !== "Closed" && !!r.order_id },
+  });
   if (b.state) afterCommit.push(() => emit("returns", { title: "RMA " + r.ref + " → " + b.state, who: r.customer }));
   return { body: rOut };
 }));

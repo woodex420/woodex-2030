@@ -1,6 +1,11 @@
 # WOODEX 2030 — Production Readiness Report
 
 **Date:** 2026-11-09 · **Commit:** `f583ac0`
+
+> **Note (post-`f583ac0`):** migration `008_audit_log.sql` adds `audit_logs`.
+> Counts in this document describe `f583ac0`; current counts live in
+> [`00-CURRENT-STATE.md`](../agency-os/00-CURRENT-STATE.md) — now
+> **32 tables, 31 CHECKs, 8 migrations, 108 routes**.
 **Question:** can this run Woodex's business tomorrow, and can it run a *second*
 company?
 

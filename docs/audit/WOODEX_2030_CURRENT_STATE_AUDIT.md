@@ -1,6 +1,11 @@
 # WOODEX 2030 — Current State Audit
 
 **Date:** 2026-11-09
+
+> **Note (post-`f583ac0`):** migration `008_audit_log.sql` adds `audit_logs`.
+> Counts in this document describe `f583ac0`; current counts live in
+> [`00-CURRENT-STATE.md`](../agency-os/00-CURRENT-STATE.md) — now
+> **32 tables, 31 CHECKs, 8 migrations, 108 routes**.
 **Commit audited:** `f583ac0` (`main`, merge of PR #18)
 **Method:** direct inspection of source, schema, migrations and gate runs in this
 repository. Every claim below cites a file path or a command result. Where
