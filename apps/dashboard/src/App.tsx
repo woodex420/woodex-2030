@@ -26,6 +26,9 @@ import GoodsReceipts from "@/pages/GoodsReceipts";
 import SupplierInvoices from "@/pages/SupplierInvoices";
 import Production from "@/pages/Production";
 import StockLedger from "@/pages/StockLedger";
+import Warehouses from "@/pages/Warehouses";
+import StockTransfers from "@/pages/StockTransfers";
+import StockReservations from "@/pages/StockReservations";
 import Analytics from "@/pages/Analytics";
 import Tasks from "@/pages/Tasks";
 import UIComponents from "@/pages/UIComponents";
@@ -126,6 +129,9 @@ export default function App() {
             <Route path="/supplier-invoices" element={<SupplierInvoices />} />
             <Route path="/production" element={<Production />} />
             <Route path="/stock-ledger" element={<StockLedger />} />
+            <Route path="/warehouses" element={<Warehouses />} />
+            <Route path="/stock-transfers" element={<StockTransfers />} />
+            <Route path="/stock-reservations" element={<StockReservations />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/ecommerce" element={<Ecommerce />} />

@@ -80,6 +80,22 @@ if (db.kind === "sqlite") {
      ran that revision would keep enforcing the stricter rule. Dropped explicitly
      so every database converges on the same rule. */
   await db.exec("DROP INDEX IF EXISTS uq_stock_movements_production_issue");
+
+  /* 012 adds stock_movements.location_id and stock_reservations.released_at.
+     Same trap as 011's idem_key: the CREATE TABLE below is IF NOT EXISTS, so a
+     database that already has these tables never sees the new columns, and the
+     index / route that references them fails at runtime rather than at startup.
+     Guarded by a pragma probe because SQLite has no ADD COLUMN IF NOT EXISTS. */
+  const moveCols = await db.prepare("PRAGMA table_info(stock_movements)").all();
+  if (moveCols.length && !moveCols.some((c) => c.name === "location_id")) {
+    await db.exec("ALTER TABLE stock_movements ADD COLUMN location_id INTEGER");
+    console.log("[woodex-api] migrated stock_movements.location_id (012)");
+  }
+  const resCols = await db.prepare("PRAGMA table_info(stock_reservations)").all();
+  if (resCols.length && !resCols.some((c) => c.name === "released_at")) {
+    await db.exec("ALTER TABLE stock_reservations ADD COLUMN released_at TEXT");
+    console.log("[woodex-api] migrated stock_reservations.released_at (012)");
+  }
 }
 
 /* ---------------- schema ---------------- */
@@ -100,7 +116,7 @@ CREATE TABLE IF NOT EXISTS stock_movements(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   product_id TEXT NOT NULL, delta INTEGER NOT NULL CHECK (delta <> 0),
   reason TEXT NOT NULL, ref_type TEXT, ref_id INTEGER, note TEXT,
-  created_by TEXT, created_at TEXT NOT NULL, idem_key TEXT
+  created_by TEXT, created_at TEXT NOT NULL, idem_key TEXT, location_id INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON stock_movements(product_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_ref ON stock_movements(ref_type, ref_id);
@@ -111,9 +127,62 @@ CREATE TABLE IF NOT EXISTS stock_reservations(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   product_id TEXT NOT NULL, qty INTEGER NOT NULL CHECK (qty > 0),
   ref_type TEXT NOT NULL, ref_id INTEGER, status TEXT NOT NULL DEFAULT 'held',
-  expires_at TEXT, created_at TEXT NOT NULL
+  expires_at TEXT, created_at TEXT NOT NULL, released_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_stock_reservations_product ON stock_reservations(product_id, status);
+CREATE INDEX IF NOT EXISTS idx_stock_reservations_live ON stock_reservations(product_id, status) WHERE status = 'held';
+
+/* Inventory depth — mirror of scripts/migrations/012_warehouses.sql.
+   Column sets must match the PostgreSQL definitions name-for-name; the same
+   rule as the procurement block below. Warehouse → location is a real parent-
+   child relation, and a location's warehouse is the only thing that decides
+   which warehouse a movement belongs to. */
+CREATE TABLE IF NOT EXISTS warehouses(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, city TEXT, address TEXT,
+  manager TEXT, phone TEXT, is_default INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1,
+  notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (is_default IN (0, 1)), CHECK (active IN (0, 1))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_warehouses_single_default ON warehouses(is_default) WHERE is_default = 1;
+CREATE TABLE IF NOT EXISTS storage_locations(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  warehouse_id INTEGER NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL,
+  zone TEXT, active INTEGER NOT NULL DEFAULT 1, notes TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  UNIQUE (warehouse_id, code)
+);
+CREATE INDEX IF NOT EXISTS idx_storage_locations_warehouse ON storage_locations(warehouse_id, active);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_location ON stock_movements(location_id, id DESC);
+
+/* stock_levels is a PROJECTION over the ledger, not a source of truth — same
+   discipline as products.stock_qty. Sum of a product's levels must equal its
+   stock_qty; that invariant is asserted by the test suite, not assumed. */
+CREATE TABLE IF NOT EXISTS stock_levels(
+  product_id TEXT NOT NULL, location_id INTEGER NOT NULL, qty INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL, PRIMARY KEY (product_id, location_id)
+);
+CREATE INDEX IF NOT EXISTS idx_stock_levels_location ON stock_levels(location_id);
+
+/* A transfer is two ledger rows (-src, +dst) tied to one document. The status
+   vocabulary keeps 'in_transit' honest: goods in a truck are at neither end. */
+CREATE TABLE IF NOT EXISTS stock_transfers(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ref TEXT NOT NULL UNIQUE, from_location_id INTEGER NOT NULL, to_location_id INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','dispatched','received','cancelled')),
+  note TEXT, created_by TEXT, dispatched_at TEXT, received_at TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (from_location_id <> to_location_id),
+  CHECK (received_at IS NULL OR dispatched_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_stock_transfers_status ON stock_transfers(status, created_at DESC);
+CREATE TABLE IF NOT EXISTS stock_transfer_lines(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  transfer_id INTEGER NOT NULL, product_id TEXT NOT NULL,
+  qty INTEGER NOT NULL CHECK (qty > 0),
+  UNIQUE (transfer_id, product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_stock_transfer_lines_transfer ON stock_transfer_lines(transfer_id);
 
 /* Procurement — mirror of scripts/migrations/009_procurement.sql.
    Column sets must match the PostgreSQL definitions name-for-name: pg-migrate
@@ -604,11 +673,71 @@ async function ensureCrmDemo() {
    consumption inside the bucket reserved for corrections. Migration 011 widens
    the PostgreSQL CHECK to match — the two must always move together. */
 const STOCK_REASONS = new Set(["receipt", "sale", "return", "adjustment", "transfer", "wastage", "production"]);
-const applyStockMovement = async ({ productId, delta, reason, refType = null, refId = null, note = null, actor = "system", idemKey = null }) => {
+
+/* The location a movement lands in when the caller does not name one.
+   Cached for the life of the process because it changes approximately never and
+   is consulted on every single stock write — including inside a 200-line
+   checkout loop. The cache is invalidated by any warehouse/location mutation,
+   so moving the default is not a restart-required operation. */
+let defaultLocationCache;
+const invalidateDefaultLocation = () => { defaultLocationCache = undefined; };
+const computeDefaultLocationId = async () => {
+  const row = await db.prepare(
+    `SELECT l.id
+       FROM storage_locations l
+       JOIN warehouses w ON w.id = l.warehouse_id
+      WHERE l.active = 1 AND w.active = 1
+      ORDER BY w.is_default DESC, w.id ASC, l.id ASC
+      LIMIT 1`
+  ).get();
+  return row ? Number(row.id) : null;
+};
+const defaultLocationId = async () => {
+  if (defaultLocationCache === undefined) defaultLocationCache = await computeDefaultLocationId();
+  return defaultLocationCache;
+};
+const applyStockMovement = async ({ productId, delta, reason, refType = null, refId = null, note = null, actor = "system", idemKey = null, locationId = null }) => {
   const d = Number(delta);
   if (!Number.isInteger(d) || d === 0) throw Object.assign(new Error("stock delta must be a non-zero whole number"), { statusCode: 400 });
   if (!STOCK_REASONS.has(reason)) throw Object.assign(new Error("unknown stock reason: " + reason), { statusCode: 400 });
 
+  /* 012: a location the caller names must exist. Validated here rather than in
+     every route, so no future caller can write a movement pointing at a
+     location row that was deleted or mistyped. A null location is allowed only
+     because history has them — new writes are expected to pass one, and the
+     transfer route depends on this lookup to know which end is which. */
+  if (locationId !== null && locationId !== undefined) {
+    const loc = await db.prepare("SELECT id FROM storage_locations WHERE id = ?").get(Number(locationId));
+    if (!loc) throw Object.assign(new Error("storage location not found: " + locationId), { statusCode: 404, code: "location_not_found" });
+  }
+  /* When the caller does not say where, the fallback below decides — and it
+     decides differently for incoming and outgoing stock. */
+  let locId = locationId === null || locationId === undefined ? null : Number(locationId);
+
+  /* Positive unattributed movements go to the default location: goods that
+     arrive have to arrive somewhere, and "the receiving bay" is a convention
+     rather than a guess. Negative ones are different. A sale or a write-off
+     that names no location means "out of the store", not "out of the default
+     bay", and the units may well sit on a rack in the other warehouse — or,
+     for opening balances seeded before 012, on no recorded rack at all.
+     Attributing such a decrement to the default bay would either fail on a
+     location that happens to be empty or, worse, silently subtract from a
+     place the goods were never in. So a negative falls back to the default
+     only when the default can actually cover it; otherwise it is recorded
+     with no location, which is the honest answer and which keeps the
+     invariant exact: SUM(stock_levels) always equals the sum of LOCATED
+     ledger rows, because an unlocated row contributes to neither side. */
+  if (locId === null) {
+    const fallback = await defaultLocationId();
+    if (fallback === null) locId = null;
+    else if (d > 0) locId = fallback;
+    else {
+      const at = Number((await db.prepare(
+        "SELECT qty FROM stock_levels WHERE product_id = ? AND location_id = ?"
+      ).get(productId, fallback))?.qty ?? 0);
+      locId = at >= -d ? fallback : null;
+    }
+  }
   /* A negative delta must be reconcilable in one statement. When it is not,
      the row simply does not match and we report insufficient stock rather than
      writing an entry the ledger cannot back. */
@@ -624,8 +753,8 @@ const applyStockMovement = async ({ productId, delta, reason, refType = null, re
   let info;
   try {
     info = await db.prepare(
-      "INSERT INTO stock_movements(product_id, delta, reason, ref_type, ref_id, note, created_by, created_at, idem_key) VALUES(?,?,?,?,?,?,?,?,?)"
-    ).run(productId, d, reason, refType, refId, note, String(actor).slice(0, 80), now(), idemKey);
+      "INSERT INTO stock_movements(product_id, delta, reason, ref_type, ref_id, note, created_by, created_at, idem_key, location_id) VALUES(?,?,?,?,?,?,?,?,?,?)"
+    ).run(productId, d, reason, refType, refId, note, String(actor).slice(0, 80), now(), idemKey, locId);
   } catch (error) {
     /* The idempotency index fired: this exact movement was already recorded.
        Surfacing the driver message would make a correct refusal look like a
@@ -638,7 +767,34 @@ const applyStockMovement = async ({ productId, delta, reason, refType = null, re
     }
     throw error;
   }
-  return { id: info.lastInsertRowid, productId, delta: d, reason };
+
+  /* Keep the per-location projection in step with the movement that was just
+     written. It is inside the caller's transaction (every write route runs in
+     one), so a rollback removes both. UPSERT rather than select-then-insert:
+     two concurrent receipts into the same empty slot would otherwise race and
+     one would fail on the primary key. */
+  if (locId !== null) {
+    if (d < 0) {
+      const lv = await db.prepare(
+        "UPDATE stock_levels SET qty = qty + ?, updated_at = ? WHERE product_id = ? AND location_id = ? AND qty >= ?"
+      ).run(d, now(), productId, locId, -d);
+      /* Unreachable by construction: a caller-named location was checked for
+         coverage below before we got here, and a fallback location was only
+         chosen when it could cover the decrement. Asserted rather than assumed
+         so a future edit to the fallback policy fails loudly instead of
+         corrupting the projection. */
+      if (!lv.changes) {
+        throw Object.assign(new Error("insufficient stock at that location"), { statusCode: 409, code: "insufficient_location_stock", productId, locationId: locId });
+      }
+    } else {
+      await db.prepare(
+        `INSERT INTO stock_levels(product_id, location_id, qty, updated_at) VALUES(?,?,?,?)
+         ON CONFLICT(product_id, location_id) DO UPDATE SET qty = stock_levels.qty + excluded.qty, updated_at = excluded.updated_at`
+      ).run(productId, locId, d, now());
+    }
+  }
+
+  return { id: info.lastInsertRowid, productId, delta: d, reason, locationId: locId };
 };
 
 /* Recompute the cache from the ledger. Used by the reconciliation test and by
@@ -2513,6 +2669,12 @@ const MIGRATION_TABLES = [
   { table: "purchase_order_lines", version: 9 },
   { table: "goods_receipts", version: 9 },
   { table: "goods_receipt_lines", version: 9 },
+  { table: "supplier_invoices", version: 10 },
+  { table: "warehouses", version: 12 },
+  { table: "storage_locations", version: 12 },
+  { table: "stock_levels", version: 12 },
+  { table: "stock_transfers", version: 12 },
+  { table: "stock_transfer_lines", version: 12 },
 ];
 
 async function migrationAlignment() {
@@ -2706,6 +2868,9 @@ const jobCardFull = async (r) => {
 const rowMovement = (r) => ({
   id: r.id, productId: r.product_id, delta: Number(r.delta), reason: r.reason,
   refType: r.ref_type, refId: r.ref_id, note: r.note, by: r.created_by, at: r.created_at,
+  /* 012. Null means "recorded before location tracking existed", which is a
+     fact about the row, not a missing field. */
+  locationId: r.location_id ?? null,
 });
 
 app.get("/api/stock-movements", wrap(async (req, res) => {
@@ -2767,6 +2932,520 @@ app.get("/api/stock-movements/reconcile", wrap(async (_req, res) => {
     drifted: drifted.length,
     items: drifted,
   });
+}));
+
+
+/* ══════════════════════════ inventory depth (012) ══════════════════════════
+   Warehouses, storage locations, transfers and reservations.
+
+   012's header explains why a warehouse and a location are separate. This block
+   adds the three things a reader needs from them:
+
+     1. Where a product actually is  — GET /api/stock-levels
+     2. How goods get from A to B    — transfers, as two ledger rows
+     3. What is promised but not yet gone — reservations
+
+   The invariant this whole block is built to keep: for every product,
+   SUM(stock_levels.qty) = SUM(stock_movements.delta) = products.stock_qty.
+   /api/stock-levels/reconcile reports a violation instead of hiding it, and the
+   test suite asserts drift is zero after transfer and reservation traffic. */
+
+const WAREHOUSE_FIELDS = ["code", "name", "city", "address", "manager", "phone", "notes"];
+
+const rowWarehouse = (r) => ({
+  id: r.id, code: r.code, name: r.name, city: r.city, address: r.address,
+  manager: r.manager, phone: r.phone, isDefault: !!r.is_default, active: !!r.active,
+  notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowLocation = (r) => ({
+  id: r.id, warehouseId: r.warehouse_id, warehouseName: r.warehouse_name ?? null,
+  warehouseCode: r.warehouse_code ?? null, code: r.code, name: r.name, zone: r.zone,
+  active: !!r.active, notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowTransfer = (r) => ({
+  id: r.id, ref: r.ref, fromLocationId: r.from_location_id, toLocationId: r.to_location_id,
+  fromLabel: r.from_label ?? null, toLabel: r.to_label ?? null,
+  status: r.status, note: r.note, createdBy: r.created_by,
+  dispatchedAt: r.dispatched_at, receivedAt: r.received_at,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowReservation = (r) => ({
+  id: r.id, productId: r.product_id, productName: r.product_name ?? null,
+  qty: Number(r.qty), refType: r.ref_type, refId: r.ref_id, status: r.status,
+  expiresAt: r.expires_at, releasedAt: r.released_at, createdAt: r.created_at,
+});
+
+/* ───────────────────────────── warehouses ───────────────────────────── */
+
+app.get("/api/warehouses", wrap(async (req, res) => {
+  let rows = await db.prepare("SELECT * FROM warehouses ORDER BY is_default DESC, id ASC").all();
+  if (req.query.active !== undefined) {
+    const want = ["1", "true", "yes"].includes(String(req.query.active).toLowerCase());
+    rows = rows.filter((w) => !!w.active === want);
+  }
+  /* Location counts in one grouped query — a warehouse list with a per-row
+     count is the classic N+1 and it shows up immediately on a cold lambda. */
+  const counts = new Map(
+    (await db.prepare("SELECT warehouse_id, COUNT(*) AS n FROM storage_locations WHERE active = 1 GROUP BY warehouse_id").all())
+      .map((r) => [Number(r.warehouse_id), Number(r.n)])
+  );
+  const items = rows.map((r) => ({ ...rowWarehouse(r), locations: counts.get(Number(r.id)) ?? 0 }));
+  res.json({ total: items.length, active: items.filter((w) => w.active).length, items });
+}));
+
+app.post("/api/warehouses", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  for (const k of ["code", "name"]) {
+    if (!String(b[k] ?? "").trim()) throw Object.assign(new Error(`${k} is required`), { statusCode: 400 });
+  }
+  const code = String(b.code).trim().toUpperCase();
+  /* Checked before the INSERT so a duplicate is a 409 with a sentence rather
+     than a 500 from the UNIQUE index. The same reason procurement's supplier
+     route checks its code first. */
+  const dupe = await db.prepare("SELECT id FROM warehouses WHERE code = ?").get(code);
+  if (dupe) throw Object.assign(new Error(`warehouse code ${code} already exists`), { statusCode: 409, code: "warehouse_exists" });
+  const t = now();
+  let wantDefault = b.isDefault === true || b.is_default === true;
+  /* First warehouse is the default whether or not the caller said so: a
+     warehouse that is not the default and no other warehouse exists means every
+     movement has nowhere to land. */
+  const existing = Number((await db.prepare("SELECT COUNT(*) AS n FROM warehouses").get())?.n ?? 0);
+  if (existing === 0) wantDefault = true;
+  if (wantDefault) await db.prepare("UPDATE warehouses SET is_default = 0 WHERE is_default = 1").run();
+  const info = await db.prepare(
+    `INSERT INTO warehouses(code, name, city, address, manager, phone, is_default, active, notes, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(code, String(b.name).trim(), b.city ?? null, b.address ?? null, b.manager ?? null, b.phone ?? null,
+    wantDefault ? 1 : 0, b.active === false ? 0 : 1, b.notes ?? null, t, t);
+  invalidateDefaultLocation();
+  const created = rowWarehouse(await db.prepare("SELECT * FROM warehouses WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "warehouse.created", entityType: "warehouse", entityId: created.id, after: created });
+  return { warehouse: created };
+}));
+
+app.patch("/api/warehouses/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM warehouses WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("warehouse not found"), { statusCode: 404 });
+  const before = rowWarehouse(row);
+  const sets = [];
+  const params = [];
+  for (const f of WAREHOUSE_FIELDS) {
+    if (b[f] === undefined) continue;
+    const snake = f;
+    sets.push(`${snake} = ?`);
+    params.push(f === "code" ? String(b[f]).trim().toUpperCase() : (b[f] === null ? null : String(b[f])));
+  }
+  const wantDefault = b.isDefault === true || b.is_default === true;
+  const wantActive = b.active === undefined ? !!row.active : b.active === true;
+  if (wantDefault) {
+    /* Demoting is not offered: "no default warehouse" is a state the fallback
+       location resolution cannot recover from, so a caller marks a different
+       warehouse as default instead. */
+    await db.prepare("UPDATE warehouses SET is_default = 0 WHERE is_default = 1").run();
+    sets.push("is_default = ?"); params.push(1);
+  }
+  if (b.active !== undefined) { sets.push("active = ?"); params.push(wantActive ? 1 : 0); }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE warehouses SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  invalidateDefaultLocation();
+  const after = rowWarehouse(await db.prepare("SELECT * FROM warehouses WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: "warehouse.updated", entityType: "warehouse", entityId: row.id, before, after });
+  return { warehouse: after };
+}));
+
+/* ────────────────────────── storage locations ────────────────────────── */
+
+app.get("/api/storage-locations", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.warehouse_id) { where.push("l.warehouse_id = ?"); params.push(Number(req.query.warehouse_id)); }
+  if (req.query.active !== undefined) {
+    where.push("l.active = ?");
+    params.push(["1", "true", "yes"].includes(String(req.query.active).toLowerCase()) ? 1 : 0);
+  }
+  const rows = await db.prepare(
+    `SELECT l.*, w.name AS warehouse_name, w.code AS warehouse_code
+       FROM storage_locations l JOIN warehouses w ON w.id = l.warehouse_id
+      ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY w.is_default DESC, w.id, l.code`
+  ).all(...params);
+  res.json({ total: rows.length, items: rows.map(rowLocation) });
+}));
+
+app.post("/api/storage-locations", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const warehouseId = Number(b.warehouseId ?? b.warehouse_id);
+  if (!Number.isInteger(warehouseId)) throw Object.assign(new Error("warehouseId is required"), { statusCode: 400 });
+  const wh = await db.prepare("SELECT id FROM warehouses WHERE id = ?").get(warehouseId);
+  if (!wh) throw Object.assign(new Error("warehouse not found: " + warehouseId), { statusCode: 404 });
+  for (const k of ["code", "name"]) {
+    if (!String(b[k] ?? "").trim()) throw Object.assign(new Error(`${k} is required`), { statusCode: 400 });
+  }
+  /* A location code is unique per warehouse, not globally: every godown has an
+     "A1" and that is not a conflict. */
+  const code = String(b.code).trim().toUpperCase();
+  const dup = await db.prepare("SELECT id FROM storage_locations WHERE warehouse_id = ? AND code = ?").get(warehouseId, code);
+  if (dup) throw Object.assign(new Error(`location ${code} already exists in that warehouse`), { statusCode: 409, code: "location_exists" });
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO storage_locations(warehouse_id, code, name, zone, active, notes, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?)`
+  ).run(warehouseId, code, String(b.name).trim(), b.zone ?? null, b.active === false ? 0 : 1, b.notes ?? null, t, t);
+  invalidateDefaultLocation();
+  const created = rowLocation(await db.prepare(
+    `SELECT l.*, w.name AS warehouse_name, w.code AS warehouse_code
+       FROM storage_locations l JOIN warehouses w ON w.id = l.warehouse_id WHERE l.id = ?`
+  ).get(info.lastInsertRowid));
+  await writeAudit(req, { action: "storage_location.created", entityType: "storage_location", entityId: created.id, after: created });
+  return { location: created };
+}));
+
+app.patch("/api/storage-locations/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM storage_locations WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("storage location not found"), { statusCode: 404 });
+  const before = rowLocation(row);
+  const sets = [];
+  const params = [];
+  for (const f of ["code", "name", "zone", "notes"]) {
+    if (b[f] === undefined) continue;
+    sets.push(`${f} = ?`);
+    params.push(f === "code" ? String(b[f]).trim().toUpperCase() : (b[f] === null ? null : String(b[f])));
+  }
+  if (b.active !== undefined) { sets.push("active = ?"); params.push(b.active === true ? 1 : 0); }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE storage_locations SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  invalidateDefaultLocation();
+  const after = rowLocation(await db.prepare("SELECT * FROM storage_locations WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: "storage_location.updated", entityType: "storage_location", entityId: row.id, before, after });
+  return { location: after };
+}));
+
+/* ─────────────────────────── stock by location ─────────────────────────── */
+
+app.get("/api/stock-levels", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.product_id) { where.push("s.product_id = ?"); params.push(String(req.query.product_id)); }
+  if (req.query.location_id) { where.push("s.location_id = ?"); params.push(Number(req.query.location_id)); }
+  if (req.query.warehouse_id) { where.push("l.warehouse_id = ?"); params.push(Number(req.query.warehouse_id)); }
+  const rows = await db.prepare(
+    `SELECT s.*, l.code AS location_code, l.name AS location_name, w.id AS warehouse_id,
+            w.code AS warehouse_code, w.name AS warehouse_name, p.json AS product_json
+       FROM stock_levels s
+       JOIN storage_locations l ON l.id = s.location_id
+       JOIN warehouses w ON w.id = l.warehouse_id
+       LEFT JOIN products p ON p.id = s.product_id
+      ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY s.product_id, w.id, l.code`
+  ).all(...params);
+  const items = rows.map((r) => ({
+    productId: r.product_id,
+    productName: safeJson(r.product_json, {})?.name ?? r.product_id,
+    locationId: r.location_id, locationCode: r.location_code, locationName: r.location_name,
+    warehouseId: r.warehouse_id, warehouseCode: r.warehouse_code, warehouseName: r.warehouse_name,
+    qty: Number(r.qty), updatedAt: r.updated_at,
+  }));
+  res.json({ total: items.length, onHand: items.reduce((a, i) => a + i.qty, 0), items });
+}));
+
+/* The three-way equality that makes stock_levels safe to exist:
+     products.stock_qty  ==  SUM(stock_movements.delta)
+     SUM(stock_levels)   ==  SUM(stock_movements.delta) for located rows
+   Both comparisons are reported separately because they fail for different
+   reasons and a single "ok" would hide which invariant broke. */
+app.get("/api/stock-levels/reconcile", wrap(async (_req, res) => {
+  const products = await db.prepare("SELECT id, stock_qty, json FROM products").all();
+  const ledger = new Map(
+    (await db.prepare("SELECT product_id, COALESCE(SUM(delta),0) AS q FROM stock_movements GROUP BY product_id").all())
+      .map((r) => [r.product_id, Number(r.q)])
+  );
+  /* Only located movements feed the per-location projection; unlocated history
+     predates 012 and is excluded from the second comparison by definition. */
+  const located = new Map(
+    (await db.prepare("SELECT product_id, COALESCE(SUM(delta),0) AS q FROM stock_movements WHERE location_id IS NOT NULL GROUP BY product_id").all())
+      .map((r) => [r.product_id, Number(r.q)])
+  );
+  const levels = new Map(
+    (await db.prepare("SELECT product_id, COALESCE(SUM(qty),0) AS q FROM stock_levels GROUP BY product_id").all())
+      .map((r) => [r.product_id, Number(r.q)])
+  );
+  const cacheDrift = [];
+  const levelDrift = [];
+  for (const p of products) {
+    const cached = Number(p.stock_qty) || 0;
+    const led = ledger.get(p.id) ?? 0;
+    if (cached !== led) {
+      cacheDrift.push({ productId: p.id, name: safeJson(p.json, {})?.name ?? p.id, stockQty: cached, ledgerQty: led, difference: cached - led });
+    }
+    const loc = located.get(p.id) ?? 0;
+    const sum = levels.get(p.id) ?? 0;
+    if (loc !== sum) {
+      levelDrift.push({ productId: p.id, name: safeJson(p.json, {})?.name ?? p.id, levelsQty: sum, locatedLedgerQty: loc, difference: sum - loc });
+    }
+  }
+  res.json({
+    ok: cacheDrift.length === 0 && levelDrift.length === 0,
+    products: products.length,
+    locations: Number((await db.prepare("SELECT COUNT(*) AS n FROM storage_locations").get())?.n ?? 0),
+    cacheDrift: cacheDrift.length,
+    levelDrift: levelDrift.length,
+    items: [...cacheDrift.map((d) => ({ ...d, kind: "stock_qty" })), ...levelDrift.map((d) => ({ ...d, kind: "stock_levels" }))],
+  });
+}));
+
+/* ──────────────────────────── stock transfers ──────────────────────────── */
+
+const TRANSFER_JOIN = `
+  SELECT t.*,
+         (fl.code || ' · ' || fw.code) AS from_label,
+         (tl.code || ' · ' || tw.code) AS to_label
+    FROM stock_transfers t
+    JOIN storage_locations fl ON fl.id = t.from_location_id
+    JOIN warehouses fw ON fw.id = fl.warehouse_id
+    JOIN storage_locations tl ON tl.id = t.to_location_id
+    JOIN warehouses tw ON tw.id = tl.warehouse_id`;
+
+const transferLines = async (transferId) => (await db.prepare(
+  `SELECT tsl.*, p.json AS product_json FROM stock_transfer_lines tsl
+     LEFT JOIN products p ON p.id = tsl.product_id
+    WHERE tsl.transfer_id = ? ORDER BY tsl.id`
+).all(transferId)).map((r) => ({
+  id: r.id, productId: r.product_id, productName: safeJson(r.product_json, {})?.name ?? r.product_id, qty: Number(r.qty),
+}));
+
+const transferFull = async (id) => {
+  const row = await db.prepare(`${TRANSFER_JOIN} WHERE t.id = ?`).get(id);
+  if (!row) return null;
+  const lines = await transferLines(id);
+  return { ...rowTransfer(row), lines, qty: lines.reduce((a, l) => a + l.qty, 0) };
+};
+
+app.get("/api/stock-transfers", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.status) { where.push("t.status = ?"); params.push(String(req.query.status)); }
+  if (req.query.warehouse_id) {
+    where.push("(fl.warehouse_id = ? OR tl.warehouse_id = ?)");
+    params.push(Number(req.query.warehouse_id), Number(req.query.warehouse_id));
+  }
+  const rows = await db.prepare(`${TRANSFER_JOIN} ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY t.id DESC LIMIT 200`)
+    .all(...params);
+  const items = [];
+  for (const r of rows) {
+    const lines = await transferLines(r.id);
+    items.push({ ...rowTransfer(r), lines, qty: lines.reduce((a, l) => a + l.qty, 0) });
+  }
+  res.json({ total: items.length, items });
+}));
+
+app.get("/api/stock-transfers/:id", wrap(async (req, res) => {
+  const t = await transferFull(req.params.id);
+  if (!t) throw Object.assign(new Error("transfer not found"), { statusCode: 404 });
+  res.json({ transfer: t });
+}));
+
+app.post("/api/stock-transfers", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const fromId = Number(b.fromLocationId ?? b.from_location_id);
+  const toId = Number(b.toLocationId ?? b.to_location_id);
+  if (!Number.isInteger(fromId) || !Number.isInteger(toId)) {
+    throw Object.assign(new Error("fromLocationId and toLocationId are required"), { statusCode: 400 });
+  }
+  if (fromId === toId) throw Object.assign(new Error("a transfer must move stock to a different location"), { statusCode: 400, code: "same_location" });
+  for (const id of [fromId, toId]) {
+    const loc = await db.prepare("SELECT id, active FROM storage_locations WHERE id = ?").get(id);
+    if (!loc) throw Object.assign(new Error("storage location not found: " + id), { statusCode: 404 });
+    if (!loc.active) throw Object.assign(new Error("storage location " + id + " is inactive"), { statusCode: 409, code: "location_inactive" });
+  }
+  const lines = Array.isArray(b.lines) ? b.lines : [];
+  if (!lines.length) throw Object.assign(new Error("at least one line is required"), { statusCode: 400 });
+  const seen = new Set();
+  const prepared = [];
+  for (const l of lines) {
+    const productId = String(l.productId ?? l.product_id ?? "").trim();
+    const qty = Number(l.qty);
+    if (!productId) throw Object.assign(new Error("each line needs a productId"), { statusCode: 400 });
+    if (!Number.isInteger(qty) || qty <= 0) throw Object.assign(new Error(`qty for ${productId} must be a positive whole number`), { statusCode: 400 });
+    /* Two lines for one product would try to debit the same units twice from one
+       document; the schema's UNIQUE would reject it as a 500, so it is a 400. */
+    if (seen.has(productId)) throw Object.assign(new Error(`duplicate product on transfer: ${productId}`), { statusCode: 400, code: "duplicate_line" });
+    seen.add(productId);
+    const p = await db.prepare("SELECT id FROM products WHERE id = ?").get(productId);
+    if (!p) throw Object.assign(new Error("product not found: " + productId), { statusCode: 404 });
+    prepared.push({ productId, qty });
+  }
+  const ref = await nextRef("stock_transfers", "TRF-", 1001);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO stock_transfers(ref, from_location_id, to_location_id, status, note, created_by, created_at, updated_at)
+     VALUES(?,?,?,'draft',?,?,?,?)`
+  ).run(ref, fromId, toId, b.note ?? null, req.user?.name ?? req.actor ?? "system", t, t);
+  const id = Number(info.lastInsertRowid);
+  for (const line of prepared) {
+    await db.prepare("INSERT INTO stock_transfer_lines(transfer_id, product_id, qty) VALUES(?,?,?)").run(id, line.productId, line.qty);
+  }
+  const created = await transferFull(id);
+  await writeAudit(req, { action: "stock_transfer.created", entityType: "stock_transfer", entityId: id, after: created });
+  return { transfer: created };
+}));
+
+/* draft → dispatched writes the negative half. dispatched → received writes the
+   positive half. Keeping them apart is what makes 'in_transit' mean something:
+   during that window the units are counted at neither location, which is true. */
+app.patch("/api/stock-transfers/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM stock_transfers WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("transfer not found"), { statusCode: 404 });
+  const before = rowTransfer(row);
+  const want = String(b.status ?? "").trim().toLowerCase();
+  if (!want) throw Object.assign(new Error("status is required"), { statusCode: 400 });
+  if (!["dispatched", "received", "cancelled"].includes(want)) {
+    throw Object.assign(new Error("status must be dispatched, received or cancelled"), { statusCode: 400 });
+  }
+  const actor = req.user?.name ?? req.actor ?? "system";
+  const t = now();
+  const lines = await transferLines(row.id);
+
+  if (want === "dispatched") {
+    if (row.status !== "draft") throw Object.assign(new Error(`cannot dispatch a transfer that is ${row.status}`), { statusCode: 409, code: "invalid_transition" });
+    for (const line of lines) {
+      /* The source debit goes through applyStockMovement with a location, so the
+         guarded UPDATE keeps it from taking units another request already took.
+         'transfer' is the reason 003 defined for exactly this. */
+      await applyStockMovement({
+        productId: line.productId, delta: -line.qty, reason: "transfer",
+        refType: "stock_transfer", refId: row.id, locationId: row.from_location_id,
+        note: `${row.ref} dispatched to location ${row.to_location_id}`, actor,
+      });
+    }
+    await db.prepare("UPDATE stock_transfers SET status='dispatched', dispatched_at=?, updated_at=? WHERE id=?").run(t, t, row.id);
+  } else if (want === "received") {
+    if (row.status !== "dispatched") throw Object.assign(new Error(`cannot receive a transfer that is ${row.status}`), { statusCode: 409, code: "invalid_transition" });
+    for (const line of lines) {
+      await applyStockMovement({
+        productId: line.productId, delta: line.qty, reason: "transfer",
+        refType: "stock_transfer", refId: row.id, locationId: row.to_location_id,
+        note: `${row.ref} received from location ${row.from_location_id}`, actor,
+      });
+    }
+    await db.prepare("UPDATE stock_transfers SET status='received', received_at=?, updated_at=? WHERE id=?").run(t, t, row.id);
+  } else {
+    /* Cancelling a dispatched transfer is refused, and that refusal is the point:
+       stock already left the source. The honest reversal is to receive it and
+       move it back, which leaves two auditable trails instead of one erasure. */
+    if (row.status !== "draft") throw Object.assign(new Error("only a draft transfer can be cancelled; stock already dispatched must be received and moved back"), { statusCode: 409, code: "invalid_transition" });
+    await db.prepare("UPDATE stock_transfers SET status='cancelled', updated_at=? WHERE id=?").run(t, row.id);
+  }
+
+  const after = await transferFull(row.id);
+  await writeAudit(req, { action: `stock_transfer.${want}`, entityType: "stock_transfer", entityId: row.id, before, after });
+  return { transfer: after };
+}));
+
+/* ───────────────────────────── reservations ─────────────────────────────
+   A hold is a claim, not a movement. It never touches stock_qty or the ledger;
+   it only reduces what a caller may promise. Releasing one is therefore a status
+   change, not a compensating entry — but it IS timestamped, so "when did we stop
+   holding these" is answerable. */
+
+const heldQty = async (productId) => Number((await db.prepare(
+  "SELECT COALESCE(SUM(qty),0) AS q FROM stock_reservations WHERE product_id = ? AND status = 'held'"
+).get(productId))?.q ?? 0);
+
+app.get("/api/stock-reservations", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.product_id) { where.push("r.product_id = ?"); params.push(String(req.query.product_id)); }
+  if (req.query.status) { where.push("r.status = ?"); params.push(String(req.query.status)); }
+  if (req.query.ref_type) { where.push("r.ref_type = ?"); params.push(String(req.query.ref_type)); }
+  if (req.query.ref_id) { where.push("r.ref_id = ?"); params.push(Number(req.query.ref_id)); }
+  const rows = await db.prepare(
+    `SELECT r.*, p.json AS product_json FROM stock_reservations r
+       LEFT JOIN products p ON p.id = r.product_id
+      ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY r.id DESC LIMIT 500`
+  ).all(...params);
+  const items = rows.map((r) => ({ ...rowReservation({ ...r, product_name: safeJson(r.product_json, {})?.name }), productName: safeJson(r.product_json, {})?.name ?? r.product_id }));
+  res.json({ total: items.length, held: items.filter((i) => i.status === "held").length, items });
+}));
+
+/* Availability is the number a sales page needs and the number a reservation
+   must not exceed: on hand minus everything currently held. */
+app.get("/api/stock-reservations/availability", wrap(async (req, res) => {
+  const productId = String(req.query.product_id ?? "").trim();
+  if (!productId) throw Object.assign(new Error("product_id is required"), { statusCode: 400 });
+  const p = await db.prepare("SELECT id, stock_qty, json FROM products WHERE id = ?").get(productId);
+  if (!p) throw Object.assign(new Error("product not found: " + productId), { statusCode: 404 });
+  const held = await heldQty(productId);
+  const onHand = Number(p.stock_qty) || 0;
+  res.json({
+    productId, name: safeJson(p.json, {})?.name ?? productId,
+    onHand, held, available: onHand - held,
+  });
+}));
+
+app.post("/api/stock-reservations", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const productId = String(b.productId ?? b.product_id ?? "").trim();
+  const qty = Number(b.qty);
+  const refType = String(b.refType ?? b.ref_type ?? "").trim();
+  if (!productId) throw Object.assign(new Error("productId is required"), { statusCode: 400 });
+  if (!Number.isInteger(qty) || qty <= 0) throw Object.assign(new Error("qty must be a positive whole number"), { statusCode: 400 });
+  /* 012's constraint requires a reference. Enforcing it here turns what would be
+     a 500 from the CHECK into a 400 that says why: a hold nobody can trace back
+     to an order is a hold nobody can release. */
+  if (!refType) throw Object.assign(new Error("refType is required — a hold must say what it is holding stock for"), { statusCode: 400, code: "ref_required" });
+  const p = await db.prepare("SELECT id, stock_qty FROM products WHERE id = ?").get(productId);
+  if (!p) throw Object.assign(new Error("product not found: " + productId), { statusCode: 404 });
+
+  const onHand = Number(p.stock_qty) || 0;
+  const held = await heldQty(productId);
+  const available = onHand - held;
+  /* Over-reserving is the whole failure mode a reservation prevents, so it is a
+     409 with the numbers attached: a caller that needs to show "only 3 left"
+     should not have to make a second request to find out. Returned rather than
+     thrown because `wrap` only forwards a message — a thrown error would reach
+     the client as a bare sentence and a client that wants to render the
+     numbers would have to parse prose. */
+  if (qty > available) {
+    return { status: 409, body: {
+      error: `only ${Math.max(0, available)} available (${onHand} on hand, ${held} held)`,
+      code: "insufficient_available", available: Math.max(0, available), onHand, held,
+    } };
+  }
+
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO stock_reservations(product_id, qty, ref_type, ref_id, status, expires_at, created_at)
+     VALUES(?,?,?,?,'held',?,?)`
+  ).run(productId, qty, refType, b.refId ?? b.ref_id ?? null, b.expiresAt ?? b.expires_at ?? null, t);
+  const created = rowReservation({ ...(await db.prepare("SELECT * FROM stock_reservations WHERE id = ?").get(info.lastInsertRowid)), product_name: safeJson((await db.prepare("SELECT json FROM products WHERE id=?").get(productId))?.json, {})?.name });
+  await writeAudit(req, { action: "stock_reservation.held", entityType: "stock_reservation", entityId: created.id, after: created });
+  return { reservation: created, available: available - qty };
+}));
+
+app.patch("/api/stock-reservations/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM stock_reservations WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("reservation not found"), { statusCode: 404 });
+  const before = rowReservation(row);
+  const want = String(b.status ?? "").trim().toLowerCase();
+  if (!["released", "consumed"].includes(want)) {
+    throw Object.assign(new Error("status must be released or consumed"), { statusCode: 400 });
+  }
+  if (row.status !== "held") throw Object.assign(new Error(`this reservation is already ${row.status}`), { statusCode: 409, code: "already_settled" });
+  /* 'consumed' means the goods shipped against this hold. It does NOT write a
+     ledger row: the sale that ships them does, and writing one here would
+     double-count the same units. The reservation's job ends at "this promise was
+     kept". */
+  await db.prepare("UPDATE stock_reservations SET status = ?, released_at = ? WHERE id = ?").run(want, now(), row.id);
+  const after = rowReservation(await db.prepare("SELECT * FROM stock_reservations WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: `stock_reservation.${want}`, entityType: "stock_reservation", entityId: row.id, before, after });
+  return { reservation: after };
 }));
 
 /* ---------- bills of materials ---------- */
