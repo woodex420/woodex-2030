@@ -22,6 +22,12 @@ export default function Login() {
   const [caps, setCaps] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  /* Recovery mode is reached from this screen on purpose. Somebody who has
+     forgotten their password cannot sign in, so any recovery that lives behind
+     the sign-in is unreachable by exactly the people who need it. */
+  const [recovering, setRecovering] = useState(false);
+  const [tok, setTok] = useState("");
+  const [npw, setNpw] = useState("");
   const pwRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -67,6 +73,36 @@ export default function Login() {
       }
     }
   };
+  const recover = async () => {
+    if (busy) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch("/api/auth/reset-password", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: tok.trim(), newPassword: npw }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { setErr(j?.error ?? "That reset did not work."); setBusy(false); return; }
+      /* Sign straight in with the password they just chose: they have proved
+         possession of the token, so making them type it again immediately is
+         friction with no security value. */
+      setUser(String(j?.email ?? ""));
+      setPw(npw);
+      setRecovering(false);
+      setTok(""); setNpw("");
+      setErr(null);
+      setBusy(false);
+      await login(String(j?.email ?? ""), npw).catch(() => {
+        setErr("Password changed — sign in with it now.");
+      });
+    } catch {
+      setErr(import.meta.env.DEV
+        ? "Can’t reach the Woodex API — use “Run server”, then retry."
+        : "Can’t reach the Woodex API right now. Please retry in a moment.");
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="grid min-h-screen place-items-center bg-surface-secondary px-4 py-8" style={{ backgroundImage: "radial-gradient(700px 380px at 50% -10%, var(--color-primary-50, #f0fdf4), transparent)" }}>
       <div className="w-full max-w-sm">
@@ -76,6 +112,36 @@ export default function Login() {
           <p className="text-caption text-muted">Sign in — the storefront stays public, this doesn&rsquo;t.</p>
         </div>
         <div className="rounded-card border border-hairline bg-white p-5 shadow-card">
+          {recovering ? (
+            <form onSubmit={(e) => { e.preventDefault(); void recover(); }} noValidate>
+              <p className="mb-3 text-caption text-muted">
+                Paste the reset token an owner gave you, and choose a new password.
+              </p>
+              <Field label="Reset token" required>
+                <Input autoFocus value={tok} onChange={(e) => { setTok(e.target.value); setErr(null); }}
+                  placeholder="64-character token" spellCheck={false} className="font-mono text-[11px]" disabled={busy} />
+              </Field>
+              <div className="mt-3">
+                <Field label="New password" required>
+                  <Input type="password" value={npw} onChange={(e) => { setNpw(e.target.value); setErr(null); }}
+                    autoComplete="new-password" disabled={busy} />
+                </Field>
+              </div>
+              {err && (
+                <p role="alert" className="mt-3 rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-caption font-semibold text-danger-strong">{err}</p>
+              )}
+              <Button type="submit" className="mt-4 h-11 w-full text-small font-bold" disabled={busy || !tok.trim() || npw.length < 6}>
+                {busy ? <><Spinner /> Recovering…</> : "Set new password"}
+              </Button>
+              <button type="button" onClick={() => { setRecovering(false); setErr(null); }}
+                className="mt-3 w-full text-center text-[11px] font-semibold text-subtle hover:text-ink">
+                Back to sign in
+              </button>
+              <p className="mt-2 text-center text-[10px] text-subtle">
+                A token works once, expires in an hour, and ends every other session when used.
+              </p>
+            </form>
+          ) : (
           <form onSubmit={(e) => { e.preventDefault(); void go(); }} noValidate>
             <Field label="Username" required>
               <Input autoFocus value={user} onChange={(e) => { setUser(e.target.value); setErr(null); }} placeholder="admin" autoComplete="username" spellCheck={false} disabled={busy} />
@@ -99,11 +165,18 @@ export default function Login() {
               {busy ? <><Spinner /> Signing in…</> : "Sign in"}
             </Button>
           </form>
-          {demo === true && (
+          )}
+          {!recovering && demo === true && (
             <p className="mt-3 text-center text-[11px] text-subtle">Demo access — user <b className="font-mono text-ink">admin</b> · pass <b className="font-mono text-ink">admin</b> · team &amp; roles in Settings</p>
           )}
-          {demo === false && (
+          {!recovering && demo === false && (
             <p className="mt-3 text-center text-[11px] text-subtle">Sign in with the owner account for this deployment.</p>
+          )}
+          {!recovering && (
+            <button type="button" onClick={() => { setRecovering(true); setErr(null); }}
+              className="mt-3 w-full text-center text-[11px] font-semibold text-muted hover:text-ink">
+              Forgot your password? Use a reset token
+            </button>
           )}
         </div>
         <p className="mt-3 text-center text-[10px] text-subtle">Sessions live 7 days · works inside the preview iframe (no storage needed)</p>

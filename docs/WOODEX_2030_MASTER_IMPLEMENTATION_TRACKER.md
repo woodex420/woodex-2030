@@ -1,6 +1,6 @@
 # WOODEX 2030 — Master Implementation Tracker
 
-**Updated:** 2026-11-09 · **Baseline:** migration `016` (`support`)
+**Updated:** 2026-11-09 · **Baseline:** migration `017` (`credentials`)
 **Companions:** [`00-CURRENT-STATE.md`](agency-os/00-CURRENT-STATE.md) is authoritative for facts; this file is authoritative for *plan and status*.
 
 > Rule: a status may only move to **Verified** when a named command passes and
@@ -95,7 +95,7 @@ Each item is sized by *kind* of work, because that is what determines duration.
 | 11 | ~~Support + warranty~~ **DONE** | New module | — | ✅ `016` + UI |
 | 12 | **Tenant schema + context + RLS + cross-tenant tests** | **Architecture** | 2–3 wk | D-1 answered |
 | 13 | Configurable roles/permissions | Schema + code | 1 wk | 12 |
-| 14 | Password reset + email adapter | Code | 2–3 d | SMTP creds |
+| 14 | ~~Password reset~~ **DONE (no email)** · email adapter **open** | Code | — | ✅ `017`; SMTP still needed |
 | 15 | Distributed rate limiting | Infra | 2 d | Redis/Upstash |
 | 16 | Scheduled offsite backup | Infra | 1–2 d | Bucket creds |
 | 17 | Page builder v2 (dnd, single renderer) | Frontend | 2 wk | Tailwind decision |
@@ -123,6 +123,7 @@ These block work. I have proceeded on stated defaults where I reasonably could.
 | D-2 | Production host: Vercel only, or Hostinger VPS too? | **Vercel** | Vercel is live and verified; Hostinger would add Nginx/Redis/workers |
 | D-3 | Which manufacturing stages must be *enforced* (not just recorded)? | Record-only | Enforced gates change the schema and the UI |
 | D-4 | Payment gateway | **Not integrated** | No online payment without a merchant account |
+| D-5 | SMTP credentials for email delivery | **Unset — resets are handed over by hand** | The reset flow works today without mail; email delivery answers `501` until a provider exists |
 | D-5 | Backup destination | None | RPO stays "manual" |
 
 ---
@@ -785,6 +786,68 @@ re-applies cleanly.
 `test:procurement` · `test:production` · `test:bills` · `test:stock-ledger` ·
 `check:migration` 69 = 69 = 69 · `docs:verify` clean · dashboard build, 46 routes ·
 PGlite: 16 migrations, 69 tables, 84 FKs, rollback guard + re-apply.
+
+---
+
+## 4f. Increment 10 — credentials and account recovery (017)
+
+The audit before this increment found a cliff rather than a gap: **a password
+could only be changed by somebody holding `users.manage`, and there was no
+reset flow at all.** In a live system with one owner account, a forgotten
+password meant a hand-written SQL update or a lost system.
+
+### Two ways back in, deliberately kept apart
+
+- **Change** — you know the current password. Self-service, immediate, no token.
+  Any signed-in user can do it, including a viewer who cannot load `/api/users`.
+- **Reset** — you have forgotten it. A single-use, expiring, hashed token,
+  minted only by somebody who already holds `users.manage`.
+
+Conflating them is how password reset becomes an account-takeover vector. A
+reset that anybody can trigger and that never expires is not recovery, it is a
+back door.
+
+### The rules, and why each one exists
+
+| Rule | Why it is not optional |
+|---|---|
+| A change requires the current password (`401 wrong_password`) | A session is not an identity. Otherwise a borrowed laptop is an account takeover with extra steps. |
+| A token is stored **only as a SHA-256 hash** | Whoever reads the table — backup, support engineer, attacker — cannot reset anybody's password. Proven: the raw token appears nowhere in the database. |
+| The token is returned **exactly once** | A reset that can be read back later is a plaintext password held by whoever can read the row. |
+| Every failure answers the **same message** | Unknown, spent, revoked and expired are indistinguishable, so the endpoint is not an oracle for guessing tokens. |
+| A reset **ends every session**; a change ends all but the current one | A password change is the moment somebody believes their old password is known to someone else. The session making a *change* survives so the person is not thrown out of the screen they are standing on. |
+| Minting a new token **retires the previous one** | Two live tokens for one account means "cancel that link" stops being possible. |
+| A disabled account **cannot spend a token** (`403 account_disabled`) | Recovery must not be a way to re-enable an account somebody deliberately turned off. |
+| The password floor is **named** (`at least 6 characters`) | "Password too short" without a number makes people guess. Self-service must not be a weaker path than an owner setting it. |
+
+### Email is refused honestly rather than faked
+
+There is no mail infrastructure in this system. Rather than adding a reset
+"email" that silently delivers nothing, `channel: "email"` answers **`501`
+`email_not_configured`** with a sentence naming the missing decision. That is
+only possible because the error boundary now treats 501 as a *deliberate
+refusal* instead of masking it as `internal error` — a change that also fixed a
+latent bug: every designed 5xx other than 500 was previously unreadable.
+
+### Rollback is guarded
+
+`rollback/017_credentials.rollback.sql` refuses while any reset token is **live**
+— a live token is an outstanding key to an account. Expired tokens do not block;
+they are history.
+
+### Files
+
+- `scripts/migrations/017_credentials.sql` — `password_resets`, 2 named FKs, 3 CHECKs
+- `apps/api/server.mjs` — 5 handlers; `reset-password` is the one route allowed with no session
+- `apps/dashboard/src/components/PasswordCard.tsx` — self-service change, in Settings
+- `apps/dashboard/src/pages/Login.tsx` — recovery mode reachable *from the sign-in screen*, because the people who need it cannot get past it
+- `apps/dashboard/src/components/TeamCard.tsx` — an owner can mint a token without ever learning the new password
+- `scripts/test-credentials.mjs` — 60 checks
+
+**Verified:** `test:credentials` **60/60** · `test:support` 60/60 · `test:delivery` 53/53 ·
+`test:crm` 67/67 · `check:migration` 70 = 70 = 70 · `docs:verify` clean ·
+PGlite: 17 migrations, 70 tables, 86 FKs — guard fires, expired token unblocks,
+017 re-applies, 4 constraint probes rejected, tokens cascade with the user.
 
 ---
 
