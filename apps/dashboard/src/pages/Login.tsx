@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { login } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
@@ -9,13 +9,35 @@ function Spinner() {
 }
 
 export default function Login() {
-  const [user, setUser] = useState("admin");
-  const [pw, setPw] = useState("admin");
+  /* Seeded demo credentials are a LOCAL convenience, not a fact about every
+     deployment. Production deliberately never creates the demo owner, so
+     prefilling admin/admin there guaranteed a failed first attempt and the
+     hint beneath the form advertised a login that could not work. Ask the API
+     whether the demo account really exists (and really uses the demo password)
+     before showing or prefilling any of it. */
+  const [demo, setDemo] = useState<boolean | null>(null);
+  const [user, setUser] = useState("");
+  const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
   const [caps, setCaps] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const pwRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/auth/demo-available", { headers: { accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : { demo: false }))
+      .then((j: { demo?: boolean }) => {
+        if (!alive) return;
+        const on = j?.demo === true;
+        setDemo(on);
+        if (on) { setUser("admin"); setPw("admin"); }
+      })
+      .catch(() => { if (alive) setDemo(false); });
+    return () => { alive = false; };
+  }, []);
+
   const go = async () => {
     if (busy || !user.trim()) return;
     setBusy(true); setErr(null);
@@ -28,7 +50,13 @@ export default function Login() {
           // API likely hot-restarting (watcher) — retry quietly, then speak up.
           setErr(attempt < 2 ? "API is restarting — retrying…" : null);
           if (attempt < 2) { await new Promise((r) => setTimeout(r, 900)); continue; }
-          setErr("Can’t reach the Woodex API — use “Run server” on the API card in the preview panel, then retry.");
+          /* Two audiences, two sentences. "Use Run server on the API card in the
+             preview panel" is meaningless to someone on the deployed site, and
+             it is the sort of leftover that makes a real outage look like a
+             setup mistake on the user's side. */
+          setErr(import.meta.env.DEV
+            ? "Can’t reach the Woodex API — use “Run server” on the API card, then retry."
+            : "Can’t reach the Woodex API right now. Please retry in a moment.");
           setBusy(false);
           window.setTimeout(() => pwRef.current?.focus(), 0);
           return;
@@ -71,7 +99,12 @@ export default function Login() {
               {busy ? <><Spinner /> Signing in…</> : "Sign in"}
             </Button>
           </form>
-          <p className="mt-3 text-center text-[11px] text-subtle">Demo access — user <b className="font-mono text-ink">admin</b> · pass <b className="font-mono text-ink">admin</b> · team &amp; roles in Settings</p>
+          {demo === true && (
+            <p className="mt-3 text-center text-[11px] text-subtle">Demo access — user <b className="font-mono text-ink">admin</b> · pass <b className="font-mono text-ink">admin</b> · team &amp; roles in Settings</p>
+          )}
+          {demo === false && (
+            <p className="mt-3 text-center text-[11px] text-subtle">Sign in with the owner account for this deployment.</p>
+          )}
         </div>
         <p className="mt-3 text-center text-[10px] text-subtle">Sessions live 7 days · works inside the preview iframe (no storage needed)</p>
       </div>

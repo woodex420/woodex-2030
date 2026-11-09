@@ -34,9 +34,9 @@ be standardised until it is resolved.
 
 | Thing | Count | Evidence |
 |---|---|---|
-| API route handlers | **132** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
+| API route handlers | **135** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
 | Storefront routes | **25** | `<Route` in `apps/storefront/src/App.tsx` |
-| Dashboard routes | **29** | `<Route` in `apps/dashboard/src/App.tsx` |
+| Dashboard routes | **35** | `<Route` in `apps/dashboard/src/App.tsx` |
 | PostgreSQL tables | **44** | base schema + `scripts/migrations/*.sql` (distinct names) |
 | SQLite tables | **44** | `apps/api/server.mjs` (distinct names; two are created twice) |
 | Migrations applied | **11** | `scripts/migrations/*.sql`, all recorded in `schema_migrations` |
