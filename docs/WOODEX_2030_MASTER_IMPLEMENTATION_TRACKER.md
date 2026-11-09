@@ -143,6 +143,27 @@ same transaction, so a rollback leaves no row):
 produces **4 failures**, including the control assertion that exists precisely
 so the three absence-checks cannot pass vacuously.
 
+**Applied to production** on 2026-11-09 (version 8, checksum `322a02d5…`) and
+verified there: ledger 8 rows, 28 FKs, 31 CHECKs, 0 unvalidated, and both
+negative probes (malformed action, empty entity) rejected by the live
+constraints.
+
+### The deploy/migration ordering gap — a real risk worth recording
+
+Migration 008 was **not** applied to production when the code shipped. The
+deploy went READY, the API answered, and every audit write failed silently —
+because `writeAudit` deliberately swallows errors so a logging failure cannot
+break a payment. The application's own design made the gap invisible.
+
+Nothing in this repository applies migrations to a hosted database
+automatically. `vercel:build` rehearses them on a throwaway Postgres; it never
+touches production. So **any migration must be applied as a separate, deliberate
+step**, and there is currently no guard that fails when the deployed code
+expects a table the database does not have.
+
+That is the argument for `PRODUCTION_DATABASE_URL`: `audit:schema` in CI is the
+only thing that would have caught this before a human noticed.
+
 **Append-only is enforced statically:** the test greps every file in `scripts/`
 and `apps/api/server.mjs` for `UPDATE`/`DELETE` against `audit_logs` and fails if
 one appears. There is no API route that mutates the table; only reads.
