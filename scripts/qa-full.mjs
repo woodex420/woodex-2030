@@ -2,7 +2,7 @@
 /* Full-stack QA battery — API, auth/RBAC, public surface, CRUD flows, SSE, DB integrity, self-cleanup.
    Usage: node scripts/qa-full.mjs [--base http://127.0.0.1:3001] [--keep] */
 import { DatabaseSync } from "node:sqlite";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +21,11 @@ if (PG_REHEARSAL) {
   const dbPath = process.env.WOODEX_DATA_DIR
     ? path.join(path.resolve(process.env.WOODEX_DATA_DIR), "woodex.db")
     : fileURLToPath(new URL("../data/woodex.db", import.meta.url));
+  /* The API creates its own data directory on boot, but this script opens the
+     database before any server exists — so on a fresh clone, where data/ is
+     gitignored and therefore absent, `npm run qa` died with "unable to open
+     database file" before running a single check. Create it here. */
+  mkdirSync(path.dirname(dbPath), { recursive: true });
   DB = new DatabaseSync(dbPath);
 }
 const TS = Date.now();
@@ -153,6 +158,26 @@ await T("GET products list + by id", async () => {
   if (typeof items[0].price !== "number") bad("price not numeric");
   const one = await api(`/api/products/${items[0].id}`, { role: null }); want(one, 200);
   return `${items.length} products`;
+});
+/* A limit that is accepted and then ignored is worse than one that is rejected:
+   the caller cannot distinguish "asked wrong" from "API disobeyed". Before this
+   check existed, /api/products?limit=1 returned all 148 rows with a 200. */
+await T("GET products?limit is honoured, not silently ignored", async () => {
+  const full = await api("/api/products", { role: null }); want(full, 200);
+  const all = full.j.items.length;
+  const one = await api("/api/products?limit=1", { role: null }); want(one, 200);
+  if (one.j.items.length !== 1) bad(`limit=1 returned ${one.j.items.length} rows`);
+  if (one.j.total !== all) bad(`total should stay the unfiltered count (${all}), got ${one.j.total}`);
+  const page = await api("/api/products?limit=5&offset=2", { role: null }); want(page, 200);
+  if (page.j.items.length !== 5) bad(`limit=5&offset=2 returned ${page.j.items.length}`);
+  if (page.j.items[0].id === one.j.items[0].id) bad("offset did not skip the first row");
+  const tail = await api(`/api/products?limit=10&offset=${all - 2}`, { role: null }); want(tail, 200);
+  if (tail.j.items.length !== 2) bad(`window past the end returned ${tail.j.items.length}, expected the 2 remaining`);
+  for (const q of ["abc", "1.5", "-1"]) {
+    const r = await api(`/api/products?limit=${q}`, { role: null });
+    if (r.s !== 400) bad(`limit=${q} returned ${r.s}, expected 400`);
+  }
+  return `limit/offset honoured; malformed limits rejected`;
 });
 await T("GET unknown product → 404 not 500", async () => {
   const r = await api("/api/products/999999", { role: null }); if (r.s < 400 || r.s >= 500) bad("s=" + r.s);
