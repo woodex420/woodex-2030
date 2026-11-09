@@ -155,6 +155,20 @@ try {
   console.log("[ci] Rehearsing supplier invoices and three-way matching.");
   await runChecked(process.execPath, ["scripts/test-supplier-invoices.mjs"], baseEnv, "bills", 300_000);
 
+  /* Production. This is the only module that can create stock without a
+     purchase and destroy it without a sale, so the QC gate and the consumption
+     gate are rehearsed here: a job card that completes un-inspected, or one
+     that consumes twice, is an inventory-integrity regression. */
+  console.log("[ci] Rehearsing production: BOMs, job cards, consumption, QC.");
+  await runChecked(process.execPath, ["scripts/test-production.mjs"], baseEnv, "production", 300_000);
+
+  /* The upgrade path. Every other test builds its database from scratch, which
+     is not the situation a deployment is ever in. 011 adds a column to a table
+     that already exists, and getting that wrong stopped the API from booting
+     while every fresh-database test still passed. */
+  console.log("[ci] Rehearsing a schema upgrade from a pre-011 database.");
+  await runChecked(process.execPath, ["--experimental-sqlite", "scripts/test-schema-upgrade.mjs"], baseEnv, "upgrade", 300_000);
+
   console.log("[ci] Starting isolated SQLite API for full API/security QA.");
   const api = start(process.execPath, ["--experimental-sqlite", "apps/api/server.mjs"], {
     ...baseEnv,
