@@ -66,7 +66,7 @@ const declaredChecks = new Set([
   ...[...read("scripts/migrations/002_integrity_constraints.sql")
     .matchAll(/^\s*\('\w+',\s*'(\w+_(?:known|boolean|positive|non_negative|range))',\s*'/gm)]
     .map((m) => m[1]),
-  ...[...allMigrationSql.matchAll(/CONSTRAINT\s+(\w+)\s+CHECK/gi)].map((m) => m[1]),
+  ...[...allMigrationSql.matchAll(/CONSTRAINT\s+(\w+)\s+CHECK\s*\(/gi)].map((m) => m[1]),
 ]);
 const chkExpected = declaredChecks.size;
 

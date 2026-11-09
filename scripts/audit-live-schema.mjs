@@ -56,7 +56,7 @@ const declaredChecks = new Set([
     .matchAll(/^\s*\('\w+',\s*'(\w+_(?:known|boolean|positive|non_negative|range))',\s*'/gm)]
     .map((m) => m[1]),
   /* Later migrations write inline CONSTRAINT … CHECK definitions. */
-  ...[...migrationSql.matchAll(/CONSTRAINT\s+(\w+)\s+CHECK/gi)].map((m) => m[1]),
+  ...[...migrationSql.matchAll(/CONSTRAINT\s+(\w+)\s+CHECK\s*\(/gi)].map((m) => m[1]),
 ]);
 
 /* Foreign keys: the VALUES list carries (child_table, child_col, parent, 'id', …)

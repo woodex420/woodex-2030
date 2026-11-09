@@ -57,7 +57,8 @@
     "test:upgrade": "node --experimental-sqlite scripts/test-schema-upgrade.mjs",
     "test:stock-ledger": "node --experimental-sqlite scripts/test-stock-ledger.mjs",
     "test:ops": "node scripts/test-ops-api.mjs",
-    "test:inventory": "node scripts/test-inventory.mjs"
+    "test:inventory": "node scripts/test-inventory.mjs",
+    "test:finance": "node scripts/test-finance.mjs"
   },
   "engines": {
     "node": ">=22.5"

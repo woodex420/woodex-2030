@@ -183,6 +183,89 @@ CREATE TABLE IF NOT EXISTS stock_transfer_lines(
   UNIQUE (transfer_id, product_id)
 );
 CREATE INDEX IF NOT EXISTS idx_stock_transfer_lines_transfer ON stock_transfer_lines(transfer_id);
+/* Finance depth — mirror of scripts/migrations/013_finance.sql.
+   The PostgreSQL version guards journal immutability with triggers, because a
+   route that simply does not expose an UPDATE is a policy, not a constraint.
+   SQLite has triggers too, and the same two are created here so local
+   development cannot quietly allow what production refuses. */
+CREATE TABLE IF NOT EXISTS accounts(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, kind TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1, notes TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (kind IN ('asset','liability','equity','revenue','expense')),
+  CHECK (active IN (0,1))
+);
+CREATE TABLE IF NOT EXISTS journal_entries(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, entry_date TEXT NOT NULL,
+  memo TEXT, source_type TEXT, source_id INTEGER, reverses_id INTEGER,
+  posted_by TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(entry_date, id);
+CREATE INDEX IF NOT EXISTS idx_journal_entries_source ON journal_entries(source_type, source_id);
+CREATE TABLE IF NOT EXISTS journal_lines(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, entry_id INTEGER NOT NULL, account_id INTEGER NOT NULL,
+  debit REAL NOT NULL DEFAULT 0, credit REAL NOT NULL DEFAULT 0, description TEXT,
+  CHECK ((debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0)),
+  CHECK (debit >= 0 AND credit >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_journal_lines_entry ON journal_lines(entry_id);
+CREATE INDEX IF NOT EXISTS idx_journal_lines_account ON journal_lines(account_id);
+CREATE TRIGGER IF NOT EXISTS trg_journal_lines_no_update
+  BEFORE UPDATE ON journal_lines
+BEGIN
+  SELECT RAISE(ABORT, 'journal lines are immutable: post a reversing entry instead');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_journal_lines_no_delete
+  BEFORE DELETE ON journal_lines
+BEGIN
+  SELECT RAISE(ABORT, 'journal lines are immutable: post a reversing entry instead');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_journal_entries_stable
+  BEFORE UPDATE ON journal_entries
+  WHEN NEW.entry_date <> OLD.entry_date
+    OR COALESCE(NEW.source_type,'') <> COALESCE(OLD.source_type,'')
+    OR COALESCE(NEW.source_id,-1) <> COALESCE(OLD.source_id,-1)
+BEGIN
+  SELECT RAISE(ABORT, 'an entry date or source cannot be changed: post a reversal instead');
+END;
+CREATE TABLE IF NOT EXISTS credit_notes(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, invoice_id INTEGER,
+  customer TEXT NOT NULL, reason TEXT, subtotal REAL NOT NULL DEFAULT 0,
+  tax REAL NOT NULL DEFAULT 0, total REAL NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft', issued_at TEXT, applied_at TEXT,
+  journal_entry_id INTEGER, note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (status IN ('draft','issued','applied','cancelled')),
+  CHECK (total >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_credit_notes_invoice ON credit_notes(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_credit_notes_status ON credit_notes(status, created_at DESC);
+CREATE TABLE IF NOT EXISTS expenses(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ref TEXT NOT NULL UNIQUE, category TEXT NOT NULL,
+  payee TEXT, amount REAL NOT NULL, tax_amount REAL NOT NULL DEFAULT 0, spent_at TEXT NOT NULL,
+  method TEXT, reference TEXT, account_id INTEGER, journal_entry_id INTEGER, note TEXT,
+  created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (amount > 0), CHECK (tax_amount >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_expenses_spent ON expenses(spent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category, spent_at DESC);
+CREATE TABLE IF NOT EXISTS tax_records(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, source_type TEXT NOT NULL,
+  source_id INTEGER, tax_period TEXT NOT NULL, rate REAL NOT NULL DEFAULT 0,
+  taxable_base REAL NOT NULL DEFAULT 0, tax_amount REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+  CHECK (kind IN ('sales','purchase','withholding')),
+  CHECK (rate >= 0 AND rate <= 1),
+  CHECK (taxable_base >= 0 AND tax_amount >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_tax_records_period ON tax_records(tax_period, kind);
+CREATE TABLE IF NOT EXISTS payment_schedules(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER NOT NULL, seq INTEGER NOT NULL,
+  due_date TEXT NOT NULL, amount REAL NOT NULL, paid REAL NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending', note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (status IN ('pending','paid','waived')), CHECK (amount > 0), CHECK (paid >= 0),
+  UNIQUE (invoice_id, seq)
+);
+CREATE INDEX IF NOT EXISTS idx_payment_schedules_due ON payment_schedules(due_date, status);
 
 /* Procurement — mirror of scripts/migrations/009_procurement.sql.
    Column sets must match the PostgreSQL definitions name-for-name: pg-migrate
@@ -465,6 +548,31 @@ CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id INTEGER NOT 
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
+
+/* The opening chart of accounts — mirror of the INSERT at the end of
+   013_finance.sql. Seeded here as well so a fresh SQLite database and a
+   migrated PostgreSQL one start from the same place; ON CONFLICT DO NOTHING
+   makes boot idempotent and leaves a chart the operator has since edited
+   alone. */
+if (db.kind === "sqlite") {
+  const chart = [
+    ["1000", "Cash on hand", "asset"], ["1010", "Bank — current", "asset"],
+    ["1100", "Accounts receivable", "asset"], ["1200", "Inventory", "asset"],
+    ["2000", "Accounts payable", "liability"], ["2100", "Sales tax payable", "liability"],
+    ["3000", "Owner equity", "equity"],
+    ["4000", "Furniture sales", "revenue"], ["4100", "Installation services", "revenue"],
+    ["4900", "Discounts and returns", "revenue"],
+    ["5000", "Cost of goods sold", "expense"], ["6000", "Rent", "expense"],
+    ["6100", "Salaries and wages", "expense"], ["6200", "Utilities", "expense"],
+    ["6300", "Transport and freight", "expense"], ["6900", "Other expenses", "expense"],
+  ];
+  const t0 = now();
+  for (const [code, name, kind] of chart) {
+    await db.prepare(
+      "INSERT INTO accounts(code, name, kind, active, notes, created_at, updated_at) VALUES(?,?,?,1,NULL,?,?) ON CONFLICT(code) DO NOTHING"
+    ).run(code, name, kind, t0, t0);
+  }
+}
 
 // Keep older local SQLite files compatible with the expanded storefront intake record.
 if (db.kind === "sqlite") {
@@ -3877,6 +3985,528 @@ const purchaseOrderFull = async (r) => {
 
 const supplierById = async (id) => (await db.prepare("SELECT * FROM suppliers WHERE id=?").get(id));
 const purchaseOrderById = async (id) => (await db.prepare("SELECT * FROM purchase_orders WHERE id=? OR ref=?").get(id, id));
+
+
+/* ══════════════════════════════ finance (013) ══════════════════════════════
+   A double-entry journal, plus the documents that post into it.
+
+   The one rule: every financial event enters through postJournal(), which
+   refuses an entry whose debits do not equal its credits, before writing
+   anything. The database enforces the same rule again with a deferred
+   constraint trigger — not because the helper might be bypassed, but because a
+   rule that lives only in application code is a convention, and conventions
+   lose to a repair script at 2am.
+
+   Immutability is a mechanism here, not a promise: migration 013 installs
+   triggers that refuse UPDATE and DELETE on journal_lines, so a correction must
+   be a reversing entry. The API offers exactly that and nothing else. */
+
+const ACCOUNT_KINDS = new Set(["asset", "liability", "equity", "revenue", "expense"]);
+
+const rowAccount = (r) => ({
+  id: r.id, code: r.code, name: r.name, kind: r.kind, active: !!r.active, notes: r.notes,
+  /* Debit-normal vs credit-normal, computed here rather than remembered by each
+     caller. A reader should not have to know that expenses are debit-normal to
+     check a sign on a report. */
+  normalSide: ["asset", "expense"].includes(r.kind) ? "debit" : "credit",
+});
+const rowJournalLine = (r) => ({
+  id: r.id, entryId: r.entry_id, accountId: r.account_id, accountCode: r.account_code ?? null,
+  accountName: r.account_name ?? null, debit: Number(r.debit), credit: Number(r.credit),
+  description: r.description,
+});
+const rowJournalEntry = (r) => ({
+  id: r.id, ref: r.ref, entryDate: r.entry_date, memo: r.memo,
+  sourceType: r.source_type, sourceId: r.source_id, reversesId: r.reverses_id,
+  postedBy: r.posted_by, createdAt: r.created_at,
+});
+const rowExpense = (r) => ({
+  id: r.id, ref: r.ref, category: r.category, payee: r.payee, amount: Number(r.amount),
+  taxAmount: Number(r.tax_amount), spentAt: r.spent_at, method: r.method, reference: r.reference,
+  accountId: r.account_id, journalEntryId: r.journal_entry_id, note: r.note, by: r.created_by,
+  createdAt: r.created_at,
+});
+const rowCreditNote = (r) => ({
+  id: r.id, ref: r.ref, invoiceId: r.invoice_id, customer: r.customer, reason: r.reason,
+  subtotal: Number(r.subtotal), tax: Number(r.tax), total: Number(r.total), status: r.status,
+  issuedAt: r.issued_at, appliedAt: r.applied_at, journalEntryId: r.journal_entry_id,
+  note: r.note, createdAt: r.created_at, updatedAt: r.updated_at,
+});
+
+const accountByCode = async (code) => db.prepare("SELECT * FROM accounts WHERE code = ? AND active = 1").get(String(code));
+
+/* ─────────────────────── the posting engine ───────────────────────
+   Callers pass account CODES, not ids: a code is stable and legible, and a
+   route that says '1100' can be read by an accountant without a join. An
+   unknown or inactive code is a 400 that names it, not a silent skip. */
+const postJournal = async ({ entryDate, memo, sourceType = null, sourceId = null,
+  lines, actor = "system", refPrefix = "JE-", reversesId = null }) => {
+  if (!Array.isArray(lines) || lines.length < 2) {
+    throw Object.assign(new Error("a journal entry needs at least two lines"), { statusCode: 400, code: "needs_two_lines" });
+  }
+  let debit = 0;
+  let credit = 0;
+  const resolved = [];
+  for (const line of lines) {
+    const code = String(line.account ?? line.accountCode ?? "").trim();
+    if (!code) throw Object.assign(new Error("every journal line needs an account code"), { statusCode: 400 });
+    const account = await accountByCode(code);
+    if (!account) {
+      throw Object.assign(new Error(`account ${code} does not exist or is inactive`), { statusCode: 400, code: "unknown_account", account: code });
+    }
+    const d = Math.round(Number(line.debit ?? 0) * 100) / 100;
+    const c = Math.round(Number(line.credit ?? 0) * 100) / 100;
+    /* Exactly one side per line. The database shares this CHECK; catching it
+       here produces a sentence naming the account instead of a driver error. */
+    const oneSide = (d > 0 && c === 0) || (c > 0 && d === 0);
+    if (!oneSide) {
+      throw Object.assign(new Error(`line on account ${code} must have exactly one of debit or credit, greater than zero`),
+        { statusCode: 400, code: "one_side_per_line" });
+    }
+    debit += d; credit += c;
+    resolved.push({ accountId: account.id, debit: d, credit: c, description: line.description ?? null });
+  }
+  /* Rounded to paisa before comparison: accumulating floats means a correct
+     entry of 333.33 + 333.33 + 333.34 can miss equality by 1e-13, and refusing
+     that would be a bug in the check rather than in the caller. */
+  const dr = Math.round(debit * 100) / 100;
+  const cr = Math.round(credit * 100) / 100;
+  if (dr !== cr) {
+    throw Object.assign(new Error(`entry does not balance: debits ${dr} vs credits ${cr}`),
+      { statusCode: 422, code: "unbalanced", debit: dr, credit: cr });
+  }
+  if (dr === 0) throw Object.assign(new Error("an entry of zero is not a transaction"), { statusCode: 400, code: "zero_entry" });
+
+  const ref = await nextRef("journal_entries", refPrefix, 1000);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO journal_entries(ref, entry_date, memo, source_type, source_id, reverses_id, posted_by, created_at)
+     VALUES(?,?,?,?,?,?,?,?)`
+  ).run(ref, String(entryDate).slice(0, 10), memo ?? null, sourceType, sourceId, reversesId, String(actor).slice(0, 80), t);
+  const entryId = Number(info.lastInsertRowid);
+  for (const line of resolved) {
+    await db.prepare("INSERT INTO journal_lines(entry_id, account_id, debit, credit, description) VALUES(?,?,?,?,?)")
+      .run(entryId, line.accountId, line.debit, line.credit, line.description);
+  }
+  return { id: entryId, ref, debit: dr, credit: cr };
+};
+
+const journalEntryFull = async (id) => {
+  const row = await db.prepare("SELECT * FROM journal_entries WHERE id = ?").get(id);
+  if (!row) return null;
+  const lines = (await db.prepare(
+    `SELECT l.*, a.code AS account_code, a.name AS account_name
+       FROM journal_lines l JOIN accounts a ON a.id = l.account_id
+      WHERE l.entry_id = ? ORDER BY l.id`
+  ).all(id)).map(rowJournalLine);
+  return {
+    ...rowJournalEntry(row), lines,
+    totalDebit: lines.reduce((a, l) => a + l.debit, 0),
+    totalCredit: lines.reduce((a, l) => a + l.credit, 0),
+    balanced: Math.round(lines.reduce((a, l) => a + l.debit, 0) * 100) === Math.round(lines.reduce((a, l) => a + l.credit, 0) * 100),
+  };
+};
+
+/* ─────────────────────────── chart of accounts ─────────────────────────── */
+
+app.get("/api/accounts", wrap(async (req, res) => {
+  let rows = await db.prepare("SELECT * FROM accounts ORDER BY code").all();
+  if (req.query.active !== undefined) {
+    const want = ["1", "true", "yes"].includes(String(req.query.active).toLowerCase());
+    rows = rows.filter((a) => !!a.active === want);
+  }
+  if (req.query.kind) rows = rows.filter((a) => a.kind === String(req.query.kind));
+  res.json({ total: rows.length, kinds: [...ACCOUNT_KINDS], items: rows.map(rowAccount) });
+}));
+
+app.post("/api/accounts", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const code = String(b.code ?? "").trim();
+  const name = String(b.name ?? "").trim();
+  const kind = String(b.kind ?? "").trim().toLowerCase();
+  if (!code || !name) throw Object.assign(new Error("code and name are required"), { statusCode: 400 });
+  if (!ACCOUNT_KINDS.has(kind)) {
+    throw Object.assign(new Error(`kind must be one of ${[...ACCOUNT_KINDS].join(", ")}`), { statusCode: 400, code: "bad_kind" });
+  }
+  const dupe = await db.prepare("SELECT id FROM accounts WHERE code = ?").get(code);
+  if (dupe) throw Object.assign(new Error(`account ${code} already exists`), { statusCode: 409, code: "account_exists" });
+  const t = now();
+  const info = await db.prepare(
+    "INSERT INTO accounts(code, name, kind, active, notes, created_at, updated_at) VALUES(?,?,?,1,?,?,?)"
+  ).run(code, name, kind, b.notes ?? null, t, t);
+  const created = rowAccount(await db.prepare("SELECT * FROM accounts WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "account.created", entityType: "account", entityId: created.id, after: created });
+  return { account: created };
+}));
+
+app.patch("/api/accounts/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM accounts WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("account not found"), { statusCode: 404 });
+  const before = rowAccount(row);
+  const sets = [];
+  const params = [];
+  if (b.name !== undefined) { sets.push("name = ?"); params.push(String(b.name).trim()); }
+  if (b.notes !== undefined) { sets.push("notes = ?"); params.push(b.notes); }
+  /* `kind` is deliberately NOT editable. It decides which side a balance sits
+     on, so changing it silently rewrites every historical report that included
+     the account. Deactivate and create a correct one instead. */
+  if (b.kind !== undefined && String(b.kind) !== row.kind) {
+    throw Object.assign(new Error("an account's kind cannot be changed — deactivate it and create a new account"),
+      { statusCode: 409, code: "kind_immutable" });
+  }
+  if (b.active !== undefined) { sets.push("active = ?"); params.push(b.active === true ? 1 : 0); }
+  if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
+  sets.push("updated_at = ?"); params.push(now(), row.id);
+  await db.prepare(`UPDATE accounts SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  const after = rowAccount(await db.prepare("SELECT * FROM accounts WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: "account.updated", entityType: "account", entityId: row.id, before, after });
+  return { account: after };
+}));
+
+/* ──────────────────────────── journal ──────────────────────────── */
+
+app.get("/api/journal", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.source_type) { where.push("source_type = ?"); params.push(String(req.query.source_type)); }
+  if (req.query.source_id) { where.push("source_id = ?"); params.push(Number(req.query.source_id)); }
+  if (req.query.from) { where.push("entry_date >= ?"); params.push(String(req.query.from)); }
+  if (req.query.to) { where.push("entry_date <= ?"); params.push(String(req.query.to)); }
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
+  const rows = await db.prepare(
+    `SELECT * FROM journal_entries ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY entry_date DESC, id DESC LIMIT ?`
+  ).all(...params, limit);
+  const items = [];
+  for (const r of rows) items.push(await journalEntryFull(r.id));
+  res.json({ total: items.length, items });
+}));
+
+app.get("/api/journal/:id", wrap(async (req, res) => {
+  const entry = await journalEntryFull(req.params.id);
+  if (!entry) throw Object.assign(new Error("journal entry not found"), { statusCode: 404 });
+  res.json({ entry });
+}));
+
+/* A manual entry. Most entries are posted by a document route; this exists for
+   opening balances, corrections and anything the business does that has no
+   document in this system. */
+app.post("/api/journal", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  if (!b.entryDate && !b.entry_date) throw Object.assign(new Error("entryDate is required"), { statusCode: 400 });
+  const posted = await postJournal({
+    entryDate: b.entryDate ?? b.entry_date,
+    memo: b.memo ?? null,
+    sourceType: b.sourceType ?? b.source_type ?? "manual",
+    sourceId: b.sourceId ?? b.source_id ?? null,
+    lines: b.lines ?? [],
+    actor: req.user?.name ?? req.actor ?? "system",
+  });
+  const entry = await journalEntryFull(posted.id);
+  await writeAudit(req, { action: "journal.posted", entityType: "journal_entry", entityId: posted.id, after: entry });
+  return { entry };
+}));
+
+/* Reversal — the ONLY correction this system offers, and the reason
+   journal_lines can be immutable. The reversing entry mirrors every line, points
+   at the original by id, and carries its own author and date. Both stay. */
+app.post("/api/journal/:id/reverse", wrapTxJson(async (req, res) => {
+  const original = await journalEntryFull(req.params.id);
+  if (!original) throw Object.assign(new Error("journal entry not found"), { statusCode: 404 });
+  const already = await db.prepare("SELECT id FROM journal_entries WHERE reverses_id = ?").get(original.id);
+  if (already) {
+    throw Object.assign(new Error(`entry ${original.ref} has already been reversed by ${already.id}`),
+      { statusCode: 409, code: "already_reversed", reversalId: already.id });
+  }
+  const posted = await postJournal({
+    entryDate: req.body?.entryDate ?? original.entryDate,
+    memo: `Reversal of ${original.ref}${original.memo ? " — " + original.memo : ""}`,
+    sourceType: "reversal",
+    sourceId: original.id,
+    reversesId: original.id,
+    /* Debit and credit swap. This is the whole operation. */
+    lines: original.lines.map((l) => ({
+      account: l.accountCode, debit: l.credit, credit: l.debit, description: `reverses line ${l.id}`,
+    })),
+    actor: req.user?.name ?? req.actor ?? "system",
+  });
+  const entry = await journalEntryFull(posted.id);
+  await writeAudit(req, {
+    action: "journal.reversed", entityType: "journal_entry", entityId: original.id,
+    before: original, after: entry,
+  });
+  return { entry, reverses: original.id };
+}));
+
+/* Trial balance: every account with its debit/credit totals over a date range.
+   `balanced` is computed from the totals, not assumed — a report that prints a
+   grand total of zero because it added two unequal columns is worse than none. */
+app.get("/api/finance/trial-balance", wrap(async (req, res) => {
+  const from = req.query.from ? String(req.query.from) : null;
+  const to = req.query.to ? String(req.query.to) : null;
+  const where = [];
+  const params = [];
+  if (from) { where.push("e.entry_date >= ?"); params.push(from); }
+  if (to) { where.push("e.entry_date <= ?"); params.push(to); }
+  const rows = await db.prepare(
+    `SELECT a.id, a.code, a.name, a.kind,
+            COALESCE(SUM(l.debit),0) AS debit, COALESCE(SUM(l.credit),0) AS credit
+       FROM accounts a
+       LEFT JOIN journal_lines l ON l.account_id = a.id
+       LEFT JOIN journal_entries e ON e.id = l.entry_id
+      ${where.length ? "WHERE " + where.map((w) => w.replace(/^/, "(")).join(" AND ") + " OR l.id IS NULL)" : ""}
+      GROUP BY a.id, a.code, a.name, a.kind
+      ORDER BY a.code`
+  ).all(...params);
+  const items = rows.map((r) => {
+    const debit = Number(r.debit);
+    const credit = Number(r.credit);
+    /* Normal balance sign: an asset showing more credits than debits is worth
+       showing as negative rather than as an inverted positive, because that is
+       what it is. */
+    const normalSide = ["asset", "expense"].includes(r.kind) ? "debit" : "credit";
+    const balance = normalSide === "debit" ? debit - credit : credit - debit;
+    return { ...rowAccount(r), debit, credit, balance, normalSide };
+  });
+  const totalDebit = Math.round(items.reduce((a, i) => a + i.debit, 0) * 100) / 100;
+  const totalCredit = Math.round(items.reduce((a, i) => a + i.credit, 0) * 100) / 100;
+  res.json({
+    from, to, items,
+    totalDebit, totalCredit,
+    balanced: totalDebit === totalCredit,
+    difference: Math.round((totalDebit - totalCredit) * 100) / 100,
+    entries: Number((await db.prepare("SELECT COUNT(*) AS n FROM journal_entries").get())?.n ?? 0),
+  });
+}));
+
+/* ──────────────────────────── expenses ──────────────────────────── */
+
+app.get("/api/expenses", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.category) { where.push("category = ?"); params.push(String(req.query.category)); }
+  if (req.query.from) { where.push("spent_at >= ?"); params.push(String(req.query.from)); }
+  if (req.query.to) { where.push("spent_at <= ?"); params.push(String(req.query.to)); }
+  const rows = await db.prepare(
+    `SELECT * FROM expenses ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY spent_at DESC, id DESC LIMIT 500`
+  ).all(...params);
+  const items = rows.map(rowExpense);
+  const cats = new Map();
+  for (const e of items) cats.set(e.category, (cats.get(e.category) ?? 0) + e.amount);
+  res.json({
+    total: items.length,
+    totalAmount: Math.round(items.reduce((a, e) => a + e.amount, 0) * 100) / 100,
+    totalTax: Math.round(items.reduce((a, e) => a + e.taxAmount, 0) * 100) / 100,
+    byCategory: [...cats].map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount),
+    items,
+  });
+}));
+
+/* An expense posts to the journal in the same transaction as the row. Two
+   separate writes would allow an expense that exists and is not in the books,
+   which is precisely the state this module was built to make impossible. */
+app.post("/api/expenses", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const category = String(b.category ?? "").trim();
+  const amount = Number(b.amount);
+  if (!category) throw Object.assign(new Error("category is required"), { statusCode: 400 });
+  if (!(amount > 0)) throw Object.assign(new Error("amount must be greater than zero"), { statusCode: 400 });
+  const spentAt = String(b.spentAt ?? b.spent_at ?? now()).slice(0, 10);
+  const taxAmount = Math.max(0, Number(b.taxAmount ?? b.tax_amount ?? 0) || 0);
+  /* The payable account is configurable because a business paid from cash and a
+     business paid from the bank are both correct; defaulting to the bank and
+     saying so beats guessing per row. */
+  const paidFrom = String(b.paidFrom ?? b.paid_from ?? "1010");
+  const paidFromAccount = await accountByCode(paidFrom);
+  if (!paidFromAccount) throw Object.assign(new Error(`payment account ${paidFrom} not found`), { statusCode: 400 });
+
+  const ref = await nextRef("expenses", "EXP-", 1000);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO expenses(ref, category, payee, amount, tax_amount, spent_at, method, reference, account_id, note, created_by, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(ref, category, b.payee ?? null, amount, taxAmount, spentAt, b.method ?? null, b.reference ?? null,
+    paidFromAccount.id, b.note ?? null, req.user?.name ?? req.actor ?? "system", t, t);
+  const expenseId = Number(info.lastInsertRowid);
+
+  /* Debit the expense, debit any recoverable tax, credit the account it was
+     paid from. Getting the tax line wrong understates recoverable input tax,
+     which is money the business loses quietly. */
+  const lines = [{ account: String(b.expenseAccount ?? "6900"), debit: amount, description: category }];
+  if (taxAmount > 0) lines.push({ account: "2100", debit: taxAmount, description: "Input tax" });
+  lines.push({ account: paidFrom, credit: Math.round((amount + taxAmount) * 100) / 100, description: `Paid for ${category}` });
+  const posted = await postJournal({
+    entryDate: spentAt, memo: `${ref} · ${category}${b.payee ? " · " + b.payee : ""}`,
+    sourceType: "expense", sourceId: expenseId, lines,
+    actor: req.user?.name ?? req.actor ?? "system", refPrefix: "JE-EXP-",
+  });
+  await db.prepare("UPDATE expenses SET journal_entry_id = ? WHERE id = ?").run(posted.id, expenseId);
+
+  const created = rowExpense(await db.prepare("SELECT * FROM expenses WHERE id = ?").get(expenseId));
+  await writeAudit(req, { action: "expense.recorded", entityType: "expense", entityId: expenseId, after: created });
+  return { expense: created, journal: posted };
+}));
+
+/* ─────────────────────────── credit notes ─────────────────────────── */
+
+app.get("/api/credit-notes", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.status) { where.push("status = ?"); params.push(String(req.query.status)); }
+  if (req.query.invoice_id) { where.push("invoice_id = ?"); params.push(Number(req.query.invoice_id)); }
+  const rows = await db.prepare(
+    `SELECT * FROM credit_notes ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY id DESC LIMIT 300`
+  ).all(...params);
+  const items = rows.map(rowCreditNote);
+  res.json({ total: items.length, totalAmount: Math.round(items.reduce((a, c) => a + c.total, 0) * 100) / 100, items });
+}));
+
+app.post("/api/credit-notes", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const customer = String(b.customer ?? "").trim();
+  const subtotal = Number(b.subtotal ?? b.amount ?? 0);
+  const tax = Number(b.tax ?? 0);
+  if (!customer) throw Object.assign(new Error("customer is required"), { statusCode: 400 });
+  if (!(subtotal > 0)) throw Object.assign(new Error("subtotal must be greater than zero"), { statusCode: 400 });
+  if (tax < 0) throw Object.assign(new Error("tax cannot be negative"), { statusCode: 400 });
+  let invoiceId = b.invoiceId ?? b.invoice_id ?? null;
+  if (invoiceId !== null && invoiceId !== undefined) {
+    const inv = await db.prepare("SELECT id FROM invoices WHERE id = ?").get(Number(invoiceId));
+    if (!inv) throw Object.assign(new Error("invoice not found: " + invoiceId), { statusCode: 404 });
+    invoiceId = inv.id;
+  }
+  const total = Math.round((subtotal + tax) * 100) / 100;
+  const ref = await nextRef("credit_notes", "CN-", 1000);
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO credit_notes(ref, invoice_id, customer, reason, subtotal, tax, total, status, note, created_at, updated_at)
+     VALUES(?,?,?,?,?,?,?,'draft',?,?,?)`
+  ).run(ref, invoiceId, customer, b.reason ?? null, subtotal, tax, total, b.note ?? null, t, t);
+  const created = rowCreditNote(await db.prepare("SELECT * FROM credit_notes WHERE id = ?").get(info.lastInsertRowid));
+  await writeAudit(req, { action: "credit_note.created", entityType: "credit_note", entityId: created.id, after: created });
+  return { creditNote: created };
+}));
+
+/* Issuing is the point money stops being owed, so it posts: debit the returns
+   account (contra revenue), credit receivables. A draft is just a document. */
+app.patch("/api/credit-notes/:id", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const row = await db.prepare("SELECT * FROM credit_notes WHERE id = ?").get(req.params.id);
+  if (!row) throw Object.assign(new Error("credit note not found"), { statusCode: 404 });
+  const before = rowCreditNote(row);
+  const want = String(b.status ?? "").trim().toLowerCase();
+  if (!["issued", "applied", "cancelled"].includes(want)) {
+    throw Object.assign(new Error("status must be issued, applied or cancelled"), { statusCode: 400 });
+  }
+  if (row.status !== "draft") {
+    throw Object.assign(new Error(`this credit note is already ${row.status}`), { statusCode: 409, code: "already_settled" });
+  }
+  const t = now();
+  let journalEntryId = row.journal_entry_id;
+
+  if (want !== "cancelled") {
+    const total = Number(row.total);
+    const lines = [
+      { account: "4900", debit: Number(row.subtotal), description: `Credit note ${row.ref}` },
+    ];
+    if (Number(row.tax) > 0) lines.push({ account: "2100", debit: Number(row.tax), description: "Tax reversed" });
+    lines.push({ account: "1100", credit: total, description: `Credit for ${row.customer}` });
+    const posted = await postJournal({
+      entryDate: t.slice(0, 10), memo: `${row.ref} · ${row.reason ?? "credit"} · ${row.customer}`,
+      sourceType: "credit_note", sourceId: row.id, lines,
+      actor: req.user?.name ?? req.actor ?? "system", refPrefix: "JE-CN-",
+    });
+    journalEntryId = posted.id;
+  }
+
+  await db.prepare(
+    `UPDATE credit_notes SET status = ?, issued_at = ?, applied_at = ?, journal_entry_id = ?, updated_at = ? WHERE id = ?`
+  ).run(want, want === "issued" || want === "applied" ? t : row.issued_at,
+    want === "applied" ? t : row.applied_at, journalEntryId, t, row.id);
+  const after = rowCreditNote(await db.prepare("SELECT * FROM credit_notes WHERE id = ?").get(row.id));
+  await writeAudit(req, { action: `credit_note.${want}`, entityType: "credit_note", entityId: row.id, before, after });
+  return { creditNote: after };
+}));
+
+/* ─────────────────────── tax records + schedules ─────────────────────── */
+
+app.get("/api/tax-records", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.period) { where.push("tax_period = ?"); params.push(String(req.query.period)); }
+  if (req.query.kind) { where.push("kind = ?"); params.push(String(req.query.kind)); }
+  const rows = await db.prepare(
+    `SELECT * FROM tax_records ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY tax_period DESC, id DESC LIMIT 500`
+  ).all(...params);
+  const items = rows.map((r) => ({
+    id: r.id, kind: r.kind, sourceType: r.source_type, sourceId: r.source_id,
+    taxPeriod: r.tax_period, rate: Number(r.rate), taxableBase: Number(r.taxable_base),
+    taxAmount: Number(r.tax_amount), createdAt: r.created_at,
+  }));
+  const byPeriod = new Map();
+  for (const i of items) byPeriod.set(i.taxPeriod, (byPeriod.get(i.taxPeriod) ?? 0) + i.taxAmount);
+  res.json({
+    total: items.length,
+    totalTax: Math.round(items.reduce((a, i) => a + i.taxAmount, 0) * 100) / 100,
+    byPeriod: [...byPeriod].map(([taxPeriod, taxAmount]) => ({ taxPeriod, taxAmount: Math.round(taxAmount * 100) / 100 })).sort((a, b) => b.taxPeriod.localeCompare(a.taxPeriod)),
+    items,
+  });
+}));
+
+app.get("/api/payment-schedules", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.invoice_id) { where.push("invoice_id = ?"); params.push(Number(req.query.invoice_id)); }
+  if (req.query.status) { where.push("status = ?"); params.push(String(req.query.status)); }
+  const rows = await db.prepare(
+    `SELECT * FROM payment_schedules ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY due_date, id LIMIT 500`
+  ).all(...params);
+  const today = now().slice(0, 10);
+  const items = rows.map((r) => ({
+    id: r.id, invoiceId: r.invoice_id, seq: r.seq, dueDate: r.due_date,
+    amount: Number(r.amount), paid: Number(r.paid),
+    outstanding: Math.round((Number(r.amount) - Number(r.paid)) * 100) / 100,
+    status: r.status, note: r.note, createdAt: r.created_at, updatedAt: r.updated_at,
+    /* "Late" is derived from the due date and what has been paid, never stored:
+       a stored flag would need a nightly job to stay true. */
+    overdue: r.status === "pending" && r.due_date < today,
+  }));
+  res.json({
+    total: items.length,
+    outstanding: Math.round(items.filter((i) => i.status === "pending").reduce((a, i) => a + i.outstanding, 0) * 100) / 100,
+    overdue: items.filter((i) => i.overdue).length,
+    items,
+  });
+}));
+
+app.post("/api/payment-schedules", wrapTxJson(async (req, res) => {
+  const b = req.body ?? {};
+  const invoiceId = Number(b.invoiceId ?? b.invoice_id);
+  if (!Number.isInteger(invoiceId)) throw Object.assign(new Error("invoiceId is required"), { statusCode: 400 });
+  const inv = await db.prepare("SELECT * FROM invoices WHERE id = ?").get(invoiceId);
+  if (!inv) throw Object.assign(new Error("invoice not found: " + invoiceId), { statusCode: 404 });
+  const instalments = Array.isArray(b.instalments ?? b.items) ? (b.instalments ?? b.items) : [];
+  if (!instalments.length) throw Object.assign(new Error("at least one instalment is required"), { statusCode: 400 });
+  const t = now();
+  let seq = Number((await db.prepare("SELECT COALESCE(MAX(seq),0) AS n FROM payment_schedules WHERE invoice_id = ?").get(invoiceId))?.n ?? 0);
+  const created = [];
+  for (const inst of instalments) {
+    const amount = Number(inst.amount);
+    const dueDate = String(inst.dueDate ?? inst.due_date ?? "").slice(0, 10);
+    if (!(amount > 0)) throw Object.assign(new Error("each instalment needs an amount greater than zero"), { statusCode: 400 });
+    if (!dueDate) throw Object.assign(new Error("each instalment needs a due date"), { statusCode: 400 });
+    seq += 1;
+    const info = await db.prepare(
+      "INSERT INTO payment_schedules(invoice_id, seq, due_date, amount, paid, status, note, created_at, updated_at) VALUES(?,?,?,?,0,'pending',?,?,?)"
+    ).run(invoiceId, seq, dueDate, amount, inst.note ?? null, t, t);
+    created.push(info.lastInsertRowid);
+  }
+  await writeAudit(req, {
+    action: "payment_schedule.created", entityType: "invoice", entityId: invoiceId,
+    after: { instalments: created.length, amounts: instalments.map((i) => Number(i.amount)) },
+  });
+  return { created: created.length, invoiceId };
+}));
 
 /* ---------- suppliers ---------- */
 

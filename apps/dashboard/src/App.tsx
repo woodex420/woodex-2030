@@ -29,6 +29,10 @@ import StockLedger from "@/pages/StockLedger";
 import Warehouses from "@/pages/Warehouses";
 import StockTransfers from "@/pages/StockTransfers";
 import StockReservations from "@/pages/StockReservations";
+import Ledger from "@/pages/Ledger";
+import Expenses from "@/pages/Expenses";
+import CreditNotes from "@/pages/CreditNotes";
+import PaymentSchedules from "@/pages/PaymentSchedules";
 import Analytics from "@/pages/Analytics";
 import Tasks from "@/pages/Tasks";
 import UIComponents from "@/pages/UIComponents";
@@ -132,6 +136,10 @@ export default function App() {
             <Route path="/warehouses" element={<Warehouses />} />
             <Route path="/stock-transfers" element={<StockTransfers />} />
             <Route path="/stock-reservations" element={<StockReservations />} />
+            <Route path="/ledger" element={<Ledger />} />
+            <Route path="/expenses" element={<Expenses />} />
+            <Route path="/credit-notes" element={<CreditNotes />} />
+            <Route path="/payment-schedules" element={<PaymentSchedules />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/ecommerce" element={<Ecommerce />} />
