@@ -102,9 +102,9 @@ Listed to stop anyone assuming otherwise. None of this exists today:
 | Priority | Risk | Consequence |
 |---|---|---|
 | P0 | No tenant isolation | Cross-company data leakage if a second tenant is onboarded |
-| P0 | No tested backup/restore drill | Recovery is unproven |
+| ~~P0~~ | ~~No tested backup/restore drill~~ **FIXED** | `npm run test:restore` backs up a populated database, restores it into a separate one, and compares every table row for row. The first real execution found a restore that reported success and wrote nothing |
 | P1 | In-process rate limiting | Limits are not shared across serverless instances |
-| ~~P1~~ | ~~PostgreSQL schema lacks FK/CHECK constraints~~ **FIXED** | 26 FKs + 21 CHECKs added; `npm run test:integrity` proves each one rejects bad data |
+| ~~P1~~ | ~~PostgreSQL schema lacks FK/CHECK constraints~~ **FIXED** | 26 FKs + 21 CHECKs enforced. `test:integrity` proves each rejects bad data and now compares constraint **names** — a count let `tasks_done_boolean` go missing in production for weeks. `npm run audit:schema` compares a live database against its migrations |
 | ~~P1~~ | ~~No ordered migration ledger~~ **FIXED** | `schema_migrations` + `scripts/migrate.mjs`; checksum drift is a hard error |
 | P1 | `tasks.priority`, `returns.state`, `invoices.status` are open vocabularies | No constraint possible until the API normalises input — see 03 §2 |
 | P2 | Tailwind 3 / 4 split | Two styling systems; design tokens cannot be shared |

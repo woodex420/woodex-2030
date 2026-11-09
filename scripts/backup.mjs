@@ -39,6 +39,7 @@ function usage() {
   node scripts/backup.mjs [--out FILE.gz]        back up the local SQLite database
   node scripts/backup.mjs --verify FILE.gz       restore + integrity-check a backup
   node scripts/backup.mjs --pg URL [--out DIR]   export every table as JSON from Postgres
+  node scripts/backup.mjs --restore DIR --to URL [--truncate]   restore a --pg dump
 
 exit codes: 0 ok · 1 failure · 2 usage`);
 }
@@ -114,13 +115,30 @@ async function backupSqlite(out) {
   return await verify(out);
 }
 
+/* One connector for both Postgres shapes: `pglite:<dir>` (embedded, no server)
+   and a real connection string. Without the pglite branch the restore drill
+   could only ever be described, never executed — which is how a backup script
+   ends up with an untested restore path. */
+async function connectPostgres(url) {
+  if (url.startsWith("pglite:")) {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const db = new PGlite(url.slice("pglite:".length));
+    return { query: (sql, params) => db.query(sql, params), end: () => db.close() };
+  }
+  const { default: pg } = await import("pg").catch(() => ({ default: null }));
+  if (!pg) fail("the `pg` package is required for Postgres operations (npm i pg)");
+  const client = new pg.Client({
+    connectionString: url,
+    ssl: /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: false },
+  });
+  await client.connect();
+  return client;
+}
+
 /* ---------------- postgres export ---------------- */
 async function backupPostgres(url, outDir) {
-  const { default: pg } = await import("pg").catch(() => ({ default: null }));
-  if (!pg) fail("the `pg` package is required for --pg backups (npm i pg)");
   fs.mkdirSync(outDir, { recursive: true });
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
+  const client = await connectPostgres(url);
   try {
     const tables = (await client.query(
       "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name"
@@ -140,6 +158,110 @@ async function backupPostgres(url, outDir) {
   }
 }
 
+/* ---------------- postgres restore ---------------- */
+/* Restores a --pg dump into a target Postgres. This exists because the previous
+   docstring claimed the JSON dump was "enough to restore by hand", and nobody
+   had ever done it. A backup that has never been restored is a hypothesis, not
+   a backup — and the first time you find out is the time you need it.
+
+   Safety: refuses to run unless --truncate is passed when the target already
+   holds rows, so a restore cannot silently merge into a live database. Rows are
+   written inside a single transaction: a partial restore is worse than none. */
+async function restorePostgres(dumpDir, url, { truncate }) {
+  const manifestPath = path.join(dumpDir, "manifest.json");
+  if (!fs.existsSync(manifestPath)) fail(`no manifest.json in ${dumpDir} — not a --pg dump`);
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+
+  const client = await connectPostgres(url);
+  let restored = 0;
+  try {
+    await client.query("BEGIN");
+    /* Children before parents on the way down; the dump carries FK targets, so
+       truncation has to cascade rather than be ordered by hand. */
+    if (truncate) {
+      const tables = Object.keys(manifest.tables);
+      if (tables.length) {
+        await client.query(`TRUNCATE ${tables.map((t) => `"${t}"`).join(", ")} RESTART IDENTITY CASCADE`);
+      }
+    } else {
+      const { rows } = await client.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'",
+      );
+      const nonEmpty = [];
+      for (const { table_name: t } of rows) {
+        const c = (await client.query(`SELECT 1 FROM "${t}" LIMIT 1`)).rows.length;
+        if (c) nonEmpty.push(t);
+      }
+      if (nonEmpty.length) {
+        await client.query("ROLLBACK");
+        fail(`target already has rows in: ${nonEmpty.slice(0, 6).join(", ")}${nonEmpty.length > 6 ? " …" : ""} — pass --truncate to restore over it`);
+      }
+    }
+    for (const [table, expected] of Object.entries(manifest.tables)) {
+      const file = path.join(dumpDir, `${table}.json`);
+      if (!fs.existsSync(file)) fail(`manifest lists ${table} but ${table}.json is missing — the dump is incomplete`);
+      const rows = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (rows.length !== expected) fail(`${table}: manifest says ${expected} rows, file holds ${rows.length}`);
+      if (!rows.length) continue;
+      const cols = Object.keys(rows[0]);
+      const colList = cols.map((c) => `"${c}"`).join(", ");
+      /* Chunked so a large table does not exceed the driver's parameter limit
+         (65535 params; a 20-column row caps out near 3000 rows). */
+      const perChunk = Math.max(1, Math.floor(60000 / cols.length));
+      for (let i = 0; i < rows.length; i += perChunk) {
+        const chunk = rows.slice(i, i + perChunk);
+        const values = [];
+        const tuples = chunk.map((r, ri) => {
+          const ph = cols.map((c, ci) => {
+            const v = r[c];
+            values.push(v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v);
+            return `$${ri * cols.length + ci + 1}`;
+          });
+          return `(${ph.join(",")})`;
+        });
+        await client.query(`INSERT INTO "${table}" (${colList}) VALUES ${tuples.join(",")}`, values);
+      }
+      restored += rows.length;
+    }
+    await client.query("COMMIT");
+
+    /* Sequences move past the restored ids or the next insert collides. This
+       runs AFTER the commit, deliberately.
+
+       It used to run inside the transaction with `.catch(() => {})` to ignore
+       failures. That combination is catastrophic and silent: in Postgres any
+       failed statement aborts the whole transaction, so the next COMMIT
+       degraded into a rollback. The drill restored 32 tables, printed
+       "9 rows restored", and wrote nothing at all — the error had been
+       swallowed one line before the COMMIT it had already poisoned.
+
+       A best-effort step has no business sharing a transaction with the work
+       it must not damage. */
+    for (const table of Object.keys(manifest.tables)) {
+      try {
+        await client.query(
+          `SELECT setval(pg_get_serial_sequence($1, column_name),
+                         COALESCE((SELECT MAX(id) FROM "${table}"), 1))
+             FROM information_schema.columns
+            WHERE table_name = $1 AND column_default LIKE 'nextval%' AND column_name = 'id'`,
+          [table],
+        );
+      } catch (err) {
+        /* Log, never swallow: a sequence that did not advance is a real
+           problem, and the operator is told which table. */
+        console.warn(`[restore] warning: could not advance the sequence for ${table}: ${err.message.split("\n")[0]}`);
+      }
+    }
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    await client.end();
+  }
+  console.log(`[restore] ${Object.keys(manifest.tables).length} tables · ${restored} rows → ${url.replace(/\/\/[^@]*@/, "//***@")}`);
+  return true;
+}
+
 /* ---------------- main ---------------- */
 const verifyTarget = arg("--verify");
 const pgUrl = arg("--pg");
@@ -147,6 +269,11 @@ const pgUrl = arg("--pg");
 if (flag("--help") || flag("-h")) { usage(); process.exit(0); }
 if (verifyTarget) { await verify(verifyTarget); process.exit(0); }
 if (pgUrl) { await backupPostgres(pgUrl, arg("--out") ?? path.join(ROOT, "backups", `pg-${stamp}`)); process.exit(0); }
+const restoreDir = arg("--restore");
+if (restoreDir) {
+  await restorePostgres(restoreDir, arg("--to") ?? process.env.DATABASE_URL, { truncate: flag("--truncate") });
+  process.exit(0);
+}
 
 const out = arg("--out") ?? path.join(ROOT, "backups", `woodex-${stamp}.db.gz`);
 await backupSqlite(out);

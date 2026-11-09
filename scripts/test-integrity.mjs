@@ -48,8 +48,27 @@ const allMigrationSql = fs.readdirSync(path.join(ROOT, "scripts", "migrations"))
 const fkExpected = [...allMigrationSql
   .matchAll(/'(\w+)',\s*'(\w+)',\s*'(\w+)',\s*'(id)',\s*'(?:NO ACTION|CASCADE|SET NULL|RESTRICT)',/gm)].length
   + [...allMigrationSql.matchAll(/FOREIGN KEY\s*\(\w+\)\s*REFERENCES\s+\w+/gi)].length;
-const chkExpected = [...read("scripts/migrations/002_integrity_constraints.sql")
-  .matchAll(/^\s*\('\w+',\s*'\w+',\s*'/gm)].length - fkExpected;
+/* Compare constraint NAMES, not counts.
+
+   This used to assert `checks >= chkExpected` — a floor. A migration that
+   declared 21 checks and added 20 passed, which is exactly what happened in
+   production: `tasks_done_boolean` was declared in 002 and absent from the
+   hosted database for weeks, and nothing detected it because 20 >= 20. A count
+   cannot distinguish "the right twenty" from "twenty of twenty-one".
+
+   Names are collected from both shapes the migrations use: the VALUES list in
+   002, and inline CONSTRAINT ... CHECK definitions in later files. */
+const declaredChecks = new Set([
+  /* The FK block uses the identical ('table','column','parent',...) shape, so
+     the pattern must also require a CHECK-style name — otherwise every foreign
+     key column (client_id, lead_id, …) is collected as a "declared check".
+     That produced a false 36/36 with 11 phantom names missing. */
+  ...[...read("scripts/migrations/002_integrity_constraints.sql")
+    .matchAll(/^\s*\('\w+',\s*'(\w+_(?:known|boolean|positive|non_negative|range))',\s*'/gm)]
+    .map((m) => m[1]),
+  ...[...allMigrationSql.matchAll(/CONSTRAINT\s+(\w+)\s+CHECK/gi)].map((m) => m[1]),
+]);
+const chkExpected = declaredChecks.size;
 
 let db;
 try {
@@ -88,7 +107,16 @@ try {
   `))[0];
 
   check(inv.fks === fkExpected, `foreign keys present (${inv.fks}/${fkExpected})`, inv.fks !== fkExpected ? "a table with several FKs only got the first" : "");
-  check(inv.checks >= chkExpected, `check constraints present (${inv.checks} ≥ ${chkExpected})`);
+  /* Exact set membership. A missing constraint is reported by name so the
+     failure says which one, instead of a count that cannot name it. */
+  const actualChecks = new Set((await q(`
+    SELECT c.conname FROM pg_constraint c
+      JOIN pg_class t ON t.oid=c.conrelid JOIN pg_namespace n ON n.oid=t.relnamespace
+     WHERE c.contype='c' AND n.nspname='public'`)).map((r) => r.conname));
+  const missingChecks = [...declaredChecks].filter((n) => !actualChecks.has(n));
+  check(missingChecks.length === 0,
+    `every declared CHECK exists (${chkExpected}/${chkExpected})`,
+    missingChecks.length ? `missing: ${missingChecks.join(", ")}` : "");
   check(inv.unvalidated === 0, "every foreign key is validated", `${inv.unvalidated} left NOT VALID`);
   /* Every table carries a primary key — the exit condition for Phase A. */
   const noPk = await q(`SELECT t.relname FROM pg_class t JOIN pg_namespace n ON n.oid=t.relnamespace
