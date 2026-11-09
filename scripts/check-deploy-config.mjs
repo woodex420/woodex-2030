@@ -122,6 +122,36 @@ if (fs.existsSync(path.join(ROOT, "api/sitemap.mjs"))) {
   ok("no competing sitemap entrypoint");
 }
 
+/* The sitemap's URLs must not be pinned to an origin that will not serve them.
+   Production shipped 165 valid <loc> entries pointing at http://localhost:5174,
+   because the sitemap fell back to a dev default when the theme had no siteUrl
+   — and the theme is unset in production, so it always fell back. The document
+   validated perfectly and was worthless. The origin must therefore come from
+   the request, never from a constant like this one. */
+const sitemapSource = fs.readFileSync(path.join(ROOT, "apps/api/server.mjs"), "utf8");
+const sitemapFn = sitemapSource.slice(
+  sitemapSource.indexOf("const publicOrigin ="),
+  sitemapSource.indexOf("const xmlEsc"),
+);
+if (!sitemapSource.includes("const publicOrigin =")) {
+  fail("apps/api/server.mjs has no publicOrigin() — the sitemap origin would be hardcoded");
+} else if (!/req\?\.headers\?\.host|req\.headers\.host/.test(sitemapFn)) {
+  fail("publicOrigin() does not consult the request host — the deployed origin must come from the request");
+} else {
+  /* A dev default is fine as a LAST resort; a dev default as the ONLY return
+     is not. Earlier this check passed a function whose first statement returned
+     localhost unconditionally, because the host lookup still existed below it
+     as unreachable code — and it failed the correct function, which legitimately
+     ends with a localhost fallback. Presence of a string is not evidence of
+     behaviour, so the first return statement is what gets inspected. */
+  const firstReturn = sitemapFn.split("\n").find((l) => /^[ \t]*return\b/.test(l)) ?? "";
+  if (/return\s+["'`]https?:\/\/(localhost|127\.)/.test(firstReturn)) {
+    fail("publicOrigin() returns a hardcoded origin before consulting the request — the request host is unreachable code");
+  } else {
+    ok("sitemap origin derives from the request, not a constant");
+  }
+}
+
 /* The SPA shell must not swallow API traffic, and must still serve app routes. */
 const shell = resolveRewrite("/some/storefront/route");
 if (shell?.destination !== "/index.html") fail("/:path* no longer falls back to /index.html (SPA routing broken)");

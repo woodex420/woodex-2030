@@ -2497,13 +2497,33 @@ app.patch("/api/inbox/conversations/:id", wrap(async (req, res) => {
   res.json((await (db.prepare("SELECT * FROM conversations WHERE id=?").get(cv.id))));
 }));
 
+/* The canonical public origin. Before this, the sitemap fell back to
+   http://localhost:5174 whenever the theme had no siteUrl — and in production
+   the theme is unset, so the live sitemap advertised 165 localhost URLs to
+   Google. The fallback was invisible locally, where localhost is correct.
+   Order: explicit theme setting (an admin can override), then deployment
+   config, then the request's own host, and only then a dev default that can
+   never reach production because a real request always carries a host. */
+const publicOrigin = async (req) => {
+  const configured = String((await readTheme()).siteUrl || "").trim();
+  if (configured) return configured.replace(/\/+$/, "");
+  const fromEnv = String(process.env.SITE_URL || process.env.PUBLIC_SITE_URL || "").trim();
+  if (fromEnv) return fromEnv.replace(/\/+$/, "");
+  const host = String(req?.headers?.host || "").trim();
+  if (host) {
+    const proto = String(req?.headers?.["x-forwarded-proto"] || "").split(",")[0].trim()
+      || (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
+    return `${proto}://${host}`;
+  }
+  return "http://localhost:5174";
+};
+
 const xmlEsc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
 /* One sitemap, built from the shared PUBLIC_ROUTES list plus whatever the
    database knows: published CMS pages and live products. Before this, the API
    listed pages+products and silently omitted all 16 static marketing routes. */
-const sitemapDocument = async () => {
-  const theme = await readTheme();
-  const base = (theme.siteUrl || "http://localhost:5174").replace(/\/+$/, "");
+const sitemapDocument = async (req) => {
+  const base = await publicOrigin(req);
   const today = new Date().toISOString().slice(0, 10);
   const urls = [];
   for (const r of PUBLIC_ROUTES)
@@ -2527,7 +2547,7 @@ const sitemapDocument = async () => {
    00-CURRENT-STATE.md; the documented number would then drift silently. */
 const sendSitemap = wrap(async (req, res) => {
   res.setHeader("content-type", "application/xml; charset=utf-8");
-  res.end(await sitemapDocument());
+  res.end(await sitemapDocument(req));
 });
 app.get("/sitemap.xml", sendSitemap);
 app.get("/api/sitemap", sendSitemap);
@@ -2538,7 +2558,7 @@ app.get("/api/sitemap", sendSitemap);
 app.get("/api/sitemap.xml", sendSitemap);
 
 app.get("/robots.txt", wrap(async (req, res) => {
-  const base = ((await (readTheme())).siteUrl || "http://localhost:5174").replace(/\/+$/, "");
+  const base = await publicOrigin(req);
   res.setHeader("content-type", "text/plain; charset=utf-8");
   res.end("User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: " + base + "/sitemap.xml\n");
 }));

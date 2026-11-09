@@ -114,6 +114,32 @@ try {
     console.log(`  ✓ all ${bodies.length} sitemap spellings return an identical document`);
   }
 
+  /* The sitemap must not advertise an origin that no crawler can reach, and it
+     must not hardcode one either. It returned 200 with 165 well-formed <loc>
+     entries in production while every one of them pointed at
+     http://localhost:5174 — the fallback used when the theme had no siteUrl,
+     which in production it never does. A sitemap that validates and is
+     entirely useless passes every structural check, so the origin is asserted
+     directly: every URL must be on the host that actually served the document.
+
+     Testing "no localhost" would be wrong here, because locally localhost is
+     the correct answer. The property that matters is that the origin follows
+     the request instead of a baked-in constant. */
+  const locs = [...first[1].matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  if (!locs.length) problems.push("sitemap contains no <loc> entries");
+  const served = `http://127.0.0.1:${port}`;
+  const offHost = locs.filter((u) => {
+    try { return new URL(u).origin !== served; } catch { return true; }
+  });
+  if (offHost.length) {
+    problems.push(`sitemap advertises ${offHost.length}/${locs.length} URLs off the serving host, e.g. ${offHost[0]} (served on ${served}) — the origin is not derived from the request`);
+  } else {
+    console.log(`  ✓ all ${locs.length} sitemap URLs use the serving origin (${served})`);
+  }
+  if (new Set(locs.map((u) => { try { return new URL(u).origin; } catch { return u; } })).size > 1) {
+    problems.push("sitemap mixes origins — canonical URLs must agree");
+  }
+
   console.log("\n[public] paths that must stay locked");
   for (const [p, why] of mustBePrivate) {
     const r = await get(p);
