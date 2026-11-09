@@ -233,11 +233,19 @@ async function assertPostgresDrift() {
       let T = (await login.json())?.token;
       if (!T) { bad("PostgreSQL API login for the drift test", `status ${login.status}`); return; }
 
+      /* The expected latest version is DERIVED from the migration files, not
+         hardcoded. It was 8 until migration 009 existed, at which point a
+         correct endpoint failed a stale assertion — the same class of bug as
+         hardcoding a constraint count, and it would recur on every migration. */
+      const expectedLatest = Math.max(...fs.readdirSync(path.join(ROOT, "scripts", "migrations"))
+        .filter((f) => f.endsWith(".sql"))
+        .map((f) => Number(f.slice(0, 3))));
       const aligned = await fetch(base + "/api/audit/migrations", { headers: { authorization: "Bearer " + T } });
       const alignedJ = await aligned.json();
-      if (aligned.status === 200 && alignedJ.status === "aligned" && alignedJ.latest === 8)
+      if (aligned.status === 200 && alignedJ.status === "aligned" && alignedJ.latest === expectedLatest)
         ok("a fully migrated PostgreSQL database reports aligned", `latest v${alignedJ.latest}`);
-      else bad("a fully migrated PostgreSQL database reports aligned", `s=${aligned.status}, status=${alignedJ?.status}, latest=${alignedJ?.latest}`);
+      else bad("a fully migrated PostgreSQL database reports aligned",
+        `s=${aligned.status}, status=${alignedJ?.status}, latest=${alignedJ?.latest} (expected ${expectedLatest})`);
 
       /* The exact production incident: ledger says applied, table is gone.
          The drop runs in this process against the same pglite directory, then
