@@ -803,12 +803,26 @@ const isPublic = (m, p) =>
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
     /^\/api\/pages\/[^/]+\/public$/.test(p) ||
     p.startsWith("/img/") || p === "/uploads" || /^\/(uploads|img)\//.test(p) ||
-    /* /sitemap.xml is public, but on Vercel it arrives as /api/sitemap: the
-       rewrite targets that path, and the auth gate runs on the path as
-       received. It saw /api/sitemap, judged it private, and answered 401 to
-       every crawler — while every local check used /sitemap.xml and passed.
-       Both spellings are public. */
-    p === "/sitemap.xml" || p === "/api/sitemap" || p === "/robots.txt" || p === "/api/robots.txt"
+    /* /sitemap.xml has been broken in production for weeks while passing every
+       local check. Three wrong diagnoses got here, so the chain is written out:
+
+         browser  /sitemap.xml
+         rewrite  /api/index          (this exact rule, not a second function)
+         Vercel   strips the /api prefix for the catch-all, so the function
+                  receives /sitemap.xml
+         adapter  api/index.mjs prefixes anything outside /api with /api
+         express  receives /api/sitemap.xml  ← the path the gate must allow
+
+       A custom api/sitemap.mjs used to reset req.url to /sitemap.xml and then
+       call the catch-all, which prefixed it again to /api/sitemap.xml — a path
+       with no route and no allow-list entry, answered 401 to every crawler.
+       Every local test passed because it spawned Express directly and used
+       /api/sitemap, the spelling I had assumed rather than measured.
+
+       All four spellings are public so the answer does not depend on which
+       prefix Vercel adds: the route and the allow-list agree by construction. */
+    p === "/sitemap.xml" || p === "/api/sitemap" || p === "/api/sitemap.xml"
+    || p === "/robots.txt" || p === "/api/robots.txt"
   ) || (m === "POST" && (
     /^\/api\/(track|leads|quotes|orders|auth\/login)$/.test(p)
     || /^\/api\/orders\/lookup$/.test(p)
@@ -2517,6 +2531,11 @@ const sendSitemap = wrap(async (req, res) => {
 });
 app.get("/sitemap.xml", sendSitemap);
 app.get("/api/sitemap", sendSitemap);
+/* What the Vercel catch-all actually delivers: the rewrite sends /sitemap.xml
+   to /api/index, Vercel strips the /api prefix, and api/index.mjs puts it back —
+   so Express sees /api/sitemap.xml. Both spellings are routed so the sitemap
+   does not depend on that prefixing behaviour staying the same. */
+app.get("/api/sitemap.xml", sendSitemap);
 
 app.get("/robots.txt", wrap(async (req, res) => {
   const base = ((await (readTheme())).siteUrl || "http://localhost:5174").replace(/\/+$/, "");

@@ -34,7 +34,7 @@ be standardised until it is resolved.
 
 | Thing | Count | Evidence |
 |---|---|---|
-| API route handlers | **105** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
+| API route handlers | **106** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
 | Storefront routes | **25** | `<Route` in `apps/storefront/src/App.tsx` |
 | Dashboard routes | **29** | `<Route` in `apps/dashboard/src/App.tsx` |
 | PostgreSQL tables | **31** | base schema + `scripts/migrations/*.sql` (distinct names) |
