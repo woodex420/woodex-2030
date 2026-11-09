@@ -142,6 +142,13 @@ try {
   console.log("[ci] Running disposable PostgreSQL-semantic QA rehearsal.");
   await runChecked(process.execPath, ["scripts/qa-pg.mjs"], baseEnv, "qa:pg", 600_000);
 
+  /* Procurement owns its own throwaway database and asserts the contract that
+     matters — a product receipt moves stock exactly once, a material receipt
+     moves it never. It is here rather than in a job of its own so a module
+     cannot regress without failing the same run that gates the merge. */
+  console.log("[ci] Rehearsing procurement: suppliers, purchase orders, goods receiving.");
+  await runChecked(process.execPath, ["scripts/test-procurement.mjs"], baseEnv, "procurement", 300_000);
+
   console.log("[ci] Starting isolated SQLite API for full API/security QA.");
   const api = start(process.execPath, ["--experimental-sqlite", "apps/api/server.mjs"], {
     ...baseEnv,

@@ -85,6 +85,58 @@ CREATE TABLE IF NOT EXISTS stock_reservations(
   expires_at TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_stock_reservations_product ON stock_reservations(product_id, status);
+
+/* Procurement — mirror of scripts/migrations/009_procurement.sql.
+   Column sets must match the PostgreSQL definitions name-for-name: pg-migrate
+   copies row-by-row into columns it reads from this schema, and reports a
+   missing column rather than coercing. See the migration for why quantities are
+   INTEGER and why purchase_order_lines.item_id carries no FK. */
+CREATE TABLE IF NOT EXISTS suppliers(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, contact_name TEXT, phone TEXT,
+  email TEXT, address TEXT, tax_ref TEXT, payment_terms TEXT,
+  currency TEXT NOT NULL DEFAULT 'PKR', active INTEGER NOT NULL DEFAULT 1,
+  notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_suppliers_active ON suppliers(active, name);
+CREATE TABLE IF NOT EXISTS purchase_orders(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ref TEXT NOT NULL UNIQUE, supplier_id INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft', currency TEXT NOT NULL DEFAULT 'PKR',
+  expected_at TEXT, approved_by TEXT, approved_at TEXT, sent_at TEXT,
+  closed_at TEXT, note TEXT, created_by TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON purchase_orders(supplier_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON purchase_orders(status, id DESC);
+CREATE TABLE IF NOT EXISTS purchase_order_lines(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  purchase_order_id INTEGER NOT NULL, line_no INTEGER NOT NULL,
+  item_kind TEXT NOT NULL, item_id TEXT NOT NULL, description TEXT,
+  qty_ordered INTEGER NOT NULL, unit TEXT, unit_cost REAL NOT NULL DEFAULT 0,
+  UNIQUE (purchase_order_id, line_no),
+  UNIQUE (purchase_order_id, item_kind, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_purchase_order_lines_po ON purchase_order_lines(purchase_order_id, line_no);
+CREATE TABLE IF NOT EXISTS goods_receipts(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ref TEXT NOT NULL UNIQUE, purchase_order_id INTEGER NOT NULL,
+  received_at TEXT NOT NULL, received_by TEXT, note TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_goods_receipts_po ON goods_receipts(purchase_order_id, id DESC);
+CREATE TABLE IF NOT EXISTS goods_receipt_lines(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  goods_receipt_id INTEGER NOT NULL, purchase_order_line_id INTEGER NOT NULL,
+  qty_received INTEGER NOT NULL,
+  UNIQUE (goods_receipt_id, purchase_order_line_id)
+);
+CREATE INDEX IF NOT EXISTS idx_goods_receipt_lines_line ON goods_receipt_lines(purchase_order_line_id);
+/* The receipt idempotency guard — same predicate as migration 009. Scoped to
+   ref_type='goods_receipt' so opening balances (ref_type NULL) stay exempt. */
+CREATE UNIQUE INDEX IF NOT EXISTS uq_stock_movements_receipt_ref
+  ON stock_movements(ref_type, ref_id, product_id)
+  WHERE reason = 'receipt' AND ref_type = 'goods_receipt' AND ref_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS audit_logs(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   actor_id INTEGER, actor_email TEXT, actor_name TEXT, actor_role TEXT,
@@ -891,6 +943,13 @@ const ROLE_CAPS = {
   editor: ["page.manage", "theme.manage", "catalog.manage"],
   sales: ["crm.manage", "quote.manage", "order.manage", "project.manage"],
   finance: ["finance.manage", "quote.view-move", "order.view-move"],
+  /* Purchasing owns suppliers, purchase orders and goods receiving. It can see
+     the catalogue (it needs to know what a product is) but only through
+     read paths the catalogue cap already guards, so it is granted nothing on
+     products: raising a PO reads product data, and that read is allowed
+     because reads check the cap for /api/products… see capsFor below, where
+     purchasing gets an explicit read allowance rather than a write one. */
+  purchasing: ["purchasing.manage", "catalog.view"],
   viewer: [],
 };
 const ROLES = Object.keys(ROLE_CAPS);
@@ -908,6 +967,7 @@ const capsFor = (m, path) => {
   if (path.startsWith("/api/projects")) return "project.manage";
   if (path.startsWith("/api/orders")) return "order.manage";
   if (path.startsWith("/api/invoices") || path.startsWith("/api/payments") || path.startsWith("/api/returns")) return "finance.manage";
+  if (path.startsWith("/api/suppliers") || path.startsWith("/api/purchase-orders") || path.startsWith("/api/goods-receipts")) return "purchasing.manage";
   if (path.startsWith("/api/products") || path.startsWith("/api/materials") || path.startsWith("/api/services") || path.startsWith("/api/categories") || path.startsWith("/api/collections")) return "catalog.manage";
   return "owner-only";
 };
@@ -1038,7 +1098,12 @@ app.use(async (req, res, next) => { try {
   if (!selfAuthRoute && req.method === "GET") {
     const readOnlyMove = (need === "quote.manage" && caps.includes("quote.view-move"))
       || (need === "order.manage" && caps.includes("order.view-move"));
-    if (!caps.includes("*") && !caps.includes(need) && !readOnlyMove)
+    /* Purchasing must be able to READ the catalogue to raise a purchase order
+       against a product, but must not be able to EDIT it — editing stock or
+       price is how a PO ends up agreeing with a number someone typed. The grant
+       is therefore read-only and named as such. */
+    const catalogReader = need === "catalog.manage" && caps.includes("catalog.view");
+    if (!caps.includes("*") && !caps.includes(need) && !readOnlyMove && !catalogReader)
       return res.status(403).json({ error: `role '${u.role}' may not read ${need}`, need });
   }
   if (req.method !== "GET" && !selfAuthRoute) {
@@ -2247,6 +2312,11 @@ const MIGRATION_TABLES = [
   { table: "stock_movements", version: 3 },
   { table: "stock_reservations", version: 3 },
   { table: "audit_logs", version: 8 },
+  { table: "suppliers", version: 9 },
+  { table: "purchase_orders", version: 9 },
+  { table: "purchase_order_lines", version: 9 },
+  { table: "goods_receipts", version: 9 },
+  { table: "goods_receipt_lines", version: 9 },
 ];
 
 async function migrationAlignment() {
@@ -2353,6 +2423,425 @@ app.get("/api/audit/migrations", wrap(async (_req, res) => {
   /* 503 when the deployment and the database disagree: a monitor polling this
      should page, not shrug. Owner-gated like the rest of /api/audit. */
   res.status(state.status === "misaligned" ? 503 : 200).json(state);
+}));
+
+
+/* ═════════════════════════════ procurement ═════════════════════════════
+   Suppliers, purchase orders and goods receiving — Phase B increment 1.
+
+   The one rule this block exists to enforce: a goods receipt for a PRODUCT
+   moves stock exactly once, and a receipt for a MATERIAL never moves it at
+   all. Both directions are asserted in scripts/test-procurement.mjs, because a
+   module that only proves the happy direction would let a finish code inflate
+   inventory forever without anyone noticing.
+
+   Stock is never written directly here. Every movement goes through
+   applyStockMovement(), which is the only legal write path and which refuses a
+   non-integer delta — the reason qty_received is INTEGER in the schema. */
+
+const PO_STATUSES = new Set(["draft", "approved", "sent", "partially_received", "received", "cancelled"]);
+/* Statuses that may still be received against. A receipt against a draft would
+   be goods nobody ordered; against a cancelled order, goods somebody explicitly
+   withdrew. */
+const PO_RECEIVABLE = new Set(["approved", "sent", "partially_received"]);
+
+const rowSupplier = (r) => ({
+  id: r.id, code: r.code, name: r.name, contactName: r.contact_name, phone: r.phone,
+  email: r.email, address: r.address, taxRef: r.tax_ref, paymentTerms: r.payment_terms,
+  currency: r.currency, active: !!r.active, notes: r.notes,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowPoLine = (r) => ({
+  id: r.id, purchaseOrderId: r.purchase_order_id, lineNo: r.line_no, itemKind: r.item_kind,
+  itemId: r.item_id, description: r.description, qtyOrdered: r.qty_ordered,
+  unit: r.unit, unitCost: Number(r.unit_cost) || 0,
+  lineTotal: (Number(r.qty_ordered) || 0) * (Number(r.unit_cost) || 0),
+});
+const rowPurchaseOrder = (r) => ({
+  id: r.id, ref: r.ref, supplierId: r.supplier_id, status: r.status, currency: r.currency,
+  expectedAt: r.expected_at, approvedBy: r.approved_by, approvedAt: r.approved_at,
+  sentAt: r.sent_at, closedAt: r.closed_at, note: r.note, createdBy: r.created_by,
+  createdAt: r.created_at, updatedAt: r.updated_at,
+});
+const rowGoodsReceipt = (r) => ({
+  id: r.id, ref: r.ref, purchaseOrderId: r.purchase_order_id, receivedAt: r.received_at,
+  receivedBy: r.received_by, note: r.note, createdAt: r.created_at,
+});
+
+/* How much of each ordered line has already arrived. One grouped query rather
+   than a per-line round trip — a 20-line order would otherwise be 20 queries
+   every time the PO list is opened. */
+const receivedByLine = async (purchaseOrderId) => {
+  const rows = (await db.prepare(`
+    SELECT grl.purchase_order_line_id AS line_id, COALESCE(SUM(grl.qty_received), 0) AS qty
+      FROM goods_receipt_lines grl
+      JOIN goods_receipts gr ON gr.id = grl.goods_receipt_id
+     WHERE gr.purchase_order_id = ?
+     GROUP BY grl.purchase_order_line_id`).all(purchaseOrderId));
+  return new Map(rows.map((r) => [Number(r.line_id), Number(r.qty)]));
+};
+
+/* The PO with its lines and the received/open quantities folded in. This is
+   what makes 'partially_received' legible rather than a status word. */
+const purchaseOrderFull = async (r) => {
+  const lines = (await db.prepare("SELECT * FROM purchase_order_lines WHERE purchase_order_id=? ORDER BY line_no").all(r.id)).map(rowPoLine);
+  const received = await receivedByLine(r.id);
+  const withProgress = lines.map((l) => {
+    const got = received.get(l.id) ?? 0;
+    return { ...l, qtyReceived: got, qtyOpen: Math.max(0, l.qtyOrdered - got) };
+  });
+  const ordered = withProgress.reduce((n, l) => n + l.qtyOrdered, 0);
+  const arrived = withProgress.reduce((n, l) => n + l.qtyReceived, 0);
+  return {
+    ...rowPurchaseOrder(r),
+    lines: withProgress,
+    qtyOrdered: ordered,
+    qtyReceived: arrived,
+    qtyOpen: Math.max(0, ordered - arrived),
+    value: withProgress.reduce((n, l) => n + l.lineTotal, 0),
+  };
+};
+
+const supplierById = async (id) => (await db.prepare("SELECT * FROM suppliers WHERE id=?").get(id));
+const purchaseOrderById = async (id) => (await db.prepare("SELECT * FROM purchase_orders WHERE id=? OR ref=?").get(id, id));
+
+/* ---------- suppliers ---------- */
+
+app.get("/api/suppliers", wrap(async (req, res) => {
+  let rows = (await db.prepare("SELECT * FROM suppliers ORDER BY active DESC, name").all()).map(rowSupplier);
+  if (req.query.active !== undefined) {
+    const want = ["1", "true", "yes"].includes(String(req.query.active).toLowerCase());
+    rows = rows.filter((s) => s.active === want);
+  }
+  if (req.query.q) {
+    const q = String(req.query.q).toLowerCase();
+    rows = rows.filter((s) => [s.code, s.name, s.email, s.taxRef].some((v) => String(v ?? "").toLowerCase().includes(q)));
+  }
+  res.json({ total: rows.length, active: rows.filter((s) => s.active).length, items: rows });
+}));
+
+app.post("/api/suppliers", wrapTxJson(async (req) => {
+  const b = req.body ?? {};
+  const code = String(b.code ?? "").trim();
+  const name = String(b.name ?? "").trim();
+  if (!code || !name) return { status: 400, body: { error: "code and name are required" } };
+  if (await db.prepare("SELECT 1 AS x FROM suppliers WHERE code=?").get(code))
+    return { status: 409, body: { error: `supplier code '${code}' already exists` } };
+  const t = now();
+  const info = await db.prepare(
+    `INSERT INTO suppliers(code,name,contact_name,phone,email,address,tax_ref,payment_terms,currency,active,notes,created_at,updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(code, name, b.contactName ?? b.contact_name ?? null, b.phone ?? null, b.email ?? null,
+    b.address ?? null, b.taxRef ?? b.tax_ref ?? null, b.paymentTerms ?? b.payment_terms ?? null,
+    b.currency ?? "PKR", b.active === undefined ? 1 : (b.active ? 1 : 0), b.notes ?? null, t, t);
+  const out = rowSupplier(await supplierById(info.lastInsertRowid));
+  await writeAudit(req, { action: "supplier.created", entityType: "supplier", entityId: out.id, after: out });
+  return { status: 201, body: out };
+}));
+
+app.patch("/api/suppliers/:id", wrapTxJson(async (req) => {
+  const r = await supplierById(req.params.id);
+  if (!r) return { status: 404, body: { error: "not found" } };
+  const b = req.body ?? {};
+  const before = rowSupplier(r);
+  /* A supplier cannot be renamed to a code that already exists. The UNIQUE in
+     the schema would reject it anyway; catching it here turns a 500 into a 409
+     with a sentence. */
+  const code = b.code !== undefined ? String(b.code).trim() : r.code;
+  if (!code) return { status: 400, body: { error: "code cannot be empty" } };
+  if (code !== r.code && await db.prepare("SELECT 1 AS x FROM suppliers WHERE code=? AND id<>?").get(code, r.id))
+    return { status: 409, body: { error: `supplier code '${code}' already exists` } };
+  await db.prepare(
+    `UPDATE suppliers SET code=?,name=?,contact_name=?,phone=?,email=?,address=?,tax_ref=?,payment_terms=?,currency=?,active=?,notes=?,updated_at=? WHERE id=?`
+  ).run(code, b.name !== undefined ? String(b.name).trim() : r.name,
+    b.contactName ?? b.contact_name ?? r.contact_name, b.phone ?? r.phone, b.email ?? r.email,
+    b.address ?? r.address, b.taxRef ?? b.tax_ref ?? r.tax_ref,
+    b.paymentTerms ?? b.payment_terms ?? r.payment_terms, b.currency ?? r.currency,
+    b.active !== undefined ? (b.active ? 1 : 0) : r.active, b.notes ?? r.notes, now(), r.id);
+  const out = rowSupplier(await supplierById(r.id));
+  await writeAudit(req, { action: "supplier.updated", entityType: "supplier", entityId: out.id, before, after: out });
+  return { body: out };
+}));
+
+/* ---------- purchase orders ---------- */
+
+app.get("/api/purchase-orders", wrap(async (req, res) => {
+  let rows = await db.prepare("SELECT * FROM purchase_orders ORDER BY id DESC").all();
+  if (req.query.status) {
+    const wanted = String(req.query.status).split(",").map((s) => s.trim().toLowerCase());
+    rows = rows.filter((r) => wanted.includes(r.status));
+  }
+  if (req.query.supplier_id) rows = rows.filter((r) => String(r.supplier_id) === String(req.query.supplier_id));
+  const items = await Promise.all(rows.map(purchaseOrderFull));
+  res.json({
+    total: items.length,
+    open: items.filter((p) => ["approved", "sent", "partially_received"].includes(p.status)).length,
+    items,
+  });
+}));
+
+app.get("/api/purchase-orders/:id", wrap(async (req, res) => {
+  const r = await purchaseOrderById(req.params.id);
+  if (!r) return res.status(404).json({ error: "not found" });
+  res.json(await purchaseOrderFull(r));
+}));
+
+app.post("/api/purchase-orders", wrapTxJson(async (req) => {
+  const b = req.body ?? {};
+  const supplierId = b.supplierId ?? b.supplier_id;
+  if (!supplierId) return { status: 400, body: { error: "supplierId is required" } };
+  const supplier = await supplierById(supplierId);
+  if (!supplier) return { status: 400, body: { error: "supplier not found" } };
+  if (!supplier.active) return { status: 409, body: { error: "supplier is inactive" } };
+  const lines = Array.isArray(b.lines) ? b.lines : [];
+  if (!lines.length) return { status: 400, body: { error: "at least one line is required" } };
+
+  /* Validate every line BEFORE inserting anything. A PO that half-exists because
+     line 7 was malformed is worse than a rejected request: it has a ref, it
+     shows in the list, and nobody knows whether it was ever real. */
+  const seen = new Set();
+  const prepared = [];
+  for (const [i, line] of lines.entries()) {
+    const kind = String(line.itemKind ?? line.item_kind ?? "product").toLowerCase();
+    if (!["product", "material"].includes(kind))
+      return { status: 400, body: { error: `line ${i + 1}: itemKind must be product or material` } };
+    const itemId = String(line.itemId ?? line.item_id ?? "").trim();
+    if (!itemId) return { status: 400, body: { error: `line ${i + 1}: itemId is required` } };
+    /* The FK that cannot exist (see migration 009) is enforced here instead:
+       the item must actually be in the table its kind names. */
+    const exists = kind === "product"
+      ? await db.prepare("SELECT 1 AS x FROM products WHERE id=?").get(itemId)
+      : await db.prepare("SELECT 1 AS x FROM materials WHERE id=?").get(itemId);
+    if (!exists) return { status: 400, body: { error: `line ${i + 1}: ${kind} '${itemId}' does not exist` } };
+    const key = kind + ":" + itemId;
+    if (seen.has(key)) return { status: 400, body: { error: `line ${i + 1}: ${kind} '${itemId}' appears twice — raise the quantity on one line instead` } };
+    seen.add(key);
+    const qty = Number(line.qtyOrdered ?? line.qty_ordered ?? line.qty);
+    if (!Number.isInteger(qty) || qty <= 0)
+      return { status: 400, body: { error: `line ${i + 1}: qtyOrdered must be a positive whole number` } };
+    const cost = Number(line.unitCost ?? line.unit_cost ?? 0);
+    if (!Number.isFinite(cost) || cost < 0)
+      return { status: 400, body: { error: `line ${i + 1}: unitCost must be zero or more` } };
+    prepared.push({ lineNo: i + 1, kind, itemId, description: line.description ?? null, qty, unit: line.unit ?? null, cost });
+  }
+
+  const t = now();
+  const ref = await nextRef("purchase_orders", "PO-", 1000);
+  const info = await db.prepare(
+    `INSERT INTO purchase_orders(ref,supplier_id,status,currency,expected_at,note,created_by,created_at,updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?)`
+  ).run(ref, supplier.id, "draft", b.currency ?? supplier.currency ?? "PKR",
+    b.expectedAt ?? b.expected_at ?? null, b.note ?? null, req.actor ?? req.user?.name ?? "system", t, t);
+  const poId = info.lastInsertRowid;
+  for (const l of prepared) {
+    await db.prepare(
+      `INSERT INTO purchase_order_lines(purchase_order_id,line_no,item_kind,item_id,description,qty_ordered,unit,unit_cost)
+       VALUES(?,?,?,?,?,?,?,?)`
+    ).run(poId, l.lineNo, l.kind, l.itemId, l.description, l.qty, l.unit, l.cost);
+  }
+  const out = await purchaseOrderFull(await purchaseOrderById(poId));
+  emit("purchase-orders", { title: `PO raised: ${out.ref}`, who: req.actor, context: supplier.name });
+  await writeAudit(req, { action: "purchase_order.created", entityType: "purchase_order", entityId: poId, after: out });
+  return { status: 201, body: out };
+}));
+
+/* Status transitions. Each is checked against the current state rather than
+   trusted from the body, because "set status=cancelled" on a received order
+   would otherwise silently erase the fact that goods arrived. */
+app.patch("/api/purchase-orders/:id", wrapTxJson(async (req) => {
+  const r = await purchaseOrderById(req.params.id);
+  if (!r) return { status: 404, body: { error: "not found" } };
+  const b = req.body ?? {};
+  const before = await purchaseOrderFull(r);
+  const t = now();
+
+  if (b.status !== undefined) {
+    const next = String(b.status).toLowerCase();
+    if (!PO_STATUSES.has(next)) return { status: 400, body: { error: "status must be " + [...PO_STATUSES].join("|") } };
+    if (next === r.status) return { status: 409, body: { error: `order is already ${next}` } };
+
+    const allowed = {
+      draft: ["approved", "cancelled"],
+      approved: ["sent", "cancelled", "partially_received", "received"],
+      sent: ["partially_received", "received", "cancelled"],
+      partially_received: ["received"],
+      received: [],
+      cancelled: [],
+    }[r.status] ?? [];
+    if (!allowed.includes(next)) {
+      return { status: 409, body: { error: `cannot move a ${r.status} order to ${next}`, allowed } };
+    }
+    /* Approval is the one transition that must be attributable: the schema
+       refuses an issued order with no approved_at, and this supplies it. */
+    if (next === "approved") {
+      await db.prepare("UPDATE purchase_orders SET status=?, approved_by=?, approved_at=?, updated_at=? WHERE id=?")
+        .run(next, req.actor ?? req.user?.name ?? "system", t, t, r.id);
+    } else if (next === "sent") {
+      await db.prepare("UPDATE purchase_orders SET status=?, sent_at=?, updated_at=? WHERE id=?").run(next, t, t, r.id);
+    } else if (next === "received") {
+      /* 'received' is earned, not asserted. A PO cannot be closed while lines
+         are outstanding — that is how an order quietly stops being chased. */
+      const full = await purchaseOrderFull(r);
+      if (full.qtyOpen > 0)
+        return { status: 409, body: { error: `${full.qtyOpen} unit(s) still outstanding across ${full.lines.filter((l) => l.qtyOpen > 0).length} line(s)`, qtyOpen: full.qtyOpen } };
+      await db.prepare("UPDATE purchase_orders SET status=?, closed_at=?, updated_at=? WHERE id=?").run(next, t, t, r.id);
+    } else if (next === "cancelled") {
+      /* Cancelling after goods arrived is refused: the stock is real and the
+         ledger already recorded it, so the order it arrived against must
+         remain a fact. */
+      const got = (await db.prepare("SELECT COALESCE(SUM(grl.qty_received),0) AS q FROM goods_receipt_lines grl JOIN goods_receipts gr ON gr.id=grl.goods_receipt_id WHERE gr.purchase_order_id=?").get(r.id))?.q ?? 0;
+      if (Number(got) > 0) return { status: 409, body: { error: `cannot cancel: ${got} unit(s) already received against this order` } };
+      await db.prepare("UPDATE purchase_orders SET status=?, closed_at=?, updated_at=? WHERE id=?").run(next, t, t, r.id);
+    } else {
+      await db.prepare("UPDATE purchase_orders SET status=?, updated_at=? WHERE id=?").run(next, t, r.id);
+    }
+  }
+
+  if (b.expectedAt !== undefined || b.expected_at !== undefined) {
+    await db.prepare("UPDATE purchase_orders SET expected_at=?, updated_at=? WHERE id=?")
+      .run(b.expectedAt ?? b.expected_at, t, r.id);
+  }
+  if (b.note !== undefined) {
+    await db.prepare("UPDATE purchase_orders SET note=?, updated_at=? WHERE id=?").run(b.note, t, r.id);
+  }
+
+  const out = await purchaseOrderFull(await purchaseOrderById(r.id));
+  if (out.status !== before.status) {
+    await writeAudit(req, {
+      action: "purchase_order." + (out.status === "cancelled" ? "cancelled" : out.status === "approved" ? "approved" : "status_changed"),
+      entityType: "purchase_order", entityId: out.id,
+      before: { status: before.status }, after: { status: out.status },
+    });
+    emit("purchase-orders", { title: `PO ${out.ref}: ${before.status} → ${out.status}`, who: req.actor });
+  }
+  return { body: out };
+}));
+
+/* ---------- goods receipts ---------- */
+
+app.get("/api/goods-receipts", wrap(async (req, res) => {
+  let rows = await db.prepare("SELECT * FROM goods_receipts ORDER BY id DESC").all();
+  if (req.query.purchase_order_id) rows = rows.filter((r) => String(r.purchase_order_id) === String(req.query.purchase_order_id));
+  const items = [];
+  for (const r of rows) {
+    const lines = (await db.prepare(
+      `SELECT grl.*, pol.item_kind, pol.item_id, pol.line_no
+         FROM goods_receipt_lines grl JOIN purchase_order_lines pol ON pol.id=grl.purchase_order_line_id
+        WHERE grl.goods_receipt_id=? ORDER BY pol.line_no`).all(r.id))
+      .map((l) => ({ id: l.id, purchaseOrderLineId: l.purchase_order_line_id, qtyReceived: l.qty_received,
+        itemKind: l.item_kind, itemId: l.item_id, lineNo: l.line_no }));
+    items.push({ ...rowGoodsReceipt(r), lines });
+  }
+  res.json({ total: items.length, items });
+}));
+
+/* Receive one delivery against a purchase order.
+
+   Everything happens in one transaction: the receipt, its lines, the stock
+   movements it causes and the order's new status. A partial receipt that
+   committed the document but not the stock would leave a delivery note
+   claiming goods that the catalogue never received. */
+app.post("/api/goods-receipts", wrapTxJson(async (req) => {
+  const b = req.body ?? {};
+  const poRef = b.purchaseOrderId ?? b.purchase_order_id ?? b.ref;
+  if (!poRef) return { status: 400, body: { error: "purchaseOrderId is required" } };
+  const po = await purchaseOrderById(poRef);
+  if (!po) return { status: 404, body: { error: "purchase order not found" } };
+  if (!PO_RECEIVABLE.has(po.status))
+    return { status: 409, body: { error: `cannot receive against a ${po.status} order`, status: po.status } };
+
+  const lines = Array.isArray(b.lines) ? b.lines : [];
+  if (!lines.length) return { status: 400, body: { error: "at least one line is required" } };
+
+  const ordered = new Map((await db.prepare("SELECT * FROM purchase_order_lines WHERE purchase_order_id=?").all(po.id))
+    .map((l) => [Number(l.id), rowPoLine(l)]));
+  const alreadyReceived = await receivedByLine(po.id);
+
+  /* Resolve and validate every line first, for the same reason the PO create
+     does: a half-posted delivery is not a document anyone can reconcile. */
+  const prepared = [];
+  const seenLines = new Set();
+  for (const [i, line] of lines.entries()) {
+    /* Accept either the line id or the (kind,itemId) pair — a counter clerk
+       reading a delivery note has the product name, not our integer. */
+    let pol = null;
+    if (line.purchaseOrderLineId ?? line.purchase_order_line_id ?? line.lineId)
+      pol = ordered.get(Number(line.purchaseOrderLineId ?? line.purchase_order_line_id ?? line.lineId)) ?? null;
+    else if (line.itemId ?? line.item_id)
+      pol = [...ordered.values()].find((l) => l.itemId === String(line.itemId ?? line.item_id)) ?? null;
+    if (!pol) return { status: 400, body: { error: `line ${i + 1}: not a line on ${po.ref}` } };
+    if (seenLines.has(pol.id)) return { status: 400, body: { error: `line ${i + 1}: ${pol.itemId} appears twice in one receipt` } };
+    seenLines.add(pol.id);
+
+    const qty = Number(line.qtyReceived ?? line.qty_received ?? line.qty);
+    /* INTEGER, because applyStockMovement refuses anything else — and because
+       "3.5 office chairs" is not a delivery. Rejecting it here gives a sentence
+       instead of a 400 from deep inside the stock helper. */
+    if (!Number.isInteger(qty) || qty <= 0)
+      return { status: 400, body: { error: `line ${i + 1}: qtyReceived must be a positive whole number` } };
+    const already = alreadyReceived.get(pol.id) ?? 0;
+    if (already + qty > pol.qtyOrdered)
+      return { status: 409, body: { error: `line ${i + 1}: receiving ${qty} would exceed the ${pol.qtyOrdered} ordered (${already} already received)`, ordered: pol.qtyOrdered, received: already } };
+    prepared.push({ pol, qty });
+  }
+
+  const t = now();
+  const ref = await nextRef("goods_receipts", "GRN-", 1000);
+  const info = await db.prepare(
+    "INSERT INTO goods_receipts(ref,purchase_order_id,received_at,received_by,note,created_at) VALUES(?,?,?,?,?,?)"
+  ).run(ref, po.id, b.receivedAt ?? b.received_at ?? t, req.actor ?? req.user?.name ?? "system", b.note ?? null, t);
+  const grnId = info.lastInsertRowid;
+
+  const moved = [];
+  for (const { pol, qty } of prepared) {
+    await db.prepare("INSERT INTO goods_receipt_lines(goods_receipt_id,purchase_order_line_id,qty_received) VALUES(?,?,?)")
+      .run(grnId, pol.id, qty);
+
+    /* THE BRANCH THIS MODULE EXISTS FOR.
+       A product is real inventory: receiving it puts units on the shelf, so it
+       writes a ledger row through the one legal helper. A material is a finish
+       code with no quantity on hand, so it records what was delivered and
+       moves nothing. Getting this backwards either hides real stock or invents
+       stock for a colour. */
+    if (pol.itemKind === "product") {
+      const movement = await applyStockMovement({
+        productId: pol.itemId,
+        delta: qty,
+        reason: "receipt",
+        refType: "goods_receipt",
+        refId: grnId,
+        note: `${ref} against ${po.ref}`,
+        actor: req.actor ?? req.user?.name ?? "system",
+      });
+      moved.push({ itemId: pol.itemId, delta: qty, movementId: movement.id });
+    }
+  }
+
+  /* Promote the order's status from what actually arrived, not from what the
+     caller claimed. A PO is 'received' only when every line is complete. */
+  const receivedNow = await receivedByLine(po.id);
+  const allLines = [...ordered.values()];
+  const complete = allLines.every((l) => (receivedNow.get(l.id) ?? 0) >= l.qtyOrdered);
+  const anyReceived = allLines.some((l) => (receivedNow.get(l.id) ?? 0) > 0);
+  const nextStatus = complete ? "received" : anyReceived ? "partially_received" : po.status;
+  if (nextStatus !== po.status) {
+    await db.prepare("UPDATE purchase_orders SET status=?, closed_at=?, updated_at=? WHERE id=?")
+      .run(nextStatus, complete ? t : null, t, po.id);
+  }
+
+  const receipt = rowGoodsReceipt(await db.prepare("SELECT * FROM goods_receipts WHERE id=?").get(grnId));
+  const body = {
+    ...receipt,
+    purchaseOrder: { id: po.id, ref: po.ref, status: nextStatus },
+    lines: prepared.map(({ pol, qty }) => ({ purchaseOrderLineId: pol.id, itemKind: pol.itemKind, itemId: pol.itemId, qtyReceived: qty })),
+    /* Reported explicitly so a caller can see which lines changed stock and
+       which deliberately did not. Silence here would look like a bug. */
+    stockMoved: moved,
+    stockUnchanged: prepared.filter(({ pol }) => pol.itemKind !== "product").map(({ pol, qty }) => ({ itemId: pol.itemId, qtyReceived: qty, reason: "material has no stock dimension" })),
+  };
+  emit("goods-receipts", { title: `${ref} received against ${po.ref}`, who: req.actor, context: `${moved.length} product line(s) moved stock` });
+  await writeAudit(req, { action: "goods_receipt.received", entityType: "goods_receipt", entityId: grnId, after: body });
+  return { status: 201, body };
 }));
 
 /* Audit rows are evidence; they must not be editable through the API. Only

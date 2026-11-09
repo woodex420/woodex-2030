@@ -34,7 +34,7 @@ is measured.
 
 | # | Gap | Correction |
 |---|---|---|
-| P2-1 | Procurement (suppliers → requisition → PO → GRN → invoice) | New bounded context + tables + UI |
+| P2-1 | Procurement (suppliers → requisition → PO → GRN → invoice) | **Increment 1 shipped** (`009`): suppliers, POs, goods receiving, `purchasing` role, eight routes, audited. Still open: requisitions, supplier-invoice matching (3-way), and UI |
 | P2-2 | Production (BOM, job cards, stages, work centres) | New bounded context; **consumer of** the existing stock ledger |
 | P2-3 | Quality control (plans, inspections, rework, dispatch gate) | Gate that blocks dispatch without approval |
 | P2-4 | Delivery & installation (dispatch, POD, sign-off) | Extend `orders` + `track_events` |

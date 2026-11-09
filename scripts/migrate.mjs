@@ -6,6 +6,7 @@
  *   node scripts/migrate.mjs --pglite /tmp/wxpg            # embedded Postgres
  *   node scripts/migrate.mjs --dsn … --status              # show ledger only
  *   node scripts/migrate.mjs --dsn … --dry-run             # what would run
+ *   node scripts/migrate.mjs --dsn … --rollback 009        # undo the newest
  *
  * Why a ledger: until now the only way to know whether production had a given
  * schema change was to run a query and interpret the result by hand. That does
@@ -47,10 +48,31 @@ const dsn = arg("--dsn");
 const pgliteDir = arg("--pglite");
 const statusOnly = args.includes("--status");
 const dryRun = args.includes("--dry-run");
+const rollbackVersion = arg("--rollback");
 
 if (!dsn && !pgliteDir) {
-  console.error("usage: node scripts/migrate.mjs --dsn <postgres-url> | --pglite <dir> [--status] [--dry-run]");
+  console.error("usage: node scripts/migrate.mjs --dsn <postgres-url> | --pglite <dir> [--status] [--dry-run] [--rollback <version>]");
   process.exit(2);
+}
+
+/* ---------- rollback ----------
+   Rollback files live in scripts/migrations/rollback/ because every *.sql file
+   in scripts/migrations/ is treated as a forward migration by this runner, the
+   pg-migrate rehearsal, test-integrity and the docs verifier. Naming a file
+   there "009_x.rollback.sql" would apply it as migration 009.
+
+   A rollback runs in one transaction together with the deletion of its ledger
+   row, for the same reason a forward migration does: a half-rolled-back
+   database that still claims the migration is applied is the worst of both. */
+const ROLLBACK_DIR = path.join(MIGRATIONS_DIR, "rollback");
+function readRollback(version) {
+  if (!fs.existsSync(ROLLBACK_DIR)) return null;
+  const want = String(version).padStart(3, "0");
+  const file = fs.readdirSync(ROLLBACK_DIR)
+    .filter((f) => f.endsWith(".sql") && f.startsWith(want + "_"))
+    .sort()[0];
+  if (!file) return null;
+  return { file, sql: fs.readFileSync(path.join(ROLLBACK_DIR, file), "utf8") };
 }
 
 /* ---------- collect migration files, ordered by numeric prefix ---------- */
@@ -156,6 +178,39 @@ try {
   }
 
   const pending = migrations.filter((m) => !appliedByVersion.has(m.version));
+
+  /* ---------- rollback path ---------- */
+  if (rollbackVersion) {
+    const rb = readRollback(rollbackVersion);
+    if (!rb) {
+      console.error(`✗ no rollback file for version ${rollbackVersion} in scripts/migrations/rollback/`);
+      process.exitCode = 1;
+    } else if (!appliedByVersion.has(Number(rollbackVersion))) {
+      console.error(`✗ migration ${rollbackVersion} is not recorded as applied — nothing to roll back.`);
+      process.exitCode = 1;
+    } else if (problems.length) {
+      /* Refuse to roll back a database whose ledger is already inconsistent:
+         the question "which schema is this?" has no answer, and guessing at it
+         is how a rollback makes things worse. */
+      console.error("✗ refusing to roll back while the schema ledger is inconsistent. Resolve the problems above first.");
+      process.exitCode = 1;
+    } else if (Number(rollbackVersion) !== Math.max(...migrations.map((m) => m.version))) {
+      console.error(`✗ refusing to roll back ${rollbackVersion}: migrations applied after it must be rolled back first (newest first).`);
+      process.exitCode = 1;
+    } else if (dryRun) {
+      console.log(`  would roll back ${rollbackVersion}  ${rb.file}\n\nDry run — no changes made.`);
+    } else {
+      console.log(`\n[db] target      ${backend.name}`);
+      console.log(`[db] rollback    ${rb.file}\n`);
+      await backend.tx(async () => {
+        await backend.exec(rb.sql);
+        await backend.q("DELETE FROM schema_migrations WHERE version=$1", [Number(rollbackVersion)]);
+      });
+      console.log(`✓ rolled back ${rollbackVersion}.`);
+    }
+    await backend.close().catch(() => {});
+    process.exit(process.exitCode ?? 0);
+  }
 
   console.log(`\n[db] target      ${backend.name}`);
   console.log(`[db] migrations  ${migrations.length} file(s), ${rows.length} applied, ${pending.length} pending\n`);

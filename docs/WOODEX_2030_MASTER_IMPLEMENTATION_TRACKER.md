@@ -35,7 +35,7 @@
 | **Audit log** | ✅ Verified | ✅ | ✅ (API) | ✅ | ✅ | **P0** |
 | **Hosted drift audit** | ⚠️ Blocked | ✅ runtime check | — | — | ✅ | **P0** |
 | Platform admin | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
-| Procurement | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
+| Procurement | 🟡 Increment 1 ✅ | ✅ | ✅ | ✅ | ✅ | P2 |
 | Production / BOM | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
 | Quality control | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
 | Support / warranty | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
@@ -61,7 +61,7 @@ Each item is sized by *kind* of work, because that is what determines duration.
 | 7 | Scheduled offsite backup | Infra | 1–2 d | Bucket creds |
 | 8 | Cart + reservations write path | Code | 1 wk | — |
 | 9 | Page builder v2 (dnd, single renderer) | Frontend | 2 wk | Tailwind decision |
-| 10 | Procurement context | New module | 3–4 wk | — |
+| 10 | ~~Procurement context~~ **Increment 1 DONE** (suppliers, POs, goods receiving) | New module | 3–4 wk | — |
 | 11 | Production + QC context | New module | 4–6 wk | 10 |
 | 12 | Delivery + installation | New module | 2–3 wk | 11 |
 | 13 | Support + warranty | New module | 2 wk | — |
@@ -197,6 +197,55 @@ one appears. There is no API route that mutates the table; only reads.
    every future migration. It now derives the expected counts from
    `pg_constraint` and compares them with the audit's claim — so it still
    catches under-declaration (the original bug) but ignores legitimate growth.
+
+### Procurement (item 10) — increment 1, done and gated
+
+`scripts/migrations/009_procurement.sql` (+ `rollback/009_procurement.rollback.sql`),
+five tables mirrored in SQLite and PostgreSQL, eight routes under
+`/api/suppliers`, `/api/purchase-orders`, `/api/goods-receipts`, and a new
+`purchasing` role.
+
+The module turns on one distinction, and the schema enforces it rather than
+documenting it:
+
+| Line kind | Stocked? | What a receipt does |
+|---|---|---|
+| `product` | yes | `applyStockMovement(reason:'receipt', refType:'goods_receipt')` → one ledger row |
+| `material` | **no** | records quantity and cost; **never touches stock** |
+
+A material is a finish code (`Natural Oak`, `Brushed Brass`): `materials` is
+`(id, json)` with `applicableTo`/`brightness`/`category`/`image`/`name` and no
+price, unit or quantity. Receiving one into stock would invent inventory for a
+colour. `scripts/test-procurement.mjs` asserts **both** directions, and a
+mutation that makes materials move stock fails 5 checks.
+
+**Verified, not assumed:**
+
+| Gate | Result |
+|---|---|
+| `test:integrity` | 33/33 FKs · 40/40 CHECKs · 38 tables with a PK · 9 migrations, idempotent |
+| `qa:pg` (real PostgreSQL/WASM) | 108/108 |
+| `test:procurement` | 52/52, plus mutation → 5 checks fail |
+| `test:stock` | reconciliation holds with procurement in the path |
+| `test:audit-log` | 14/14 |
+| `check:migration` | 37 SQLite = 37 migrated = 37 PostgreSQL |
+| `docs:verify` · `vercel:build` | clean · exit 0, 76 routes, restore drill 38 tables |
+
+**Three traps this work hit, recorded so the next module does not:**
+
+1. **The receipt idempotency gap.** 003's unique index covered `reason='sale'`
+   only, so a retried goods receipt would double-count stock. `009` adds
+   `uq_stock_movements_receipt_ref`, scoped to
+   `reason='receipt' AND ref_type='goods_receipt'` — deliberately narrow,
+   because 003 seeds opening balances as `reason='receipt'` with `ref_type NULL`
+   and a broader predicate would break production seeding.
+2. **A rollback file in `scripts/migrations/` would be applied as a migration.**
+   Six scripts enumerate that directory; `rollback/` is invisible to all of
+   them. `migrate.mjs --rollback <n>` now exists to run one, and refuses when
+   data or a later migration makes the undo dishonest.
+3. **`test-audit-log.mjs` hard-coded `latest === 8`.** A correct endpoint failed
+   a stale assertion the moment 009 existed — the same class of bug as the
+   hard-coded 28/28 counts. It now derives the expected version from the files.
 
 ---
 
