@@ -47,7 +47,14 @@ async function loadBrand() {
   return mod.brand;
 }
 const BRAND = await loadBrand();
-const ORIGIN = BRAND.url;
+/* Canonical origin baked into every prerendered page's canonical, OG and
+   JSON-LD tags. It defaults to the brand's production URL (woodex.pk), which is
+   correct for the real site — but that domain is not attached to the Vercel
+   deployment, and only woodex-2030.vercel.app is. SITE_URL lets the deployed
+   origin be stated instead of assumed, so the tags describe the site actually
+   serving them. Prerendering is static, so this is captured at build time. */
+const ORIGIN = String(process.env.SITE_URL || BRAND.url).replace(/\/+$/, "");
+if (!/^https?:\/\//.test(ORIGIN)) throw new Error(`SITE_URL must be an absolute http(s) URL, got "${ORIGIN}"`);
 
 /* ---------- route table ----------
    Static routes plus their per-route metadata. Dynamic product/series/blog
