@@ -43,16 +43,36 @@ const tableNames = (src, re) => new Set([...stripSqlComments(src).matchAll(re)].
 /* The PostgreSQL schema is the base file PLUS every numbered migration. New
    tables are added by migration, never by editing the base schema, so comparing
    only the base file against the API reports every new table as a phantom. */
-const migrationSources = (() => {
+const migrationFiles = (() => {
   const dir = path.join(ROOT, "scripts", "migrations");
-  if (!fs.existsSync(dir)) return "";
-  return fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()
-    .map((f) => fs.readFileSync(path.join(dir, f), "utf8")).join("\n");
+  return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort() : [];
 })();
+const migrationSources = migrationFiles
+  .map((f) => fs.readFileSync(path.join(ROOT, "scripts", "migrations", f), "utf8"))
+  .join("\n");
 const pgTableSet = tableNames(pgSrc + "\n" + migrationSources, /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)/gi);
 const sqliteTableSet = tableNames(serverSrc, /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([a-z_][a-z0-9_]*)/gi);
 
+/* Constraint names, derived exactly the way test-integrity.mjs derives them —
+   which needs BOTH declaration styles in this repo:
+
+     002 declares its constraints as ('table', 'name', 'expr') tuples, and the
+     pattern must require a CHECK-style suffix or every foreign-key column is
+     collected as a constraint.
+
+     003+ declares them inline as `CONSTRAINT <name> CHECK (...)` on a table
+     definition.
+
+   Counting only the first style reported 24 when the truth is 28. The four
+   missing names were all in the stock ledger, which uses the second style. */
+const checkNames = (src) => new Set([
+  ...[...src.matchAll(/'\w+',\s*'(\w+_(?:known|boolean|positive|non_negative|range))'/g)].map((m) => m[1]),
+  ...[...src.matchAll(/CONSTRAINT\s+(\w+)\s+CHECK/gi)].map((m) => m[1]),
+]);
+
 const facts = {
+  migrations: migrationFiles.length,
+  checkConstraints: checkNames(migrationSources).size,
   apiRoutes: count(/^app\.(get|post|patch|put|delete)\(/gm, serverSrc),
   pgTables: pgTableSet.size,
   sqliteTables: sqliteTableSet.size,
@@ -76,6 +96,8 @@ function docNumber(pattern, label) {
 }
 
 const documented = {
+  migrations: docNumber(/\|\s*Migrations applied\s*\|\s*\*{0,2}(\d+)/, "Migrations applied"),
+  checkConstraints: docNumber(/\|\s*CHECK constraints\s*\|\s*\*{0,2}(\d+)/, "CHECK constraints"),
   apiRoutes: docNumber(/\|\s*API route handlers\s*\|\s*\*{0,2}(\d+)/, "API route handlers"),
   dashboardRoutes: docNumber(/\|\s*Dashboard routes\s*\|\s*\*{0,2}(\d+)/, "Dashboard routes"),
   storefrontRoutes: docNumber(/\|\s*Storefront routes\s*\|\s*\*{0,2}(\d+)/, "Storefront routes"),
