@@ -2705,6 +2705,35 @@ app.post("/api/invoices/:id/payments", wrapTxJson(async (req, afterCommit) => {
 }));
 
 const RETURN_STATES = ["Requested", "Inspecting", "Refunding", "Closed"];
+
+/* The return state is a closed set, but nothing enforced it, and one comparison
+   downstream depends on an exact string: PATCH restocks the order's units only
+   when the next state is literally "Closed". So "closed", "CLOSED" or "Complete"
+   resolved the RMA and silently skipped the restock — the units stayed gone from
+   inventory with no ledger entry saying why. Normalising here is what makes that
+   comparison reliable, and it has to happen before a CHECK can be honest.
+
+   Matching is case- and separator-insensitive, and the two spellings people
+   actually reach for are mapped rather than rejected: an agent closing a return
+   types "Done"/"Complete"/"Completed", and an older client may still send the
+   seed's "Approved"/"Rejected". Rejecting those would turn working requests into
+   400s, which is the mistake 002 avoided by leaving the column open. */
+const RETURN_STATE_ALIASES = new Map([
+  ["requested", "Requested"], ["request", "Requested"], ["open", "Requested"], ["new", "Requested"],
+  ["inspecting", "Inspecting"], ["inspection", "Inspecting"], ["in transit", "Inspecting"],
+  ["refunding", "Refunding"], ["refund", "Refunding"], ["refunded", "Refunding"],
+  ["closed", "Closed"], ["close", "Closed"], ["complete", "Closed"], ["completed", "Closed"],
+  ["done", "Closed"], ["resolved", "Closed"], ["approved", "Closed"], ["rejected", "Closed"],
+]);
+const normReturnState = (v) => {
+  const raw = String(v ?? "").trim();
+  if (!raw) return "Requested";
+  const hit = RETURN_STATE_ALIASES.get(raw.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " "));
+  /* Unknown values keep "Requested" rather than being stored verbatim: a state
+     outside the set is exactly what broke the restock, and the default is the
+     only one that cannot skip a side effect. */
+  return hit ?? "Requested";
+};
 app.get("/api/returns", wrap(async (req, res) => {
   let rows = (await (db.prepare("SELECT * FROM returns ORDER BY datetime(created_at) DESC").all())).map(rowReturn);
   if (req.query.state) rows = rows.filter((r) => r.state === req.query.state);
@@ -2731,7 +2760,7 @@ app.patch("/api/returns/:id", wrapTxJson(async (req, afterCommit) => {
   const r = (await db.prepare("SELECT * FROM returns WHERE id=? OR ref=?").get(req.params.id, req.params.id));
   if (!r) return { status: 404, body: { error: "not found" } };
   const b = req.body ?? {};
-  const next = b.state ?? r.state;
+  const next = b.state !== undefined ? normReturnState(b.state) : r.state;
   await db.prepare("UPDATE returns SET state=?, refund_amount=?, resolution=?, updated_at=? WHERE id=?")
     .run(next, b.refund_amount ?? b.refundAmount ?? r.refund_amount, b.resolution ?? r.resolution, now(), r.id);
 
@@ -2745,14 +2774,28 @@ app.patch("/api/returns/:id", wrapTxJson(async (req, afterCommit) => {
   if (next === "Closed" && r.state !== "Closed" && r.order_id) {
     const order = (await db.prepare("SELECT items FROM orders WHERE id=?").get(r.order_id));
     const lines = safeJson(order?.items, []);
+    const want = String(r.item ?? "").trim().toLowerCase().slice(0, 140);
     for (const line of Array.isArray(lines) ? lines : []) {
-      if (!line?.id || !r.item) continue;
-      const want = String(r.item).trim().toLowerCase().slice(0, 140);
-      if (String(line.name ?? "").trim().toLowerCase() !== want) continue;
+      if (!want) break;
+      if (String(line?.name ?? "").trim().toLowerCase() !== want) continue;
+      /* Checkout writes { id, name, price, qty }. Seeded and imported orders
+         write { name, price, qty } with no id at all — so the original
+         `if (!line?.id) continue` skipped every line of every order that did
+         not come through checkout, and those returns silently never restocked.
+         Resolve the catalogue id by name in that case instead of giving up.
+         The name lives inside the JSON blob and this codebase never reads JSON
+         in SQL (the two drivers disagree on the function), so match in JS. */
+      let productId = String(line.id ?? line.productId ?? "").trim();
       const qty = Math.min(Number(line.qty) || 0, 100);
-      if (qty > 0) {
+      if (!productId && qty > 0) {
+        const bare = String(line.name ?? "").trim().slice(0, 140);
+        for (const p of await db.prepare("SELECT id, json FROM products").all()) {
+          if (String(safeJson(p.json, {}).name ?? "").trim() === bare) { productId = p.id; break; }
+        }
+      }
+      if (productId && qty > 0) {
         await applyStockMovement({
-          productId: line.id, delta: qty, reason: "return",
+          productId, delta: qty, reason: "return",
           refType: "return", refId: r.id, note: "RMA " + r.ref,
           actor: req.actor ?? "Returns",
         });

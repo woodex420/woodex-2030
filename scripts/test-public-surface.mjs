@@ -58,7 +58,14 @@ try {
   child = spawn(process.execPath, ["apps/api/server.mjs"], {
     cwd: ROOT,
     env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
+      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1",
+      /* SITE_URL must be cleared for this test to mean anything. It is set in
+         the Vercel build environment, and the server correctly prefers it; this
+         test is specifically about the case where nothing is configured and the
+         origin has to come from the request. Inheriting it made the assertion
+         fail on the first hosted build — which is the test working, but for the
+         wrong reason: it was measuring configuration, not the fallback. */
+      SITE_URL: "", PUBLIC_SITE_URL: "" },
     stdio: ["ignore", "pipe", "pipe"],
   });
 
