@@ -40,6 +40,7 @@ const groups: NavGroup[] = [
       { label: "Commerce Overview", to: "/ecommerce", icon: Store },
       { label: "Product Catalog", to: "/catalog", icon: Package },
       { label: "Orders", to: "/orders", icon: ShoppingBag },
+      { label: "Delivery & Installation", to: "/deliveries", icon: Truck },
       { label: "Operations", to: "/operations", icon: Wrench },
       { label: "Projects", to: "/projects", icon: FolderKanban },
     ],
