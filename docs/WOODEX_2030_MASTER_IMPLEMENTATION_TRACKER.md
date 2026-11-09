@@ -1,6 +1,6 @@
 # WOODEX 2030 — Master Implementation Tracker
 
-**Updated:** 2026-11-09 · **Baseline:** `main` @ `f583ac0`
+**Updated:** 2026-11-09 · **Baseline:** migration `008` (`audit_logs`)
 **Companions:** [`00-CURRENT-STATE.md`](agency-os/00-CURRENT-STATE.md) is authoritative for facts; this file is authoritative for *plan and status*.
 
 > Rule: a status may only move to **Verified** when a named command passes and
@@ -32,7 +32,7 @@
 | Integrations | 🟡 Partial | 🟡 | 🟡 | 🟡 | ❌ | P2 |
 | Delivery | 🟡 Partial | 🟡 | 🟡 | 🟡 | ❌ | P2 |
 | **Tenancy / RLS** | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | **P0** |
-| **Audit log** | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | **P0** |
+| **Audit log** | ✅ Verified | ✅ | ✅ (API) | ✅ | ✅ | **P0** |
 | **Hosted drift audit** | ⛔ Blocked | — | — | — | ❌ | **P0** |
 | Platform admin | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
 | Procurement | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
@@ -53,7 +53,7 @@ Each item is sized by *kind* of work, because that is what determines duration.
 | # | Task | Kind | Size | Depends on |
 |---|---|---|---|---|
 | 1 | `PRODUCTION_DATABASE_URL` secret | Ops | 5 min | **Owner** |
-| 2 | Platform `audit_logs` + write points | Schema + code | 2–3 d | — |
+| 2 | ~~Platform `audit_logs` + write points~~ **DONE** | Schema + code | — | ✅ `008` |
 | 3 | Tenant schema + context + RLS + cross-tenant tests | **Architecture** | 2–3 wk | Needs decision D-1 |
 | 4 | Configurable roles/permissions | Schema + code | 1 wk | — |
 | 5 | Password reset + email adapter | Code | 2–3 d | SMTP creds |
@@ -118,6 +118,47 @@ two companies access to a system that does not yet run a factory.
 If D-1 comes back **yes, tenants are imminent**, invert B and C — but do not
 start C until the cross-tenant test suite exists, because a partially-tenant
 schema is worse than none.
+
+---
+
+## 4a. Completed this cycle
+
+### Audit log (P0-3) — done and gated
+
+`scripts/migrations/008_audit_log.sql`, `audit_logs` in SQLite and PostgreSQL,
+`writeAudit()` in `apps/api/server.mjs`, `GET /api/audit` + `/api/audit/health`.
+
+Instrumented write points (each logs **after** the write succeeds, inside the
+same transaction, so a rollback leaves no row):
+
+| Action | Trigger |
+|---|---|
+| `invoice.payment_recorded` | `POST /api/invoices/:id/payments` |
+| `invoice.updated` | `PATCH /api/invoices/:id` (status/total change) |
+| `return.state_changed` | `PATCH /api/returns/:id` (incl. whether it restocked) |
+| `product.updated` | `PATCH /api/products/:id` (price or stock) |
+| `user.privileges_changed` | `PATCH /api/users/:id` (role/active/password) |
+
+**Proof:** `npm run test:audit-log` → **9/9**. Mutating `writeAudit` to a no-op
+produces **4 failures**, including the control assertion that exists precisely
+so the three absence-checks cannot pass vacuously.
+
+**Append-only is enforced statically:** the test greps every file in `scripts/`
+and `apps/api/server.mjs` for `UPDATE`/`DELETE` against `audit_logs` and fails if
+one appears. There is no API route that mutates the table; only reads.
+
+### Two real defects found while building it
+
+1. **The action validator rejected the real vocabulary.** The first regex
+   forbade underscores, so `invoice.payment_recorded` — the single most
+   important audit point — was silently dropped while reporting success. The
+   test caught it on the first run. A validator that rejects the honest name is
+   worse than no validator.
+2. **`test-audit-schema.mjs` hard-coded 28/28.** Adding a migration broke a test
+   unrelated to the change, and the obvious fix (edit 28 → 31) would rot on
+   every future migration. It now derives the expected counts from
+   `pg_constraint` and compares them with the audit's claim — so it still
+   catches under-declaration (the original bug) but ignores legitimate growth.
 
 ---
 

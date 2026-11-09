@@ -2,6 +2,11 @@
 
 **Date:** 2026-11-09 · **Commit:** `f583ac0` · Companion to `00-CURRENT-STATE.md` (authoritative) and the tracker (planning).
 
+> **Note (post-`f583ac0`):** migration `008_audit_log.sql` adds `audit_logs`.
+> Counts in this document describe `f583ac0`; current counts live in
+> [`00-CURRENT-STATE.md`](../agency-os/00-CURRENT-STATE.md) — now
+> **32 tables, 31 CHECKs, 8 migrations, 108 routes**.
+
 This file answers one question: **for each module, what is done, what is not,
 and what would prove it done?**
 
