@@ -1,6 +1,6 @@
 # WOODEX 2030 — Master Implementation Tracker
 
-**Updated:** 2026-11-09 · **Baseline:** migration `008` (`audit_logs`)
+**Updated:** 2026-11-09 · **Baseline:** migration `012` (`warehouses`)
 **Companions:** [`00-CURRENT-STATE.md`](agency-os/00-CURRENT-STATE.md) is authoritative for facts; this file is authoritative for *plan and status*.
 
 > Rule: a status may only move to **Verified** when a named command passes and
@@ -24,23 +24,45 @@
 | Stock ledger | ✅ Verified | ✅ | ✅ | ✅ | ✅ | — |
 | Authentication | ✅ Verified | ✅ | ✅ | ✅ | ✅ | P1 (gaps) |
 | Deployment (Vercel) | ✅ Verified | — | — | — | ✅ | P0 |
+| **Audit log** | ✅ Verified | ✅ | ✅ (API) | ✅ | ✅ | **P0** |
+| **Procurement** | ✅ Verified | ✅ | ✅ | ✅ | ✅ | P2 |
+| **Production / BOM** | ✅ Verified | ✅ | ✅ | ✅ | ✅ | P2 |
+| **Quality control** | ✅ Verified | ✅ | ✅ | ✅ | ✅ | P2 |
+| **Stock ledger UI** | ✅ Verified | ✅ | ✅ | ✅ | ✅ | P2 |
+| **Warehouses + locations (012)** | ✅ Verified | ✅ | ✅ | ✅ | ✅ | P2 |
+| **Stock transfers (012)** | ✅ Verified | ✅ | ✅ | ✅ | ✅ | P2 |
+| **Stock reservations (012)** | ✅ Verified | ✅ | ✅ | ✅ | ✅ | P2 |
 | Finance | 🟡 Partial | ✅ | ✅ | ✅ | ✅ | P1 |
 | RBAC | 🟡 Partial | ✅ | ✅ | 🟡 | ✅ | P1 |
 | Page builder | 🟡 Partial | ✅ | 🟡 | ✅ | 🟡 | P2 |
-| Inventory (warehouses) | 🟡 Partial | ✅ | ✅ | 🟡 | ✅ | P2 |
 | Analytics | 🟡 Partial | ✅ | ✅ | ✅ | 🟡 | P2 |
 | Integrations | 🟡 Partial | 🟡 | 🟡 | 🟡 | ❌ | P2 |
 | Delivery | 🟡 Partial | 🟡 | 🟡 | 🟡 | ❌ | P2 |
 | **Tenancy / RLS** | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | **P0** |
-| **Audit log** | ✅ Verified | ✅ | ✅ (API) | ✅ | ✅ | **P0** |
 | **Hosted drift audit** | ⚠️ Blocked | ✅ runtime check | — | — | ✅ | **P0** |
 | Platform admin | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
-| Procurement | 🟡 Increment 1 ✅ | ✅ | ✅ | ✅ | ✅ | P2 |
-| Production / BOM | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
-| Quality control | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
 | Support / warranty | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P2 |
 | Automation / AI | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
 | Queues | ⛔ Not started | ❌ | ❌ | ❌ | ❌ | P3 |
+
+## 1a. What "Verified" means here
+
+A module is **Verified** only when a named gate passes and its result is quoted
+in §5 below. Everything shipped through migration `012` is listed at that level;
+nothing in this document is marked Verified on the strength of compiling.
+
+Two statuses deserve their own explanation because the table cannot carry it:
+
+- **Hosted drift audit — ⚠️ Blocked.** The runtime check exists and works
+  (`GET /api/audit/health` returns `misaligned` + 503 when a migration table is
+  missing), and `test:audit-log` proves it. What is blocked is running it against
+  production *from CI*: `PRODUCTION_DATABASE_URL` is not configured as a GitHub
+  secret, so the workflow skips the hosted comparison and says so rather than
+  reporting a pass it did not earn.
+- **Finance — 🟡 Partial.** Invoicing, payments, returns and supplier bills are
+  real and tested. Credit notes, expenses, a chart of accounts, payment schedules,
+  tax records and reconciliation are not built. The spec section 11.4 asks for
+  all of them.
 
 Status values: ⛔ Not started · 🟡 Partial · ✅ Implemented · ✅✅ Verified · ⚠️ Blocked
 
@@ -54,26 +76,32 @@ Each item is sized by *kind* of work, because that is what determines duration.
 |---|---|---|---|---|
 | 1 | `PRODUCTION_DATABASE_URL` secret | Ops | 5 min | **Owner** |
 | 2 | ~~Platform `audit_logs` + write points~~ **DONE** | Schema + code | — | ✅ `008` |
-| 3 | Tenant schema + context + RLS + cross-tenant tests | **Architecture** | 2–3 wk | Needs decision D-1 |
-| 4 | Configurable roles/permissions | Schema + code | 1 wk | — |
-| 5 | Password reset + email adapter | Code | 2–3 d | SMTP creds |
-| 6 | Distributed rate limiting | Infra | 2 d | Redis/Upstash |
-| 7 | Scheduled offsite backup | Infra | 1–2 d | Bucket creds |
-| 8 | Cart + reservations write path | Code | 1 wk | — |
-| 9 | Page builder v2 (dnd, single renderer) | Frontend | 2 wk | Tailwind decision |
-| 10 | ~~Procurement context~~ **Increment 1 DONE** (suppliers, POs, goods receiving) | New module | 3–4 wk | — |
-| 11 | Production + QC context | New module | 4–6 wk | 10 |
-| 12 | Delivery + installation | New module | 2–3 wk | 11 |
-| 13 | Support + warranty | New module | 2 wk | — |
-| 14 | Provider messaging | Integration | 1–2 wk | Provider creds |
-| 15 | Payment gateway | Integration | 2 wk | Merchant account |
-| 16 | Monitoring + error tracking | Infra | 2 d | Account |
-| 17 | Durable queues + workflow engine | Infra | 3–4 wk | Redis |
+| 3 | ~~Procurement context~~ **DONE** | New module | — | ✅ `009` + UI |
+| 4 | ~~Supplier invoices + three-way match~~ **DONE** | New module | — | ✅ `010` + UI |
+| 5 | ~~Production + QC context~~ **DONE** | New module | — | ✅ `011` + UI |
+| 6 | ~~Stock ledger read path + reconciliation~~ **DONE** | Code | — | ✅ `012` |
+| 7 | ~~Warehouses, locations, transfers, reservations~~ **DONE** | New module | — | ✅ `012` + UI |
+| 8 | Finance depth: credit notes, expenses, accounts, schedules, tax, reconciliation | New module | 2–3 wk | — |
+| 9 | CRM depth: companies, contacts, meetings, attachments, activity history | New module | 1–2 wk | — |
+| 10 | Delivery + installation | New module | 2–3 wk | — |
+| 11 | Support + warranty | New module | 2 wk | 10 |
+| 12 | **Tenant schema + context + RLS + cross-tenant tests** | **Architecture** | 2–3 wk | D-1 answered |
+| 13 | Configurable roles/permissions | Schema + code | 1 wk | 12 |
+| 14 | Password reset + email adapter | Code | 2–3 d | SMTP creds |
+| 15 | Distributed rate limiting | Infra | 2 d | Redis/Upstash |
+| 16 | Scheduled offsite backup | Infra | 1–2 d | Bucket creds |
+| 17 | Page builder v2 (dnd, single renderer) | Frontend | 2 wk | Tailwind decision |
+| 18 | Provider messaging | Integration | 1–2 wk | Provider creds |
+| 19 | Payment gateway | Integration | 2 wk | Merchant account |
+| 20 | Durable queues + workflow engine | Infra | 3–4 wk | Redis |
 
-**Reading the queue:** items 1–2 are days and unblock trust. Item 3 is the
-largest single piece of work in the project and gates every multi-tenant claim.
-Items 10–13 are the Woodex *operations* build and cannot start until the
-business spells out which stages it wants enforced — a decision, not a task.
+**Reading the queue:** items 1–2 are days and unblock trust. Items 3–7 shipped
+in four increments; the Woodex *operations* spine — buy, receive, build, inspect,
+store, move — now exists end to end with screens behind every step. Item 12 is
+the largest single remaining piece of work and gates every multi-tenant claim;
+it moved down not because it matters less but because D-1 says there is no second
+tenant yet. Items 8–11 close the remaining spec modules, in the order that lets
+each one build on the last.
 
 ---
 
@@ -311,11 +339,98 @@ Design decisions worth keeping:
 
 ---
 
+## 4a. Increment 5 — Operations screens, then inventory depth (012)
+
+Two increments are recorded here because the second was found while building
+the first.
+
+### 4a.1 The six Operations screens
+
+Procurement (009), payables (010) and production (011) shipped with working
+backends, tests and production deployments — and **no screens**. From the
+dashboard the entire business chain looked unbuilt because nothing in the UI
+called it. The spec requires a frontend for every module, so by its own standard
+three increments were not delivered. `/suppliers`, `/purchase-orders`,
+`/goods-receipts`, `/supplier-invoices`, `/production` and `/stock-ledger` now
+exist, with no mock data: an empty table means an empty database and says so.
+
+Two defects surfaced while wiring them, both worth recording because neither is
+visible from a passing test suite:
+
+1. **The ledger was write-only.** Every stock change appended a row and nothing
+   could read one back, so "why is this 85?" required psql. `GET
+   /api/stock-movements` and `/api/stock-movements/reconcile` were added; the
+   latter *is* the Phase 7 acceptance criterion ("inventory balances reconcile
+   with the movement ledger"), so it is now observable in the running product.
+2. **The production login advertised credentials that could not work.** The
+   login screen printed "Demo access — user admin · pass admin" as a hardcoded
+   string *and prefilled both fields*. Production never creates that account.
+   `GET /api/auth/demo-available` now answers the question by checking that the
+   account exists **and** that its password hash really matches the demo
+   password — an existence check alone would still advertise a failing login.
+
+### 4a.2 Inventory depth — migration 012
+
+Phase 7 asks for warehouses, stock movements, reservations, transfers and
+reconciliation. The ledger existed; none of the rest did.
+
+| Added | Why it is a table and not a column |
+|---|---|
+| `warehouses` | "How much teak in Lahore" is a different question from "which rack" |
+| `storage_locations` | Location is per-warehouse unique; every godown has an A1 |
+| `stock_levels` | Per-location projection, rebuildable from the ledger, never authoritative |
+| `stock_transfers` + lines | A move is two ledger rows and a document, with an honest in-transit state |
+| `stock_reservations` | Existed since 003 and **nothing ever wrote to it** — now used |
+
+**The design problem worth reading.** Making the ledger location-aware is not a
+matter of adding a column. History cannot be backfilled: every movement recorded
+before 012 was written when "where" was not a question the system could ask, and
+assigning a default location would assert something false about the past — that
+someone put those units on that rack. So `location_id` is **nullable**, and the
+fallback policy differs by direction:
+
+- An unattributed **increase** lands in the default location. Goods that arrive
+  went somewhere, and "the receiving bay" is a convention, not a guess.
+- An unattributed **decrease** falls back only when the default location can
+  actually cover it. Otherwise it is recorded with no location. This is the case
+  that first broke: a product seeded with 99 units before any warehouse existed,
+  then recounted to 119, then to 69 — the 20 at rack A1 could not honestly
+  absorb a 50-unit decrement, and failing the write would have made the ledger
+  unable to describe the stock it already held.
+
+The invariant that makes `stock_levels` safe to exist is asserted, not assumed:
+`SUM(stock_levels) = SUM(located stock_movements)` for every product, checked at
+four points in `test:inventory`. Both halves are reported separately because
+they fail for different reasons, and a single `ok` would hide which one broke.
+
+**A behaviour that surprised the test I wrote.** Dispatching a transfer lowers
+total on-hand stock; receiving restores it. Units in a truck are genuinely at
+neither location, and counting them at both ends is how the same desk gets sold
+in Lahore and promised in Karachi. My first assertion said "dispatch changes no
+total" — the code was right and the test was wrong, which is the better of the
+two ways for that to go.
+
+**Verified:** `test:inventory` **68/68** · `test:integrity` **54/54 FK ·
+70/70 CHECK · 49 tables** · `test:upgrade` (now also proves 012's columns are
+added in place on a pre-011 database, and that historical movements keep a NULL
+location) · `test:procurement` · `test:production` · `test:bills` ·
+`test:stock-ledger` · `test:audit-log` 14/14 · `test:ops` 41/41 ·
+`check:migration` 49=49=49 · `docs:verify` clean · dashboard `tsc -b && vite
+build` exit 0, 38 routes.
+
+**Mistake recorded:** my first 012 declared `stock_reservations_product_fkey`
+again "if not exists". It is a no-op at runtime, but `test:integrity` derives its
+expected FK count from the migration files, so the duplication made it demand 54
+constraints and find 53 — reported as a missing foreign key when the real fault
+was a duplicated promise. The guarded re-add was deleted.
+
+---
+
 ## 5. What this tracker refuses to do
 
 - It will not mark a module Verified because it compiles.
-- It will not convert the gap list into "mostly done". Nine modules are done,
-  seventeen are partial or absent.
+- It will not convert the gap list into "mostly done". Twenty modules are
+  verified, five are partial, four are absent.
 - It will not claim Hostinger works — it has never been run.
 - It will not claim the hosted drift audit guards production — the secret does
   not exist and the step self-reports that it skipped.

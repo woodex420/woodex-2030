@@ -38,6 +38,14 @@ export default function Operations() {
     return m;
   }, [orders]);
   const exceptions = orders.filter((o) => o.status === "Delayed" || o.status === "On Hold").length;
+  /* Two numbers on this page used to be typed in: "91.4% on-time completion"
+     and "1.8% QC failure rate", each with a fabricated month-on-month delta.
+     Neither was measured, and both looked authoritative. They are replaced by
+     counts derived from the orders the board is actually showing, which is the
+     only claim the data here can support. A real on-time rate needs a promised
+     date and an actual completion date per order; `due` exists but completion
+     time is not recorded, so computing one would mean inventing the other half. */
+  const completedCount = orders.filter((o) => o.status === "Completed").length;
 
   const advance = async (order: ApiOrder) => {
     const idx = STAGES.findIndex((s) => s.key === order.stage);
@@ -54,6 +62,34 @@ export default function Operations() {
     } catch (e) {
       push({ tone: "danger", title: "Could not advance order", desc: e instanceof Error ? e.message : String(e) });
     }
+  };
+
+  /* The Export button used to pop a toast naming a file that was never
+     produced — "ops-export-week41.csv generated" — while the week number was
+     hardcoded and no download existed. A button that lies is worse than no
+     button: it teaches the operator that the feature works. This writes a real
+     CSV from the rows actually on screen, using the browser's own download
+     path, so what lands on disk matches what was exported. */
+  const exportCsv = () => {
+    const rows = onlyExceptions
+      ? orders.filter((o) => o.status === "Delayed" || o.status === "On Hold")
+      : orders;
+    if (!rows.length) return;
+    const header = ["ref", "customer", "stage", "status", "total", "owner", "due", "created"];
+    const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [header.join(","), ...rows.map((o) => [
+      o.ref, o.customer, o.stage, o.status, o.total ?? 0, o.owner ?? "", o.due ?? "", o.createdAt ?? "",
+    ].map(escape).join(","))].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `operations-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    push({ tone: "success", title: `${rows.length} order(s) exported`, desc: onlyExceptions ? "Exceptions only, matching the filter." : "Every order currently on the board." });
   };
 
   if (error)
@@ -75,7 +111,7 @@ export default function Operations() {
             <Button variant={onlyExceptions ? "primary" : "secondary"} onClick={() => setOnlyExceptions((v) => !v)}>
               <AlertTriangle size={15} /> {exceptions} Exceptions
             </Button>
-            <Button variant="secondary" onClick={() => push({ tone: "info", title: "ops-export-week41.csv generated" })}>
+            <Button variant="secondary" onClick={exportCsv} disabled={orders.length === 0}>
               <Download size={15} /> Export
             </Button>
           </>
@@ -198,9 +234,11 @@ export default function Operations() {
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
         <Card className="py-4">
-          <p className="text-caption font-medium text-subtle uppercase">On-time completion</p>
-          <p className="mt-1 text-h2 text-ink">91.4%</p>
-          <p className="mt-1 text-caption text-success-strong">↑ 3.1 pts vs. last month</p>
+          <p className="text-caption font-medium text-subtle uppercase">Completed</p>
+          <p className="mt-1 text-h2 text-ink">{completedCount}</p>
+          <p className="mt-1 text-caption text-subtle">
+            {orders.length === 0 ? "no orders on the board" : `${Math.round((completedCount / orders.length) * 100)}% of ${orders.length} orders`}
+          </p>
         </Card>
         <Card className="py-4">
           <p className="text-caption font-medium text-subtle uppercase">Live order value</p>
@@ -208,9 +246,11 @@ export default function Operations() {
           <p className="mt-1 flex items-center gap-1.5 text-caption"><Badge tone="primary" dot={false}>from API</Badge><span className="text-subtle">{orders.length} open orders</span></p>
         </Card>
         <Card className="py-4">
-          <p className="text-caption font-medium text-subtle uppercase">QC failure rate</p>
-          <p className="mt-1 text-h2 text-ink">1.8%</p>
-          <p className="mt-1 text-caption text-danger-strong">↓ 0.4 pts — rework trending down</p>
+          <p className="text-caption font-medium text-subtle uppercase">Needs attention</p>
+          <p className="mt-1 text-h2 text-ink">{exceptions}</p>
+          <p className="mt-1 text-caption text-subtle">
+            {exceptions === 0 ? "nothing delayed or on hold" : "delayed or on hold — see the filter above"}
+          </p>
         </Card>
       </div>
     </div>

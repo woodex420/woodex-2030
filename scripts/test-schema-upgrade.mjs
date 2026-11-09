@@ -112,6 +112,24 @@ try {
     const idx = after.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'uq_stock_movements%'")
       .all().map((r) => r.name);
     check(idx.includes("uq_stock_movements_idem_key"), "the idempotency index exists after the upgrade");
+
+    /* 012 has the same trap as 011 and needs the same proof. Its two columns are
+       added by a pragma-guarded ALTER before the DDL, and the indexes that
+       reference them would fail with "no such column" on this old database if
+       that guard were missing. A fresh database is born with both, so only a
+       pre-012 one can catch the regression. */
+    check(cols.includes("location_id"), "stock_movements.location_id was added in place (012)");
+    const locIdx = after.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_stock_movements_location'").all();
+    check(locIdx.length === 1, "the location index was created against the upgraded column");
+    const newTables = after.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map((r) => r.name);
+    for (const table of ["warehouses", "storage_locations", "stock_levels", "stock_transfers", "stock_transfer_lines"]) {
+      check(newTables.includes(table), `012 created ${table} on an existing database`);
+    }
+    /* The pre-existing movements must NOT acquire a location. Assigning one
+       would assert that somebody put those units on a rack, which nobody did —
+       they were recorded before the question could be asked. */
+    check(Number(after.prepare("SELECT COUNT(*) n FROM stock_movements WHERE location_id IS NOT NULL").get().n) === 0,
+      "historical movements keep a NULL location rather than being given a invented one");
     check(!idx.includes("uq_stock_movements_production_issue"),
       "the superseded one-movement-per-line index was dropped", idx.join(", "));
 

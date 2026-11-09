@@ -175,6 +175,7 @@ try {
      table rather than an error. */
   console.log("[ci] Rehearsing the Operations screens' API contract.");
   await runChecked(process.execPath, ["scripts/test-ops-api.mjs"], baseEnv, "ops", 300_000);
+  await runChecked(process.execPath, ["scripts/test-inventory.mjs"], baseEnv, "inventory", 300_000);
 
   console.log("[ci] Starting isolated SQLite API for full API/security QA.");
   const api = start(process.execPath, ["--experimental-sqlite", "apps/api/server.mjs"], {
