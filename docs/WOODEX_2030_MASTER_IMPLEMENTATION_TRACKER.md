@@ -247,6 +247,68 @@ mutation that makes materials move stock fails 5 checks.
    a stale assertion the moment 009 existed — the same class of bug as the
    hard-coded 28/28 counts. It now derives the expected version from the files.
 
+### Supplier invoices + three-way matching (item 10, increment 2) — done and gated
+
+`scripts/migrations/010_supplier_invoices.sql` (+ rollback), three tables
+(`supplier_invoices`, `supplier_invoice_lines`, `supplier_payments`), six routes,
+and a matching engine that compares **ordered (PO) vs received (GRN) vs billed**
+per line.
+
+**Why a new table rather than `invoices.supplier_id`.** `invoices` is
+receivables — `customer` is a *name*, the money flows in, and the lifecycle is
+`Issued → Paid`. A supplier invoice is a payable: a real counterparty, money
+flowing out, `Draft → Posted → Paid`. Merging them would put an
+`AND direction='out'` filter on every receivables query, and one missed filter
+reports a payable as revenue. The PRD already splits them (Phase 1 receivables,
+Phase 2 payables).
+
+| Verdict | Meaning | Payment |
+|---|---|---|
+| `matched` | billed ≤ received ≤ ordered on every line | allowed |
+| `tolerance` | over-received within the configured tolerance | allowed |
+| `variance` | billed beyond receipt or order | **refused** without `overrideVariance` |
+| `unlinked` | no PO — nothing to compare against | allowed |
+
+Design decisions worth keeping:
+
+* **The verdict is stored with its numbers** (`match_json`). "matched" with no
+  figures behind it is a claim; the first dispute will ask which numbers
+  disagreed.
+* **A variance blocks payment, not recording.** A supplier's bill is a fact that
+  arrives whether or not it agrees with us; refusing to log it only moves the
+  argument to a spreadsheet.
+* **Overpayment is refused** (`si_paid_within_total` + a route check). The
+  receivables side sets `paid = paid + amount` with no ceiling — a real bug
+  there, not one to copy into money going out.
+* **The duplicate guard is `(supplier_id, supplier_ref)`** — their own document
+  number, unique per supplier. Paying one bill twice is the commonest AP error
+  and usually clerical, not criminal.
+* **Cancelling a duplicate re-matches its siblings**, or a cancelled bill leaves
+  the survivor permanently looking over-invoiced.
+* **Tolerance is configuration** (`meta['procurement.match_tolerance']`, default
+  0), not a constant.
+
+**Four bugs this work found in itself, each caught by a gate:**
+
+1. **`matchSupplierInvoice` read DB column names** (`purchase_order_line_id`)
+   from objects produced by the camelCase row mapper (`purchaseOrderLineId`).
+   Every line came back `unlinked`, every total `0` — the match *ran* and
+   verified nothing. The test asserting "billed beyond received" is what failed.
+2. **`bump()` was defined and never called**, so per-line variance was computed
+   correctly and then discarded: a document whose only line was a variance still
+   reported `matched`, contradicting its own `findings` array.
+3. **`/api/supplier-invoices/summary` was registered after `/:id`** and was
+   therefore unreachable — `:id` matched the literal word "summary".
+4. **The 009 receipt guard was deleted by an edit to the 010 block** (my
+   `old_text` ended with the index, so the replacement consumed it).
+   `test:procurement` failed with "the receipt idempotency index exists" —
+   a regression caught by the suite written for the previous increment.
+
+**Verified:** `test:integrity` **39/39 FK · 50/50 CHECK · 41 tables** ·
+`qa:pg` **108/108** on real PostgreSQL · `test:bills` 50/50 · `test:procurement`
+52/52 · `check:migration` 40=40=40 · `docs:verify` clean · `vercel:build` exit 0,
+76 routes. Mutation (disabling variance escalation) → 8 checks fail.
+
 ---
 
 ## 5. What this tracker refuses to do

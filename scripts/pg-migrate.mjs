@@ -37,7 +37,8 @@ const TABLES = ["products","materials","services","leads","quotes","quote_versio
   "clients","client_links","tasks","site_visits","pages","page_blocks","page_versions","saved_sections","track_events",
   "projects","project_milestones","boq_lines","project_files",
   "conversations","messages","users","sessions","meta","stock_movements","stock_reservations","audit_logs",
-  "suppliers","purchase_orders","purchase_order_lines","goods_receipts","goods_receipt_lines"];
+  "suppliers","purchase_orders","purchase_order_lines","goods_receipts","goods_receipt_lines",
+  "supplier_invoices","supplier_invoice_lines","supplier_payments"];
 const PK = { products:"id", materials:"id", services:"id", sessions:"token", meta:"key" }; // TEXT-PK tables (also pages.slug unique — id ordered fine)
 
 /* ---- backends ---- */
