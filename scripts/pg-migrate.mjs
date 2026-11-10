@@ -45,7 +45,7 @@ const TABLES = ["products","materials","services","leads","quotes","quote_versio
   "companies","contacts","meetings","attachments","activities",
   "dispatch_runs","deliveries","delivery_lines","installed_assets",
   "tickets","ticket_messages","service_visits","warranty_claims",
-  "password_resets"];
+  "password_resets","throttle_buckets"];
 const PK = { products:"id", materials:"id", services:"id", sessions:"token", meta:"key" }; // TEXT-PK tables (also pages.slug unique — id ordered fine)
 
 /* ---- backends ---- */

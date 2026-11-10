@@ -2,12 +2,16 @@ import { useState } from "react";
 import type { ComponentType } from "react";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
+import { can } from "@/lib/auth";
 import { Logo } from "@/components/layout/Logo";
 import { BarChart, Building, ChevronDown, ClipboardList, Factory, FolderKanban, Globe, Kanban, LayoutDashboard, Megaphone, MessagesSquare, Package, Settings, Settings2, ShoppingBag, Store, Users, Wrench, X, Receipt, Sparkles, Truck, Banknote, Lock, Undo2, Calendar } from "@/icons";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
-type NavItem = { label: string; to: string; icon: IconType };
+/* `cap` hides an entry the current role cannot use. Without it the sidebar
+   advertises screens that answer 403 — which reads as a broken app rather than
+   a permission the person does not have. */
+type NavItem = { label: string; to: string; icon: IconType; cap?: string };
 type NavGroup = { label: string; items: NavItem[] };
 
 /* Business-funnel navigation. Existing route URLs remain stable. */
@@ -42,6 +46,7 @@ const groups: NavGroup[] = [
       { label: "Orders", to: "/orders", icon: ShoppingBag },
       { label: "Delivery & Installation", to: "/deliveries", icon: Truck },
       { label: "Support & Warranty", to: "/support", icon: Wrench },
+      { label: "Login locks", to: "/login-locks", icon: Lock, cap: "users.manage" },
       { label: "Operations", to: "/operations", icon: Wrench },
       { label: "Projects", to: "/projects", icon: FolderKanban },
     ],
@@ -169,6 +174,8 @@ export function Sidebar({
       {/* Navigation */}
       <nav aria-label="Primary" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {groups.map((g) => {
+          const visible = g.items.filter((item) => !item.cap || can(item.cap));
+          if (!visible.length) return null;
           const open = !closedGroups[g.label];
           return (
             <div key={g.label} className="mb-1.5">
@@ -189,7 +196,7 @@ export function Sidebar({
               )}
               {open && (
                 <ul className="mt-0.5 space-y-0.5">
-                  {g.items.map((item) => {
+                  {visible.map((item) => {
                     const active = isActive(item.to, pathname);
                     const Icon = item.icon;
                     return (

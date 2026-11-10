@@ -62,7 +62,8 @@
     "test:crm": "node scripts/test-crm.mjs",
     "test:delivery": "node scripts/test-delivery.mjs",
     "test:support": "node scripts/test-support.mjs",
-    "test:credentials": "node scripts/test-credentials.mjs"
+    "test:credentials": "node scripts/test-credentials.mjs",
+    "test:throttle": "node scripts/test-throttle.mjs"
   },
   "engines": {
     "node": ">=22.5"
