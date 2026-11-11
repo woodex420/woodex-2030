@@ -1,0 +1,149 @@
+name: WOODEX OS platform (Laravel)
+run-name: platform — ${{ github.sha }}
+
+# The Laravel application in platform/. Separate from ci.yml, which covers the existing Node applications.
+# Disposable MySQL in the runner only: no deployment, no hosted database, no provider credentials.
+on:
+  push:
+    branches: [main, "arena/**"]
+    paths: ["platform/**", ".github/workflows/os-ci.yml"]
+  pull_request:
+    paths: ["platform/**", ".github/workflows/os-ci.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: os-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mysql:
+    name: PHP 8.4 · MySQL 8.4 — migrate, seed, test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: woodex_test
+          MYSQL_USER: woodex_test
+          # A throwaway container that lives for one job. These are not credentials for anything else.
+          MYSQL_PASSWORD: disposable-ci-only
+          MYSQL_ROOT_PASSWORD: disposable-ci-root
+        ports: ["3306:3306"]
+        options: >-
+          --tmpfs /var/lib/mysql
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=40
+
+    defaults:
+      run:
+        working-directory: platform
+
+    env:
+      APP_ENV: testing
+      # Fixed all-zero test key, as in the source project's own CI. Never used outside tests.
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://localhost
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: woodex_test
+      DB_USERNAME: woodex_test
+      DB_PASSWORD: disposable-ci-only
+      DB_URL: ""
+      DB_SOCKET: ""
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      WOODEX_MODULES: "*"
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: PHP 8.4 with the extensions the lock file requires
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, pdo_sqlite, intl, mbstring, bcmath, zip, gd, exif, pcntl, dom, xml, xmlwriter, fileinfo, sodium
+          coverage: none
+          tools: composer:v2
+
+      - name: Versions
+        run: |
+          php -v | head -1
+          composer --version
+          mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only -e 'SELECT VERSION() AS mysql_version, @@sql_mode AS sql_mode\G' woodex_test
+
+      - name: Install the locked dependencies (no scripts)
+        run: |
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+
+      - name: Provenance — list the imported files that now differ from the source (information only)
+        run: |
+          # Each imported file is either byte-identical to the public source repository or was changed by a commit here.
+          awk -F'\t' 'NR>1 && $4!="" {print $2"  "$4}' PROVENANCE/import-manifest.tsv | sha256sum -c --quiet 2>/dev/null | sed 's/: FAILED.*//' | sort -u > /tmp/differs.txt || true
+          echo "imported files adapted or removed since the import: $(wc -l < /tmp/differs.txt)"
+          cat /tmp/differs.txt
+
+      - name: Migrate an empty MySQL database (72 reviewed + 21 settings migrations)
+        run: |
+          php artisan migrate --force
+          php artisan migrate:status | tail -5
+          mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -e "
+            SELECT COUNT(*) AS tables_created FROM information_schema.tables WHERE table_schema = DATABASE();
+            SELECT COUNT(*) AS foreign_keys FROM information_schema.referential_constraints WHERE constraint_schema = DATABASE();
+            SELECT COUNT(*) AS migrations_recorded FROM migrations;
+            SELECT COUNT(*) AS website_pages_must_be_zero FROM pages;"
+
+      - name: The quarantined Interior content migrations never ran
+        run: |
+          ran=$(mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "SELECT COUNT(*) FROM migrations WHERE migration REGEXP 'seed_legacy_redirects|import_website_content|ensure_website_content|repair_imported_image_alt|publish_imported_website_pages|add_enquiry_form_to_home|add_call_to_action_to_pages|link_city_pages_to_their_areas|correct_the_privacy_page_hosting_claims|reload_the_complete_website|remove_the_furniture_page'")
+          echo "quarantined migrations recorded as run: $ran"
+          test "$ran" = "0"
+          test "$(ls database/quarantine/interior-content | wc -l)" = "11"
+
+      - name: Neutral seed, as an installation would run it — no Interior prices, templates or message copy
+        env:
+          APP_ENV: local
+        run: |
+          php artisan db:seed --class=ProductionSeeder --force
+          mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -e "
+            SELECT (SELECT COUNT(*) FROM roles) AS roles, (SELECT COUNT(*) FROM permissions) AS permissions,
+                   (SELECT COUNT(*) FROM pipeline_stages) AS stages, (SELECT COUNT(*) FROM chart_of_accounts) AS accounts,
+                   (SELECT COUNT(*) FROM catalog_items) AS interior_price_rows, (SELECT COUNT(*) FROM quote_templates) AS interior_templates,
+                   (SELECT COUNT(*) FROM canned_replies) AS interior_replies;"
+          interior=$(mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "SELECT (SELECT COUNT(*) FROM catalog_items) + (SELECT COUNT(*) FROM quote_templates) + (SELECT COUNT(*) FROM canned_replies) + (SELECT COUNT(*) FROM estimator_rates)")
+          test "$interior" = "0"
+
+      - name: Rebuild from nothing a second time
+        run: php artisan migrate:fresh --force | tail -3
+
+      - name: Test suite on MySQL
+        run: |
+          mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs storage/app/private
+          php -d memory_limit=2G vendor/bin/pest --compact --display-all-issues 2>&1 | tee /tmp/pest.log
+          exit "${PIPESTATUS[0]}"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '## WOODEX OS platform — PHP 8.4 on MySQL 8.4'
+            echo '```'
+            grep -E 'Tests:|Duration:' /tmp/pest.log || echo 'no test summary was produced'
+            echo '```'
+            echo 'Disposable database in the runner. No deployment, no hosted data, no provider credentials.'
+            echo 'A green run is evidence for this commit on MySQL. It is not approval to deploy.'
+          } >> "$GITHUB_STEP_SUMMARY"
