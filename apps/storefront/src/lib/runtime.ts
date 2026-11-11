@@ -1,3 +1,4 @@
+import { captureBasketRequest } from "./quoteCapture";
 import { refreshTheme } from "./theme";
 import { captureStorefrontLead } from "./leadCapture";
 import { Fragment, createElement, useEffect, useState } from "react";
@@ -128,7 +129,12 @@ async function post(path: string, body: unknown) {
   }
 }
 
-export const submitQuoteRequest = (payload: unknown) => post("/api/quotes", payload);
+export const submitQuoteRequest = (payload: unknown) => {
+  const mode = import.meta.env.VITE_QUOTE_API_MODE || "legacy";
+  return captureBasketRequest(payload as Record<string, unknown>, mode, fetch,
+    import.meta.env.PROD || !!import.meta.env.VITE_TURNSTILE_SITE_KEY)
+    .finally(() => { if (mode === "v1") window.dispatchEvent(new Event("woodex:lead-attempt")); });
+};
 export const submitLead = (payload: unknown) => {
   const mode = import.meta.env.VITE_LEAD_API_MODE || "legacy";
   return captureStorefrontLead(payload as Record<string, unknown>, mode, fetch,

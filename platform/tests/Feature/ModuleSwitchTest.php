@@ -82,7 +82,8 @@ it('closes every route of a switched-off module before authentication is even co
 
         // A guest: without the module check an admin screen would redirect to sign-in and a signed page would answer 403.
         expect($this->call($method, $uri)->getStatusCode())->toBe(404, "{$method} {$uri} must be closed");
-        $closed[] = $modules->first();
+        // A route may depend on multiple modules; count every disabled gate, not only its first parent.
+        $closed = array_merge($closed, $modules->reject(fn (string $module): bool => Modules::enabled($module))->all());
     }
 
     expect(count($closed))->toBeGreaterThanOrEqual(70)

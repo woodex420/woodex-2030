@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Bridge\McpHttpController;
 use App\Http\Controllers\Api\Public\ChatWidgetController;
 use App\Http\Controllers\Api\Public\LeadController;
 use App\Http\Controllers\Api\Public\LeadHandoffController;
+use App\Http\Controllers\Api\Public\QuoteRequestController;
 use App\Http\Controllers\Website\LegacySiteBridgeController;
 use App\Http\Middleware\AuthenticateMcpBridge;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,10 @@ Route::prefix('public')->name('api.public.')->group(function (): void {
 
 // Furniture API v1 foundation. Public capture only: this is not a staff/authenticated API.
 Route::prefix('v1')->name('api.v1.')->middleware('module:lead_api')->group(function (): void {
+    Route::post('/quote-requests', [QuoteRequestController::class, 'store'])
+        ->middleware(['module:quote_requests', 'throttle:public-leads'])->name('quote-requests.store');
+    Route::get('/quote-requests', fn () => response()->json(['message' => 'Use POST to submit a basket request.'], 405)->header('Allow', 'POST'))
+        ->middleware('module:quote_requests');
     Route::post('/leads', [LeadController::class, 'store'])
         ->middleware('throttle:public-leads')->name('leads.store');
     Route::get('/leads', fn () => response()->json(['message' => 'Use POST to submit an enquiry.'], 405)->header('Allow', 'POST'));

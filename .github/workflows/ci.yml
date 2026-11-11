@@ -40,6 +40,7 @@ jobs:
         run: |
           node scripts/test-storefront-lead-adapter.mjs
           node scripts/test-lead-challenge.mjs
+          node scripts/test-basket-adapter.mjs
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps

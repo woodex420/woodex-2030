@@ -23,12 +23,12 @@ function loadChallenge(): Promise<void> {
 }
 
 /** V1 only. Site key is public; the verification secret must never enter the storefront bundle. */
-export default function LeadChallenge() {
+export default function LeadChallenge({ mode = import.meta.env.VITE_LEAD_API_MODE }: { mode?: string }) {
   const host = useRef<HTMLDivElement>(null);
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
-  const enabled = import.meta.env.VITE_LEAD_API_MODE === "v1";
+  const enabled = mode === "v1";
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
   useEffect(() => {
     if (!enabled || !siteKey) return;

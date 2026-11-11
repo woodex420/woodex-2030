@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
 /**
  * Validation for POST /api/public/leads (CAP-001, CAP-002).
  */
-final class StorePublicLeadRequest extends FormRequest
+class StorePublicLeadRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -42,7 +42,7 @@ final class StorePublicLeadRequest extends FormRequest
             'city' => ['nullable', 'string', 'max:80'],
             'area' => ['nullable', 'string', 'max:120'],
             'service' => ['nullable', 'string', 'max:60'],
-            'business_line' => ['nullable', $this->routeIs('api.v1.leads.store') ? Rule::in(['furniture']) : Rule::enum(BusinessLine::class)],
+            'business_line' => ['nullable', $this->routeIs('api.v1.leads.store', 'api.v1.quote-requests.store') ? Rule::in(['furniture']) : Rule::enum(BusinessLine::class)],
             'property_type' => ['nullable', 'string', 'max:30'],
             'area_sqft' => ['nullable', 'integer', 'min:1', 'max:10000000'],
             'budget_band' => ['nullable', 'string', 'max:30'],
@@ -112,7 +112,7 @@ final class StorePublicLeadRequest extends FormRequest
             phone: $this->filled('phone') ? (string) $this->input('phone') : null,
             email: $this->filled('email') ? (string) $this->input('email') : null,
             source: $source,
-            businessLine: BusinessLine::tryFrom((string) $this->input('business_line')) ?? ($this->routeIs('api.v1.leads.store') ? BusinessLine::Furniture : BusinessLine::Interior),
+            businessLine: BusinessLine::tryFrom((string) $this->input('business_line')) ?? ($this->routeIs('api.v1.leads.store', 'api.v1.quote-requests.store') ? BusinessLine::Furniture : BusinessLine::Interior),
             service: $this->filled('service') ? (string) $this->input('service') : null,
             propertyType: $this->filled('property_type') ? (string) $this->input('property_type') : null,
             city: $this->filled('city') ? (string) $this->input('city') : null,
@@ -139,7 +139,7 @@ final class StorePublicLeadRequest extends FormRequest
             preferredLanguage: (string) ($this->input('language') ?? 'en'),
             meta: array_merge(
                 $this->hasValidBridgeKey() ? ['via' => 'live-site-bridge'] : [],
-                $this->routeIs('api.v1.leads.store') ? array_filter([
+                $this->routeIs('api.v1.leads.store', 'api.v1.quote-requests.store') ? array_filter([
                     'company' => $this->input('company'),
                     'preferred_channel' => $this->input('preferred_channel'),
                 ], static fn ($value): bool => $value !== null && $value !== '') : [],

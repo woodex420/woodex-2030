@@ -78,3 +78,5 @@ Nothing here is authoritative. Do not cite these as current.
 - [Storefront v1 anti-spam implementation and provider gates](laravel-os/07-STOREFRONT-ANTISPAM.md)
 
 - [Secure v1 manual WhatsApp handoff](laravel-os/08-SECURE-WHATSAPP-HANDOFF.md)
+
+- [Basket quote-request foundation and catalogue gates](laravel-os/09-BASKET-QUOTE-REQUESTS.md)

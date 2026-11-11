@@ -8,7 +8,7 @@
 
 return [
 
-    'paths' => ['api/public/*', 'api/v1/leads', 'api/v1/leads/whatsapp-handoff'],
+    'paths' => ['api/public/*', 'api/v1/leads', 'api/v1/leads/whatsapp-handoff', 'api/v1/quote-requests'],
 
     'allowed_methods' => ['GET', 'POST', 'OPTIONS'],
 

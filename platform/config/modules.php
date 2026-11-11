@@ -20,6 +20,7 @@ declare(strict_types=1);
 return [
 
     'available' => [
+        'quote_requests' => 'Opt-in Furniture basket requests; requires explicit catalogue mappings',
         'lead_api' => 'Public enquiry endpoint: POST /api/public/leads',
         'website' => 'Public website, CMS page router, theme stylesheets and the Website admin screens',
         'estimator' => 'Estimations and the estimator rate book',

@@ -23,6 +23,7 @@ use App\Domain\Crm\Models\SiteVisit;
 use App\Domain\Sales\Actions\CreateQuoteFromEstimate;
 use App\Domain\Sales\Models\Estimate;
 use App\Domain\Sales\Models\EstimatorRate;
+use App\Domain\Sales\Models\StorefrontQuoteRequest;
 use App\Livewire\Concerns\BooksSiteVisits;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Livewire\Concerns\ManagesAttachments;
@@ -444,6 +445,7 @@ class LeadShow extends Component
             'lead' => $lead,
             'stages' => PipelineStage::query()->ordered()->get(),
             'activities' => $activities,
+            'basketRequests' => StorefrontQuoteRequest::query()->where('lead_id', $lead->id)->latest('id')->limit(20)->get(),
             'openTasks' => $lead->tasks()->with('assignee:id,name')->where('status', TaskStatus::Open->value)->orderByRaw('due_at is null')->orderBy('due_at')->get(),
             'doneTasks' => $lead->tasks()->where('status', TaskStatus::Done->value)->latest('completed_at')->limit(5)->get(),
             'visits' => $lead->siteVisits()->with('assignee:id,name')->latest('scheduled_at')->get(),

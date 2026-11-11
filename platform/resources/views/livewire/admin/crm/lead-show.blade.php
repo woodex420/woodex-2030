@@ -186,6 +186,22 @@
                 </x-admin.card>
             @endcan
 
+            @if ($basketRequests->isNotEmpty())
+                <x-admin.card title="Storefront basket requests" description="Latest 20 saved requests. Estimates only — not issued quotations, orders or stock reservations.">
+                    @foreach ($basketRequests as $basket)
+                        <section class="mb-5 space-y-2" wire:key="basket-request-{{ $basket->id }}">
+                            <p class="break-all font-semibold">{{ $basket->reference }} · Pending review</p>
+                            <ul class="space-y-1 text-sm">
+                                @foreach ($basket->lines as $line)
+                                    <li>{{ $line['description'] }} · {{ $line['qty'] }} {{ $line['unit'] }} × {{ \App\Support\Money::ofMinor($line['rate_minor'])->format() }} = {{ \App\Support\Money::ofMinor($line['line_total_minor'])->format() }}</li>
+                                @endforeach
+                            </ul>
+                            <p class="text-sm">Saved catalogue estimate: {{ \App\Support\Money::ofMinor($basket->estimated_total_minor)->format() }} · Final scope, taxes, delivery and terms require staff review.</p>
+                        </section>
+                    @endforeach
+                </x-admin.card>
+            @endif
+
             {{-- Timeline (CRM-009) --}}
             <x-admin.card id="activity-stream" class="wx-activity-card" title="Activity" description="Recorded lead and shared contact history. Latest matching entries first.">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3"><span class="wx-eyebrow">{{ $activities->count() }} entries shown</span><select wire:model.live="activityType" class="wx-input w-auto" aria-label="Filter activity type"><option value="">All activity</option>@foreach (\App\Domain\Crm\Enums\ActivityType::cases() as $kind)<option value="{{ $kind->value }}">{{ $kind->label() }}</option>@endforeach</select></div>
