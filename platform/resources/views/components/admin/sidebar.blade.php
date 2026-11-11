@@ -47,7 +47,7 @@
                             @click="$store.sidebar.toggleGroup('{{ $groupKey }}')"
                             :aria-expanded="navQuery.trim() || $store.sidebar.groupOpen('{{ $groupKey }}') ? 'true' : 'false'"
                             class="mb-2 flex w-full items-center justify-between gap-2 rounded px-3 text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase transition hover:text-gray-600 dark:hover:text-gray-300">
-                        <span>{{ $group['title'] }}</span>
+                        <span>{{ $group['title'] }}{{ in_array($group['title'], ['Content', 'Pages & builder'], true) ? ' (frontend reimagine)' : '' }}</span>
                         <span class="shrink-0 transition-transform duration-200"
                               :class="$store.sidebar.groupOpen('{{ $groupKey }}') ? '' : '-rotate-90'">
                             <x-icon name="chevron-down" class="size-3.5" />
@@ -88,7 +88,7 @@
                             @else
                                 @php($why = match (true) {
                                     $item['phase'] === '2030' => 'existing 2030 screen — dashboard address not configured',
-                                    $item['phase'] === 'soon' => 'arrives with the Website port',
+                                    $item['phase'] === 'soon' => 'planned upgrade — screen not available yet',
                                     str_starts_with((string) $item['phase'], 'P') => 'arrives in '.$item['phase'],
                                     default => 'run from the command line',
                                 })
@@ -98,7 +98,7 @@
                                     <x-icon :name="$item['icon']" class="size-5 shrink-0" />
                                     <span x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen" class="flex flex-1 items-center justify-between gap-2 truncate">
                                         {{ $item['label'] }}
-                                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-white/5 dark:text-gray-400">{{ $item['phase'] }}</span>
+                                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-white/5 dark:text-gray-400">{{ $item['phase'] === 'soon' ? 'Soon' : $item['phase'] }}</span>
                                     </span>
                                 </span>
                             @endif

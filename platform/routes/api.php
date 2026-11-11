@@ -32,6 +32,13 @@ Route::prefix('public')->name('api.public.')->group(function (): void {
         ->name('chat.messages');
 });
 
+// Furniture API v1 foundation. Public capture only: this is not a staff/authenticated API.
+Route::prefix('v1')->name('api.v1.')->middleware('module:lead_api')->group(function (): void {
+    Route::post('/leads', [LeadController::class, 'store'])
+        ->middleware('throttle:public-leads')->name('leads.store');
+    Route::get('/leads', fn () => response()->json(['message' => 'Use POST to submit an enquiry.'], 405)->header('Allow', 'POST'));
+});
+
 /*
 | The two addresses the original website's JavaScript calls (docs/11 §2). The 142 pages are served as the old site
 | made them, so they come with their own scripts, which post here. Answering in the shape they expect means the

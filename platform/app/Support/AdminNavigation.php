@@ -127,10 +127,26 @@ final class AdminNavigation
             array_splice($source, 3, 0, FurnitureNavigation::groups());
         }
 
+        if ($user?->can('settings.manage')) {
+            $source[] = self::group('Workspace', [
+                self::item('Workspace preferences', 'settings', null, 'settings.manage', 'soon'),
+                self::item('Team onboarding upgrade', 'users', null, 'users.manage', 'soon'),
+            ]);
+        }
+
         foreach ($source as $group) {
+            // Show the roadmap without opening disabled modules. Preserve each entry's permission check.
+            $group['items'] = array_map(static function (array $item): array {
+                if ($item['route'] !== null && Route::has($item['route']) && ! Modules::routeIsOpen($item['route'])) {
+                    $item['route'] = null;
+                    $item['phase'] = 'soon';
+                }
+
+                return $item;
+            }, $group['items']);
             $items = array_values(array_filter($group['items'], static function (array $item) use ($user): bool {
                 if ($item['route'] === null) {
-                    return true;
+                    return $item['permission'] === null || ($user?->can($item['permission']) ?? false);
                 }
 
                 if (! Route::has($item['route']) || ! Modules::routeIsOpen($item['route'])) {

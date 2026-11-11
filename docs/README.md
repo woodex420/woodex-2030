@@ -70,3 +70,5 @@ Nothing here is authoritative. Do not cite these as current.
 | [AGENCY-OS-WOODEX-REIMAGINED-TWO-PHASE-PLAN.md](archive/AGENCY-OS-WOODEX-REIMAGINED-TWO-PHASE-PLAN.md) | Two-phase plan superseded by the monorepo delivery |
 | [WOODEX-REIMAGINED-FEATURE-GAP-MATRIX.md](archive/WOODEX-REIMAGINED-FEATURE-GAP-MATRIX.md) | Gap matrix for the imported reference app, which has been removed from the tree |
 | [storefront-blueprint/](archive/storefront-blueprint/) | 34-file Lovable-era design/IA blueprint for the storefront; the shipped UI is the source of truth now |
+
+- [Agency OS → Laravel gap register, Soon navigation and API v1 plan](laravel-os/05-GAP-REGISTER-AND-NEXT-UPGRADE.md)

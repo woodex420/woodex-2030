@@ -8,7 +8,7 @@
 
 return [
 
-    'paths' => ['api/public/*'],
+    'paths' => ['api/public/*', 'api/v1/leads'],
 
     'allowed_methods' => ['GET', 'POST', 'OPTIONS'],
 

@@ -138,13 +138,13 @@ it('answers an unknown address with a plain 404 while the website module is off'
         ->and((string) $response->headers->get('Location'))->toEndWith('/no-such-page/');
 });
 
-it('removes the screens of switched-off modules from the menu', function () {
+it('shows switched-off modules as non-clickable roadmap entries', function () {
     $owner = $this->userWithRole('owner');
     $routes = fn () => collect(AdminNavigation::for($owner))->flatMap(fn (array $group): array => $group['items'])->pluck('route');
     $titles = fn () => collect(AdminNavigation::for($owner))->pluck('title')->all();
 
     useShippedModules();
-    expect($titles())->toBe(['Overview', 'CRM', 'Sales', 'Commerce & Fulfilment', 'Procurement & Production', 'Accounts', 'Projects', 'System'])
+    expect($titles())->toBe(['Overview', 'CRM', 'Sales', 'Commerce & Fulfilment', 'Procurement & Production', 'Accounts', 'Projects', 'Inbox', 'Automation', 'Marketing', 'Pages & builder', 'Content', 'Website', 'System', 'Workspace'])
         ->and($routes()->all())->toContain('admin.leads.index', 'admin.quotes.index', 'admin.invoices.index', 'admin.accounts.workspace', 'admin.projects.index', 'admin.settings')
         ->and($routes()->intersect([
             'admin.inbox', 'admin.chat-bot', 'admin.estimations.index', 'admin.marketing.index', 'admin.automation.index',
