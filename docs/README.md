@@ -87,3 +87,4 @@ Nothing here is authoritative. Do not cite these as current.
 - [Category CMS: drafts, previews and native publication](laravel-os/12-CATEGORY-CMS.md)
 - [Category ordering and storefront sync](laravel-os/13-CATEGORY-ORDERING-AND-STOREFRONT-SYNC.md)
 - [Native Products review, import/export and full editor](laravel-os/14-NATIVE-PRODUCTS-REVIEW-IMPORT-AND-EDITOR.md)
+- [Paused work and next-session product UX handoff](laravel-os/15-NEXT-SESSION-HANDOFF.md)
