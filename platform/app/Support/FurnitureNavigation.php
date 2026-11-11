@@ -10,9 +10,8 @@ final class FurnitureNavigation
     public static function groups(): array
     {
         $sections = [
-            'Commerce & Fulfilment' => [
-                ['Commerce Overview', 'ecommerce'],
-                ['Product Catalog', 'catalog'],
+            'Commerce' => [
+                ['Products', 'catalog'],
                 ['Orders', 'orders'],
                 ['Delivery & Installation', 'deliveries'],
                 ['Support & Warranty', 'support'],
@@ -37,9 +36,15 @@ final class FurnitureNavigation
             foreach ($entries as [$label, $path]) {
                 $items[] = [
                     'label' => $label, 'icon' => 'external', 'route' => null,
-                    'permission' => 'dashboard.view', 'phase' => '2030',
+                    'permission' => 'dashboard.view', 'phase' => $title === 'Commerce' ? 'Legacy' : '2030',
                     'url' => self::url($path),
                 ];
+            }
+            if ($title === 'Commerce') {
+                array_splice($items, 1, 0, [[
+                    'label' => 'Catalogue categories', 'icon' => 'folder', 'route' => 'admin.commerce.categories',
+                    'permission' => 'commerce.catalog.view', 'phase' => null, 'url' => null,
+                ]]);
             }
             $groups[] = ['title' => $title, 'items' => $items];
         }

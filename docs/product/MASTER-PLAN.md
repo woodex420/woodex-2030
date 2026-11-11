@@ -396,3 +396,11 @@ post-deploy `curl` checks, the SQLite single-writer caveat, and backups.
   process), `deploy/hostinger/.htaccess`, `npm run smoke:hostinger` and
   `docs/DEPLOYMENT.md` covering both targets, backups and post-deploy checks.
 - Tailwind 3 → 4 for the storefront (F12).
+
+### 2026-11-11: approved staged native Commerce work
+
+Owner chose catalogue-first staged delivery, using the existing repository catalogue and structured variants. Rename “Commerce & Fulfilment” to “Commerce”; remove its overview entry and Commerce 2030 suffixes, while retaining Orders, Delivery & Installation, Support & Warranty and Operations as visible legacy workflows until their replacements pass acceptance. Keep the earlier Inbox/Automation/Marketing/Workspace/Content/Pages Soon roadmap visible.
+
+Sequence: native category customization → product details/category assignment and primary/gallery upload/replacement/reordering → colour/material/size variants with explicit prices and availability → reviewed external-key catalogue import/mappings and quote-request variant parity → Orders → Delivery & Installation → Support & Warranty → Operations. Every slice needs enforcing permissions, validation/persistence, mobile/desktop behavior and failure/empty/loading acceptance. Do not describe these modules as complete when only navigation or a foundation exists. Live storefront switching still requires explicit acceptance and approval.
+
+Photo provenance is a gate: repository source has 148 products but only 18 unique referenced image paths; all 148 galleries repeat images. File existence alone is not identity verification. Preserve original assets, report gaps, support genuine uploads, and never fabricate missing photos, variant prices or inventory. Do not import rating/review counts as verified customer evidence.

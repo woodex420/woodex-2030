@@ -21,6 +21,7 @@ use App\Livewire\Admin\Accounts\PeriodsIndex;
 use App\Livewire\Admin\Accounts\ProfitLoss;
 use App\Livewire\Admin\Accounts\TrialBalance;
 use App\Livewire\Admin\Automation\SequencesIndex;
+use App\Livewire\Admin\Commerce\Categories;
 use App\Livewire\Admin\Conversations\CannedRepliesIndex;
 use App\Livewire\Admin\Conversations\Inbox;
 use App\Livewire\Admin\Crm\AssignmentRules;
@@ -248,3 +249,5 @@ Route::get('/integrations/oauth/{provider}/start', [ConnectorOAuthController::cl
 Route::get('/integrations/oauth/{provider}/callback', [ConnectorOAuthController::class, 'callback'])->name('integrations.oauth.callback')->middleware('can:integrations.manage');
 Route::livewire('/integrations/whatsapp-templates', WhatsAppTemplates::class)->name('whatsapp.templates')->middleware('can:integrations.manage')->middleware('module:whatsapp');
 Route::livewire('/data-import', DataImport::class)->name('data-import')->middleware('can:system.import');
+
+Route::livewire('/commerce/categories', Categories::class)->name('commerce.categories')->middleware('can:commerce.catalog.view');

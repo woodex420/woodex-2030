@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
 import { can } from "@/lib/auth";
 import { Logo } from "@/components/layout/Logo";
-import { BarChart, Building, ChevronDown, ClipboardList, Factory, FolderKanban, Globe, Kanban, LayoutDashboard, Megaphone, MessagesSquare, Package, Settings, Settings2, ShoppingBag, Store, Users, Wrench, X, Receipt, Sparkles, Truck, Banknote, Lock, Undo2, Calendar } from "@/icons";
+import { BarChart, Building, ChevronDown, ClipboardList, Factory, FolderKanban, Globe, Kanban, LayoutDashboard, Megaphone, MessagesSquare, Package, Settings, Settings2, ShoppingBag, Users, Wrench, X, Receipt, Sparkles, Truck, Banknote, Lock, Undo2, Calendar } from "@/icons";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
@@ -39,9 +39,8 @@ const groups: NavGroup[] = [
     ],
   },
   {
-    label: "Commerce & Fulfilment",
+    label: "Commerce",
     items: [
-      { label: "Commerce Overview", to: "/ecommerce", icon: Store },
       { label: "Product Catalog", to: "/catalog", icon: Package },
       { label: "Orders", to: "/orders", icon: ShoppingBag },
       { label: "Delivery & Installation", to: "/deliveries", icon: Truck },

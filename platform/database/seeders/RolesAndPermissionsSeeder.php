@@ -16,6 +16,7 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     /** @var list<string> */
     public const PERMISSIONS = [
+        'commerce.catalog.view', 'commerce.catalog.manage',
         'dashboard.view',
         'leads.view', 'leads.view_all', 'leads.create', 'leads.update', 'leads.assign', 'leads.delete', 'leads.export',
         'contacts.view', 'contacts.update', 'contacts.merge',
@@ -76,6 +77,11 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         foreach ($roles as $name => $permissions) {
+            if ($name === 'sales_manager') {
+                $permissions = array_merge($permissions, ['commerce.catalog.view', 'commerce.catalog.manage']);
+            } elseif ($name === 'sales') {
+                $permissions[] = 'commerce.catalog.view';
+            }
             Role::findOrCreate($name, 'web')->syncPermissions($permissions);
         }
 

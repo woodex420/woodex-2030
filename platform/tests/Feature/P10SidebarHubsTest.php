@@ -67,7 +67,8 @@ it('consolidates the sidebar to the confirmed P10.1 map', function () {
     // (slice I, 26 Oct). The exact number is asserted on purpose — a screen cannot join or leave the sidebar
     // without a test.
     // Six ledger tools now share one front door; every original URL remains available.
-    expect($live)->toHaveCount(43);
+    // Native Commerce categories add one live destination; legacy overview is removed.
+    expect($live)->toHaveCount(44);
     expect(collect($groups['Projects']['items'])->pluck('route')->all())->toBe(['admin.projects.index', 'admin.projects.board', 'admin.projects.costs', 'admin.projects.portal', 'admin.projects.handovers']);
 });
 

@@ -40,7 +40,7 @@ it('folds the eleven System entries into four live pages with their buttons insi
 it('does not advertise any unimplemented planned entry — no shipped module wears a phase badge', function () {
     $planned = collect(AdminNavigation::for($this->owner))
         ->flatMap(fn (array $group): array => $group['items'])
-        ->filter(fn (array $item): bool => $item['route'] === null && ! in_array($item['phase'], ['2030', 'soon'], true))
+        ->filter(fn (array $item): bool => $item['route'] === null && ! in_array($item['phase'], ['2030', 'Legacy', 'soon'], true))
         ->pluck('label')
         ->values()
         ->all();

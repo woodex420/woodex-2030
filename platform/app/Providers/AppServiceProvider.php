@@ -10,6 +10,7 @@ use App\Domain\Accounts\Models\Expense;
 use App\Domain\Accounts\Models\RecurringExpense;
 use App\Domain\Accounts\Models\Vendor;
 use App\Domain\Automation\Listeners\EnrollTriggeredLeads;
+use App\Domain\Commerce\Models\Category;
 use App\Domain\Conversations\Models\Conversation;
 use App\Domain\Conversations\Policies\ConversationPolicy;
 use App\Domain\Crm\Events\LeadCaptured;
@@ -110,6 +111,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Short, stable type names in polymorphic columns (docs/04 §1).
         Relation::enforceMorphMap([
+            'commerce_category' => Category::class,
             'user' => User::class,
             'company' => Company::class,
             'contact' => Contact::class,

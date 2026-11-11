@@ -3,12 +3,18 @@
 use App\Support\AdminNavigation;
 use App\Support\FurnitureNavigation;
 
-it('marks all fifteen transitional screens as 2030 and leaves unconfigured links disabled', function () {
+it('keeps legacy screens honest and links native categories', function () {
     config(['woodex.legacy_dashboard_url' => '']);
     $items = collect(FurnitureNavigation::groups())->pluck('items')->flatten(1);
     expect($items)->toHaveCount(15);
+    expect(collect(FurnitureNavigation::groups())->pluck('title')->all())->toContain('Commerce')->not->toContain('Commerce & Fulfilment');
     foreach ($items as $item) {
-        expect($item['phase'])->toBe('2030')
+        if ($item['route'] === 'admin.commerce.categories') {
+            expect($item['phase'])->toBeNull();
+
+            continue;
+        }
+        expect($item['phase'])->toBeIn(['2030', 'Legacy'])
             ->and($item['route'])->toBeNull()
             ->and($item['url'])->toBeNull();
     }
@@ -35,11 +41,11 @@ it('rejects unsafe or ambiguous dashboard addresses', function (string $base) {
 
 it('does not expose transitional navigation to guests', function () {
     expect(collect(AdminNavigation::for(null))->pluck('title')->all())
-        ->not->toContain('Commerce & Fulfilment', 'Procurement & Production');
+        ->not->toContain('Commerce', 'Procurement & Production');
 });
 
 it('explains unavailable links without claiming a native implementation', function () {
     config(['woodex.legacy_dashboard_url' => '']);
     $this->actingAs($this->userWithRole('owner'))->get('/admin')
-        ->assertOk()->assertSee('dashboard address not configured')->assertSee('Product Catalog');
+        ->assertOk()->assertSee('dashboard address not configured')->assertSee('Products');
 });
