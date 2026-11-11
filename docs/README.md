@@ -50,6 +50,14 @@ touching code.
 | [QUICK-TASKS.md](operations/QUICK-TASKS.md) | **Live backlog** — shipped vs open, owner-gated items marked 🔑 |
 | [VERCEL-RUNBOOK-2026-11-06.md](operations/VERCEL-RUNBOOK-2026-11-06.md) | Deployment, database and bootstrap-owner runbook |
 
+## Proposals — awaiting owner approval
+Not decisions. Nothing here is implemented, and nothing here overrides `agency-os/` until it is approved.
+
+| Document | Status |
+|---|---|
+| [laravel-os/00-REUSE-PROPOSAL-AND-ADMIN-MASTER-PLAN.md](laravel-os/00-REUSE-PROPOSAL-AND-ADMIN-MASTER-PLAN.md) | **Proposal** — reuse of the Laravel WOODEX OS source and the admin-upgrade master plan. Read-only inspection only; would reverse D-01 if approved |
+| [laravel-os/01-PHASE-1A-PREVIEW-EVIDENCE.md](laravel-os/01-PHASE-1A-PREVIEW-EVIDENCE.md) | **Evidence** — the synthetic SQLite preview of that source, run outside this repository on 2026-11-11. Not MySQL proof, not a browser test |
+
 ## Archive — superseded, kept for traceability
 Nothing here is authoritative. Do not cite these as current.
 
