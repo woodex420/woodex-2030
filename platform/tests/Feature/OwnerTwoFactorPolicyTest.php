@@ -31,7 +31,8 @@ it('lets owners use admin pages before optional setup even with a pending QR', f
 })->with([false, true]);
 
 it('lets an owner link Telegram without enabling or automatically requiring 2FA', function () {
-    config(['services.telegram.bot_token' => 'test-token', 'services.telegram.webhook_secret' => 'test-secret']);
+    // The bot name used to come from a default that named the Interior studio's bot; the test now states its own.
+    config(['services.telegram.bot_token' => 'test-token', 'services.telegram.webhook_secret' => 'test-secret', 'services.telegram.bot_username' => 'TestWoodexBot']);
     $owner = $this->userWithRole('owner');
     $this->actingAs($owner);
 
