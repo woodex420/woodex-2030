@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 
 const built = await build({ entryPoints: ['apps/storefront/src/lib/leadCapture.ts'], bundle: true, platform: 'node', format: 'esm', write: false });
-const { furnitureLeadPayload: map, captureStorefrontLead: send } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
+const { furnitureLeadPayload: map, captureStorefrontLead: send, redeemLeadHandoff: redeem } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 const input = { name: 'Synthetic Visitor', email: 'visitor@example.test', company: 'Synthetic Co', interest: 'Desk', note: 'Synthetic enquiry', source: 'Contact Form', contactConsent: true, preferredChannel: 'whatsapp', utmSource: 'test', landingPath: '/contact' };
 const mapped = map(input);
 assert.equal(mapped.source, 'website_form');
@@ -44,3 +44,19 @@ assert.equal(requested, false);
 await send({ ...input, turnstile_token: 'synthetic-token' }, 'v1', mock({ ok: true, reference: 'SYNTHETIC-VERIFIED' }), true);
 assert.equal(seen.body.turnstile_token, 'synthetic-token');
 console.log('Strict client verification checks passed.');
+
+const capability = 'a'.repeat(64);
+const capable = await send(input, 'v1', mock({ ok: true, reference: 'SYNTHETIC', handoff: { token: capability, expires_at: '2026-11-11T22:00:00Z' } }));
+assert.equal(capable.handoffToken, capability);
+assert.equal(capable.handoffUnavailable, false);
+const href = 'https://wa.me/923001234567?text=SYNTHETIC';
+assert.equal(await redeem(capability, mock({ logged: true, delivery: 'manual_handoff_not_sent', whatsapp_url: href })), href);
+assert.equal(seen.url, '/api/v1/leads/whatsapp-handoff');
+assert.deepEqual(seen.body, { token: capability });
+await assert.rejects(redeem('12', mock({})), /Invalid handoff/);
+await assert.rejects(redeem(capability, mock({}, 404)), /expired or is unavailable/);
+await assert.rejects(redeem(capability, mock({}, 429)), /retry shortly/);
+await assert.rejects(redeem(capability, mock({}, 503)), /retry shortly/);
+await assert.rejects(redeem(capability, mock({ logged: true, delivery: 'sent', whatsapp_url: href })), /not confirmed/);
+await assert.rejects(redeem(capability, mock({ logged: true, delivery: 'manual_handoff_not_sent', whatsapp_url: 'https://evil.example.test' })), /not confirmed/);
+console.log('Secure handoff adapter checks passed; no numeric ID, capability only in POST body.');

@@ -76,3 +76,7 @@ Added opt-in `VITE_LEAD_API_MODE=v1`, preserving the default legacy route, plus 
 ## Eighth slice: storefront v1 challenge protection
 
 Added a reusable Turnstile widget to v1 lead-only forms and strict client token handling, plus fail-closed backend verification for v1. Legacy behavior is preserved; no provider keys or production switch. Widget lifecycle, expiry/retry/reset and mocked real-browser flow verified. Full local suite: **2,049 passed, 34 skipped, 9 known environment failures**, 10,756 assertions; no unexplained failures. See [anti-spam evidence and remaining gates](07-STOREFRONT-ANTISPAM.md). Secure WhatsApp handoff and basket quote requests remain subsequent work.
+
+## Ninth slice: secure v1 manual WhatsApp handoff
+
+Added hashed 256-bit, 15-minute bearer capabilities for consenting Furniture WhatsApp enquiries and a module-gated, throttled POST redemption endpoint. Transactional/idempotent redemption records a timeline preparation event, not message delivery. Basket-free Quotation now logs before opening WhatsApp, with blocked-popup fallback and saved-enquiry expiry/errors. Legacy/basket paths unchanged. Focused **23 tests / 142 assertions**; full local **2,056 passed / 34 skipped / 9 known extension failures**, 10,825 assertions. SQLite/PGlite QA 108/108 each, production build 76/76 prerenders and Hostinger smoke passed. See [slice 08 contract, security rules and evidence](08-SECURE-WHATSAPP-HANDOFF.md). No production activation; real provider acceptance and basket persistence remain next gates.

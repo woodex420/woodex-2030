@@ -49,5 +49,25 @@ export async function captureStorefrontLead(input: Fields, mode: string = "legac
     throw new Error("The enquiry was not confirmed. Please refresh and try again.");
   }
   // Never invent a Node numeric lead ID, or invoke its handoff endpoint for a Laravel record.
-  return { ok: true, ref: reply.reference, reference: reply.reference, handoffUnavailable: true };
+  const handoffToken = typeof reply.handoff?.token === "string" && /^[a-f0-9]{64}$/.test(reply.handoff.token)
+    ? reply.handoff.token : undefined;
+  return { ok: true, ref: reply.reference, reference: reply.reference, handoffToken, handoffUnavailable: !handoffToken };
+}
+
+/** POST body only: never put bearer capabilities into paths, query strings or persistent storage. */
+export async function redeemLeadHandoff(token: string, request: typeof fetch = fetch) {
+  if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("Invalid handoff. Please submit a new enquiry.");
+  const response = await request("/api/v1/leads/whatsapp-handoff", {
+    method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!response.ok) throw new Error(response.status === 404
+    ? "This handoff has expired or is unavailable. Your enquiry remains saved; our team will follow up."
+    : "The handoff could not be logged. Please retry shortly.");
+  const reply = await response.json();
+  if (reply.logged !== true || reply.delivery !== "manual_handoff_not_sent"
+    || typeof reply.whatsapp_url !== "string" || !/^https:\/\/wa\.me\/\d+\?text=/.test(reply.whatsapp_url)) {
+    throw new Error("The handoff was not confirmed. Please retry.");
+  }
+  return reply.whatsapp_url as string;
 }

@@ -1,4 +1,5 @@
 import LeadChallenge from "@/components/LeadChallenge";
+import { redeemLeadHandoff } from "@/lib/leadCapture";
 import { getLeadAttribution, logManualWhatsAppHandoff, submitLead, submitQuoteRequest, useRuntimeRevision } from "@/lib/runtime";
 import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
@@ -41,6 +42,7 @@ const Quotation = () => {
   const [pendingAction, setPendingAction] = useState<"print" | "email" | "whatsapp" | null>(null);
   const [manualHandoff, setManualHandoff] = useState<{ leadId: number; ref: string; interest: string } | null>(null);
   const [manualHandoffUrl, setManualHandoffUrl] = useState("");
+  const [versionedHandoff, setVersionedHandoff] = useState<string | null>(null);
   const [handoffBusy, setHandoffBusy] = useState(false);
 
   const searchResults = useMemo(() => {
@@ -101,8 +103,9 @@ const Quotation = () => {
             ...attribution,
           });
       if (!result) throw new Error("The request could not be saved. Please try again.");
+      setVersionedHandoff(preferredChannel === "whatsapp" ? result.handoffToken ?? null : null);
       if (preferredChannel === "whatsapp" && result.handoffUnavailable) {
-        toast.info(`Enquiry ${result.ref} saved. WhatsApp handoff is not available on the new API yet; our team will follow up.`);
+        toast.info(`Enquiry ${result.ref} saved. WhatsApp handoff is currently unavailable; our team will follow up.`);
       }
       const leadId = Number(result.leadId ?? result.id);
       if (preferredChannel === "whatsapp" && Number.isSafeInteger(leadId) && leadId > 0) {
@@ -139,6 +142,22 @@ const Quotation = () => {
       const url = buildManualWhatsAppHref(handoff.ref, handoff.interest);
       setManualHandoffUrl(url);
       if (popup) { popup.opener = null; popup.location.href = url; }
+      toast.success("Handoff logged. Review and send the message yourself in WhatsApp; Woodex did not send it.");
+    } catch (error) {
+      popup?.close();
+      toast.error(error instanceof Error ? error.message : "The handoff could not be logged.");
+    } finally { setHandoffBusy(false); }
+  };
+
+  const openVersionedWhatsApp = async () => {
+    if (!versionedHandoff) return;
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
+    setHandoffBusy(true);
+    try {
+      const url = await redeemLeadHandoff(versionedHandoff);
+      setManualHandoffUrl(url);
+      if (popup) popup.location.href = url;
       toast.success("Handoff logged. Review and send the message yourself in WhatsApp; Woodex did not send it.");
     } catch (error) {
       popup?.close();
@@ -480,10 +499,10 @@ const Quotation = () => {
                       <p className="text-muted-foreground max-w-sm mx-auto">
                         Thank you! Our team will review your requirements and follow up through your selected contact method.
                       </p>
-                      {manualHandoff && (
+                      {(manualHandoff || versionedHandoff) && (
                         <div className="mx-auto mt-5 max-w-sm space-y-2">
-                          <p className="text-xs text-muted-foreground">WhatsApp is a manual handoff. This click is logged in the CRM inbox; Woodex does not send or receive a message automatically.</p>
-                          <Button type="button" disabled={handoffBusy} onClick={() => void openLoggedWhatsApp(manualHandoff)} className="bg-accent hover:bg-hon-green-dark text-accent-foreground">
+                          <p className="text-xs text-muted-foreground">WhatsApp is a manual handoff. This click is logged against your enquiry; Woodex does not send or receive a message automatically.{versionedHandoff ? " The secure link expires after 15 minutes." : ""}</p>
+                          <Button type="button" disabled={handoffBusy} onClick={() => { if (versionedHandoff) void openVersionedWhatsApp(); else if (manualHandoff) void openLoggedWhatsApp(manualHandoff); }} className="bg-accent hover:bg-hon-green-dark text-accent-foreground">
                             <MessageCircle className="mr-2 h-4 w-4" /> {handoffBusy ? "Logging handoff…" : "Log & open WhatsApp"}
                           </Button>
                           {manualHandoffUrl && <a href={manualHandoffUrl} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-accent underline">Open WhatsApp manually</a>}

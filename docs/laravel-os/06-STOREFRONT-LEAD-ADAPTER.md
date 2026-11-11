@@ -1,5 +1,7 @@
 # Storefront → Laravel lead adapter: rehearsal, not cutover
 
+**Follow-up:** [Secure v1 manual WhatsApp handoff implemented in slice 08](08-SECURE-WHATSAPP-HANDOFF.md); the earlier handoff gap below is historical. Basket quotes and production/provider gates remain outstanding.
+
 2026-11-11. Implements the first compatibility slice of the [API/gap plan](05-GAP-REGISTER-AND-NEXT-UPGRADE.md). The visual storefront and public deployment are not redesigned or switched by this work.
 
 ## What changed

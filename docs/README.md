@@ -76,3 +76,5 @@ Nothing here is authoritative. Do not cite these as current.
 - [Storefront lead adapter rehearsal and cutover gates](laravel-os/06-STOREFRONT-LEAD-ADAPTER.md)
 
 - [Storefront v1 anti-spam implementation and provider gates](laravel-os/07-STOREFRONT-ANTISPAM.md)
+
+- [Secure v1 manual WhatsApp handoff](laravel-os/08-SECURE-WHATSAPP-HANDOFF.md)

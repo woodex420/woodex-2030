@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Bridge\BridgeController;
 use App\Http\Controllers\Api\Bridge\McpHttpController;
 use App\Http\Controllers\Api\Public\ChatWidgetController;
 use App\Http\Controllers\Api\Public\LeadController;
+use App\Http\Controllers\Api\Public\LeadHandoffController;
 use App\Http\Controllers\Website\LegacySiteBridgeController;
 use App\Http\Middleware\AuthenticateMcpBridge;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,9 @@ Route::prefix('v1')->name('api.v1.')->middleware('module:lead_api')->group(funct
     Route::post('/leads', [LeadController::class, 'store'])
         ->middleware('throttle:public-leads')->name('leads.store');
     Route::get('/leads', fn () => response()->json(['message' => 'Use POST to submit an enquiry.'], 405)->header('Allow', 'POST'));
+    Route::post('/leads/whatsapp-handoff', [LeadHandoffController::class, 'store'])
+        ->middleware('throttle:20,1')->name('leads.handoff');
+    Route::get('/leads/whatsapp-handoff', fn () => response()->json(['message' => 'Use POST to prepare a handoff.'], 405)->header('Allow', 'POST'));
 });
 
 /*

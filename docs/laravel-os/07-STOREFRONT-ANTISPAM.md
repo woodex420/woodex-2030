@@ -1,5 +1,7 @@
 # Storefront v1 anti-spam — implemented, provider rehearsal pending
 
+**Follow-up:** [Secure v1 manual WhatsApp handoff implemented in slice 08](08-SECURE-WHATSAPP-HANDOFF.md); the earlier handoff gap below is historical. Basket quotes and production/provider gates remain outstanding.
+
 2026-11-11. Follows the [lead adapter rehearsal](06-STOREFRONT-LEAD-ADAPTER.md). This is not production activation.
 
 ## UI and request behavior
