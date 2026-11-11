@@ -42,7 +42,7 @@ final class FurnitureNavigation
             }
             if ($title === 'Commerce') {
                 array_splice($items, 1, 0, [[
-                    'label' => 'Catalogue categories', 'icon' => 'folder', 'route' => 'admin.commerce.categories',
+                    'label' => 'Categories', 'icon' => 'folder', 'route' => 'admin.commerce.categories',
                     'permission' => 'commerce.catalog.view', 'phase' => null, 'url' => null,
                 ]]);
             }

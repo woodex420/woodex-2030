@@ -1,0 +1,18 @@
+{
+  "source": "apps/storefront/src/pages/Shop.tsx",
+  "sha256": "16678c65352b95477300463da3af113ce74b57865b51b5458d499952cf217326",
+  "descriptions": {
+    "office-tables": "Executive, manager, and staff desks crafted from premium materials with integrated cable management.",
+    "executive-tables": "Commanding desks for C-suite offices with veneer finishes, glass inserts, and premium hardware.",
+    "chairs": "Ergonomic office chairs with lumbar support, adjustable armrests, and breathable mesh — BIFMA certified.",
+    "workstations": "Modular open-plan workstations optimized for collaboration and space efficiency.",
+    "cubicle-workstations": "Privacy-focused cubicle systems with acoustic panels for focused individual work.",
+    "storage": "Filing cabinets, bookshelves, and modular storage solutions for organized workspaces.",
+    "office-sofas": "Premium lounge seating for reception areas, waiting rooms, and executive lounges.",
+    "acoustic": "Sound-absorbing furniture and privacy pods for noise-sensitive work environments.",
+    "collaborative": "Flexible meeting tables, huddle pods, and brainstorming furniture for team collaboration.",
+    "bedroom": "Complete bedroom solutions including bed sets, dressing tables, mirrors, and storage.",
+    "living": "Sofas, coffee tables, TV units, and console tables for sophisticated living spaces.",
+    "dining": "Dining sets, chairs, and tables crafted for elegant home dining experiences."
+  }
+}

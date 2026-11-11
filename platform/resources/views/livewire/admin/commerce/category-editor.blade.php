@@ -1,6 +1,6 @@
 <div>
-    <x-admin.page-header :title="'Category CMS · '.$category->name" description="Draft-first category content. Native publication does not change the live storefront backend.">
-        <x-slot:actions><x-admin.button variant="secondary" :href="route('admin.commerce.categories')">Back / Quick Edit</x-admin.button></x-slot:actions>
+    <x-admin.page-header :title="'Edit category · '.$category->name" description="Draft-first category content. Native publication does not change the live storefront backend.">
+        <x-slot:actions><x-admin.button variant="secondary" :href="route('admin.commerce.categories')">Back to Categories</x-admin.button></x-slot:actions>
     </x-admin.page-header>
     <p class="mb-4 text-sm">Category: {{ $category->slug }} · Content version {{ $version }} · {{ $category->published_revision_id ? 'Native published revision #'.$category->published_revision_id : 'No native publication yet' }}. Office/Home are category parents; Series remain separate collections.</p>
     @if($errors->any())<div role="alert" class="mb-4 rounded-lg border border-error-500 p-4"><h2 class="font-semibold">Please correct these issues</h2><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
@@ -21,7 +21,8 @@
                 <div class="space-y-3">
                     <x-admin.field label="Hero image (JPEG, PNG or WebP; up to 4 MB and 6000 × 6000)" for="heroUpload"><input id="heroUpload" type="file" accept="image/jpeg,image/png,image/webp" wire:model="heroUpload" class="wx-input"></x-admin.field>
                     <p wire:loading wire:target="heroUpload" role="status">Uploading image…</p>
-                    @if($heroPath)<p class="text-sm">A saved hero image is attached. Previous revisions keep their images.</p>@endif
+                    @if($heroUpload && !$errors->has('heroUpload'))<img class="max-h-48 rounded-lg" src="{{ $heroUpload->temporaryUrl() }}" alt="New hero upload preview">@elseif($heroPath && $savedRevisionId)<img class="max-h-48 rounded-lg" src="{{ route('admin.commerce.category-content.hero', $savedRevisionId) }}" alt="{{ $form['hero_alt'] }}">@endif
+                    @if(!$heroPath && !$heroUpload)<p class="text-sm text-gray-500">No category image has been saved. Upload the actual category image here; product photos are not assigned automatically.</p>@endif
                     @if($heroPath || $heroUpload)<x-admin.button variant="secondary" wire:click="removeHero">Remove image from this draft</x-admin.button>@endif
                     <x-admin.field label="Image alternative text" for="form.hero_alt"><input id="form.hero_alt" wire:model="form.hero_alt" class="wx-input"></x-admin.field>
                 </div>
@@ -29,11 +30,13 @@
                 <x-admin.field label="Button local path" for="form.cta_path"><input id="form.cta_path" wire:model="form.cta_path" placeholder="/shop?segment=office" class="wx-input"></x-admin.field>
             </div>
         </x-admin.card>
-        <x-admin.card title="Introduction and bottom content" description="Plain text with preserved paragraphs; HTML/scripts are never executed.">
+        <div class="rounded-lg border p-4 text-sm"><p>Existing category text was not automatically imported. Load available storefront copy into an empty introduction, review it, then save a draft. Category-specific images must be uploaded; unrelated product photos are never substituted.</p><x-admin.button variant="secondary" wire:click="loadSourceText">Load existing storefront introduction</x-admin.button></div>
+        <x-admin.card title="Introduction and bottom content" description="Format paragraphs with headings, bold, italics, lists and links. Markdown is saved; raw HTML and unsafe links are blocked.">
             <div class="space-y-4">
                 @foreach(['intro_heading' => 'Introduction heading', 'bottom_heading' => 'Bottom content heading'] as $key => $label)<x-admin.field :label="$label" :for="'form.'.$key"><input id="form.{{ $key }}" wire:model="form.{{ $key }}" class="wx-input"></x-admin.field>@endforeach
-                <x-admin.field label="Introduction text" for="form.intro_text"><textarea id="form.intro_text" wire:model="form.intro_text" rows="5" class="wx-input"></textarea></x-admin.field>
-                <x-admin.field label="Bottom content" for="form.bottom_text"><textarea id="form.bottom_text" wire:model="form.bottom_text" rows="8" class="wx-input"></textarea></x-admin.field>
+                <x-admin.field label="Text format" for="form.text_format"><select id="form.text_format" wire:model.live="form.text_format" class="wx-input"><option value="markdown">Formatted text (Markdown)</option><option value="plain">Plain text (legacy content)</option></select></x-admin.field>
+                <x-admin.content-editor label="Introduction text" field="intro_text" :value="$form['intro_text']" :format="$form['text_format']" />
+                <x-admin.content-editor label="Bottom content" field="bottom_text" :value="$form['bottom_text']" :format="$form['text_format']" />
             </div>
         </x-admin.card>
         <x-admin.card title="Featured / Hot Products carousel" description="Repository catalogue reference only—not live inventory or verified sales popularity. Eligible products belong to this category or its descendants. Prices/images arrive with the native product integration.">

@@ -17,7 +17,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts::admin')]
-#[Title('Catalogue categories')]
+#[Title('Categories')]
 final class Categories extends Component
 {
     use InteractsWithAdmin, WithPagination;
@@ -75,7 +75,8 @@ final class Categories extends Component
             'form.is_active' => ['required', 'boolean'],
         ])['form'];
         $data['parent_id'] = filled($data['parent_id']) ? (int) $data['parent_id'] : null;
-        DB::transaction(function () use ($data): void {
+        $creating = $this->editingId === null;
+        $savedId = DB::transaction(function () use ($data): int {
             // Serialize tree moves; validation must be repeated against the locked current tree.
             $parents = Category::query()->orderBy('id')->lockForUpdate()->pluck('parent_id', 'id');
             $parent = $data['parent_id'];
@@ -96,9 +97,14 @@ final class Categories extends Component
                 $category->content_version = (int) $category->content_version + 1;
             }
             $category->save();
+
+            return $category->id;
         });
         $this->showForm = false;
         $this->toast('Category saved. This does not publish changes to the live storefront.');
+        if ($creating) {
+            $this->redirectRoute('admin.commerce.categories.edit', ['category' => $savedId]);
+        }
     }
 
     private function manage(): void

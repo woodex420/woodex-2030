@@ -50,9 +50,32 @@ final class CategoryEditor extends Component
         $this->version = (int) $category->content_version;
         $revision = $category->draft_revision_id ? CategoryContentRevision::where('category_id', $category->id)->findOrFail($category->draft_revision_id) : null;
         $this->form = $revision?->content ?? app(CategoryContent::class)->defaults($category);
+        $this->form['text_format'] ??= 'plain';
         $this->heroPath = $this->form['hero_path'] ?? null;
         unset($this->form['hero_path']);
         $this->savedRevisionId = $revision?->id;
+    }
+
+    public function loadSourceText(): void
+    {
+        $this->manage();
+        $source = json_decode(file_get_contents(resource_path('data/category-source-copy.json')), true, flags: JSON_THROW_ON_ERROR);
+        $aliases = json_decode(file_get_contents(resource_path('data/commerce-taxonomy.json')), true, flags: JSON_THROW_ON_ERROR)['aliases'];
+        $slug = $aliases[$this->category->slug] ?? $this->category->slug;
+        $description = $source['descriptions'][$slug] ?? null;
+        if (! $description) {
+            $this->addError('source', 'No category-specific text exists in the storefront source for this category. Add reviewed content manually.');
+
+            return;
+        }
+        if (filled($this->form['intro_text'])) {
+            $this->addError('source', 'Introduction already contains content. Clear it explicitly before loading source text.');
+
+            return;
+        }
+        $this->form['intro_text'] = $description;
+        $this->confirmPublish = false;
+        $this->toast('Existing storefront description loaded into this unsaved draft. Review claims before saving; no images or publication were changed.');
     }
 
     public function addFaq(): void
@@ -148,6 +171,7 @@ final class CategoryEditor extends Component
         $this->manage();
         $revision = CategoryContentRevision::where('category_id', $this->category->id)->findOrFail($revisionId);
         $this->form = $revision->content;
+        $this->form['text_format'] ??= 'plain';
         $this->heroPath = $this->form['hero_path'] ?? null;
         unset($this->form['hero_path']);
         $this->heroUpload = null;

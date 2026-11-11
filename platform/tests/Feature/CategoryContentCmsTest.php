@@ -160,3 +160,38 @@ it('unpublishes without deleting history and restores old content only as a new 
     $editor->call('restoreAsDraft', $old->id)->assertSet('savedRevisionId', null)->call('saveDraft')->assertHasNoErrors();
     expect(CategoryContentRevision::count())->toBe(3)->and(CategoryContentRevision::latest('id')->first()->content['hero_heading'])->toBe($old->content['hero_heading']);
 });
+
+it('renders formatted content safely and preserves old plain revisions', function () {
+    $service = app(CategoryContent::class);
+    $html = $service->formattedText("## Introduction\n\n**Real content**\n\n- First\n- Second\n\n<script>alert(1)</script>\n[unsafe](javascript:alert(1))\n![remote](https://example.com/track.png)", 'markdown');
+    expect($html)->toContain('<h2>Introduction</h2>', '<strong>Real content</strong>', '<ul>')
+        ->not->toContain('<script', 'href="javascript:', '<img');
+    expect($service->formattedText('**Original text** <script>'))->toContain('**Original text**', '&lt;script&gt;');
+    $form = $service->defaults($this->category);
+    $form['intro_text'] = '## Saved introduction';
+    $revision = $service->saveDraft($this->category, $form, null, 0, $this->editor);
+    $this->get(route('admin.commerce.category-content.preview', $revision))->assertOk()->assertSee('<h2>Saved introduction</h2>', false);
+});
+
+it('shows the unified category actions and formatting editor', function () {
+    $this->get(route('admin.commerce.categories'))->assertOk()->assertSee('Quick edit')->assertSee(route('admin.commerce.categories.edit', $this->category), false)->assertDontSee('Full Edit / CMS');
+    Livewire::test(CategoryEditor::class, ['category' => $this->category])->assertSee('Content preview')->assertSee('Formatted text (Markdown)')->assertSee('No category image has been saved');
+});
+
+it('continues category creation into the full editor', function () {
+    $component = Livewire::test(Categories::class)->call('create')
+        ->set('form.name', 'New test collection category')->set('form.slug', 'new-test-category')
+        ->set('form.parent_id', $this->category->id)->call('save')->assertHasNoErrors();
+    $created = Category::where('slug', 'new-test-category')->sole();
+    $component->assertRedirect(route('admin.commerce.categories.edit', $created));
+    expect($created->parent_id)->toBe($this->category->id);
+});
+
+it('loads existing source text only on request and never overwrites an introduction', function () {
+    $category = Category::where('slug', 'executive-tables')->sole();
+    $component = Livewire::test(CategoryEditor::class, ['category' => $category])->call('loadSourceText')->assertHasNoErrors();
+    expect($component->get('form.intro_text'))->toStartWith('Commanding desks');
+    $component->set('form.intro_text', 'Reviewed operator content')->call('loadSourceText')->assertHasErrors('source')->assertSet('form.intro_text', 'Reviewed operator content');
+    expect(CategoryContentRevision::count())->toBe(0);
+    Livewire::test(CategoryEditor::class, ['category' => $this->category])->call('loadSourceText')->assertHasErrors('source');
+});

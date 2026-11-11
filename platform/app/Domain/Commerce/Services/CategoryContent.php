@@ -10,18 +10,32 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 final class CategoryContent
 {
+    public function formattedText(string $text, string $format = 'plain'): string
+    {
+        if ($format !== 'markdown') {
+            return nl2br(e($text));
+        }
+
+        return strip_tags(Str::markdown($text, [
+            'html_input' => 'strip', 'allow_unsafe_links' => false,
+            'max_nesting_level' => 20,
+            'renderer' => ['soft_break' => "<br>\n"],
+        ]), '<p><br><strong><em><h1><h2><h3><h4><h5><h6><ul><ol><li><a><blockquote><code><pre><hr>');
+    }
+
     public function defaults(Category $category): array
     {
         return ['seo_title' => $category->name, 'seo_description' => '', 'og_title' => '', 'og_description' => '',
             'canonical_path' => '/shop?category='.$category->slug, 'allow_indexing' => false,
             'hero_template' => 'banner', 'hero_heading' => $category->name, 'hero_text' => '', 'hero_alt' => '',
             'cta_label' => '', 'cta_path' => '', 'intro_heading' => '', 'intro_text' => '',
-            'bottom_heading' => '', 'bottom_text' => '', 'faqs' => [],
+            'bottom_heading' => '', 'bottom_text' => '', 'text_format' => 'markdown', 'faqs' => [],
             'carousel_heading' => 'Featured products', 'carousel_mode' => 'off', 'carousel_sort' => 'catalogue',
             'carousel_limit' => 8, 'product_ids' => []];
     }
@@ -54,6 +68,7 @@ final class CategoryContent
             }
         };
         $rules = [
+            'text_format' => ['sometimes', 'required', Rule::in(['plain', 'markdown'])],
             'seo_title' => ['required', 'string', 'max:160'], 'seo_description' => ['nullable', 'string', 'max:320'],
             'og_title' => ['nullable', 'string', 'max:160'], 'og_description' => ['nullable', 'string', 'max:320'],
             'canonical_path' => ['required', 'string', 'max:300', $pathRule], 'allow_indexing' => ['required', 'boolean'],
