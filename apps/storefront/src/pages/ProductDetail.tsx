@@ -295,8 +295,8 @@ const ProductDetail = () => {
                     <Truck className="h-5 w-5 text-accent" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">Free Delivery</p>
-                    <p className="text-xs text-muted-foreground">Nationwide across Pakistan</p>
+                    <p className="font-medium text-sm">Delivery options</p>
+                    <p className="text-xs text-muted-foreground">Confirm timing and charges</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -307,7 +307,7 @@ const ProductDetail = () => {
                     <p className="font-medium text-sm">
                       {product.specifications.find(s => s.label === "Warranty")?.value || "Warranty"}
                     </p>
-                    <p className="text-xs text-muted-foreground">Manufacturer warranty</p>
+                    <p className="text-xs text-muted-foreground">Confirm written coverage</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -315,8 +315,8 @@ const ProductDetail = () => {
                     <Package className="h-5 w-5 text-accent" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">Free Assembly</p>
-                    <p className="text-xs text-muted-foreground">Professional installation</p>
+                    <p className="font-medium text-sm">Installation options</p>
+                    <p className="text-xs text-muted-foreground">Confirm assembly terms</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

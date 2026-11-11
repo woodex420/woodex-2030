@@ -41,10 +41,16 @@ final class FurnitureNavigation
                 ];
             }
             if ($title === 'Commerce') {
-                array_splice($items, 1, 0, [[
-                    'label' => 'Categories', 'icon' => 'folder', 'route' => 'admin.commerce.categories',
-                    'permission' => 'commerce.catalog.view', 'phase' => null, 'url' => null,
-                ]]);
+                $items = array_values(array_filter($items, fn ($item) => $item['label'] !== 'Products'));
+                foreach ($items as &$item) {
+                    $item['phase'] = 'soon';
+                }
+                unset($item);
+                $native = [];
+                foreach ([['Commerce Overview', 'overview', null], ['Products', 'products', null], ['Categories', 'categories', null], ['Series', 'series', 'soon'], ['Shop customization', 'shop', 'soon']] as [$label, $route, $phase]) {
+                    $native[] = ['label' => $label, 'icon' => 'folder', 'route' => 'admin.commerce.'.$route, 'permission' => 'commerce.catalog.view', 'phase' => $phase, 'url' => null];
+                }
+                $items = array_merge($native, $items);
             }
             $groups[] = ['title' => $title, 'items' => $items];
         }

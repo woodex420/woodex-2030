@@ -62,6 +62,8 @@ export interface Product {
   originalPrice?: number;
   description: string;
   shortDescription: string;
+  shipping?: string;
+  warranty?: string;
   images: string[];
   colors: ProductColor[];
   specifications: ProductSpecification[];

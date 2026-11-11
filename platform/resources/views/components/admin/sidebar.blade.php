@@ -65,7 +65,7 @@
                                     <x-icon :name="$item['icon']" class="size-5 shrink-0" />
                                     <span x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen" class="flex flex-1 items-center justify-between gap-2 truncate">
                                         {{ $item['label'] }}
-                                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">{{ $item['phase'] }} ↗</span>
+                                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">{{ $item['phase'] === 'soon' ? 'Soon' : $item['phase'] }} ↗</span>
                                     </span>
                                 </a>
                             @elseif ($item['route'])
@@ -78,6 +78,7 @@
                                    title="{{ $item['label'] }}">
                                     <x-icon :name="$item['icon']" class="size-5 shrink-0" />
                                     <span x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen" class="truncate">{{ $item['label'] }}</span>
+                                    @if(($item['phase'] ?? null) === 'soon')<span class="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500" x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen">Soon</span>@endif
                                     @if ($badge > 0)
                                         <span class="ml-auto rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white dark:bg-brand-500"
                                               x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen">{{ $badge > 99 ? '99+' : $badge }}</span>

@@ -45,6 +45,7 @@ return [
     ],
 
     // Approved category cutover. Disable to return a 503 and use the storefront fallback.
+    'catalogue_source_image_root' => env('CATALOGUE_SOURCE_IMAGE_ROOT', base_path('../apps/api/public/img')),
     'category_sync_enabled' => (bool) env('CATEGORY_SYNC_ENABLED', true),
 
     'owner' => [

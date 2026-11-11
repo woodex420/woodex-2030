@@ -6,15 +6,20 @@ use App\Support\FurnitureNavigation;
 it('keeps legacy screens honest and links native categories', function () {
     config(['woodex.legacy_dashboard_url' => '']);
     $items = collect(FurnitureNavigation::groups())->pluck('items')->flatten(1);
-    expect($items)->toHaveCount(15);
+    expect($items)->toHaveCount(18);
     expect(collect(FurnitureNavigation::groups())->pluck('title')->all())->toContain('Commerce')->not->toContain('Commerce & Fulfilment');
     foreach ($items as $item) {
-        if ($item['route'] === 'admin.commerce.categories') {
+        if (in_array($item['route'], ['admin.commerce.categories', 'admin.commerce.products', 'admin.commerce.overview'], true)) {
             expect($item['phase'])->toBeNull();
 
             continue;
         }
-        expect($item['phase'])->toBeIn(['2030', 'Legacy'])
+        if ($item['route']) {
+            expect($item['phase'])->toBe('soon');
+
+            continue;
+        }
+        expect($item['phase'])->toBeIn(['2030', 'soon'])
             ->and($item['route'])->toBeNull()
             ->and($item['url'])->toBeNull();
     }
@@ -25,7 +30,7 @@ it('links to the existing dashboard base path without sharing authentication', f
     $owner = $this->userWithRole('owner');
     $this->actingAs($owner)->get('/admin')
         ->assertOk()
-        ->assertSee('https://furniture.example/dashboard/catalog', false)
+        ->assertSee('https://furniture.example/dashboard/orders', false)
         ->assertSee('2030 ↗')
         ->assertSee('rel="noopener noreferrer"', false);
 });

@@ -10,7 +10,7 @@
     </x-admin.card>
     <x-admin.card title="Series collections" description="Separate from category parents. A product can belong to a category and a Series.">
         <div class="mb-4 flex flex-wrap gap-3">@foreach($series as $collection)<a class="rounded-lg border px-4 py-2 underline" href="{{ route('admin.commerce.series') }}">{{ $collection->name }}</a>@endforeach</div>
-        <x-admin.button variant="secondary" :href="route('admin.commerce.series')">Organize Series</x-admin.button>
+        <x-admin.button variant="secondary" :href="route('admin.commerce.series')">Series · Soon</x-admin.button>
     </x-admin.card>
     <p class="my-4 text-sm text-gray-600">Category names, active status and order are available to the connected storefront immediately. Page content changes require Save draft → Preview → Publish. Series are separate collections, not category ancestors.</p>
     <x-admin.card>
@@ -46,6 +46,7 @@
             </div>
             <x-slot:footer>
                 <x-admin.button variant="secondary" wire:click="$set('showForm', false)">Cancel</x-admin.button>
+                @if($editingId)<x-admin.button variant="secondary" :href="route('admin.commerce.categories.edit', $editingId).'#featured-products'">Edit page / featured products</x-admin.button>@endif
                 <x-admin.button type="submit" wire:loading.attr="disabled" wire:target="save">{{ $editingId ? 'Save category' : 'Create and continue to editor' }}</x-admin.button>
             </x-slot:footer>
         </x-admin.modal>

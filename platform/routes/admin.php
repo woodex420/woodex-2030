@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ConversationMediaController;
 use App\Http\Controllers\Admin\InvoicePdfController;
 use App\Http\Controllers\Admin\LeadCsvExportController;
 use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\ProductPreviewController;
 use App\Http\Controllers\Admin\QuoteDraftPreviewController;
 use App\Http\Controllers\Admin\QuotePdfController;
 use App\Http\Controllers\Admin\SystemUpdateController;
@@ -24,6 +25,10 @@ use App\Livewire\Admin\Accounts\TrialBalance;
 use App\Livewire\Admin\Automation\SequencesIndex;
 use App\Livewire\Admin\Commerce\Categories;
 use App\Livewire\Admin\Commerce\CategoryEditor;
+use App\Livewire\Admin\Commerce\CommerceWorkspace;
+use App\Livewire\Admin\Commerce\ProductEditor;
+use App\Livewire\Admin\Commerce\Products;
+use App\Livewire\Admin\Commerce\ProductTransfers;
 use App\Livewire\Admin\Commerce\SeriesManager;
 use App\Livewire\Admin\Conversations\CannedRepliesIndex;
 use App\Livewire\Admin\Conversations\Inbox;
@@ -254,8 +259,18 @@ Route::livewire('/integrations/whatsapp-templates', WhatsAppTemplates::class)->n
 Route::livewire('/data-import', DataImport::class)->name('data-import')->middleware('can:system.import');
 
 Route::livewire('/commerce/categories', Categories::class)->name('commerce.categories')->middleware('can:commerce.catalog.view');
-Route::livewire('/commerce/series', SeriesManager::class)->middleware('can:commerce.catalog.view')->name('commerce.series');
+Route::livewire('/commerce/series/organize', SeriesManager::class)->middleware('can:commerce.catalog.view')->name('commerce.series.organize');
+Route::livewire('/commerce/series', CommerceWorkspace::class)->middleware('can:commerce.catalog.view')->name('commerce.series');
 
 Route::livewire('/commerce/categories/{category}/edit', CategoryEditor::class)->name('commerce.categories.edit')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage']);
 Route::get('/commerce/category-revisions/{revision}/preview', [CategoryContentPreviewController::class, 'show'])->name('commerce.category-content.preview')->middleware('can:commerce.catalog.view');
 Route::get('/commerce/category-revisions/{revision}/hero', [CategoryContentPreviewController::class, 'image'])->name('commerce.category-content.hero')->middleware('can:commerce.catalog.view');
+
+Route::livewire('/commerce', CommerceWorkspace::class)->name('commerce.overview')->middleware('can:commerce.catalog.view');
+Route::livewire('/commerce/shop', CommerceWorkspace::class)->name('commerce.shop')->middleware('can:commerce.catalog.view');
+Route::livewire('/commerce/products', Products::class)->name('commerce.products')->middleware('can:commerce.catalog.view');
+Route::livewire('/commerce/products/transfers', ProductTransfers::class)->name('commerce.products.transfers')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage']);
+Route::livewire('/commerce/products/create', ProductEditor::class)->name('commerce.products.create')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage']);
+Route::livewire('/commerce/products/{product}/edit', ProductEditor::class)->name('commerce.products.edit')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage']);
+Route::get('/commerce/products/{product}/preview', [ProductPreviewController::class, 'show'])->name('commerce.products.preview')->middleware('can:commerce.catalog.view');
+Route::get('/commerce/product-media/{media}', [ProductPreviewController::class, 'image'])->name('commerce.product-media')->middleware('can:commerce.catalog.view');

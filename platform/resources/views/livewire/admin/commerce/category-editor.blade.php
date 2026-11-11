@@ -39,7 +39,7 @@
                 <x-admin.content-editor label="Bottom content" field="bottom_text" :value="$form['bottom_text']" :format="$form['text_format']" />
             </div>
         </x-admin.card>
-        <x-admin.card title="Featured / Hot Products carousel" description="Repository catalogue reference only—not live inventory or verified sales popularity. Eligible products belong to this category or its descendants. Connected storefronts resolve selected references to their existing product cards, images and prices.">
+        <x-admin.card id="featured-products" title="Featured / Hot Products carousel" description="Repository catalogue reference only—not live inventory or verified sales popularity. Eligible products belong to this category or its descendants. Connected storefronts resolve selected references to their existing product cards, images and prices.">
             <div class="grid gap-4 md:grid-cols-2">
                 <x-admin.field label="Section heading" for="form.carousel_heading"><input id="form.carousel_heading" wire:model="form.carousel_heading" class="wx-input"></x-admin.field>
                 <x-admin.field label="Selection mode" for="form.carousel_mode"><select id="form.carousel_mode" wire:model.live="form.carousel_mode" class="wx-input"><option value="off">Hidden</option><option value="manual">Manual selection</option><option value="automatic">Automatic category selection</option></select></x-admin.field>
@@ -47,7 +47,7 @@
                 <x-admin.field label="Automatic sorting" for="form.carousel_sort"><select id="form.carousel_sort" wire:model="form.carousel_sort" class="wx-input"><option value="catalogue">Source catalogue order</option><option value="name">Name A–Z</option></select></x-admin.field>
             </div>
             @if($form['carousel_mode'] === 'manual')
-                <x-admin.field label="Select up to 12 eligible products, then order them below" for="form.product_ids"><select id="form.product_ids" multiple size="8" wire:model.live="form.product_ids" class="wx-input mt-3">@foreach($eligible as $product)<option value="{{ $product['id'] }}">{{ $product['name'] }}</option>@endforeach</select></x-admin.field>
+                <fieldset class="mt-4"><legend class="font-semibold">Check up to 12 eligible products, then order them below</legend><div class="mt-2 grid max-h-72 gap-2 overflow-auto md:grid-cols-2">@foreach($eligible as $product)<label class="flex gap-2"><input type="checkbox" wire:model.live="form.product_ids" value="{{ $product['id'] }}">{{ $product['name'] }}</label>@endforeach</div></fieldset>
                 <ol class="mt-3 space-y-2">@foreach($form['product_ids'] as $index => $productId)<li class="flex flex-wrap items-center gap-2" wire:key="featured-{{ $productId }}"><span>{{ collect($eligible)->firstWhere('id', $productId)['name'] ?? $productId }}</span><x-admin.button variant="secondary" wire:click="moveProduct({{ $index }}, -1)" aria-label="Move product up">↑</x-admin.button><x-admin.button variant="secondary" wire:click="moveProduct({{ $index }}, 1)" aria-label="Move product down">↓</x-admin.button></li>@endforeach</ol>
             @endif
             @if(count($eligible) === 0)<p class="mt-3 text-sm">No eligible reference products. This category can still have content and FAQs; no products will be invented.</p>@endif

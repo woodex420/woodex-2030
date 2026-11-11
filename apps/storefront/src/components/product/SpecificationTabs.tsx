@@ -82,62 +82,14 @@ const SpecificationTabs = ({ product }: SpecificationTabsProps) => {
       </TabsContent>
 
       <TabsContent value="shipping" className="mt-6">
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="shrink-0 w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <Truck className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">Free Delivery</h4>
-                <p className="text-sm text-muted-foreground">
-                  Free delivery within UAE for orders above AED 2,000. Standard delivery takes 5-7 business days.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="shrink-0 w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <Settings className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">Professional Assembly</h4>
-                <p className="text-sm text-muted-foreground">
-                  Our team provides free professional assembly and installation for all furniture items.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6 space-y-4"><h4 className="font-medium">Delivery and installation</h4>
+          <p className="whitespace-pre-line text-sm text-muted-foreground">{product.shipping || "Delivery timing, charges and installation terms have not been confirmed for this product. Contact WOODEX for the applicable terms before ordering."}</p>
+        </CardContent></Card>
       </TabsContent>
-
       <TabsContent value="warranty" className="mt-6">
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="shrink-0 w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <Shield className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">
-                  {product.specifications.find(s => s.label === "Warranty")?.value || "Standard Warranty"}
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  This product comes with a comprehensive warranty covering manufacturing defects and normal wear.
-                  Our warranty includes free repair or replacement of defective parts.
-                </p>
-              </div>
-            </div>
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <h5 className="font-medium mb-2">Warranty Coverage Includes:</h5>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Manufacturing defects</li>
-                <li>• Structural integrity issues</li>
-                <li>• Mechanism failures (for chairs and adjustable desks)</li>
-                <li>• Upholstery defects (within first year)</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6 space-y-4"><h4 className="font-medium">{product.specifications.find(s => s.label === "Warranty")?.value || "Warranty terms"}</h4>
+          <p className="whitespace-pre-line text-sm text-muted-foreground">{product.warranty || "Confirm this product's written warranty coverage, exclusions and service process with WOODEX. A source warranty label does not establish coverage for normal wear or every component."}</p>
+        </CardContent></Card>
       </TabsContent>
     </Tabs>
   );

@@ -1,0 +1,11 @@
+<div><x-admin.page-header :title="$section" :description="$section === 'Commerce Overview' ? 'Catalogue migration and review workspace. Native and existing storefront data are explicitly separate.' : 'Soon · Planned full customization. No incomplete editor is presented as a finished system.'" />
+@if($section === 'Commerce Overview')
+<div class="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">@foreach($counts as $label => $count)<x-admin.card :title="$label"><p class="text-2xl font-semibold">{{ $count }}</p></x-admin.card>@endforeach</div>
+<x-admin.card title="Catalogue workflow"><div class="flex flex-wrap gap-3"><x-admin.button :href="route('admin.commerce.products')">Products</x-admin.button><x-admin.button variant="secondary" :href="route('admin.commerce.categories')">Categories</x-admin.button>@can('commerce.catalog.manage')<x-admin.button variant="secondary" :href="route('admin.commerce.products.transfers')">Review source / import / export</x-admin.button>@endcan</div><p class="mt-4">Source: 148 repository products and 18 distinct shared photographs. Import into drafts, review actual photo identity, price/availability, structured variants and policy claims, then preview. Existing Node storefront products are not silently overwritten.</p><p class="mt-3 text-sm text-gray-500">Category runtime sync is separate. Product backend cutover and quote/variant mapping acceptance are not enabled by a draft import or native publication.</p></x-admin.card>
+@else
+<x-admin.card :title="$section.' · Soon'">
+@if($section === 'Series')<p>Planned: complete collection pages with their own executive/manager tables, workstations, chairs and other eligible products; collection hero, content, SEO, FAQs and reviewed product assignments. Series remain separate from category ancestors. Existing memberships are preserved.</p><x-admin.button variant="secondary" :href="route('admin.commerce.series.organize')">Open existing Series organizer</x-admin.button>
+@else<p>Planned: shop hero, category/sidebar navigation, featured sections, content blocks and footer customization with one shared storefront renderer, revision history and preview/publish. This scope remains Soon while the Products workflow is completed.</p>@endif
+</x-admin.card>
+@endif
+</div>

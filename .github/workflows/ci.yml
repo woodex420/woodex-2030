@@ -44,6 +44,7 @@ jobs:
           node scripts/test-commerce-taxonomy.mjs
           node scripts/test-native-category-sync.mjs
           node scripts/build-category-reference.mjs --check
+          node scripts/build-product-import.mjs --check
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps
