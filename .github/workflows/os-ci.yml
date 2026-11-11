@@ -92,7 +92,7 @@ jobs:
           echo "imported files adapted or removed since the import: $(wc -l < /tmp/differs.txt)"
           cat /tmp/differs.txt
 
-      - name: Migrate an empty MySQL database (72 reviewed + 21 settings migrations)
+      - name: Migrate an empty MySQL database (72 reviewed + 22 settings migrations)
         run: |
           php artisan migrate --force
           php artisan migrate:status | tail -5
@@ -103,7 +103,7 @@ jobs:
           recorded=$(q "SELECT COUNT(*) FROM migrations")
           pages=$(q "SELECT COUNT(*) FROM pages")
           echo "::notice title=MySQL schema::MySQL ${version}: ${tables} tables, ${keys} foreign keys, ${recorded} migrations recorded, ${pages} website pages"
-          test "$recorded" = "93"
+          test "$recorded" = "94"
           test "$pages" = "0"
 
       - name: The quarantined Interior content migrations never ran

@@ -18,6 +18,13 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 beforeEach(function () {
+    // Explicit synthetic signing identities: production defaults intentionally contain no people.
+    $sales = app(\App\Settings\SalesSettings::class);
+    $sales->signatories = [
+        ['name' => 'Synthetic Director', 'title' => 'Director'],
+        ['name' => 'Synthetic Manager', 'title' => 'Marketing Manager'],
+    ];
+    $sales->save();
     Storage::fake('local');
     Notification::fake();
     $this->owner = $this->userWithRole('owner');
@@ -45,7 +52,7 @@ it('uses paired client and project cards and a better frozen logo without changi
 it('keeps the four payment conditions and editable default people at the bottom after the contact strip', function () {
     $s = app(QuoteSnapshot::class)->build($this->quote->refresh());
     $html = app(QuotePdf::class)->html($s);
-    expect($html)->toContain('50% advance payment with work order.', 'Materials, finish and fabric are subject to client approval.', 'Delivery starts after advance confirmation and material approval.', 'Quotation validity is shown above.', 'Imtiaz Ahmad', 'Director', 'Nabeel Afzal', 'Marketing Manager')
+    expect($html)->toContain('50% advance payment with work order.', 'Materials, finish and fabric are subject to client approval.', 'Delivery starts after advance confirmation and material approval.', 'Quotation validity is shown above.', 'Synthetic Director', 'Director', 'Synthetic Manager', 'Marketing Manager')
         ->and(strpos($html, '<section class="document-close">'))->toBeLessThan(strpos($html, '<section class="terms">'))
         ->and(strpos($html, '<section class="terms">'))->toBeLessThan(strpos($html, '<table class="signatures">'));
     $page = Livewire::test(QuoteBuilder::class, ['quote' => $this->quote]);
@@ -60,11 +67,11 @@ it('hides terms and signatures without deleting their values or changing any amo
     $this->editor->updateFurnitureText($this->quote, ['show_terms' => 'no', 'show_signatories' => 'no']);
     $s = app(QuoteSnapshot::class)->build($this->quote->refresh());
     $html = app(QuotePdf::class)->html($s);
-    expect($html)->not->toContain('<h3>Terms and conditions</h3>', '<table class="signatures">', 'Imtiaz Ahmad')
+    expect($html)->not->toContain('<h3>Terms and conditions</h3>', '<table class="signatures">', 'Synthetic Director')
         ->and($s['totals'])->toBe($before['totals'])->and($s['terms'])->toBe($before['terms']);
     Livewire::test(QuoteBuilder::class, ['quote' => $this->quote])->assertSee('Bottom sections')->assertSet('details.signatories_text', $s['furniture']['signatories_text']);
     $this->editor->updateFurnitureText($this->quote, ['show_terms' => 'yes', 'show_signatories' => 'yes']);
-    expect(app(QuotePdf::class)->html(app(QuoteSnapshot::class)->build($this->quote->refresh())))->toContain('Imtiaz Ahmad', '50% advance payment with work order.');
+    expect(app(QuotePdf::class)->html(app(QuoteSnapshot::class)->build($this->quote->refresh())))->toContain('Synthetic Director', '50% advance payment with work order.');
 });
 
 it('retains user-uploaded logos rather than replacing them with the new default mark', function () {

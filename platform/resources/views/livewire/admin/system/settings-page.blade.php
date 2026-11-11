@@ -2,6 +2,14 @@
     <x-admin.page-header title="Settings" description="Business details appear on quotations, invoices and the website. Sales rules drive SLAs, discounts and reports."
                          :breadcrumbs="['System' => null, 'Settings' => null]" />
 
+    @if (blank(app(\App\Settings\BusinessSettings::class)->legal_name) || blank(app(\App\Settings\SalesSettings::class)->execution_terms) || app(\App\Settings\SalesSettings::class)->signatories === [])
+        <div role="status" class="mb-6 rounded-lg border border-gray-200 bg-white p-4 text-theme-sm dark:border-gray-800 dark:bg-gray-900">
+            <strong>Furniture setup pending owner confirmation.</strong>
+            Confirm the legal identity, contact details, payment/warranty/delivery terms and authorized signatories before issuing business documents.
+            Blank fields are intentional; no replacement commercial terms have been invented. This notice is not a document-issuance lock.
+        </div>
+    @endif
+
     <div class="wx-settings-tabs mb-6 flex max-w-full flex-wrap gap-1 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-white/[0.03]" role="tablist" aria-label="Settings sections">
         @foreach (['business' => 'Business', 'sales' => 'Sales rules', 'leads' => 'Lead rules', 'notifications' => 'Notifications', 'whatsapp' => 'WhatsApp', 'bot' => 'Bot'] as $key => $label)
             <button type="button" wire:click="$set('tab', '{{ $key }}')" role="tab" aria-selected="{{ $tab === $key ? 'true' : 'false' }}"

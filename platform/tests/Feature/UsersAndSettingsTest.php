@@ -11,6 +11,25 @@ use App\Settings\SalesSettings;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 
+
+// These tests edit a configured business; do not depend on inherited Interior defaults.
+beforeEach(function () {
+    $business = app(BusinessSettings::class);
+    $business->legal_name = 'Synthetic Furniture Company';
+    $business->tagline = 'Synthetic test identity';
+    $business->address = 'Synthetic test address';
+    $business->phone = '+923001234567';
+    $business->whatsapp = '+923001234567';
+    $business->email = 'office@example.test';
+    $business->website = 'https://example.test';
+    $business->save();
+    $sales = app(SalesSettings::class);
+    $sales->execution_terms = 'Synthetic execution terms';
+    $sales->design_terms = 'Synthetic design terms';
+    $sales->save();
+});
+
+
 it('invites a team member who receives a set-password link', function () {
     Notification::fake();
     $this->actingAs($this->userWithRole('owner'));

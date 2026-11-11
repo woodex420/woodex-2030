@@ -26,6 +26,13 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function () {
+    // Explicit synthetic signing identities: production defaults intentionally contain no people.
+    $sales = app(\App\Settings\SalesSettings::class);
+    $sales->signatories = [
+        ['name' => 'Synthetic Director', 'title' => 'Director'],
+        ['name' => 'Synthetic Manager', 'title' => 'Marketing Manager'],
+    ];
+    $sales->save();
     Storage::fake('local');
     Notification::fake();
     $this->owner = $this->userWithRole('owner');

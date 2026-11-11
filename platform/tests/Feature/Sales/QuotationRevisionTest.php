@@ -25,6 +25,13 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function () {
+    // Explicit synthetic signing identities: production defaults intentionally contain no people.
+    $sales = app(\App\Settings\SalesSettings::class);
+    $sales->signatories = [
+        ['name' => 'Synthetic Director', 'title' => 'Director'],
+        ['name' => 'Synthetic Manager', 'title' => 'Marketing Manager'],
+    ];
+    $sales->save();
     Storage::fake('local');
     Notification::fake();
     $this->owner = $this->userWithRole('owner');
@@ -50,7 +57,7 @@ it('uses current quotation-only revisions and six authoritative Furniture terms'
         ->and($terms[3][1])->toContain($this->quote->valid_until->format('d M Y'))
         ->and($terms[4][1])->toBe('15–20 days');
     $html = app(QuotePdf::class)->html($s);
-    expect($html)->toContain('data-furniture-revision="5"', '35,625', '11,875', 'quotation-commercial-close', 'Imtiaz Ahmad', 'Nabeel Afzal')
+    expect($html)->toContain('data-furniture-revision="5"', '35,625', '11,875', 'quotation-commercial-close', 'Synthetic Director', 'Synthetic Manager')
         ->not->toContain('<section class="document-close">', 'Quotation validity is shown above.', 'Amount in words');
     expect(app(QuotePdf::class)->render($s))->toStartWith('%PDF-');
     expect(app(DocumentStyles::class)->quotationCopy(BusinessLine::Interior)['interior_revision'])->toBe(3)

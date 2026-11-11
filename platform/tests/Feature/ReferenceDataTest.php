@@ -36,8 +36,8 @@ it('ships business and sales settings defaults', function () {
     $business = app(BusinessSettings::class);
     $sales = app(SalesSettings::class);
 
-    expect($business->whatsapp)->toBe('+923224000768')
+    expect($business->whatsapp)->toBe('')
         ->and($business->hours()->opensAt)->toBe('10:00')
         ->and($sales->quote_validity_days)->toBe(15)
-        ->and($sales->signatories[0]['name'])->toBe('Imtiaz Ahmad');
+        ->and($sales->signatories)->toBe([]);
 });
