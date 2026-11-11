@@ -18,11 +18,32 @@ concurrency:
   group: os-ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  APP_ENV: testing
+  # Fixed all-zero test key, as in the source project's own CI. Never used outside tests.
+  APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+  APP_URL: http://localhost
+  DB_CONNECTION: mysql
+  DB_HOST: 127.0.0.1
+  DB_PORT: "3306"
+  DB_DATABASE: woodex_test
+  DB_USERNAME: woodex_test
+  # A throwaway container that lives for one job. These are not credentials for anything else.
+  DB_PASSWORD: disposable-ci-only
+  DB_URL: ""
+  DB_SOCKET: ""
+  MAIL_MAILER: array
+  QUEUE_CONNECTION: sync
+  CACHE_STORE: array
+  SESSION_DRIVER: array
+  WOODEX_MODULES: "*"
+  COLUMNS: "200"
+
 jobs:
-  mysql:
-    name: PHP 8.4 · MySQL 8.4 — migrate, seed, test
+  database:
+    name: MySQL 8.4 — migrate, neutral seed, rebuild
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
 
     services:
       mysql:
@@ -30,7 +51,6 @@ jobs:
         env:
           MYSQL_DATABASE: woodex_test
           MYSQL_USER: woodex_test
-          # A throwaway container that lives for one job. These are not credentials for anything else.
           MYSQL_PASSWORD: disposable-ci-only
           MYSQL_ROOT_PASSWORD: disposable-ci-root
         ports: ["3306:3306"]
@@ -45,25 +65,6 @@ jobs:
       run:
         working-directory: platform
 
-    env:
-      APP_ENV: testing
-      # Fixed all-zero test key, as in the source project's own CI. Never used outside tests.
-      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-      APP_URL: http://localhost
-      DB_CONNECTION: mysql
-      DB_HOST: 127.0.0.1
-      DB_PORT: "3306"
-      DB_DATABASE: woodex_test
-      DB_USERNAME: woodex_test
-      DB_PASSWORD: disposable-ci-only
-      DB_URL: ""
-      DB_SOCKET: ""
-      MAIL_MAILER: array
-      QUEUE_CONNECTION: sync
-      CACHE_STORE: array
-      SESSION_DRIVER: array
-      WOODEX_MODULES: "*"
-
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -76,12 +77,6 @@ jobs:
           extensions: pdo_mysql, pdo_sqlite, intl, mbstring, bcmath, zip, gd, exif, pcntl, dom, xml, xmlwriter, fileinfo, sodium
           coverage: none
           tools: composer:v2
-
-      - name: Versions
-        run: |
-          php -v | head -1
-          composer --version
-          mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only -e 'SELECT VERSION() AS mysql_version, @@sql_mode AS sql_mode\G' woodex_test
 
       - name: Install the locked dependencies (no scripts)
         run: |
@@ -101,15 +96,19 @@ jobs:
         run: |
           php artisan migrate --force
           php artisan migrate:status | tail -5
-          mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -e "
-            SELECT COUNT(*) AS tables_created FROM information_schema.tables WHERE table_schema = DATABASE();
-            SELECT COUNT(*) AS foreign_keys FROM information_schema.referential_constraints WHERE constraint_schema = DATABASE();
-            SELECT COUNT(*) AS migrations_recorded FROM migrations;
-            SELECT COUNT(*) AS website_pages_must_be_zero FROM pages;"
+          q() { mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "$1" 2>/dev/null; }
+          version=$(q "SELECT VERSION()")
+          tables=$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
+          keys=$(q "SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema = DATABASE()")
+          recorded=$(q "SELECT COUNT(*) FROM migrations")
+          pages=$(q "SELECT COUNT(*) FROM pages")
+          echo "::notice title=MySQL schema::MySQL ${version}: ${tables} tables, ${keys} foreign keys, ${recorded} migrations recorded, ${pages} website pages"
+          test "$recorded" = "93"
+          test "$pages" = "0"
 
       - name: The quarantined Interior content migrations never ran
         run: |
-          ran=$(mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "SELECT COUNT(*) FROM migrations WHERE migration REGEXP 'seed_legacy_redirects|import_website_content|ensure_website_content|repair_imported_image_alt|publish_imported_website_pages|add_enquiry_form_to_home|add_call_to_action_to_pages|link_city_pages_to_their_areas|correct_the_privacy_page_hosting_claims|reload_the_complete_website|remove_the_furniture_page'")
+          ran=$(mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "SELECT COUNT(*) FROM migrations WHERE migration REGEXP 'seed_legacy_redirects|import_website_content|ensure_website_content|repair_imported_image_alt|publish_imported_website_pages|add_enquiry_form_to_home|add_call_to_action_to_pages|link_city_pages_to_their_areas|correct_the_privacy_page_hosting_claims|reload_the_complete_website|remove_the_furniture_page'" 2>/dev/null)
           echo "quarantined migrations recorded as run: $ran"
           test "$ran" = "0"
           test "$(ls database/quarantine/interior-content | wc -l)" = "11"
@@ -119,30 +118,117 @@ jobs:
           APP_ENV: local
         run: |
           php artisan db:seed --class=ProductionSeeder --force
-          mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -e "
-            SELECT (SELECT COUNT(*) FROM roles) AS roles, (SELECT COUNT(*) FROM permissions) AS permissions,
-                   (SELECT COUNT(*) FROM pipeline_stages) AS stages, (SELECT COUNT(*) FROM chart_of_accounts) AS accounts,
-                   (SELECT COUNT(*) FROM catalog_items) AS interior_price_rows, (SELECT COUNT(*) FROM quote_templates) AS interior_templates,
-                   (SELECT COUNT(*) FROM canned_replies) AS interior_replies;"
-          interior=$(mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "SELECT (SELECT COUNT(*) FROM catalog_items) + (SELECT COUNT(*) FROM quote_templates) + (SELECT COUNT(*) FROM canned_replies) + (SELECT COUNT(*) FROM estimator_rates)")
+          q() { mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "$1" 2>/dev/null; }
+          neutral="$(q "SELECT COUNT(*) FROM roles") roles, $(q "SELECT COUNT(*) FROM permissions") permissions, $(q "SELECT COUNT(*) FROM pipeline_stages") stages, $(q "SELECT COUNT(*) FROM chart_of_accounts") accounts"
+          interior=$(q "SELECT (SELECT COUNT(*) FROM catalog_items) + (SELECT COUNT(*) FROM quote_templates) + (SELECT COUNT(*) FROM canned_replies) + (SELECT COUNT(*) FROM estimator_rates) + (SELECT COUNT(*) FROM automation_sequences) + (SELECT COUNT(*) FROM theme_tokens) + (SELECT COUNT(*) FROM page_templates)")
+          echo "::notice title=Neutral seed on MySQL::${neutral}; Interior reference rows: ${interior}"
           test "$interior" = "0"
 
       - name: Rebuild from nothing a second time
         run: php artisan migrate:fresh --force | tail -3
 
-      - name: Test suite on MySQL
+  tests:
+    name: Tests on MySQL 8.4 — ${{ matrix.group }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [unit-arch, feature-a-f, feature-g-p, feature-q-z]
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: woodex_test
+          MYSQL_USER: woodex_test
+          MYSQL_PASSWORD: disposable-ci-only
+          MYSQL_ROOT_PASSWORD: disposable-ci-root
+        ports: ["3306:3306"]
+        options: >-
+          --tmpfs /var/lib/mysql
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=40
+
+    defaults:
+      run:
+        working-directory: platform
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: PHP 8.4 with the extensions the lock file requires
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, pdo_sqlite, intl, mbstring, bcmath, zip, gd, exif, pcntl, dom, xml, xmlwriter, fileinfo, sodium
+          coverage: none
+          tools: composer:v2
+
+      - name: Install the locked dependencies (no scripts)
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php artisan package:discover --ansi
+
+      - name: Run the group
         run: |
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs storage/app/private
-          php -d memory_limit=2G vendor/bin/pest --compact --display-all-issues 2>&1 | tee /tmp/pest.log
-          exit "${PIPESTATUS[0]}"
+          # The source project's own grouping: Feature files by the first letter of their path.
+          pick() { find tests/Feature -name '*Test.php' | sort | awk -F'tests/Feature/' -v lo="$1" -v hi="$2" '{ c = tolower(substr($2, 1, 1)); if (c >= lo && c <= hi) print }'; }
+          case "${{ matrix.group }}" in
+            unit-arch)   files="tests/Unit tests/ArchTest.php" ;;
+            feature-a-f) files="$(pick a f)" ;;
+            feature-g-p) files="$(pick g p)" ;;
+            feature-q-z) files="$(pick q z)" ;;
+          esac
+          echo "files in this group: $(echo $files | wc -w)"
+          set +e
+          php -d memory_limit=2G vendor/bin/pest --compact --display-all-issues --log-junit /tmp/junit.xml $files 2>&1 | tee /tmp/pest.log
+          code=${PIPESTATUS[0]}
+          set -e
+          exit "$code"
+
+      - name: Publish the result as annotations (the run log is not always reachable)
+        if: always()
+        run: |
+          python3 - "${{ matrix.group }}" <<'PY'
+          import re, sys
+          import xml.etree.ElementTree as ET
+          group = sys.argv[1]
+          def enc(s): return s.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          try:
+              log = re.sub(r'\x1b\[[0-9;]*m', '', open('/tmp/pest.log', encoding='utf-8', errors='replace').read())
+          except FileNotFoundError:
+              print(f"::error title=Tests on MySQL — {group}::no test output was produced"); sys.exit(0)
+          summary = ' | '.join(s.strip() for s in re.findall(r'(?m)^\s*(Tests:.*|Duration:.*)$', log)) or 'no summary line: ' + log[-600:]
+          failures = []
+          try:
+              for case in ET.parse('/tmp/junit.xml').getroot().iter('testcase'):
+                  for kind in ('failure', 'error'):
+                      for node in case.findall(kind):
+                          body = ' '.join((node.text or '').split())
+                          failures.append(f"{case.get('file', '?').split('::')[0].replace('tests/Feature/', '')} > {case.get('name', '?')[:150]}\n    {node.get('type', kind)}: {body[:520]}")
+          except Exception as problem:
+              failures += [f"(could not read the JUnit file: {problem})"] + [f"{c} > {n[:150]}\n    {' '.join(b.split())[:520]}" for c, n, b in re.findall(r'(?m)^\s+(?:FAILED|FAIL)\s+(Tests\\\S+)\s+>\s+(.*?)\s*\n((?:.*\n){0,7})', log)]
+          if not failures and re.search(r'\b\d+ passed\b', summary) and 'failed' not in summary:
+              print(f"::notice title=Tests on MySQL — {group}::{enc(summary)}")
+          else:
+              text = '\n'.join([summary, f"{len(failures)} failing", ''] + failures)
+              for part, start in enumerate(range(0, min(len(text), 9 * 7000), 7000), 1):
+                  print(f"::error title=Tests on MySQL — {group} ({part})::{enc(text[start:start + 7000])}")
+          PY
 
       - name: Summary
         if: always()
         run: |
           {
-            echo '## WOODEX OS platform — PHP 8.4 on MySQL 8.4'
+            echo "## WOODEX OS platform — ${{ matrix.group }} on PHP 8.4 and MySQL 8.4"
             echo '```'
-            grep -E 'Tests:|Duration:' /tmp/pest.log || echo 'no test summary was produced'
+            sed 's/\x1b\[[0-9;]*m//g' /tmp/pest.log 2>/dev/null | grep -E 'Tests:|Duration:' || echo 'no test summary was produced'
             echo '```'
             echo 'Disposable database in the runner. No deployment, no hosted data, no provider credentials.'
             echo 'A green run is evidence for this commit on MySQL. It is not approval to deploy.'
