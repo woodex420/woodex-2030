@@ -121,7 +121,13 @@ final class AdminNavigation
     {
         $groups = [];
 
-        foreach (self::groups() as $group) {
+        $source = self::groups();
+        if ($user?->can('dashboard.view')) {
+            // Keep the native groups; insert clearly labelled transitional commerce screens after Sales.
+            array_splice($source, 3, 0, FurnitureNavigation::groups());
+        }
+
+        foreach ($source as $group) {
             $items = array_values(array_filter($group['items'], static function (array $item) use ($user): bool {
                 if ($item['route'] === null) {
                     return true;

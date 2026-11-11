@@ -59,7 +59,16 @@
                     @foreach ($group['items'] as $item)
                         @php($badge = $badges[$item['route'] ?? ''] ?? 0)
                         <li data-nav-label="{{ $item['label'] }}" x-show="!navQuery.trim() || $el.dataset.navLabel.toLowerCase().includes(navQuery.trim().toLowerCase())">
-                            @if ($item['route'])
+                            @if ($item['url'] ?? null)
+                                <a href="{{ $item['url'] }}" class="menu-item menu-item-inactive" target="_blank" rel="noopener noreferrer"
+                                   title="{{ $item['label'] }} — existing 2030 dashboard; opens a new tab with its own sign-in">
+                                    <x-icon :name="$item['icon']" class="size-5 shrink-0" />
+                                    <span x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen" class="flex flex-1 items-center justify-between gap-2 truncate">
+                                        {{ $item['label'] }}
+                                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">2030 ↗</span>
+                                    </span>
+                                </a>
+                            @elseif ($item['route'])
                                 @php($active = request()->routeIs($item['route']) || request()->routeIs(\Illuminate\Support\Str::beforeLast($item['route'], '.index').'.*'))
                                 <a href="{{ route($item['route']) }}"
                                    @unless (in_array($item['route'], \App\Support\AdminNavigation::FULL_DOCUMENT, true)) wire:navigate @endunless
@@ -78,6 +87,7 @@
                                 </a>
                             @else
                                 @php($why = match (true) {
+                                    $item['phase'] === '2030' => 'existing 2030 screen — dashboard address not configured',
                                     $item['phase'] === 'soon' => 'arrives with the Website port',
                                     str_starts_with((string) $item['phase'], 'P') => 'arrives in '.$item['phase'],
                                     default => 'run from the command line',

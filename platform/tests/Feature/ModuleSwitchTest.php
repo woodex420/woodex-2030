@@ -144,7 +144,7 @@ it('removes the screens of switched-off modules from the menu', function () {
     $titles = fn () => collect(AdminNavigation::for($owner))->pluck('title')->all();
 
     useShippedModules();
-    expect($titles())->toBe(['Overview', 'CRM', 'Sales', 'Accounts', 'Projects', 'System'])
+    expect($titles())->toBe(['Overview', 'CRM', 'Sales', 'Commerce & Fulfilment', 'Procurement & Production', 'Accounts', 'Projects', 'System'])
         ->and($routes()->all())->toContain('admin.leads.index', 'admin.quotes.index', 'admin.invoices.index', 'admin.accounts.workspace', 'admin.projects.index', 'admin.settings')
         ->and($routes()->intersect([
             'admin.inbox', 'admin.chat-bot', 'admin.estimations.index', 'admin.marketing.index', 'admin.automation.index',

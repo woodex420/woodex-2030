@@ -118,6 +118,6 @@ it('gives every workflow hub its own document title instead of the bare product 
         $this->actingAs($owner)
             ->get(route($route))
             ->assertOk()
-            ->assertSee('<title>'.$title.' · Woodex OS</title>', false);
+            ->assertSee('<title>'.$title.' · WOODEX OS</title>', false);
     }
 });

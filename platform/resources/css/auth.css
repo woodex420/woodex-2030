@@ -1,6 +1,6 @@
 /* Original single-card glass composition. Existing Woodex photograph; no gated Preline source. */
 .wx-auth { margin:0; min-height:100svh; background:#242424; color:#fff; font-family:var(--font-sans); }
-.wx-auth-backdrop { position:fixed; inset:0; background:linear-gradient(135deg,rgba(12,15,14,.63),rgba(12,15,14,.5)),url('/assets/img/svc-interior-design.webp') center/cover no-repeat; }
+.wx-auth-backdrop { position:fixed; inset:0; background:radial-gradient(ellipse at top left,#395747 0%,#202b25 45%,#141a17 100%); }
 .wx-auth-shell { position:relative; display:flex; flex-direction:column; min-height:100svh; max-width:1600px; margin:auto; padding:32px clamp(24px,5vw,80px) 24px; }
 .wx-auth-header { display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .wx-auth-brand { color:#fff; text-decoration:none; }

@@ -16,6 +16,9 @@ return [
 
     'public_site_url' => env('PUBLIC_SITE_URL', env('APP_URL', 'http://localhost')),
 
+    // Full HTTPS base URL, including /dashboard where required. No shared authentication or data sync.
+    'legacy_dashboard_url' => env('LEGACY_DASHBOARD_URL', ''),
+
     'security' => [
         'enforce_2fa' => (bool) env('ENFORCE_2FA', false),
         // Owners opt in to enrolment; confirmed authenticator sign-in remains enforced.

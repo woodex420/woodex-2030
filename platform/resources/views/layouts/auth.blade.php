@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#242424">
-    <title>@yield('title', 'Sign in') · Woodex OS</title>
+    <title>@yield('title', 'Sign in') · WOODEX OS</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    <link rel="preload" as="image" href="{{ asset('assets/img/svc-interior-design.webp') }}">
     <script>
         try { document.documentElement.dataset.authGlass = localStorage.getItem('wx.auth.glass') === 'solid' ? 'solid' : 'glass'; if (localStorage.getItem('wx.theme') === 'dark') { document.documentElement.classList.add('dark'); } } catch (e) {}
     </script>
@@ -17,10 +16,10 @@
     <div class="wx-auth-backdrop" aria-hidden="true"></div>
     <div class="wx-auth-shell">
         <header class="wx-auth-header">
-            <a href="{{ route('login') }}" class="wx-auth-brand" aria-label="Woodex OS sign in">
+            <a href="{{ route('login') }}" class="wx-auth-brand" aria-label="WOODEX OS sign in">
                 <x-brand-logo subtitle="OPERATING SYSTEM" />
             </a>
-            <a href="{{ \App\Support\SyntheticPreview::enabled() ? url('/') : config('woodex.public_site_url') }}" class="wx-auth-website">Woodex Interior <span aria-hidden="true">↗</span></a>
+            <a href="{{ \App\Support\SyntheticPreview::enabled() ? url('/') : config('woodex.public_site_url') }}" class="wx-auth-website">Woodex Furniture <span aria-hidden="true">↗</span></a>
         </header>
         <main class="wx-auth-main">
             <section class="wx-auth-card" aria-labelledby="auth-heading">
@@ -40,7 +39,7 @@
                 <div class="wx-auth-content">@yield('content')</div>
             </section>
         </main>
-        <footer class="wx-auth-footer"><span>Woodex Interior · Lahore</span><span>A considered space for better work.</span></footer>
+        <footer class="wx-auth-footer"><span>Woodex Furniture · Lahore</span><span>A considered space for better work.</span></footer>
     </div>
     <script>
         // Native fallback for the other Fortify forms. The enhanced login prevents this handler.

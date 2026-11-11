@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#f6f6f6">
-    <title>{{ isset($title) ? $title.' · ' : '' }}Woodex OS</title>
+    <title>{{ isset($title) ? $title.' · ' : '' }}WOODEX OS</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <script>
         (() => {
@@ -73,7 +73,7 @@
             </main>
 
             <footer class="px-6 pb-6 text-theme-xs text-gray-400">
-                Woodex OS · {{ now()->timezone('Asia/Karachi')->format('Y') }} · Woodex Interior, Lahore
+                WOODEX OS · {{ now()->timezone('Asia/Karachi')->format('Y') }} · Woodex Furniture, Lahore
             </footer>
         </div>
     </div>
