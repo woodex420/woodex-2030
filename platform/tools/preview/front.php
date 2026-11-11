@@ -110,10 +110,11 @@ if (! $synthetic) {
  * on the server, instead. Sign-in, password, CSRF and permission checks are unchanged.
  *
  * Consequence, stated plainly: everyone who can open the preview address shares ONE session, so a sign-in by one
- * viewer signs in the others until sign-out or two idle hours. The header's value is never read, stored or logged.
+ * viewer signs in the others until sign-out or two idle hours. The header's value is never stored or logged; a
+ * one-way hash of it names the jar file, so requests carrying a different value never share a session.
  */
 $viaProxy = isset($_SERVER['HTTP_E2B_TRAFFIC_ACCESS_TOKEN']) && ! isset($_SERVER['HTTP_COOKIE']);
-$jarFile = $base.'/storage/framework/preview-viewer.jar.json';
+$jarFile = $base.'/storage/framework/preview-viewer.'.substr(hash('sha256', (string) ($_SERVER['HTTP_E2B_TRAFFIC_ACCESS_TOKEN'] ?? '')), 0, 16).'.jar.json';
 $jar = ['seen' => 0, 'cookies' => []];
 if ($viaProxy) {
     $stored = is_file($jarFile) ? json_decode((string) file_get_contents($jarFile), true) : null;
