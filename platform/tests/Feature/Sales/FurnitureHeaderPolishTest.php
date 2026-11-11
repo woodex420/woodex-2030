@@ -68,7 +68,8 @@ it('hides terms and signatures without deleting their values or changing any amo
 });
 
 it('retains user-uploaded logos rather than replacing them with the new default mark', function () {
-    $bytes = file_get_contents(public_path('images/interior-mark.png'));
+    // Any image that is not the default mark stands in for an uploaded logo (a one-pixel PNG).
+    $bytes = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
     $logo = 'data:image/png;base64,'.base64_encode($bytes);
     DocumentDesign::where('business_line', 'furniture')->update(['logo_data_uri' => $logo, 'logo_sha256' => hash('sha256', $bytes)]);
     $design = app(DocumentStyles::class)->quotationCopy(BusinessLine::Furniture);

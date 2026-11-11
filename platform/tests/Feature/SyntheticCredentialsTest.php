@@ -106,7 +106,7 @@ it('shares actual filled vector geometry across the app mark and favicons withou
     preg_match('/<path d="([^"]+)"/', $svg, $match);
     expect($match[1] ?? '')->not->toBeEmpty();
     expect(file_get_contents(resource_path('views/components/brand-mark.blade.php')))->toContain($match[1])->toContain('#b49a73');
-    foreach (['favicon.svg', 'assets/img/favicon.svg', 'assets/brand/woodex-os.svg', 'assets/brand/woodex-interior.svg'] as $file) {
+    foreach (['favicon.svg', 'assets/img/favicon.svg', 'assets/brand/woodex-os.svg'] as $file) {
         $asset = file_get_contents(public_path($file));
         expect($asset)->toContain($match[1])->toContain('#b49a73')->not->toContain('<image', 'base64,');
     }

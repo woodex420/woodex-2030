@@ -20,6 +20,10 @@ use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
 
 beforeEach(function () {
+    if (interiorFileMissing('public/assets/js/estimator-rates.js')()) {
+        $this->markTestSkipped(INTERIOR_FILE_NOTE.' (estimator price file)');
+    }
+
     $this->owner = $this->userWithRole('owner');
     $this->actingAs($this->owner);
     File::ensureDirectoryExists(storage_path('framework/testing'));

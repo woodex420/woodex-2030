@@ -6,7 +6,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Woodex\Sandbox\NativePreviewTransport;
 
-require_once dirname(__DIR__, 3).'/tools/sandbox/NativePreviewTransport.php';
+require_once dirname(__DIR__, 2).'/tools/preview/NativePreviewTransport.php';
 
 it('keeps only exact preview self URLs relative including JSON escaped paths', function () {
     $origin = 'https://preview.example';

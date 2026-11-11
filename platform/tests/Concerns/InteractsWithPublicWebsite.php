@@ -35,7 +35,8 @@ trait InteractsWithPublicWebsite
 
         $response = $this->app->make(SiteRouter::class)->respond($request);
 
-        $response ??= new Response((string) view('errors.404')->render(), 404);
+        // The Interior 404 page is not part of the Furniture copy; a plain 404 body stands in for it.
+        $response ??= new Response(view()->exists('errors.404') ? (string) view('errors.404')->render() : 'Not Found', 404);
 
         return $this->createTestResponse($response, $request);
     }

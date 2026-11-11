@@ -31,7 +31,7 @@ it('links the tags script from every page file, exactly once', function () {
         expect(substr_count($html, '<script src="/site/tags.js" defer></script>'), $page->getRelativePathname())
             ->toBe(1);
     }
-});
+})->skip(interiorFileMissing('public/index.html'), INTERIOR_FILE_NOTE);
 
 it('answers with nothing until an ID is set', function () {
     $this->get('/site/tags.js')

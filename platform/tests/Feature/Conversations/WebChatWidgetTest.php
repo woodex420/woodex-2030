@@ -60,7 +60,7 @@ it('keeps the widget invisible while it is switched off', function () {
     $this->postJson('/api/public/chat/send', ['token' => str()->random(40), 'body' => 'hello'])
         ->assertNotFound();
     $this->getJson('/api/public/chat/messages?token='.str()->random(40))->assertNotFound();
-});
+})->skip(interiorFileMissing('public/index.html'), INTERIOR_FILE_NOTE);
 
 it('serves the script and greets a new visitor by name flow', function () {
     widgetOn();
@@ -86,7 +86,7 @@ it('serves the script and greets a new visitor by name flow', function () {
 
     $messages = collect($again->json('messages'));
     expect($messages->firstWhere('who', 'bot')['body'])->toContain('Woodex');
-});
+})->skip(interiorFileMissing('public/assets/site.js'), INTERIOR_FILE_NOTE);
 
 function startChatWithToken(string $token): object
 {
@@ -256,7 +256,7 @@ it('ships the loader to the static v1 pages as well', function () {
     // never through the layout — their one shared script is /assets/site.js, so the loader lives there.
     $script = (string) file_get_contents(public_path('assets/site.js'));
     expect($script)->toContain("s.src = '/chat/widget.js'");
-});
+})->skip(interiorFileMissing('public/assets/site.js'), INTERIOR_FILE_NOTE);
 
 it('answers the loader with the widget only while the switch is on', function () {
     // The pages are files and cannot be re-rendered, so the switch changes the script they already load.

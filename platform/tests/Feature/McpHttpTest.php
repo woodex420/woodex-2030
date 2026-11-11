@@ -64,7 +64,7 @@ it('reads site health and pages from the files the site serves', function () {
         ->assertOk()->assertJsonPath('result.isError', false)
         ->assertJsonPath('result.structuredContent.path', 'about/index.html');
     expect($page->json('result.structuredContent.title'))->not->toBe('');
-});
+})->skip(interiorFileMissing('public/index.html'), INTERIOR_FILE_NOTE);
 
 it('returns a tool error for a page that does not exist', function () {
     $key = mcpKey($this->userWithRole('owner'), ['pages.read']);

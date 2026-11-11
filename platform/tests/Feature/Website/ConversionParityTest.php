@@ -111,4 +111,4 @@ it('reports the conversion state per group from file existence', function () {
     expect($homeRow)->not->toBeNull()
         // Woodex OS 1 (§16.19 step 4): the home page is a file now, so the report counts it as file-served.
         ->and(preg_match('/\|\s*1\s*\|\s*1\s*\|\s*0\s*\|\s*files still serve\s*\|/', (string) $homeRow))->toBe(1);
-});
+})->skip(interiorFileMissing('public/index.html'), INTERIOR_FILE_NOTE);

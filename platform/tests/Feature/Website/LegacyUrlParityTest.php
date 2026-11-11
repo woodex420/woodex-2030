@@ -29,7 +29,7 @@ it('has a file for every page URL of the old site, with its canonical', function
     }
 
     expect(LegacyUrlMap::pages())->toHaveCount(142);
-});
+})->skip(interiorFileMissing('database/data/legacy-website.php'), INTERIOR_FILE_NOTE);
 
 it('sends every redirected URL of the old site to a page that has a file', function () {
     // Empty since 17 Oct 2026: every URL of the old site is a page. The loop is the contract if one comes back.
@@ -38,7 +38,7 @@ it('sends every redirected URL of the old site to a page that has a file', funct
     foreach (LegacyUrlMap::redirects() as $from => $to) {
         expect(is_file(legacyFile($to)), "{$from} points at {$to}, which has no file")->toBeTrue();
     }
-});
+})->skip(interiorFileMissing('database/data/legacy-website.php'), INTERIOR_FILE_NOTE);
 
 it('answers a redirect with one 301 and counts the hit', function () {
     Redirect::query()->create(['from_path' => '/old-flat-design/', 'to_path' => '/interior-design/', 'code' => 301, 'hits' => 0]);

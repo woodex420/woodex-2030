@@ -20,3 +20,16 @@ pest()->extend(TestCase::class)
 afterEach(function (): void {
     Carbon::setTestNow();
 });
+
+/*
+| Woodex Furniture: the Interior website pages, photographs, logos and price files are not part of this copy
+| (PROVENANCE.md). A test that reads one of them is skipped by name with this reason — never silently, and it
+| runs again the moment the file exists.
+*/
+const INTERIOR_FILE_NOTE = 'reads an Interior website file that is not part of the Furniture copy';
+
+function interiorFileMissing(string $relativePath): Closure
+{
+    // Not static: Pest binds a skip condition to the running test.
+    return fn (): bool => ! is_file(dirname(__DIR__).'/'.$relativePath);
+}

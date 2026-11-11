@@ -206,8 +206,11 @@ final class DocumentStyles
 
         if ($line !== BusinessLine::Furniture) {
             $design['interior_revision'] = 3;
-            if (empty($design['logo_data_uri'])) {
-                $bytes = file_get_contents(public_path('images/interior-mark.png'));
+            // The Interior studio's mark is not shipped in the Furniture copy. Without the file the document
+            // simply carries no default logo; an uploaded brand logo is used exactly as before.
+            $mark = public_path('images/interior-mark.png');
+            if (empty($design['logo_data_uri']) && is_file($mark)) {
+                $bytes = file_get_contents($mark);
                 $design['logo_data_uri'] = 'data:image/png;base64,'.base64_encode($bytes);
                 $design['logo_sha256'] = hash('sha256', $bytes);
             }

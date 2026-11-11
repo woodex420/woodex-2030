@@ -72,7 +72,7 @@ it('serves the tokens as CSS, with the v1 vocabulary, its aliases and the v2 voc
     $home = (string) file_get_contents(base_path('public/index.html'));
     expect($home)->toContain('/assets/theme.css?v=enquiry-20261101')
         ->and($this->get('/theme/'.$hashBefore.'.css'))->assertOk();
-});
+})->skip(interiorFileMissing('public/index.html'), INTERIOR_FILE_NOTE);
 
 it('re-skins every page when a token is saved: the hash changes and old URLs stay current', function () {
     $theme = app(ThemeCss::class);
@@ -167,4 +167,4 @@ it('serves an empty theme until the database update runs, not an error', functio
 
     // The home file still links the theme, and the URL behind it answers with the empty theme.
     expect((string) file_get_contents(base_path('public/index.html')))->toContain('/assets/theme.css');
-});
+})->skip(interiorFileMissing('public/index.html'), INTERIOR_FILE_NOTE);

@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\File;
 */
 
 beforeEach(function () {
+    if (interiorFileMissing('public/assets/js/estimator-rates.js')()) {
+        $this->markTestSkipped(INTERIOR_FILE_NOTE.' (estimator price file)');
+    }
+
     $this->owner = $this->userWithRole('owner');
     $this->actingAs($this->owner);
 
