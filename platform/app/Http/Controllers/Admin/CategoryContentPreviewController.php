@@ -24,6 +24,8 @@ final class CategoryContentPreviewController extends Controller
             DB::table('category_content_previews')->updateOrInsert(['revision_id' => $revision->id, 'user_id' => $request->user()->id], ['previewed_at' => now(), 'context_hash' => $content->previewFingerprint($category, $data)]);
         }
 
+        $data['hero_url'] = ! empty($data['hero_path']) ? route('admin.commerce.category-content.hero', $revision) : null;
+
         return response()->view('commerce.category-content-preview', [
             'category' => $category, 'revision' => $revision, 'content' => $data,
             'products' => $content->products($category, $data),

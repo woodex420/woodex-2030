@@ -1,11 +1,11 @@
 <div>
-    <x-admin.page-header :title="'Edit category · '.$category->name" description="Draft-first category content. Native publication does not change the live storefront backend.">
+    <x-admin.page-header :title="'Edit category · '.$category->name" description="Draft-first category content. Published content is delivered to connected storefronts; drafts stay private.">
         <x-slot:actions><x-admin.button variant="secondary" :href="route('admin.commerce.categories')">Back to Categories</x-admin.button></x-slot:actions>
     </x-admin.page-header>
     <p class="mb-4 text-sm">Category: {{ $category->slug }} · Content version {{ $version }} · {{ $category->published_revision_id ? 'Native published revision #'.$category->published_revision_id : 'No native publication yet' }}. Office/Home are category parents; Series remain separate collections.</p>
     @if($errors->any())<div role="alert" class="mb-4 rounded-lg border border-error-500 p-4"><h2 class="font-semibold">Please correct these issues</h2><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     <form wire:submit="saveDraft" class="space-y-5">
-        <x-admin.card title="Page metadata" description="Preview always remains noindex. These settings are stored for the future native public page integration.">
+        <x-admin.card title="Page metadata" description="Preview always remains noindex. These settings drive the published category page on connected storefronts.">
             <div class="grid gap-4 md:grid-cols-2">
                 @foreach(['seo_title' => 'SEO title', 'seo_description' => 'Meta description', 'og_title' => 'Social / Open Graph title', 'og_description' => 'Social / Open Graph description', 'canonical_path' => 'Canonical local path'] as $key => $label)
                     <x-admin.field :label="$label" :for="'form.'.$key"><input id="form.{{ $key }}" wire:model="form.{{ $key }}" class="wx-input"></x-admin.field>
@@ -39,7 +39,7 @@
                 <x-admin.content-editor label="Bottom content" field="bottom_text" :value="$form['bottom_text']" :format="$form['text_format']" />
             </div>
         </x-admin.card>
-        <x-admin.card title="Featured / Hot Products carousel" description="Repository catalogue reference only—not live inventory or verified sales popularity. Eligible products belong to this category or its descendants. Prices/images arrive with the native product integration.">
+        <x-admin.card title="Featured / Hot Products carousel" description="Repository catalogue reference only—not live inventory or verified sales popularity. Eligible products belong to this category or its descendants. Connected storefronts resolve selected references to their existing product cards, images and prices.">
             <div class="grid gap-4 md:grid-cols-2">
                 <x-admin.field label="Section heading" for="form.carousel_heading"><input id="form.carousel_heading" wire:model="form.carousel_heading" class="wx-input"></x-admin.field>
                 <x-admin.field label="Selection mode" for="form.carousel_mode"><select id="form.carousel_mode" wire:model.live="form.carousel_mode" class="wx-input"><option value="off">Hidden</option><option value="manual">Manual selection</option><option value="automatic">Automatic category selection</option></select></x-admin.field>
@@ -66,7 +66,7 @@
     </form>
     @can('commerce.catalog.publish')
         <div class="mt-5 space-y-3 rounded-lg border border-gray-200 p-4">
-            <label class="flex gap-2"><input type="checkbox" wire:model="confirmPublish"> I previewed the saved revision and want to publish this native snapshot only. This does not publish to the live storefront.</label>
+            <label class="flex gap-2"><input type="checkbox" wire:model="confirmPublish"> I previewed the saved revision and approve publishing it to connected storefronts. Connected storefronts will display the published revision.</label>
             <x-admin.button wire:click="publish" wire:loading.attr="disabled" wire:target="publish">Publish native snapshot</x-admin.button>
             @if($category->published_revision_id)<label class="flex gap-2"><input type="checkbox" wire:model="confirmUnpublish"> Confirm removing this native publication, while retaining all revisions.</label><x-admin.button variant="danger" wire:click="unpublish" wire:loading.attr="disabled" wire:target="unpublish">Unpublish native snapshot</x-admin.button>@endif
         </div>

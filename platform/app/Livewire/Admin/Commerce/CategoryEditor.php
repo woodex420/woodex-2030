@@ -163,7 +163,7 @@ final class CategoryEditor extends Component
         $this->category->refresh();
         $this->version = (int) $this->category->content_version;
         $this->confirmPublish = false;
-        $this->toast('Native snapshot published. Live storefront backend is unchanged.');
+        $this->toast('Published snapshot saved. Connected storefronts refresh within 15 seconds.');
     }
 
     public function restoreAsDraft(int $revisionId): void
@@ -194,7 +194,7 @@ final class CategoryEditor extends Component
         $this->category->refresh();
         $this->version = (int) $this->category->content_version;
         $this->confirmUnpublish = false;
-        $this->toast('Native publication removed. Drafts, history and live storefront are unchanged.');
+        $this->toast('Publication removed from the category feed. Drafts and revision history are retained.');
     }
 
     private function manage(): void

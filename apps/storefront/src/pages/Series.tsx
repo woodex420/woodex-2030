@@ -1,3 +1,4 @@
+import { collectionList } from "@/lib/commerceTaxonomy";
 import { useRuntimeRevision } from "@/lib/runtime";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/shop/ProductCard";
-import { seriesList, getProductsBySeries } from "@/data/products";
+import { seriesList as sourceSeries, getProductsBySeries } from "@/data/products";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getSeriesSeo } from "@/data/seoContent";
 import { img } from "@/assets/img";
@@ -22,6 +23,7 @@ const seriesImages: Record<string, string> = {
 
 const Series = () => {
   useRuntimeRevision();
+  const seriesList = collectionList().map(c => { const source = sourceSeries.find(s => s.id === c.id); return source ? { ...source, name: c.name } : null; }).filter(s => !!s);
   const [activeTab, setActiveTab] = useState("woodex-series");
   const tabProducts = getProductsBySeries(activeTab).slice(0, 4);
   const activeSeo = getSeriesSeo(activeTab);

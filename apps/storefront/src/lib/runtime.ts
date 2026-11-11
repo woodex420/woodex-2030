@@ -1,3 +1,4 @@
+import { syncNativeCategories } from "./nativeCategories";
 import { captureBasketRequest } from "./quoteCapture";
 import { refreshTheme } from "./theme";
 import { captureStorefrontLead } from "./leadCapture";
@@ -78,6 +79,9 @@ export async function syncOverrides(): Promise<number> {
 }
 
 export function startRuntimeSync(intervalMs = 15000) {
+  void syncNativeCategories();
+  window.setInterval(() => void syncNativeCategories(), intervalMs);
+  window.addEventListener("focus", () => void syncNativeCategories());
   void syncCatalog();
   void syncOverrides();
   window.setInterval(() => void syncOverrides(), intervalMs);

@@ -85,3 +85,4 @@ Nothing here is authoritative. Do not cite these as current.
 
 - [Office/Home taxonomy population and series correction](laravel-os/11-OFFICE-HOME-TAXONOMY-AND-SERIES.md)
 - [Category CMS: drafts, previews and native publication](laravel-os/12-CATEGORY-CMS.md)
+- [Category ordering and storefront sync](laravel-os/13-CATEGORY-ORDERING-AND-STOREFRONT-SYNC.md)

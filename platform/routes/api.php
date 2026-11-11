@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Bridge\BridgeController;
 use App\Http\Controllers\Api\Bridge\McpHttpController;
+use App\Http\Controllers\Api\Public\CategoryCatalogueController;
 use App\Http\Controllers\Api\Public\ChatWidgetController;
 use App\Http\Controllers\Api\Public\LeadController;
 use App\Http\Controllers\Api\Public\LeadHandoffController;
@@ -82,3 +83,7 @@ Route::prefix('bridge/v1')->name('api.bridge.')->middleware([
     Route::get('/leads', [BridgeController::class, 'leads'])->name('leads');
     Route::get('/quotes', [BridgeController::class, 'quotes'])->name('quotes');
 });
+
+// Read-only published category catalogue; independent of lead capture permissions/modules.
+Route::get('/v1/catalogue/categories', [CategoryCatalogueController::class, 'index'])->middleware('throttle:120,1');
+Route::get('/v1/catalogue/categories/{category}/hero/{revision}', [CategoryCatalogueController::class, 'image'])->middleware('throttle:120,1');

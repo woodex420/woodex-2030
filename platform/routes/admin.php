@@ -24,6 +24,7 @@ use App\Livewire\Admin\Accounts\TrialBalance;
 use App\Livewire\Admin\Automation\SequencesIndex;
 use App\Livewire\Admin\Commerce\Categories;
 use App\Livewire\Admin\Commerce\CategoryEditor;
+use App\Livewire\Admin\Commerce\SeriesManager;
 use App\Livewire\Admin\Conversations\CannedRepliesIndex;
 use App\Livewire\Admin\Conversations\Inbox;
 use App\Livewire\Admin\Crm\AssignmentRules;
@@ -253,6 +254,7 @@ Route::livewire('/integrations/whatsapp-templates', WhatsAppTemplates::class)->n
 Route::livewire('/data-import', DataImport::class)->name('data-import')->middleware('can:system.import');
 
 Route::livewire('/commerce/categories', Categories::class)->name('commerce.categories')->middleware('can:commerce.catalog.view');
+Route::livewire('/commerce/series', SeriesManager::class)->middleware('can:commerce.catalog.view')->name('commerce.series');
 
 Route::livewire('/commerce/categories/{category}/edit', CategoryEditor::class)->name('commerce.categories.edit')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage']);
 Route::get('/commerce/category-revisions/{revision}/preview', [CategoryContentPreviewController::class, 'show'])->name('commerce.category-content.preview')->middleware('can:commerce.catalog.view');

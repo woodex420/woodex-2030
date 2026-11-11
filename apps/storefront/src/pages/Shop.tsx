@@ -1,4 +1,4 @@
-import { categoryTree, matchesCategory } from "@/lib/commerceTaxonomy";
+import { categorySegments, categoryTree, matchesCategory } from "@/lib/commerceTaxonomy";
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
@@ -12,6 +12,8 @@ import { Search, Grid3X3, LayoutList, SlidersHorizontal, ChevronDown, ChevronRig
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getCategorySeo } from "@/data/seoContent";
+import { NativeCategoryContent } from "@/components/NativeCategoryContent";
+import { nativeCategory } from "@/lib/nativeCategories";
 import { useRuntimeRevision } from "@/lib/runtime";
 
 interface CategoryNode {
@@ -20,10 +22,7 @@ interface CategoryNode {
   children: { label: string; id: string }[];
 }
 
-const officeCategoryTree: CategoryNode[] = categoryTree("office");
-const homeCategoryTree: CategoryNode[] = categoryTree("home");
 
-const allCategoryTree = [...officeCategoryTree, ...homeCategoryTree];
 
 const categoryDescriptions: Record<string, string> = {
   "all": "Browse our complete collection of premium office and home furniture — all made in Pakistan with nationwide delivery.",
@@ -63,6 +62,10 @@ const Shop = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["office-tables", "bedroom"]);
   const catalogRevision = useRuntimeRevision();
+  const segments = categorySegments();
+  const allCategoryTree: CategoryNode[] = segments.flatMap(s => categoryTree(s.id));
+  const native = nativeCategory(selectedCategory === 'all' ? (searchParams.get('segment') || 'all') : selectedCategory);
+  const nativePage = native?.page?.content;
 
   const seo = getCategorySeo(selectedCategory);
 
@@ -89,6 +92,7 @@ const Shop = () => {
   };
 
   const getCategoryLabel = () => {
+    if (native) return native.name;
     if (selectedCategory === "all") return searchParams.get("segment") === "office" ? "Office Furniture" : searchParams.get("segment") === "home" ? "Home Furniture" : "All Products";
     for (const cat of allCategoryTree) {
       if (cat.id === selectedCategory) return cat.label;
@@ -157,7 +161,7 @@ const Shop = () => {
       <Header />
       <main className="flex-1">
         {/* Hero */}
-        <section className="bg-primary text-primary-foreground py-12">
+        {nativePage ? <NativeCategoryContent content={nativePage} placement="top" /> : <section className="bg-primary text-primary-foreground py-12">
           <div className="container mx-auto px-4">
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Pakistan's Finest</p>
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Shop Office & Home Furniture</h1>
@@ -168,6 +172,7 @@ const Shop = () => {
           </div>
         </section>
 
+        }
         {/* Breadcrumb */}
         <section className="py-3 bg-section-light border-b">
           <div className="container mx-auto px-4">
@@ -200,21 +205,10 @@ const Shop = () => {
                     </span>
                   </button>
 
-                  {/* Office Furniture Group */}
-                  <div className="mb-4">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-accent px-3 mb-2">Office Furniture</h3>
-                    <nav className="space-y-0.5">
-                      {officeCategoryTree.map(renderCategoryNode)}
-                    </nav>
-                  </div>
-
-                  {/* Home Furniture Group */}
-                  <div className="border-t border-border pt-4">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-accent px-3 mb-2">Home Furniture</h3>
-                    <nav className="space-y-0.5">
-                      {homeCategoryTree.map(renderCategoryNode)}
-                    </nav>
-                  </div>
+                  {segments.map(segment => <div className="mb-4 border-t pt-4" key={segment.slug}>
+                    <button onClick={() => selectCategory(segment.slug)} className="mb-2 px-3 text-xs font-bold uppercase tracking-widest text-accent">{segment.name}</button>
+                    <nav className="space-y-0.5">{categoryTree(segment.id).map(renderCategoryNode)}</nav>
+                  </div>)}
                 </div>
               </aside>
 
@@ -287,11 +281,11 @@ const Shop = () => {
 
                 {/* SEO + AIO long-form content + FAQ */}
                 <div className="mt-16 border-t pt-12">
-                  <SeoContentBlock
+                  {nativePage ? <NativeCategoryContent content={nativePage} placement="bottom" /> : <SeoContentBlock
                     seo={seo}
                     path={selectedCategory === "all" ? "/shop" : `/shop?category=${selectedCategory}`}
                     hideIntro
-                  />
+                  />}
                 </div>
               </div>
             </div>

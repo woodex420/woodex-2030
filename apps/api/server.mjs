@@ -20,6 +20,7 @@
  *   GET  /api/stats                  KPI + activity rollup for the dashboard
  *   GET  /img/:file                  shared product photography
  */
+import { nativeCategoryBridge } from "./native-category-bridge.mjs";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -1939,6 +1940,10 @@ function normalizeProduct(input, base = {}, id = base.id) {
     reviews,
   } };
 }
+
+// Same-origin read-only native categories. Runtime origin is a deployment setting, never a browser URL.
+app.get('/api/v1/catalogue/categories', nativeCategoryBridge());
+app.get('/api/v1/catalogue/categories/:category/hero/:revision', nativeCategoryBridge());
 
 app.get("/api/products", wrap(async (req, res) => {
   const q = String(req.query.q || "").toLowerCase();

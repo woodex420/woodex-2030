@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Commerce;
 
 use App\Domain\Commerce\Models\Category;
+use App\Domain\Commerce\Models\Series;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,9 @@ final class Categories extends Component
 
     public string $search = '';
 
+    #[Locked]
+    public string $treeVersion = '';
+
     public bool $showForm = false;
 
     #[Locked]
@@ -34,6 +38,7 @@ final class Categories extends Component
     public function mount(): void
     {
         abort_unless($this->user()->can('commerce.catalog.view'), 403);
+        $this->treeVersion = $this->treeHash();
     }
 
     public function updatedSearch(): void
@@ -100,11 +105,50 @@ final class Categories extends Component
 
             return $category->id;
         });
+        $this->treeVersion = $this->treeHash();
         $this->showForm = false;
-        $this->toast('Category saved. This does not publish changes to the live storefront.');
+        $this->toast('Category saved to the storefront hierarchy. Page content still requires reviewed publication.');
         if ($creating) {
             $this->redirectRoute('admin.commerce.categories.edit', ['category' => $savedId]);
         }
+    }
+
+    private function treeHash(): string
+    {
+        return hash('sha256', Category::orderBy('id')->get(['id', 'parent_id', 'position', 'content_version'])->toJson());
+    }
+
+    public function reorder(int $id, int $targetId): void
+    {
+        $this->manage();
+        DB::transaction(function () use ($id, $targetId): void {
+            $all = Category::orderBy('id')->lockForUpdate()->get();
+            if (! hash_equals($this->treeVersion, $this->treeHash())) {
+                throw ValidationException::withMessages(['tree' => 'The tree changed in another session. Reload before organizing.']);
+            }
+            $moving = $all->find($id);
+            $target = $all->find($targetId);
+            if (! $moving || ! $target || $moving->parent_id !== $target->parent_id) {
+                throw ValidationException::withMessages(['tree' => 'Reorder within the same parent. Use Quick edit to change a parent.']);
+            }
+            $siblings = $all->where('parent_id', $moving->parent_id)->sortBy(fn ($row) => sprintf('%010d-%010d', $row->position, $row->id))->values();
+            $ids = $siblings->pluck('id')->all();
+            $from = array_search($id, $ids, true);
+            $to = array_search($targetId, $ids, true);
+            array_splice($ids, $from, 1);
+            array_splice($ids, $to, 0, [$id]);
+            foreach ($ids as $position => $categoryId) {
+                $row = $all->find($categoryId);
+                if ($row->position !== $position) {
+                    $row->position = $position;
+                    $row->content_version++;
+                    $row->save();
+                }
+            }
+            activity('commerce')->causedBy($this->user())->withProperties(['parent_id' => $moving->parent_id, 'ordered_ids' => $ids])->log('Category siblings reordered for storefront');
+            $this->treeVersion = $this->treeHash();
+        });
+        $this->toast('Order saved. Connected storefronts refresh within 15 seconds.');
     }
 
     private function manage(): void
@@ -117,9 +161,10 @@ final class Categories extends Component
         abort_unless($this->user()->can('commerce.catalog.view'), 403);
 
         return view('livewire.admin.commerce.categories', [
+            'series' => Series::orderBy('position')->get(),
             'categories' => Category::query()->when($this->search !== '', fn ($q) => $q->where('name', 'like', '%'.substr($this->search, 0, 120).'%'))
                 ->orderBy('position')->orderBy('name')->paginate(20),
-            'parents' => Category::query()->orderBy('name')->get(['id', 'name', 'slug', 'parent_id', 'is_active']),
+            'parents' => Category::query()->orderBy('position')->orderBy('id')->get(['id', 'name', 'slug', 'parent_id', 'is_active']),
         ]);
     }
 }

@@ -1,22 +1,18 @@
 <div>
-    <x-admin.page-header title="Categories" description="Customize the native category tree. Changes are saved here, not published to the existing storefront.">
+    <x-admin.page-header title="Categories" description="Customize the native category tree. Organize the storefront hierarchy and edit category page content.">
         <x-slot:actions>@can('commerce.catalog.manage')<x-admin.button wire:click="create">New category</x-admin.button>@endcan</x-slot:actions>
     </x-admin.page-header>
-    <div class="mb-5 grid gap-4 lg:grid-cols-2">
-        @foreach($parents->whereNull('parent_id') as $segment)
-            <x-admin.card :title="$segment->name" description="Native catalogue hierarchy. Categories without products remain valid; no products are invented.">
-                @foreach($parents->where('parent_id', $segment->id) as $group)
-                    <h3 class="mt-3 font-semibold">{{ $group->name }}</h3>
-                    <ul class="mt-1 space-y-1 text-sm">
-                        @foreach($parents->where('parent_id', $group->id) as $child)
-                            <li>{{ $child->name }} @if(!$child->is_active)<span class="text-gray-500">(inactive)</span>@endif</li>
-                        @endforeach
-                    </ul>
-                @endforeach
-            </x-admin.card>
-        @endforeach
-    </div>
-    <p class="mb-4 text-sm text-gray-600">Office Furniture and Home Furniture are parent categories; choose a group or leaf below them. New parent trees are supported. Series (EK, Infinity, Woodex, Cubicle and Nova) are separate product collections, not category ancestors. Collection management is part of the upcoming Products work.</p>
+    <x-admin.card title="Category hierarchy" description="Main category → group → subcategory. Drag within a parent or use the arrows to choose first/last order. Edit opens images, intro, hot products and FAQs.">
+        @error('tree')<p role="alert" class="text-red-600">{{ $message }}</p>@enderror
+        <div x-data="{ dragging: null }" class="mb-4">
+            @include('livewire.admin.commerce.category-tree', ['nodes' => $parents->whereNull('parent_id')->values(), 'depth' => 0])
+        </div>
+    </x-admin.card>
+    <x-admin.card title="Series collections" description="Separate from category parents. A product can belong to a category and a Series.">
+        <div class="mb-4 flex flex-wrap gap-3">@foreach($series as $collection)<a class="rounded-lg border px-4 py-2 underline" href="{{ route('admin.commerce.series') }}">{{ $collection->name }}</a>@endforeach</div>
+        <x-admin.button variant="secondary" :href="route('admin.commerce.series')">Organize Series</x-admin.button>
+    </x-admin.card>
+    <p class="my-4 text-sm text-gray-600">Category names, active status and order are available to the connected storefront immediately. Page content changes require Save draft → Preview → Publish. Series are separate collections, not category ancestors.</p>
     <x-admin.card>
         <label class="wx-label" for="category-search">Search categories</label>
         <input id="category-search" type="search" wire:model.live.debounce.300ms="search" class="wx-input mb-4" placeholder="Search by category name">
@@ -45,7 +41,7 @@
                 <x-admin.field label="Parent category" for="form.parent_id"><select id="form.parent_id" wire:model="form.parent_id" class="wx-input"><option value="">Top level</option>@foreach($parents as $parent)@if($parent->id !== $editingId)<option value="{{ $parent->id }}">{{ $parent->name }}</option>@endif@endforeach</select></x-admin.field>
                 <x-admin.field label="Description" for="form.description"><textarea id="form.description" wire:model="form.description" class="wx-input" rows="3" maxlength="3000"></textarea></x-admin.field>
                 <x-admin.field label="Sort position" for="form.position"><input id="form.position" wire:model="form.position" type="number" min="0" max="100000" class="wx-input"></x-admin.field>
-                <label class="flex gap-2"><input type="checkbox" wire:model="form.is_active"> Active in the native catalogue (does not publish to the storefront)</label>
+                <label class="flex gap-2"><input type="checkbox" wire:model="form.is_active"> Active in the storefront category hierarchy (page content requires publication)</label>
                 <p class="text-sm text-gray-500">Deactivate instead of deleting to preserve future product links. Activity changes are audited. @if(!$editingId)Save and continue to images, formatted content, FAQs and featured products.@else Use Edit on the category row for images, content, FAQs and featured products.@endif</p>
             </div>
             <x-slot:footer>

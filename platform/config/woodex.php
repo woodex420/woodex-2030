@@ -44,6 +44,9 @@ return [
         'merge_window_days' => 30,
     ],
 
+    // Approved category cutover. Disable to return a 503 and use the storefront fallback.
+    'category_sync_enabled' => (bool) env('CATEGORY_SYNC_ENABLED', true),
+
     'owner' => [
         'name' => env('OWNER_NAME'),
         'email' => env('OWNER_EMAIL'),
