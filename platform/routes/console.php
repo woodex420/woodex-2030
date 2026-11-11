@@ -2,6 +2,7 @@
 
 use App\Domain\System\Models\Automation;
 use App\Domain\System\Models\ScheduledTaskRun;
+use App\Support\Modules;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -15,7 +16,8 @@ use Illuminate\Support\Facades\Schedule;
 */
 
 // Recover durable WhatsApp events before draining the same database queue.
-Schedule::command('woodex:retry-whatsapp-webhooks')->everyMinute()->withoutOverlapping(5);
+Schedule::command('woodex:retry-whatsapp-webhooks')->everyMinute()->withoutOverlapping(5)
+    ->when(fn (): bool => Modules::enabled('whatsapp'));
 
 // Drain the database queue without a daemon (D-17).
 Schedule::command('queue:work --stop-when-empty --max-time=50 --tries=3')
@@ -49,15 +51,18 @@ Schedule::command('woodex:digest --period=weekly')->weeklyOn(1, '09:00')
 
 // S8: deliver what waited out a quiet period (TGM-008) — plumbing, keep it on.
 Schedule::command('woodex:telegram-flush')->everyMinute()->withoutOverlapping(5)
-    ->when(fn (): bool => Automation::enabled('woodex:telegram-flush'));
+    ->when(fn (): bool => Automation::enabled('woodex:telegram-flush'))
+    ->when(fn (): bool => Modules::enabled('telegram'));
 
 // AUT-001: the sequences heartbeat — every due step, every minute, held sends included.
 Schedule::command('woodex:automation-run')->everyMinute()
-    ->when(fn (): bool => Automation::enabled('woodex:automation-run'));
+    ->when(fn (): bool => Automation::enabled('woodex:automation-run'))
+    ->when(fn (): bool => Modules::enabled('automation'));
 
 // WAP-008/WAP-010: daily WhatsApp health — quality rating + monthly cost against budget.
 Schedule::command('woodex:whatsapp-health')->dailyAt('09:10')
-    ->when(fn (): bool => Automation::enabled('woodex:whatsapp-health'));
+    ->when(fn (): bool => Automation::enabled('woodex:whatsapp-health'))
+    ->when(fn (): bool => Modules::enabled('whatsapp'));
 
 // Monthly CRM report to the owner: the month that just ended, in one message (P8.5).
 Schedule::command('woodex:monthly-report')->monthlyOn(1, '09:00')
@@ -88,21 +93,25 @@ Schedule::command('woodex:review-requests')->dailyAt('10:30')
     ->when(fn (): bool => Automation::enabled('woodex:review-requests'));
 
 // P8.5 dormant agents: read-only digests for the owner, OFF until switched on (A0).
-Schedule::command('woodex:social-publish')->everyFifteenMinutes();
+Schedule::command('woodex:social-publish')->everyFifteenMinutes()
+    ->when(fn (): bool => Modules::enabled('marketing'));
 Schedule::command('woodex:privacy-retention')->dailyAt('02:30');
 
 Schedule::command('woodex:seo-agent')->weeklyOn(0, '08:00')
-    ->when(fn (): bool => Automation::enabled('woodex:seo-agent'));
+    ->when(fn (): bool => Automation::enabled('woodex:seo-agent'))
+    ->when(fn (): bool => Modules::enabled('website'));
 
 Schedule::command('woodex:social-agent')->weeklyOn(1, '09:30')
-    ->when(fn (): bool => Automation::enabled('woodex:social-agent'));
+    ->when(fn (): bool => Automation::enabled('woodex:social-agent'))
+    ->when(fn (): bool => Modules::enabled('marketing'));
 
 // Backups (spatie/laravel-backup) and housekeeping.
 Schedule::command('backup:run --only-db')->dailyAt('02:30');
 Schedule::command('backup:run')->weeklyOn(0, '03:00');
 // Woodex OS 1: the site is `public/`. Pages published from the OS are new files on this server only, so they
 // get their own daily copy inside storage (the deployment's data folder), on top of the weekly full backup.
-Schedule::command('woodex:site-backup')->dailyAt('02:45');
+Schedule::command('woodex:site-backup')->dailyAt('02:45')
+    ->when(fn (): bool => Modules::enabled('website'));
 Schedule::command('backup:clean')->dailyAt('03:30');
 Schedule::command('backup:monitor')->dailyAt('04:00');
 Schedule::command('queue:prune-failed --hours=720')->dailyAt('04:15');

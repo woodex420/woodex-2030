@@ -14,21 +14,21 @@ use Illuminate\Support\Facades\Route;
 */
 Route::prefix('public')->name('api.public.')->group(function (): void {
     Route::post('/leads', [LeadController::class, 'store'])
-        ->middleware('throttle:public-leads')
+        ->middleware(['module:lead_api', 'throttle:public-leads'])
         ->name('leads.store');
 
     // The web chat widget (P8.5): open a thread, send a message, poll for replies. Stateless;
     // the visitor's token is the only credential; the owner's switch (Website Settings) gates all three.
     Route::post('/chat/start', [ChatWidgetController::class, 'start'])
-        ->middleware('throttle:chat-write')
+        ->middleware(['module:inbox', 'throttle:chat-write'])
         ->name('chat.start');
 
     Route::post('/chat/send', [ChatWidgetController::class, 'send'])
-        ->middleware('throttle:chat-write')
+        ->middleware(['module:inbox', 'throttle:chat-write'])
         ->name('chat.send');
 
     Route::get('/chat/messages', [ChatWidgetController::class, 'messages'])
-        ->middleware('throttle:chat-poll')
+        ->middleware(['module:inbox', 'throttle:chat-poll'])
         ->name('chat.messages');
 });
 
@@ -38,26 +38,27 @@ Route::prefix('public')->name('api.public.')->group(function (): void {
 | pages work without a single character being changed on them, and an enquiry lands in the CRM like any other.
 */
 Route::get('/forms.php', [LegacySiteBridgeController::class, 'config'])
-    ->middleware('throttle:public-site')
+    ->middleware(['module:legacy_bridge', 'throttle:public-site'])
     ->name('legacy.forms.config');
 
 Route::post('/forms.php', [LegacySiteBridgeController::class, 'forms'])
-    ->middleware('throttle:public-site')
+    ->middleware(['module:legacy_bridge', 'throttle:public-site'])
     ->name('legacy.forms.store');
 
 Route::match(['get', 'post'], '/chat.php', [LegacySiteBridgeController::class, 'chat'])
-    ->middleware('throttle:public-site')
+    ->middleware(['module:legacy_bridge', 'throttle:public-site'])
     ->name('legacy.chat');
 
 // Remote MCP (JSON-RPC 2.0 over HTTPS) for any MCP client: URL + `wx_mcp_` bearer key. Read-only tools only.
 Route::post('/mcp', McpHttpController::class)
-    ->middleware(['throttle:120,1', AuthenticateMcpBridge::class])
+    ->middleware(['module:mcp_bridge', 'throttle:120,1', AuthenticateMcpBridge::class])
     ->name('api.mcp');
 // Streamable HTTP clients may probe with GET; this endpoint answers JSON-RPC over POST only.
-Route::get('/mcp', fn () => response()->json(['error' => 'Use POST with a JSON-RPC body.'], 405)->header('Allow', 'POST'));
+Route::get('/mcp', fn () => response()->json(['error' => 'Use POST with a JSON-RPC body.'], 405)->header('Allow', 'POST'))->middleware('module:mcp_bridge');
 
 // Read-only REST backing for the local stdio MCP adapter. Kept for older clients; /api/mcp is the same tools.
 Route::prefix('bridge/v1')->name('api.bridge.')->middleware([
+    'module:mcp_bridge',
     'throttle:120,1',
     AuthenticateMcpBridge::class,
 ])->group(function (): void {

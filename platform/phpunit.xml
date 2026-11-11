@@ -39,6 +39,10 @@
         <env name="TELEGRAM_BOT_TOKEN" value=""/>
         <env name="TURNSTILE_SECRET_KEY" value=""/>
         <env name="PUBLIC_LEADS_BRIDGE_KEY" value=""/>
+        <!-- The suite inherited from WOODEX OS exercises every module; ModuleSwitchTest covers the shipped default. -->
+        <env name="WOODEX_MODULES" value="*"/>
+        <!-- The inherited Website tests assert addresses under the Interior site. The application default is APP_URL. -->
+        <env name="PUBLIC_SITE_URL" value="https://woodex.com.pk"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

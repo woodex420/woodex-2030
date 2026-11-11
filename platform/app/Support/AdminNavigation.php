@@ -127,7 +127,7 @@ final class AdminNavigation
                     return true;
                 }
 
-                if (! Route::has($item['route'])) {
+                if (! Route::has($item['route']) || ! Modules::routeIsOpen($item['route'])) {
                     return false;
                 }
 

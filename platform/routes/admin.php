@@ -123,9 +123,9 @@ Route::livewire('/invoices/new', InvoiceCreate::class)->name('invoices.create')-
 Route::livewire('/invoices/{invoice}', InvoiceShow::class)->name('invoices.show')->middleware('can:invoices.view')->whereNumber('invoice');
 Route::get('/invoices/{invoice}/pdf', InvoicePdfController::class)->name('invoices.pdf')->middleware('can:invoices.view')->whereNumber('invoice');
 Route::livewire('/payments', PaymentsHub::class)->name('payments.index')->middleware('can:invoices.view');
-Route::livewire('/estimations', EstimationsIndex::class)->name('estimations.index')->middleware('can:estimations.access');
-Route::livewire('/estimations/new', EstimateBuilder::class)->name('estimations.create')->middleware('can:estimates.view');
-Route::livewire('/estimations/{estimate}', EstimateBuilder::class)->name('estimations.show')->middleware('can:estimates.view')->whereNumber('estimate');
+Route::livewire('/estimations', EstimationsIndex::class)->name('estimations.index')->middleware('can:estimations.access')->middleware('module:estimator');
+Route::livewire('/estimations/new', EstimateBuilder::class)->name('estimations.create')->middleware('can:estimates.view')->middleware('module:estimator');
+Route::livewire('/estimations/{estimate}', EstimateBuilder::class)->name('estimations.show')->middleware('can:estimates.view')->whereNumber('estimate')->middleware('module:estimator');
 Route::get('/sales/dues', fn () => redirect()->route('admin.payments.index', ['tab' => 'dues'], 301))->name('sales.dues')->middleware('can:invoices.view');
 Route::get('/sales/tracking/quotes', fn () => redirect()->route('admin.quotes.index', ['tab' => 'tracking'], 301))->name('sales.tracking.quotes')->middleware('can:quotes.view');
 Route::get('/sales/tracking/invoices', fn () => redirect()->route('admin.invoices.index', ['tab' => 'tracking'], 301))->name('sales.tracking.invoices')->middleware('can:invoices.view');
@@ -154,24 +154,24 @@ Route::livewire('/projects', ProjectsIndex::class)->name('projects.index')->midd
 Route::livewire('/projects/board', ProjectBoard::class)->name('projects.board')->middleware('can:projects.view');
 // The two screens the sidebar used to advertise as "P4b" while the feature was live: the client's
 // signed door on every job, and the handover list (deep QA 21 Oct, slice B).
-Route::livewire('/projects/portal', ClientPortalIndex::class)->name('projects.portal')->middleware('can:projects.view');
+Route::livewire('/projects/portal', ClientPortalIndex::class)->name('projects.portal')->middleware('can:projects.view')->middleware('module:client_portal');
 Route::livewire('/projects/handovers', HandoversIndex::class)->name('projects.handovers')->middleware('can:projects.view');
 Route::livewire('/projects/{project}', ProjectShow::class)->name('projects.show')->middleware('can:projects.view')->whereNumber('project');
 
 // Conversations (P4, CNV-001/CNV-002, WAP-001…WAP-004): one inbox for WhatsApp and the website chat widget.
-Route::livewire('/inbox', Inbox::class)->name('inbox')->middleware('can:inbox.view');
-Route::get('/conversations/media/{message}', ConversationMediaController::class)->name('conversations.media')->middleware('can:inbox.view');
+Route::livewire('/inbox', Inbox::class)->name('inbox')->middleware('can:inbox.view')->middleware('module:inbox');
+Route::get('/conversations/media/{message}', ConversationMediaController::class)->name('conversations.media')->middleware('can:inbox.view')->middleware('module:inbox');
 
 // Private attachments (GLB-006)
 Route::get('/media/{media}/{conversion?}', MediaController::class)->name('media.show')->whereIn('conversion', ['thumb']);
 
 // Website (phase P6, docs/09): the public website is content, edited here.
 // Slice M: Marketing becomes a hub — planner + attribution; the old planner URL keeps working.
-Route::livewire('/marketing', MarketingHub::class)->name('marketing.index')->middleware('can:social.manage');
-Route::get('/marketing/social', fn () => redirect()->route('admin.marketing.index', ['tab' => 'planner'], 301))->name('marketing.social')->middleware('can:social.manage');
+Route::livewire('/marketing', MarketingHub::class)->name('marketing.index')->middleware('can:social.manage')->middleware('module:marketing');
+Route::get('/marketing/social', fn () => redirect()->route('admin.marketing.index', ['tab' => 'planner'], 301))->name('marketing.social')->middleware('can:social.manage')->middleware('module:marketing');
 
-Route::livewire('/website/pages', PagesIndex::class)->name('website.pages')->middleware('can:website.edit');
-Route::livewire('/website/find-replace', FindReplaceIndex::class)->name('website.find-replace')->middleware('can:website.edit');
+Route::livewire('/website/pages', PagesIndex::class)->name('website.pages')->middleware('can:website.edit')->middleware('module:website');
+Route::livewire('/website/find-replace', FindReplaceIndex::class)->name('website.find-replace')->middleware('can:website.edit')->middleware('module:website');
 
 /*
  * The ported v2.1 admin screens (docs/audit/16.8). Full document: they bring their own stylesheet and
@@ -179,35 +179,35 @@ Route::livewire('/website/find-replace', FindReplaceIndex::class)->name('website
  * in WebsiteStudioController::SCREENS before it resolves.
  */
 Route::get('/website/studio/{screen}', [WebsiteStudioController::class, 'show'])
-    ->name('website.studio')->middleware('can:website.edit');
+    ->name('website.studio')->middleware('can:website.edit')->middleware('module:website');
 Route::post('/website/studio/api', WebsiteStudioApiController::class)
-    ->name('website.studio.api')->middleware('can:website.edit');
+    ->name('website.studio.api')->middleware('can:website.edit')->middleware('module:website');
 Route::post('/website/studio/builder-api', WebsiteStudioApiController::class)
-    ->name('website.studio.builder-api')->middleware('can:website.edit');
+    ->name('website.studio.builder-api')->middleware('can:website.edit')->middleware('module:website');
 
-Route::get('/website/estimator', fn () => redirect()->route('admin.estimations.index', ['tab' => 'rates']))->name('website.estimator')->middleware('can:website.edit');
+Route::get('/website/estimator', fn () => redirect()->route('admin.estimations.index', ['tab' => 'rates']))->name('website.estimator')->middleware('can:website.edit')->middleware('module:estimator');
 
 // The screens the OS navigation links to by name, instead of a route with a parameter.
 foreach (['blog' => 'website.blog', 'portfolio' => 'website.portfolio', 'forms' => 'website.forms'] as $screen => $name) {
     Route::get('/website/'.$screen, [WebsiteStudioController::class, 'show'])
-        ->defaults('screen', $screen)->name($name)->middleware('can:website.edit');
+        ->defaults('screen', $screen)->name($name)->middleware('can:website.edit')->middleware('module:website');
 }
 
 // A page is a file and the builder is its editor: the old editor URLs open the builder on that file.
-Route::get('/website/pages/new', WebsitePagesRedirectController::class)->name('website.pages.create')->middleware('can:website.edit');
-Route::get('/website/pages/{page}', WebsitePagesRedirectController::class)->name('website.pages.edit')->middleware('can:website.edit');
+Route::get('/website/pages/new', WebsitePagesRedirectController::class)->name('website.pages.create')->middleware('can:website.edit')->middleware('module:website');
+Route::get('/website/pages/{page}', WebsitePagesRedirectController::class)->name('website.pages.edit')->middleware('can:website.edit')->middleware('module:website');
 
 // Visual Page Builder (v2.1 front-end, OS back-end): edits the site's HTML files, opened with ?path=… .
-Route::get('/website/builder', [WebsiteBuilderController::class, 'show'])->name('website.builder')->middleware('can:website.edit');
-Route::post('/website/builder/api', [WebsiteBuilderController::class, 'api'])->name('website.builder.api')->middleware('can:website.edit');
-Route::livewire('/website/seo-overview', SeoOverviewIndex::class)->name('website.seo.overview')->middleware('can:website.edit');
-Route::livewire('/website/health', SiteHealthIndex::class)->name('website.health')->middleware('can:website.edit');
-Route::livewire('/website/media', MediaLibrary::class)->name('website.media')->middleware('can:website.edit');
-Route::livewire('/website/redirects', RedirectsIndex::class)->name('website.redirects')->middleware('can:website.edit');
-Route::livewire('/website/seo', SeoAgentIndex::class)->name('website.seo')->middleware('can:website.edit');
-Route::livewire('/website/speed', SpeedIndex::class)->name('website.speed')->middleware('can:website.edit');
-Route::livewire('/website/settings', WebsiteSettings::class)->name('website.settings')->middleware('can:settings.manage');
-Route::livewire('/website/theme', ThemeBuilder::class)->name('website.theme')->middleware('can:theme.manage');
+Route::get('/website/builder', [WebsiteBuilderController::class, 'show'])->name('website.builder')->middleware('can:website.edit')->middleware('module:website');
+Route::post('/website/builder/api', [WebsiteBuilderController::class, 'api'])->name('website.builder.api')->middleware('can:website.edit')->middleware('module:website');
+Route::livewire('/website/seo-overview', SeoOverviewIndex::class)->name('website.seo.overview')->middleware('can:website.edit')->middleware('module:website');
+Route::livewire('/website/health', SiteHealthIndex::class)->name('website.health')->middleware('can:website.edit')->middleware('module:website');
+Route::livewire('/website/media', MediaLibrary::class)->name('website.media')->middleware('can:website.edit')->middleware('module:website');
+Route::livewire('/website/redirects', RedirectsIndex::class)->name('website.redirects')->middleware('can:website.edit')->middleware('module:website');
+Route::livewire('/website/seo', SeoAgentIndex::class)->name('website.seo')->middleware('can:website.edit')->middleware('module:website');
+Route::livewire('/website/speed', SpeedIndex::class)->name('website.speed')->middleware('can:website.edit')->middleware('module:website');
+Route::livewire('/website/settings', WebsiteSettings::class)->name('website.settings')->middleware('can:settings.manage')->middleware('module:website');
+Route::livewire('/website/theme', ThemeBuilder::class)->name('website.theme')->middleware('can:theme.manage')->middleware('module:website');
 
 // Profile
 Route::livewire('/profile/security', Security::class)->name('profile.security');
@@ -224,15 +224,15 @@ Route::livewire('/system/access', SystemAccessHub::class)->name('system.access')
 Route::livewire('/system/connections', SystemConnectionsHub::class)->name('system.connections')->middleware('can-any:integrations.manage,system.import');
 Route::livewire('/system/platform', SystemPlatformHub::class)->name('system.platform')->middleware('can-any:system.health,audit.view,system.change_requests,settings.manage,leads.delete');
 // The chat bot has no screen of its own: its knobs are a tab of Settings. The sidebar entry opens it.
-Route::get('/chat-bot', fn () => redirect()->route('admin.settings', ['tab' => 'bot']))->name('chat-bot')->middleware('can:settings.manage');
+Route::get('/chat-bot', fn () => redirect()->route('admin.settings', ['tab' => 'bot']))->name('chat-bot')->middleware('can:settings.manage')->middleware('module:inbox');
 Route::livewire('/settings', SettingsPage::class)->name('settings')->middleware('can:settings.manage');
-Route::livewire('/settings/canned-replies', CannedRepliesIndex::class)->name('canned-replies')->middleware('can:settings.manage');
+Route::livewire('/settings/canned-replies', CannedRepliesIndex::class)->name('canned-replies')->middleware('can:settings.manage')->middleware('module:inbox');
 Route::livewire('/settings/lead-assignment', AssignmentRules::class)->name('assignment-rules')->middleware('can:settings.manage');
 Route::livewire('/users', UsersIndex::class)->name('users.index')->middleware('can:users.manage');
 Route::livewire('/system/health', Health::class)->name('system.health')->middleware('can:system.health');
 
-Route::livewire('/automation', AutomationsIndex::class)->name('automation.index')->middleware('can:automation.manage');
-Route::livewire('/automation/sequences', SequencesIndex::class)->name('automation.sequences')->middleware('can:automation.manage');
+Route::livewire('/automation', AutomationsIndex::class)->name('automation.index')->middleware('can:automation.manage')->middleware('module:automation');
+Route::livewire('/automation/sequences', SequencesIndex::class)->name('automation.sequences')->middleware('can:automation.manage')->middleware('module:automation');
 Route::livewire('/system/change-requests', ChangeRequests::class)->name('system.change-requests')->middleware('can:system.change_requests');
 Route::livewire('/system/alert-rules', AlertRulesIndex::class)->name('system.alert-rules')->middleware('can:settings.manage');
 Route::livewire('/system/audit', AuditLog::class)->name('system.audit')->middleware('can:audit.view');
@@ -246,5 +246,5 @@ Route::livewire('/integrations', Integrations::class)->name('integrations')->mid
 // Real connector authorisation: the browser round trip for OAuth providers (Google Workspace).
 Route::get('/integrations/oauth/{provider}/start', [ConnectorOAuthController::class, 'start'])->name('integrations.oauth.start')->middleware('can:integrations.manage');
 Route::get('/integrations/oauth/{provider}/callback', [ConnectorOAuthController::class, 'callback'])->name('integrations.oauth.callback')->middleware('can:integrations.manage');
-Route::livewire('/integrations/whatsapp-templates', WhatsAppTemplates::class)->name('whatsapp.templates')->middleware('can:integrations.manage');
+Route::livewire('/integrations/whatsapp-templates', WhatsAppTemplates::class)->name('whatsapp.templates')->middleware('can:integrations.manage')->middleware('module:whatsapp');
 Route::livewire('/data-import', DataImport::class)->name('data-import')->middleware('can:system.import');

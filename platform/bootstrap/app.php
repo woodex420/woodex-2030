@@ -3,13 +3,16 @@
 use App\Domain\Website\Services\SiteRouter;
 use App\Http\Middleware\EnsureAnyPermission;
 use App\Http\Middleware\EnsureDatabaseIsCurrent;
+use App\Http\Middleware\EnsureModuleIsEnabled;
 use App\Http\Middleware\EnsureTwoFactorIsEnabled;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RedirectToInstaller;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VerifyTelegramWebhook;
 use App\Support\Install\SiteState;
+use App\Support\Modules;
 use App\Support\Website\ContactFormResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -35,10 +38,13 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'two-factor' => EnsureTwoFactorIsEnabled::class,
             'db-current' => EnsureDatabaseIsCurrent::class,
             'can-any' => EnsureAnyPermission::class,
+            'module' => EnsureModuleIsEnabled::class,
         ]);
 
         // Authenticate before actor throttling even after Laravel sorts route middleware by priority.
         $middleware->prependToPriorityList([ThrottleRequests::class, ThrottleRequestsWithRedis::class], VerifyTelegramWebhook::class);
+        // A switched-off module answers 404 before cookies are read, a session starts or a route model is looked up.
+        $middleware->prependToPriorityList(EncryptCookies::class, EnsureModuleIsEnabled::class);
 
         // A freshly deployed site without .env opens the installer instead of failing (D-58).
         $middleware->prepend(RedirectToInstaller::class);
@@ -70,7 +76,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // A URL no route owns is a page from the CMS or one of the 301s from the previous website (docs/09 §3).
         // Registered here rather than as a catch-all route: Fortify's login and Livewire register their routes
         // after routes/web.php, and a catch-all there would shadow them.
-        $exceptions->render(fn (NotFoundHttpException $exception, Request $request) => app(SiteRouter::class)->respond($request));
+        // The CMS page router answers unknown URLs only while the public website module is on.
+        $exceptions->render(fn (NotFoundHttpException $exception, Request $request) => Modules::enabled('website') ? app(SiteRouter::class)->respond($request) : null);
 
         $exceptions->render(function (ValidationException $exception, Request $request) {
             foreach (['login.store' => 'login', 'two-factor.login.store' => 'two-factor.login', 'password.email' => 'password.request'] as $post => $form) {

@@ -23,7 +23,9 @@
         </label>
 
         {{-- Notifications (GLB-008) --}}
-        <livewire:admin.conversations.live-chat-bell />
+        @if (\App\Support\Modules::enabled('inbox'))
+            <livewire:admin.conversations.live-chat-bell />
+        @endif
         <livewire:admin.notification-bell />
 
         {{-- Assistant drawer (slice M): fixed questions over the records, on every page --}}
