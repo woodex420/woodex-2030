@@ -31,7 +31,7 @@ final class WhatsAppWebhookController extends Controller
     /** Meta's handshake: it asks for the token we configured, and we echo its challenge back. */
     public function verify(Request $request): Response|JsonResponse
     {
-        $expected = $this->credentials->verifyToken();
+        $expected = (string) $this->credentials->verifyToken();
         $mode = (string) $request->query('hub_mode');
         $token = (string) $request->query('hub_verify_token');
         $challenge = (string) $request->query('hub_challenge');
@@ -45,7 +45,8 @@ final class WhatsAppWebhookController extends Controller
 
     public function __invoke(Request $request): JsonResponse
     {
-        $secret = $this->credentials->appSecret();
+        // Not connected yet means no secret at all (null): refuse, never compare against it.
+        $secret = (string) $this->credentials->appSecret();
         $signature = (string) $request->header('X-Hub-Signature-256', '');
 
         if ($secret === '' || ! $this->signatureMatches($secret, $signature, $request->getContent())) {

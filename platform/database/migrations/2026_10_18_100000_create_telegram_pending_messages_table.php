@@ -25,6 +25,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('telegram_pending_messages');
+        Schema::dropIfExists('pending_telegram_messages');
     }
 };

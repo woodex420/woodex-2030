@@ -38,6 +38,12 @@ final class SiteRouter
      */
     public function respond(Request $request): ?SymfonyResponse
     {
+        // Pages and redirects are answers to a visitor reading a URL. A 404 raised while handling a form post or a
+        // Livewire action is the application's own answer and must reach the user as a 404, not as a redirect.
+        if (! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
+            return null;
+        }
+
         $path = '/'.ltrim((string) $request->path(), '/');
         $firstSegment = explode('/', trim($path, '/'))[0] ?? '';
 
@@ -84,7 +90,9 @@ final class SiteRouter
             return false;
         }
 
-        return in_array($segment, [...self::RESERVED, trim((string) config('woodex.admin.path'), '/')], true);
+        // Livewire 4 serves its endpoints under a hashed prefix (livewire-1a2b3c4d), not under "livewire".
+        return str_starts_with($segment, 'livewire-')
+            || in_array($segment, [...self::RESERVED, trim((string) config('woodex.admin.path'), '/')], true);
     }
 
     private function onAdminDomain(Request $request): bool
