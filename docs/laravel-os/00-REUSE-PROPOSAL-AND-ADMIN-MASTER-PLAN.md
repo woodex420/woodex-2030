@@ -39,7 +39,7 @@ The only files this proposal adds to the repository are this document and one in
 | Item | Value |
 |---|---|
 | Target (Furniture) | `woodex420/woodex-2030`, branch `arena/69363bda-woodex-2030`, HEAD `9b8cdca8b4c2fc57502349bc16c566e7036633ba` |
-| Source (Interior) | `woodex420/woodexinterior`, `master` @ `603428cca1e45f9da2ffd9c4a0d88eb741285339` — never modified, never connected to |
+| Source (Interior) | `woodex420/woodexinterior`, `master` @ `603428cca1e45f9da2ffd9c4a0d88eb741285339` — never modified, never cloned. Later, in Phase 1b, its public file list was read through GitHub's API to prove the copy publishes nothing new (`02`, section 3) |
 | Archive | `WOODEX_OS_FULL_SOURCE_MASTER_v2_603428c.zip`, 44,331,669 bytes |
 | sha256 | `5e8c271b5460fc5bb5a25f3aa478ac362f81f357b43cae7bb690df92752ee25c` (matches Drive metadata) |
 | md5 | `0b01efdef295c4c036c8d8b35cda5ba9` (matches Drive metadata) |
