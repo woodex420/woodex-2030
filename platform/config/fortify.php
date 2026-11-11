@@ -9,7 +9,7 @@ return [
     /*
     | Authentication for the Woodex OS admin (staff only, no public registration).
     | Login lives under the admin domain/path: local http://localhost:8000/admin/login,
-    | production https://admin.woodex.com.pk/login (see config/woodex.php).
+    | production https://<the admin host>/login (see config/woodex.php).
     */
 
     'guard' => 'web',

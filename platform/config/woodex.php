@@ -9,12 +9,12 @@
 return [
 
     'admin' => [
-        // Production: admin.woodex.com.pk with an empty path. Local/CI: /admin on any host.
+        // Production: a dedicated admin host with an empty path. Local/CI: /admin on any host.
         'domain' => env('ADMIN_DOMAIN') ?: null,
         'path' => trim((string) env('ADMIN_PATH', 'admin'), '/'),
     ],
 
-    'public_site_url' => env('PUBLIC_SITE_URL', 'https://woodex.com.pk'),
+    'public_site_url' => env('PUBLIC_SITE_URL', env('APP_URL', 'http://localhost')),
 
     'security' => [
         'enforce_2fa' => (bool) env('ENFORCE_2FA', false),

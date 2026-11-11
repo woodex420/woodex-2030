@@ -37,7 +37,7 @@ return [
 
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
-        'bot_username' => env('TELEGRAM_BOT_USERNAME', 'WoodexInteriorBot'),
+        'bot_username' => env('TELEGRAM_BOT_USERNAME', ''),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
         'allow_legacy_webhook' => env('TELEGRAM_ALLOW_LEGACY_WEBHOOK', false),
         'api_base' => env('TELEGRAM_API_BASE', 'https://api.telegram.org'),
