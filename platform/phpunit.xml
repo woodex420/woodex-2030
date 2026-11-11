@@ -22,6 +22,8 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- Inherited workflow tests use synthetic data. Readiness tests explicitly disable this bypass. -->
+        <env name="DOCUMENTS_TEST_BYPASS" value="true"/>
         <env name="APP_URL" value="http://localhost"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="ADMIN_DOMAIN" value=""/>

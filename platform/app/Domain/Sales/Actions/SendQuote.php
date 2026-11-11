@@ -43,7 +43,7 @@ final class SendQuote
     public function problems(Quote $quote): array
     {
         $items = $quote->items()->get(['id', 'qty', 'rate_minor', 'is_optional']);
-        $problems = [];
+        $problems = app(\App\Domain\Sales\Services\DocumentReadiness::class)->problems();
 
         if ($items->where('is_optional', false)->isEmpty()) {
             $problems[] = 'Add at least one line that is not optional.';

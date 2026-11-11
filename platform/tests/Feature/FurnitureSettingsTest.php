@@ -3,6 +3,10 @@
 use App\Settings\BusinessSettings;
 use App\Settings\SalesSettings;
 
+beforeEach(function () {
+    config(['documents.test_bypass' => false]);
+});
+
 it('starts with Furniture branding and no inherited legal identity or commercial wording', function () {
     $business = app(BusinessSettings::class);
     $sales = app(SalesSettings::class);

@@ -2,11 +2,11 @@
     <x-admin.page-header title="Settings" description="Business details appear on quotations, invoices and the website. Sales rules drive SLAs, discounts and reports."
                          :breadcrumbs="['System' => null, 'Settings' => null]" />
 
-    @if (blank(app(\App\Settings\BusinessSettings::class)->legal_name) || blank(app(\App\Settings\SalesSettings::class)->execution_terms) || app(\App\Settings\SalesSettings::class)->signatories === [])
+    @if (app(\App\Domain\Sales\Services\DocumentReadiness::class)->problems() !== [])
         <div role="status" class="mb-6 rounded-lg border border-gray-200 bg-white p-4 text-theme-sm dark:border-gray-800 dark:bg-gray-900">
             <strong>Furniture setup pending owner confirmation.</strong>
             Confirm the legal identity, contact details, payment/warranty/delivery terms and authorized signatories before issuing business documents.
-            Blank fields are intentional; no replacement commercial terms have been invented. This notice is not a document-issuance lock.
+            Blank fields are intentional; no replacement commercial terms have been invented. Quotation sending and new invoice issuance are blocked until required settings and operator-recorded owner confirmation are complete. Draft editing and historical document access remain available.
         </div>
     @endif
 

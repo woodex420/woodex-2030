@@ -29,6 +29,10 @@
         </x-slot:actions>
     </x-admin.page-header>
 
+    @error('issue')
+        <div role="alert" class="mb-5 rounded-lg border border-error-200 bg-error-50 p-4 text-theme-sm text-error-700">{{ $message }} Review System → Settings before issuing this invoice.</div>
+    @enderror
+
     @if (session('status'))
         <div class="mb-5 rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-theme-sm text-success-700 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-500">
             {{ session('status') }}

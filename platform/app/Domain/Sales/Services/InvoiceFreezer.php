@@ -45,6 +45,8 @@ final class InvoiceFreezer
                 throw new QuoteActionDenied('Only an issued invoice can be frozen.');
             }
 
+            app(DocumentReadiness::class)->ensureReady();
+
             $snapshot = $this->snapshot->build($invoice->load(['items', 'contact', 'company', 'bankAccount', 'project', 'quote']));
             $bytes = $this->pdf->render($snapshot);
             $path = 'invoices/'.$invoice->public_id.'/'.InvoicePdf::filename($invoice);
