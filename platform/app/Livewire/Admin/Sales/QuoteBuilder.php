@@ -44,6 +44,7 @@ use App\Integrations\WhatsApp\Contracts\WhatsAppGateway;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Settings\SalesSettings;
 use App\Support\Html;
+use App\Support\Modules;
 use App\Support\NumberInput;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -739,8 +740,9 @@ class QuoteBuilder extends Component
             'approvedAsIs' => $assessment !== null && $assessment->needed && app(QuoteApprovalRules::class)->isApprovedAsIs($quote),
             'pendingApproval' => $quote->status === QuoteStatus::PendingApproval ? $this->pendingApproval() : null,
             // Keep signed paths relative until the browser resolves its actual public origin.
-            'portalUrl' => $versions->isNotEmpty() ? QuoteLinks::signed('quotes.portal', $quote) : null,
-            'sharedPdfUrl' => $versions->isNotEmpty() ? QuoteLinks::signed('quotes.portal.pdf', $quote) : null,
+            // While the client portal module is off its pages answer 404, so no link to them is offered.
+            'portalUrl' => $versions->isNotEmpty() && Modules::enabled('client_portal') ? QuoteLinks::signed('quotes.portal', $quote) : null,
+            'sharedPdfUrl' => $versions->isNotEmpty() && Modules::enabled('client_portal') ? QuoteLinks::signed('quotes.portal.pdf', $quote) : null,
             'whatsappShare' => $versions->isNotEmpty() ? QuoteLinks::whatsappShare($quote) : null,
             'clientComment' => $quote->status === QuoteStatus::ChangesRequested
                 ? ($quote->events()->where('type', 'changes_requested')->latest('occurred_at')->first()?->data['comment'] ?? null)

@@ -2,12 +2,20 @@
 
 declare(strict_types=1);
 
+use App\Domain\Crm\Enums\BusinessLine;
+use App\Domain\Crm\Models\Lead;
+use App\Domain\Sales\Actions\CreateQuote;
+use App\Domain\Sales\Actions\SendQuote;
+use App\Domain\Sales\Services\QuoteEditor;
+use App\Livewire\Admin\Sales\QuoteBuilder;
 use App\Support\AdminNavigation;
 use App\Support\Modules;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 
 /*
 | Woodex Furniture ships with the optional modules switched off (config/modules.php). phpunit.xml switches them
@@ -177,4 +185,29 @@ it('does not run the scheduled commands of switched-off modules', function () {
     config(['modules.enabled' => '*']);
     expect($passes('woodex:social-publish'))->toBeTrue()
         ->and($passes('woodex:site-backup'))->toBeTrue();
+});
+
+it('offers no client link on a sent quotation while the client portal is off', function () {
+    Storage::fake('local');
+    $sales = $this->userWithRole('sales');
+    $lead = Lead::factory()->create(['owner_id' => $sales->id, 'business_line' => 'furniture']);
+    $quote = app(CreateQuote::class)->handle($lead->contact, BusinessLine::Furniture, $sales, $lead, null, 'Desks');
+    $editor = app(QuoteEditor::class);
+    $section = $quote->sections()->first() ?? $editor->addSection($quote, 'Items');
+    $editor->addLine($section, ['description' => 'Desk', 'unit' => 'each', 'qty' => '2', 'rate_minor' => 5_000_000]);
+    $quote->items()->where('rate_minor', 0)->each(fn ($item) => $editor->deleteLine($item));
+    app(SendQuote::class)->handle($quote->refresh(), $sales);
+
+    useShippedModules();
+    Livewire::actingAs($sales)->test(QuoteBuilder::class, ['quote' => $quote->refresh()])
+        ->assertOk()
+        ->assertViewHas('portalUrl', fn ($url): bool => $url === null)
+        ->assertViewHas('sharedPdfUrl', fn ($url): bool => $url === null)
+        ->assertDontSee('Share link');
+
+    config(['modules.enabled' => 'lead_api,client_portal']);
+    Livewire::actingAs($sales)->test(QuoteBuilder::class, ['quote' => $quote->refresh()])
+        ->assertOk()
+        ->assertViewHas('portalUrl', fn ($url): bool => is_string($url) && str_contains($url, '/q/'))
+        ->assertSee('Share link');
 });
