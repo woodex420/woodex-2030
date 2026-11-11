@@ -63,7 +63,7 @@ function repair46Record(array $overrides = []): Payment
         'amount_minor' => 5000, 'received_on' => today()->toDateString(), 'method' => 'cash'], $overrides), test()->accountant);
 }
 
-it('posts the staff Payments form atomically for both brands without widening accountant access', function (BusinessLine $line) {
+it('posts the staff Payments form atomically for both brands without granting accountant ledger management', function (BusinessLine $line) {
     $invoice = repair46Invoice($line);
     app(PostInvoiceToLedger::class)->handle($invoice, $this->owner);
     Livewire::actingAs($this->accountant)->test(PaymentsIndex::class)
@@ -76,7 +76,7 @@ it('posts the staff Payments form atomically for both brands without widening ac
     expect($payment->receipt_number)->not->toBeNull()
         ->and($invoice->refresh()->balance_minor)->toBe(5000)->and($net)->toBe(5000)
         ->and((int) $entry->lines()->sum('debit_minor'))->toBe(5000)
-        ->and($this->accountant->can('accounts.view'))->toBeFalse();
+        ->and($this->accountant->can('accounts.manage'))->toBeFalse();
 })->with([BusinessLine::Interior, BusinessLine::Furniture]);
 
 it('shows a closed-period form error and retains input without committing money or receipts', function () {

@@ -105,10 +105,9 @@ it('opens for the owner and refuses a colleague without the ledger permission', 
     $this->actingAs($this->support)->get(route('admin.accounts.trial'))->assertForbidden();
 });
 
-it('is closed to the accountant role, which today holds no accounts.view — recorded, not silently changed', function () {
-    // The audit found this: the person who records the money cannot open the books. Changing a role is the owner's
-    // decision, so this test pins the current behaviour and the report asks for the change.
-    $this->actingAs($this->accountant)->get(route('admin.accounts.trial'))->assertForbidden();
+it('opens read-only books for the accountant after the Phase 2 access correction', function () {
+    expect($this->accountant->can('accounts.manage'))->toBeFalse();
+    $this->actingAs($this->accountant)->get(route('admin.accounts.trial'))->assertOk();
 });
 
 it('is reachable from the Accounts group in the sidebar', function () {

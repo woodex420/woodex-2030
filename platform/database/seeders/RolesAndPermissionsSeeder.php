@@ -69,7 +69,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'accountant' => [
                 'dashboard.view', 'contacts.view', 'quotes.view', 'estimates.view',
                 'invoices.view', 'invoices.manage', 'payments.record', 'payments.verify',
-                'projects.view', 'reports.view', 'reports.finance', 'leads.export',
+                'projects.view', 'reports.view', 'reports.finance', 'leads.export', 'accounts.view',
             ],
             'editor' => ['dashboard.view', 'website.edit', 'social.manage'],
             'support' => ['dashboard.view', 'leads.view', 'leads.create', 'contacts.view', 'inbox.view', 'inbox.reply'],
