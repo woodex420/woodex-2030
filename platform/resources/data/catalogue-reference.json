@@ -1,0 +1,965 @@
+{
+  "source": "apps/api/seed-data.json",
+  "sha256": "f2e12e0c962d91095e76d65d44ea375a1b7e9299990d37d43e7971c77a6ef0ba",
+  "items": [
+    {
+      "category": "office-tables",
+      "id": "ballmer-executive-desk",
+      "name": "BALLMER Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "titan-executive-desk",
+      "name": "TITAN Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "apex-executive-desk",
+      "name": "APEX Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "sovereign-executive-desk",
+      "name": "SOVEREIGN Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "prestige-executive-desk",
+      "name": "PRESTIGE Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "commander-executive-desk",
+      "name": "COMMANDER Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "vertex-executive-desk",
+      "name": "VERTEX Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "nexus-executive-desk",
+      "name": "NEXUS Executive Desk",
+      "series": "nova-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "summit-executive-desk",
+      "name": "SUMMIT Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "monarch-executive-desk",
+      "name": "MONARCH Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "elite-72-executive-desk",
+      "name": "ELITE-72 Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "elite-84-executive-desk",
+      "name": "ELITE-84 Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "pinnacle-executive-desk",
+      "name": "PINNACLE Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "cornerstone-l-executive-desk",
+      "name": "CORNERSTONE L-Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "vanguard-executive-desk",
+      "name": "VANGUARD Executive Desk",
+      "series": "nova-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "regent-executive-desk",
+      "name": "REGENT Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "zenith-executive-desk",
+      "name": "ZENITH Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "dynasty-executive-desk-set",
+      "name": "DYNASTY Executive Desk Set",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "fortress-executive-desk",
+      "name": "FORTRESS Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "legacy-executive-desk",
+      "name": "LEGACY Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "aurora-executive-desk",
+      "name": "AURORA Executive Desk",
+      "series": "nova-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "horizon-executive-desk",
+      "name": "HORIZON Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "quantum-executive-desk",
+      "name": "QUANTUM Executive Desk",
+      "series": "nova-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "imperial-executive-desk",
+      "name": "IMPERIAL Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "centurion-executive-desk",
+      "name": "CENTURION Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "catalyst-sit-stand-executive",
+      "name": "CATALYST Sit-Stand Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "grandeur-executive-desk",
+      "name": "GRANDEUR Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "matrix-executive-desk",
+      "name": "MATRIX Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "oasis-executive-desk",
+      "name": "OASIS Executive Desk",
+      "series": "ek-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "throne-executive-desk",
+      "name": "THRONE Executive Desk",
+      "series": "infinity-series",
+      "subcategory": "executive-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "stride-manager-desk",
+      "name": "STRIDE Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "drive-manager-desk",
+      "name": "DRIVE Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "prime-manager-l-desk",
+      "name": "PRIME Manager L-Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "core-manager-desk",
+      "name": "CORE Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "ascent-manager-desk",
+      "name": "ASCENT Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "vector-manager-desk",
+      "name": "VECTOR Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "focus-manager-desk",
+      "name": "FOCUS Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "pulse-manager-desk",
+      "name": "PULSE Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "axis-manager-l-desk",
+      "name": "AXIS Manager L-Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "swift-manager-desk",
+      "name": "SWIFT Manager Desk",
+      "series": "nova-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "edge-manager-desk",
+      "name": "EDGE Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "flux-manager-desk",
+      "name": "FLUX Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "bridge-manager-desk",
+      "name": "BRIDGE Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "pinnacle-m-manager-desk",
+      "name": "PINNACLE-M Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "metro-manager-desk",
+      "name": "METRO Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "crest-manager-desk",
+      "name": "CREST Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "summit-m-manager-desk",
+      "name": "SUMMIT-M Manager Desk",
+      "series": "ek-series",
+      "subcategory": "manager-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "staff-table-std",
+      "name": "Staff Workdesk Standard",
+      "series": "ek-series",
+      "subcategory": "staff-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "huddle-4-meeting-table",
+      "name": "HUDDLE-4 Meeting Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "huddle-4-round-meeting-table",
+      "name": "HUDDLE-4 Round Meeting Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "connect-6-meeting-table",
+      "name": "CONNECT-6 Meeting Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "connect-8-conference-table",
+      "name": "CONNECT-8 Conference Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "connect-10-conference-table",
+      "name": "CONNECT-10 Conference Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "summit-12-boardroom-table",
+      "name": "SUMMIT-12 Boardroom Table",
+      "series": "infinity-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "summit-16-boardroom-table",
+      "name": "SUMMIT-16 Boardroom Table",
+      "series": "infinity-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "summit-20-boardroom-table",
+      "name": "SUMMIT-20 Boardroom Table",
+      "series": "infinity-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "oval-8-conference-table",
+      "name": "OVAL-8 Conference Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "glass-top-8-conference-table",
+      "name": "GLASS-TOP-8 Conference Table",
+      "series": "infinity-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "video-conf-8-smart-table",
+      "name": "VIDEO-CONF-8 Smart Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "folding-4-meeting-table",
+      "name": "FOLDING-4 Meeting Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "standing-meeting-table",
+      "name": "STANDING Meeting Table",
+      "series": "ek-series",
+      "subcategory": "meeting-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "first-linear-reception",
+      "name": "FIRST-LINEAR Reception Counter",
+      "series": "ek-series",
+      "subcategory": "reception-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "first-l-reception",
+      "name": "FIRST-L Reception Counter",
+      "series": "ek-series",
+      "subcategory": "reception-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "grand-l-reception",
+      "name": "GRAND-L Reception Counter",
+      "series": "ek-series",
+      "subcategory": "reception-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "curve-reception-counter",
+      "name": "CURVE Reception Counter",
+      "series": "infinity-series",
+      "subcategory": "reception-tables"
+    },
+    {
+      "category": "office-tables",
+      "id": "wave-reception-counter",
+      "name": "WAVE Reception Counter",
+      "series": "infinity-series",
+      "subcategory": "reception-tables"
+    },
+    {
+      "category": "chairs",
+      "id": "freedom-high-back-chair",
+      "name": "Freedom High Back Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "chairs",
+      "id": "swift-high-back-chair",
+      "name": "Swift High Back Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "chairs",
+      "id": "mamba-high-back-chair",
+      "name": "Mamba High Back Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "chairs",
+      "id": "torino-high-back-chair",
+      "name": "Torino High Back Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "chairs",
+      "id": "avenger-high-back-chair",
+      "name": "Avenger High Back Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "chairs",
+      "id": "warrior-high-back-chair",
+      "name": "Warrior High Back Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "chairs",
+      "id": "falcon-high-back-chair",
+      "name": "Falcon High Back Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "chairs",
+      "id": "crown-leather-executive-chair",
+      "name": "CROWN Leather Executive Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "chairs",
+      "id": "regent-pu-executive-chair",
+      "name": "REGENT PU Executive Chair",
+      "series": "infinity-series"
+    },
+    {
+      "category": "chairs",
+      "id": "drive-manager-chair",
+      "name": "DRIVE Manager Chair",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "stride-manager-chair",
+      "name": "STRIDE Manager Chair",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "core-staff-task-chair",
+      "name": "CORE Staff Task Chair",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "pulse-staff-chair",
+      "name": "PULSE Staff Chair",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "echo-staff-chair",
+      "name": "ECHO Staff Chair",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "swift-call-center-chair",
+      "name": "SWIFT-CALL Call Center Chair",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "link-visitor-chair-chrome",
+      "name": "LINK Visitor Chair (Chrome)",
+      "series": "infinity-series"
+    },
+    {
+      "category": "chairs",
+      "id": "stride-visitor-chair-4-leg",
+      "name": "STRIDE Visitor Chair (4-Leg)",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "core-visitor-basic",
+      "name": "CORE Visitor Chair (Basic)",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "nexus-conference-chair",
+      "name": "NEXUS Conference Chair",
+      "series": "infinity-series"
+    },
+    {
+      "category": "chairs",
+      "id": "alto-cafe-high-chair",
+      "name": "ALTO Café High Chair",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "titan-gaming-executive",
+      "name": "TITAN Gaming/Executive Chair",
+      "series": "ek-series"
+    },
+    {
+      "category": "chairs",
+      "id": "catalyst-ergonomic-pro",
+      "name": "CATALYST Ergonomic Pro Chair",
+      "series": "woodex-series"
+    },
+    {
+      "category": "workstations",
+      "id": "link-1-single-workstation",
+      "name": "LINK-1 Single Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "workstations",
+      "id": "link-2-face-to-face-workstation",
+      "name": "LINK-2 Face-to-Face Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "workstations",
+      "id": "link-4-cluster-workstation",
+      "name": "LINK-4 Cluster Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "workstations",
+      "id": "link-4-pro-cluster-workstation",
+      "name": "LINK-4 PRO Cluster Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "workstations",
+      "id": "link-6-department-workstation",
+      "name": "LINK-6 Department Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "workstations",
+      "id": "bench-4-open-workstation",
+      "name": "BENCH-4 Open Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "workstations",
+      "id": "bench-6-open-workstation",
+      "name": "BENCH-6 Open Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "workstations",
+      "id": "hot-desk-4-workstation",
+      "name": "HOT-DESK-4 Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "workstations",
+      "id": "link-4-sit-stand-workstation",
+      "name": "LINK-4 SIT-STAND Workstation",
+      "series": "ek-series"
+    },
+    {
+      "category": "cubicle-workstations",
+      "id": "cubicle-2-aluminum-workstation",
+      "name": "CUBICLE-2 Aluminum Workstation",
+      "series": "cubicle-series"
+    },
+    {
+      "category": "cubicle-workstations",
+      "id": "cubicle-4-aluminum-workstation",
+      "name": "CUBICLE-4 Aluminum Workstation",
+      "series": "cubicle-series"
+    },
+    {
+      "category": "cubicle-workstations",
+      "id": "cubicle-6-aluminum-workstation",
+      "name": "CUBICLE-6 Aluminum Workstation",
+      "series": "cubicle-series"
+    },
+    {
+      "category": "cubicle-workstations",
+      "id": "cubicle-8-aluminum-workstation",
+      "name": "CUBICLE-8 Aluminum Workstation",
+      "series": "cubicle-series"
+    },
+    {
+      "category": "cubicle-workstations",
+      "id": "cubicle-l-supervisor-station",
+      "name": "CUBICLE-L Supervisor Station",
+      "series": "cubicle-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "arco-single-seater-sofa",
+      "name": "Arco Single Seater Sofa",
+      "series": "woodex-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "marvel-3-seater-sofa",
+      "name": "Marvel 3 Seater Sofa",
+      "series": "woodex-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "victoria-3-seater-sofa",
+      "name": "Victoria 3 Seater Sofa",
+      "series": "woodex-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "dream-collection-sofa-set",
+      "name": "Dream Collection Sofa Set",
+      "series": "woodex-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "slim-2-seater-sofa",
+      "name": "SLIM 2-Seater Sofa",
+      "series": "ek-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "royal-3-seater-sofa",
+      "name": "ROYAL 3-Seater Sofa",
+      "series": "woodex-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "lounge-sofa-set-1-1-3",
+      "name": "LOUNGE Sofa Set (1+1+3)",
+      "series": "infinity-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "bench-48-waiting",
+      "name": "BENCH-48 Waiting Bench",
+      "series": "ek-series"
+    },
+    {
+      "category": "office-sofas",
+      "id": "coffee-table-round-glass",
+      "name": "Coffee Table — Round Glass",
+      "series": "infinity-series"
+    },
+    {
+      "category": "storage",
+      "id": "mobile-3-pedestal",
+      "name": "MOBILE-3 Pedestal",
+      "series": "ek-series"
+    },
+    {
+      "category": "storage",
+      "id": "file-4-filing-cabinet",
+      "name": "FILE-4 Filing Cabinet",
+      "series": "ek-series"
+    },
+    {
+      "category": "storage",
+      "id": "file-4-steel-cabinet",
+      "name": "FILE-4 Steel Filing Cabinet",
+      "series": "ek-series"
+    },
+    {
+      "category": "storage",
+      "id": "bookshelf-glass-5-tier",
+      "name": "BOOKSHELF-GLASS-5 Tier",
+      "series": "infinity-series"
+    },
+    {
+      "category": "storage",
+      "id": "credenza-72",
+      "name": "CREDENZA-72",
+      "series": "ek-series"
+    },
+    {
+      "category": "storage",
+      "id": "locker-6-personal",
+      "name": "LOCKER-6 Personal Locker",
+      "series": "ek-series"
+    },
+    {
+      "category": "storage",
+      "id": "combo-storage-wall",
+      "name": "COMBO Storage Wall System",
+      "series": "infinity-series"
+    },
+    {
+      "category": "cafe",
+      "id": "cafe-high-table-round-30",
+      "name": "Café High Table Round (30\")",
+      "series": "ek-series"
+    },
+    {
+      "category": "cafe",
+      "id": "cafe-long-table-72",
+      "name": "Café Long Table (72\")",
+      "series": "ek-series"
+    },
+    {
+      "category": "cafe",
+      "id": "alto-bar-stool-back",
+      "name": "Alto Bar Stool (With Back)",
+      "series": "ek-series"
+    },
+    {
+      "category": "cafe",
+      "id": "cafe-chair-stackable",
+      "name": "Café Chair (Stackable)",
+      "series": "ek-series"
+    },
+    {
+      "category": "cafe",
+      "id": "cafe-booth-4-person",
+      "name": "Café Booth (4-Person)",
+      "series": "infinity-series"
+    },
+    {
+      "category": "cafe",
+      "id": "bistro-set-4",
+      "name": "Bistro Set (Table + 4 Chairs)",
+      "series": "ek-series"
+    },
+    {
+      "category": "cafe",
+      "id": "complete-cafe-zone-4",
+      "name": "Complete Café Zone (4-Table + 16-Chair)",
+      "series": "ek-series"
+    },
+    {
+      "category": "public",
+      "id": "waiting-bench-3",
+      "name": "Public Waiting Bench 3-Seater",
+      "series": "ek-series"
+    },
+    {
+      "category": "home-office",
+      "id": "nova-home-desk-48",
+      "name": "NOVA Home Desk 48\"",
+      "series": "nova-series"
+    },
+    {
+      "category": "home-office",
+      "id": "ek-home-desk-54",
+      "name": "EK Home Desk 54\"",
+      "series": "ek-series"
+    },
+    {
+      "category": "home-office",
+      "id": "home-standing-desk-electric",
+      "name": "HOME Standing Desk (Electric)",
+      "series": "ek-series"
+    },
+    {
+      "category": "home-office",
+      "id": "home-ergonomic-chair-mesh",
+      "name": "HOME Ergonomic Chair (Mesh)",
+      "series": "ek-series"
+    },
+    {
+      "category": "home-office",
+      "id": "home-bundle-standard",
+      "name": "HOME Desk + Chair Bundle (Standard)",
+      "series": "ek-series"
+    },
+    {
+      "category": "home-office",
+      "id": "kids-study-desk",
+      "name": "Kids Study Desk",
+      "series": "ek-series"
+    },
+    {
+      "category": "acoustic",
+      "id": "acoustic-desk-panel-48",
+      "name": "Acoustic Desk Panel 48\"",
+      "series": "ek-series"
+    },
+    {
+      "category": "acoustic",
+      "id": "freestanding-acoustic-60",
+      "name": "Freestanding Acoustic Screen 60\"",
+      "series": "ek-series"
+    },
+    {
+      "category": "acoustic",
+      "id": "phone-booth-pod-single",
+      "name": "Phone Booth Pod (Single)",
+      "series": "infinity-series"
+    },
+    {
+      "category": "acoustic",
+      "id": "meeting-pod-4-person",
+      "name": "Meeting Pod (4-Person)",
+      "series": "infinity-series"
+    },
+    {
+      "category": "acoustic",
+      "id": "acoustic-wall-panel-4pack",
+      "name": "Acoustic Wall Panel (Pack of 4)",
+      "series": "ek-series"
+    },
+    {
+      "category": "collaborative",
+      "id": "shared-work-table-4",
+      "name": "Shared Work Table (4-Person)",
+      "series": "ek-series"
+    },
+    {
+      "category": "collaborative",
+      "id": "shared-work-table-8",
+      "name": "Shared Work Table (8-Person)",
+      "series": "ek-series"
+    },
+    {
+      "category": "collaborative",
+      "id": "whiteboard-collab-table",
+      "name": "Whiteboard Table",
+      "series": "infinity-series"
+    },
+    {
+      "category": "collaborative",
+      "id": "mobile-whiteboard-48x36",
+      "name": "Mobile Whiteboard (48\"×36\")",
+      "series": "ek-series"
+    },
+    {
+      "category": "collaborative",
+      "id": "collab-booth-4-person",
+      "name": "Collaboration Booth (4-Person)",
+      "series": "infinity-series"
+    },
+    {
+      "category": "collaborative",
+      "id": "modular-soft-seat-set-4",
+      "name": "Modular Soft Seating (Set of 4)",
+      "series": "infinity-series"
+    },
+    {
+      "category": "bedroom",
+      "id": "king-bed-set",
+      "name": "Royal King Bed Set",
+      "series": "woodex-series",
+      "subcategory": "bed-sets"
+    },
+    {
+      "category": "bedroom",
+      "id": "dressing-table",
+      "name": "Glamour Dressing Table with Mirror",
+      "series": "woodex-series",
+      "subcategory": "dressing-tables"
+    },
+    {
+      "category": "living",
+      "id": "home-sofa-5",
+      "name": "Comfort L-Shape Home Sofa",
+      "series": "woodex-series",
+      "subcategory": "home-sofa"
+    },
+    {
+      "category": "living",
+      "id": "tv-unit",
+      "name": "Modern TV Unit 200cm",
+      "series": "infinity-series",
+      "subcategory": "tv-units"
+    },
+    {
+      "category": "dining",
+      "id": "dining-set-6",
+      "name": "Farmhouse Dining Set — 6 Seater",
+      "series": "woodex-series",
+      "subcategory": "dining-sets"
+    }
+  ]
+}

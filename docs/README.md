@@ -84,3 +84,4 @@ Nothing here is authoritative. Do not cite these as current.
 - [Commerce categories and catalogue audit](laravel-os/10-COMMERCE-CATEGORIES-AND-CATALOGUE-AUDIT.md)
 
 - [Office/Home taxonomy population and series correction](laravel-os/11-OFFICE-HOME-TAXONOMY-AND-SERIES.md)
+- [Category CMS: drafts, previews and native publication](laravel-os/12-CATEGORY-CMS.md)

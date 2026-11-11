@@ -91,7 +91,11 @@ final class Categories extends Component
                 $parent = $parents[$parent];
             }
             $category = $this->editingId === null ? new Category : Category::query()->findOrFail($this->editingId);
-            $category->fill($data)->save();
+            $category->fill($data);
+            if ($category->exists && $category->isDirty(['name', 'slug', 'parent_id', 'description', 'position', 'is_active'])) {
+                $category->content_version = (int) $category->content_version + 1;
+            }
+            $category->save();
         });
         $this->showForm = false;
         $this->toast('Category saved. This does not publish changes to the live storefront.');

@@ -16,7 +16,7 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     /** @var list<string> */
     public const PERMISSIONS = [
-        'commerce.catalog.view', 'commerce.catalog.manage',
+        'commerce.catalog.view', 'commerce.catalog.manage', 'commerce.catalog.publish',
         'dashboard.view',
         'leads.view', 'leads.view_all', 'leads.create', 'leads.update', 'leads.assign', 'leads.delete', 'leads.export',
         'contacts.view', 'contacts.update', 'contacts.merge',

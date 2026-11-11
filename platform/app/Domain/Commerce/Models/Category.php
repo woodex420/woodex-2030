@@ -18,7 +18,7 @@ final class Category extends Model
 
     protected function casts(): array
     {
-        return ['parent_id' => 'integer', 'position' => 'integer', 'is_active' => 'boolean'];
+        return ['content_version' => 'integer', 'draft_revision_id' => 'integer', 'published_revision_id' => 'integer', 'parent_id' => 'integer', 'position' => 'integer', 'is_active' => 'boolean'];
     }
 
     public function getActivitylogOptions(): LogOptions

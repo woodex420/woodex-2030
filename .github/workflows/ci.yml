@@ -42,6 +42,7 @@ jobs:
           node scripts/test-lead-challenge.mjs
           node scripts/test-basket-adapter.mjs
           node scripts/test-commerce-taxonomy.mjs
+          node scripts/build-category-reference.mjs --check
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps

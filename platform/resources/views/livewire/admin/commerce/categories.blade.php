@@ -28,10 +28,10 @@
                         <p class="text-sm text-gray-500">{{ $category->slug }} · Position {{ $category->position }} · Parent: {{ $parents->firstWhere('id', $category->parent_id)?->name ?? 'Top level' }}</p>
                         @if($category->description)<p class="mt-2 text-sm whitespace-pre-line">{{ $category->description }}</p>@endif
                     </div>
-                    @can('commerce.catalog.manage')<x-admin.button variant="secondary" wire:click="edit({{ $category->id }})">Edit</x-admin.button>@endcan
+                    @can('commerce.catalog.manage')<x-admin.button variant="secondary" wire:click="edit({{ $category->id }})">Quick Edit</x-admin.button> <x-admin.button variant="secondary" :href="route('admin.commerce.categories.edit', $category)">Full Edit / CMS</x-admin.button>@endcan
                 </div>
             @empty
-                <p class="py-8 text-center text-gray-500">No categories found. Create a category or change your search. No catalogue categories are imported automatically.</p>
+                <p class="py-8 text-center text-gray-500">No categories found. Create a category or change your search. The default Office/Home hierarchy is installed; product imports remain separate.</p>
             @endforelse
         </div>
         <div class="mt-4">{{ $categories->links() }}</div>
