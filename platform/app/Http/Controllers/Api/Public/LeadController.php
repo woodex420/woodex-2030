@@ -29,7 +29,7 @@ final class LeadController extends Controller
             return response()->json(['ok' => true, 'reference' => null], 202);
         }
 
-        if (! $request->hasValidBridgeKey() && ! $turnstile->verify($request->input('turnstile_token'), $request->ip())) {
+        if (! $request->hasValidBridgeKey() && ! $turnstile->verify($request->input('turnstile_token'), $request->ip(), failClosed: $request->routeIs('api.v1.leads.store'))) {
             return response()->json([
                 'ok' => false,
                 'message' => 'The spam check failed. Please refresh the page and try again.',

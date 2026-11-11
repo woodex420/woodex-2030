@@ -1,3 +1,4 @@
+import LeadChallenge from "@/components/LeadChallenge";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { products } from "@/data/products";
@@ -31,9 +32,10 @@ function LeadForm({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
     e.preventDefault();
     if (!f.name.trim()) return toast.error("Please tell us your name");
     if (sending) return;
+    const challengeToken = String(new FormData(e.currentTarget as HTMLFormElement).get("turnstile_token") || "");
     setSending(true);
     try {
-      const ok = await submitLead({ name: f.name, interest: f.need || S(b, "heading"), source: "Landing: " + slug, contact: f.contact, note: "From published page /p/" + slug });
+      const ok = await submitLead({ name: f.name, interest: f.need || S(b, "heading"), source: "Landing: " + slug, turnstile_token: challengeToken, contact: f.contact, note: "From published page /p/" + slug });
       if (!ok) throw new Error("Could not reach the server — please try again.");
       setDone(true);
       toast.success("Enquiry received. Our team will follow up.");
@@ -58,6 +60,7 @@ function LeadForm({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
       <Input placeholder="Your name *" value={f.name} onChange={(e) => setF((x) => ({ ...x, name: e.target.value }))} />
       <Input placeholder="Phone or email" value={f.contact} onChange={(e) => setF((x) => ({ ...x, contact: e.target.value }))} />
       <Input className="sm:col-span-2" placeholder="What do you need? e.g. 6-seater dining in Sheesham" value={f.need} onChange={(e) => setF((x) => ({ ...x, need: e.target.value }))} />
+      <LeadChallenge />
       <Button type="submit" disabled={sending} aria-busy={sending} data-wx-cta="lead-form-submit" className="bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-3" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}>
         <Send className="mr-1.5 h-4 w-4" /> {S(b, "submit_label") || "Send to sales"}
       </Button>

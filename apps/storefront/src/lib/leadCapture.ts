@@ -30,9 +30,12 @@ export function furnitureLeadPayload(input: Fields) {
   };
 }
 
-export async function captureStorefrontLead(input: Fields, mode: string = "legacy", request: typeof fetch = fetch) {
+export async function captureStorefrontLead(input: Fields, mode: string = "legacy", request: typeof fetch = fetch, requireChallenge = false) {
   if (!["legacy", "v1"].includes(mode)) throw new Error("Unsupported lead API configuration.");
   const versioned = mode === "v1";
+  if (versioned && requireChallenge && !String(input.turnstile_token ?? "").trim()) {
+    throw new Error("Please complete enquiry verification before submitting.");
+  }
   const response = await request(versioned ? "/api/v1/leads" : "/api/leads", {
     method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(versioned ? furnitureLeadPayload(input) : input),

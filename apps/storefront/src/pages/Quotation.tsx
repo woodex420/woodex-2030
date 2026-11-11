@@ -1,3 +1,4 @@
+import LeadChallenge from "@/components/LeadChallenge";
 import { getLeadAttribution, logManualWhatsAppHandoff, submitLead, submitQuoteRequest, useRuntimeRevision } from "@/lib/runtime";
 import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
@@ -96,6 +97,7 @@ const Quotation = () => {
             contactConsent,
             preferredChannel,
             note: "Quote request submitted without a product basket.",
+            turnstile_token: String(fd.get("turnstile_token") || ""),
             ...attribution,
           });
       if (!result) throw new Error("The request could not be saved. Please try again.");
@@ -535,6 +537,7 @@ const Quotation = () => {
                         <input name="contactConsent" type="checkbox" required className="mt-1 accent-[hsl(var(--accent))]" />
                         <span>I agree that WOODEX may contact me about this quote request using my selected method.</span>
                       </label>
+                      {items.length === 0 && <LeadChallenge />}
                       {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
                       <Button type="submit" size="lg" disabled={submitting} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 gap-2 uppercase tracking-wider text-xs">
                         <ArrowRight className="h-4 w-4" /> {submitting ? "Submitting…" : "Submit Quote Request"}

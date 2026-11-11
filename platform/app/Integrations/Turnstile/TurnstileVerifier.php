@@ -9,8 +9,8 @@ use Throwable;
 
 /**
  * Cloudflare Turnstile server-side check for public forms and chat (CAP-002).
- * Disabled when no secret is configured (local dev). Fails OPEN on network errors:
- * losing a genuine enquiry is worse than letting one spam message through (throttle + honeypot still apply).
+ * Legacy callers retain their original optional/fail-open policy. V1 capture explicitly requests fail-closed:
+ * provider exceptions fail verification, and a missing secret is allowed only in local/testing environments.
  */
 final class TurnstileVerifier
 {
@@ -19,10 +19,10 @@ final class TurnstileVerifier
         return filled(config('services.turnstile.secret_key'));
     }
 
-    public function verify(?string $token, ?string $ip = null): bool
+    public function verify(?string $token, ?string $ip = null, bool $failClosed = false): bool
     {
         if (! $this->enabled()) {
-            return true;
+            return ! $failClosed || app()->environment('local', 'testing');
         }
 
         if ($token === null || $token === '') {
@@ -40,7 +40,7 @@ final class TurnstileVerifier
         } catch (Throwable $exception) {
             report($exception);
 
-            return true;
+            return ! $failClosed;
         }
     }
 }

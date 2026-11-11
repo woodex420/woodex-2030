@@ -72,3 +72,7 @@ Final local validation of this slice: **2,045 passed, 34 skipped, 9 explained PH
 ## Seventh slice: storefront lead adapter rehearsal
 
 Added opt-in `VITE_LEAD_API_MODE=v1`, preserving the default legacy route, plus explicit input/reference mapping, safe contact parsing, company/channel metadata and error handling. No numeric IDs are invented; v1 manual WhatsApp handoff is explicitly unavailable. Product baskets/orders remain on Node. Started isolated synthetic Node and storefront preview servers with a same-origin lead-only proxy to Laravel. See [the validation and remaining cutover gates](06-STOREFRONT-LEAD-ADAPTER.md). Contract checks, storefront typecheck/build, both-app render smoke and 13 Laravel API tests passed; real-browser Contact persistence and phone-width retry behavior verified. No production switch.
+
+## Eighth slice: storefront v1 challenge protection
+
+Added a reusable Turnstile widget to v1 lead-only forms and strict client token handling, plus fail-closed backend verification for v1. Legacy behavior is preserved; no provider keys or production switch. Widget lifecycle, expiry/retry/reset and mocked real-browser flow verified. Full local suite: **2,049 passed, 34 skipped, 9 known environment failures**, 10,756 assertions; no unexplained failures. See [anti-spam evidence and remaining gates](07-STOREFRONT-ANTISPAM.md). Secure WhatsApp handoff and basket quote requests remain subsequent work.

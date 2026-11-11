@@ -129,6 +129,11 @@ async function post(path: string, body: unknown) {
 }
 
 export const submitQuoteRequest = (payload: unknown) => post("/api/quotes", payload);
-export const submitLead = (payload: unknown) => captureStorefrontLead(payload as Record<string, unknown>, import.meta.env.VITE_LEAD_API_MODE || "legacy");
+export const submitLead = (payload: unknown) => {
+  const mode = import.meta.env.VITE_LEAD_API_MODE || "legacy";
+  return captureStorefrontLead(payload as Record<string, unknown>, mode, fetch,
+    import.meta.env.PROD || !!import.meta.env.VITE_TURNSTILE_SITE_KEY)
+    .finally(() => { if (mode === "v1") window.dispatchEvent(new Event("woodex:lead-attempt")); });
+};
 export const logManualWhatsAppHandoff = (leadId: number) => post(`/api/leads/${leadId}/whatsapp-handoff`, {});
 export const submitOrder = (payload: unknown) => post("/api/orders", payload);

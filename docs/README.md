@@ -74,3 +74,5 @@ Nothing here is authoritative. Do not cite these as current.
 - [Agency OS → Laravel gap register, Soon navigation and API v1 plan](laravel-os/05-GAP-REGISTER-AND-NEXT-UPGRADE.md)
 
 - [Storefront lead adapter rehearsal and cutover gates](laravel-os/06-STOREFRONT-LEAD-ADAPTER.md)
+
+- [Storefront v1 anti-spam implementation and provider gates](laravel-os/07-STOREFRONT-ANTISPAM.md)

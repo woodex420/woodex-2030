@@ -58,3 +58,26 @@ it('preserves storefront company and preferred channel as metadata without inven
         ->and($lead->meta['preferred_channel'])->toBe('whatsapp')
         ->and($lead->company_id)->toBeNull();
 });
+
+it('fails closed on v1 verification outages without storing a lead', function () {
+    config(['services.turnstile.secret_key' => 'synthetic-secret']);
+    \Illuminate\Support\Facades\Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('Synthetic provider outage'));
+    $this->postJson('/api/v1/leads', ['name' => 'Synthetic visitor', 'email' => 'v@example.test', 'turnstile_token' => 'synthetic-token'])
+        ->assertUnprocessable()->assertJsonPath('ok', false);
+    expect(Lead::count())->toBe(0);
+});
+
+it('requires a verification secret outside local and testing for strict verification', function () {
+    config(['services.turnstile.secret_key' => '']);
+    $this->app->instance('env', 'production');
+    expect(app(\App\Integrations\Turnstile\TurnstileVerifier::class)->verify('synthetic-token', failClosed: true))->toBeFalse();
+});
+
+it('accepts a successful v1 challenge and refuses a missing token when configured', function () {
+    config(['services.turnstile.secret_key' => 'synthetic-secret']);
+    \Illuminate\Support\Facades\Http::fake(['challenges.cloudflare.com/*' => \Illuminate\Support\Facades\Http::response(['success' => true])]);
+    $payload = ['name' => 'Synthetic visitor', 'email' => 'challenge@example.test'];
+    $this->postJson('/api/v1/leads', $payload)->assertUnprocessable();
+    $this->postJson('/api/v1/leads', [...$payload, 'turnstile_token' => 'synthetic-token'])->assertCreated();
+    expect(Lead::count())->toBe(1);
+});
