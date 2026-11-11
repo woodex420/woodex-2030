@@ -26,12 +26,20 @@ const hexA = (h: string, a: number) => { const m = /^#?([0-9a-f]{6})$/i.exec(h.t
 function LeadForm({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
   const [f, setF] = useState({ name: "", contact: "", need: "" });
   const [done, setDone] = useState(false);
+  const [sending, setSending] = useState(false);
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!f.name.trim()) return toast.error("Please tell us your name");
-    const ok = await submitLead({ name: f.name, interest: f.need || S(b, "heading"), source: "Landing: " + slug, contact: f.contact, note: "From published page /p/" + slug });
-    if (ok) { setDone(true); toast.success("Sent — sales will confirm within one working day"); }
-    else toast.error("Could not reach the server — please try WhatsApp instead");
+    if (sending) return;
+    setSending(true);
+    try {
+      const ok = await submitLead({ name: f.name, interest: f.need || S(b, "heading"), source: "Landing: " + slug, contact: f.contact, note: "From published page /p/" + slug });
+      if (!ok) throw new Error("Could not reach the server — please try again.");
+      setDone(true);
+      toast.success("Enquiry received. Our team will follow up.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the enquiry.");
+    } finally { setSending(false); }
   };
   if (done)
     return (
@@ -50,7 +58,7 @@ function LeadForm({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
       <Input placeholder="Your name *" value={f.name} onChange={(e) => setF((x) => ({ ...x, name: e.target.value }))} />
       <Input placeholder="Phone or email" value={f.contact} onChange={(e) => setF((x) => ({ ...x, contact: e.target.value }))} />
       <Input className="sm:col-span-2" placeholder="What do you need? e.g. 6-seater dining in Sheesham" value={f.need} onChange={(e) => setF((x) => ({ ...x, need: e.target.value }))} />
-      <Button type="submit" data-wx-cta="lead-form-submit" className="bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-3" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}>
+      <Button type="submit" disabled={sending} aria-busy={sending} data-wx-cta="lead-form-submit" className="bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-3" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}>
         <Send className="mr-1.5 h-4 w-4" /> {S(b, "submit_label") || "Send to sales"}
       </Button>
       {S(b, "consent") && <p className="text-[11px] text-muted-foreground sm:col-span-3">{S(b, "consent")}</p>}

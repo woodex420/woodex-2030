@@ -99,6 +99,9 @@ const Quotation = () => {
             ...attribution,
           });
       if (!result) throw new Error("The request could not be saved. Please try again.");
+      if (preferredChannel === "whatsapp" && result.handoffUnavailable) {
+        toast.info(`Enquiry ${result.ref} saved. WhatsApp handoff is not available on the new API yet; our team will follow up.`);
+      }
       const leadId = Number(result.leadId ?? result.id);
       if (preferredChannel === "whatsapp" && Number.isSafeInteger(leadId) && leadId > 0) {
         setManualHandoff({ leadId, ref: String(result.ref ?? ""), interest: projectType });

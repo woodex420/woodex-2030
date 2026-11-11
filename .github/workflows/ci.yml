@@ -36,6 +36,8 @@ jobs:
         run: npm run secret-scan
       - name: Combined Vercel production-shape build
         run: npm run vercel:build
+      - name: Storefront lead adapter contract
+        run: node scripts/test-storefront-lead-adapter.mjs
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps

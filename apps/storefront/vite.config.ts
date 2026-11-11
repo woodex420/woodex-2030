@@ -13,6 +13,8 @@ export default defineConfig({
     // Arena terminates TLS at its preview proxy; ordinary local/CI E2E uses Vite's direct websocket port.
     hmr: process.env.ARENA_PREVIEW === "1" ? { clientPort: 443 } : undefined,
     proxy: {
+      // Local rehearsal only. Keep the browser same-origin; do not bake a sandbox URL into bundles.
+      ...(process.env.LARAVEL_LEAD_API_PROXY_TARGET ? { "/api/v1/leads": process.env.LARAVEL_LEAD_API_PROXY_TARGET } : {}),
       "/api": apiTarget,
       "/img": apiTarget,
       "/sitemap.xml": apiTarget,

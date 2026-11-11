@@ -46,3 +46,15 @@ it('shares throttling across the old and versioned capture endpoints', function 
     }
     $this->postJson('/api/v1/leads', [])->assertStatus(429);
 });
+
+it('preserves storefront company and preferred channel as metadata without inventing a company link', function () {
+    $this->postJson('/api/v1/leads', [
+        'name' => 'Synthetic storefront visitor', 'email' => 'shopper@example.test',
+        'company' => 'Synthetic Company', 'preferred_channel' => 'whatsapp',
+        'source' => 'website_form', 'form' => 'Contact Form', 'consent' => true,
+    ])->assertCreated();
+    $lead = Lead::query()->sole();
+    expect($lead->meta['company'])->toBe('Synthetic Company')
+        ->and($lead->meta['preferred_channel'])->toBe('whatsapp')
+        ->and($lead->company_id)->toBeNull();
+});

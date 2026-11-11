@@ -30,6 +30,8 @@ final class StorePublicLeadRequest extends FormRequest
         $publicSources = array_map(static fn (LeadSource $s): string => $s->value, LeadSource::publicSources());
 
         return [
+            'company' => ['nullable', 'string', 'max:160'],
+            'preferred_channel' => ['nullable', Rule::in(['email', 'phone', 'whatsapp'])],
             'name' => ['required', 'string', 'min:2', 'max:160'],
             'phone' => ['nullable', 'required_without:email', 'string', 'max:30', function (string $attribute, mixed $value, Closure $fail): void {
                 if ($value !== null && $value !== '' && ! Phone::isValid((string) $value)) {
@@ -135,7 +137,13 @@ final class StorePublicLeadRequest extends FormRequest
             consentMarketing: $consent,
             consentWhatsapp: $consent,
             preferredLanguage: (string) ($this->input('language') ?? 'en'),
-            meta: $this->hasValidBridgeKey() ? ['via' => 'live-site-bridge'] : [],
+            meta: array_merge(
+                $this->hasValidBridgeKey() ? ['via' => 'live-site-bridge'] : [],
+                $this->routeIs('api.v1.leads.store') ? array_filter([
+                    'company' => $this->input('company'),
+                    'preferred_channel' => $this->input('preferred_channel'),
+                ], static fn ($value): bool => $value !== null && $value !== '') : [],
+            ),
         );
     }
 }

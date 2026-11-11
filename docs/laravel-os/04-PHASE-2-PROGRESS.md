@@ -68,3 +68,7 @@ Owner requested the hidden Inbox, Automation, Marketing, Workspace, Content and 
 Started `POST /api/v1/leads` with the existing capture/validation/spam/throttle pipeline, Furniture-only business-line handling and explicit GET 405. No authenticated staff API, handoff capability, quote-request contract or live React cutover yet. The old response/payload differs from v1; compatibility work is explicitly listed rather than silently changing the storefront. Puck repository/README reviewed, not installed or selected as proven compatible.
 
 Final local validation of this slice: **2,045 passed, 34 skipped, 9 explained PHP-extension failures**, 10,745 assertions; full runner and summary exit 0. Browser **18/18**, no JavaScript exceptions. Preview synchronized, no data reset. MySQL validation pending on the pushed head.
+
+## Seventh slice: storefront lead adapter rehearsal
+
+Added opt-in `VITE_LEAD_API_MODE=v1`, preserving the default legacy route, plus explicit input/reference mapping, safe contact parsing, company/channel metadata and error handling. No numeric IDs are invented; v1 manual WhatsApp handoff is explicitly unavailable. Product baskets/orders remain on Node. Started isolated synthetic Node and storefront preview servers with a same-origin lead-only proxy to Laravel. See [the validation and remaining cutover gates](06-STOREFRONT-LEAD-ADAPTER.md). Contract checks, storefront typecheck/build, both-app render smoke and 13 Laravel API tests passed; real-browser Contact persistence and phone-width retry behavior verified. No production switch.

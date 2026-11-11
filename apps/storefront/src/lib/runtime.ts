@@ -1,4 +1,5 @@
 import { refreshTheme } from "./theme";
+import { captureStorefrontLead } from "./leadCapture";
 import { Fragment, createElement, useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { products } from "@/data/products";
@@ -128,6 +129,6 @@ async function post(path: string, body: unknown) {
 }
 
 export const submitQuoteRequest = (payload: unknown) => post("/api/quotes", payload);
-export const submitLead = (payload: unknown) => post("/api/leads", payload);
+export const submitLead = (payload: unknown) => captureStorefrontLead(payload as Record<string, unknown>, import.meta.env.VITE_LEAD_API_MODE || "legacy");
 export const logManualWhatsAppHandoff = (leadId: number) => post(`/api/leads/${leadId}/whatsapp-handoff`, {});
 export const submitOrder = (payload: unknown) => post("/api/orders", payload);
