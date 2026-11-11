@@ -114,7 +114,8 @@ if (! $synthetic) {
  * one-way hash of it names the jar file, so requests carrying a different value never share a session.
  */
 $viaProxy = isset($_SERVER['HTTP_E2B_TRAFFIC_ACCESS_TOKEN']) && ! isset($_SERVER['HTTP_COOKIE']);
-$jarFile = $base.'/storage/framework/preview-viewer.'.substr(hash('sha256', (string) ($_SERVER['HTTP_E2B_TRAFFIC_ACCESS_TOKEN'] ?? '')), 0, 16).'.jar.json';
+// Under storage/framework/cache, which git ignores: the file holds session cookies and must never be committed.
+$jarFile = $base.'/storage/framework/cache/preview-viewer.'.substr(hash('sha256', (string) ($_SERVER['HTTP_E2B_TRAFFIC_ACCESS_TOKEN'] ?? '')), 0, 16).'.jar.json';
 $jar = ['seen' => 0, 'cookies' => []];
 if ($viaProxy) {
     $stored = is_file($jarFile) ? json_decode((string) file_get_contents($jarFile), true) : null;
