@@ -51,6 +51,18 @@ const db = await createDb({ sqliteFile: path.join(DB_DIR, "woodex.db"), database
 console.log("[woodex-api] driver=" + db.kind);
 
 const now = () => new Date().toISOString();
+/* Timestamps arrive from Postgres as Date objects and from SQLite as strings.
+   Two bugs follow from forgetting that, and both hit production only:
+   - writing one back raw serialises as "Tue Nov 10 2026 …", which Postgres
+     rejects (4276) while SQLite accepts;
+   - comparing String(date) against an ISO string compares "Tue…" with "2026…",
+     so an expiry check is silently always-true and a timed-out token lives on.
+   `iso` normalises for both purposes. */
+const iso = (v) => (v === null || v === undefined ? null : v instanceof Date ? v.toISOString() : String(v));
+/* A sitemap <lastmod> is a calendar date. String(Date).slice(0,10) yields
+   "Tue Nov 0" on Postgres, producing a sitemap crawlers silently drop. */
+const isoDay = (v) => { const ms = ts(v); return Number.isFinite(ms) ? new Date(ms).toISOString().slice(0, 10) : ""; };
+const ts = (v) => (v === null || v === undefined ? NaN : v instanceof Date ? v.getTime() : Date.parse(String(v)));
 const fmtMoney = (n) => "PKR " + Math.round(n).toLocaleString("en-PK");
 
 /* ---- pre-DDL column migrations ----
@@ -1743,13 +1755,13 @@ app.use(async (req, res, next) => { try {
   if (isPublic(req.method, req.path)) {
     if (!token) return next();
     const visitor = (await (db.prepare("SELECT u.id, u.email, u.name, u.role, u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(token)));
-    if (visitor && visitor.active && String(visitor.expires_at) >= now()) { req.user = visitor; req.actor = visitor.name; }
+    if (visitor && visitor.active && ts(visitor.expires_at) > Date.now()) { req.user = visitor; req.actor = visitor.name; }
     return next();
   }
   if (!token) return res.status(401).json({ error: "sign in required", code: "no_token" });
   const u = (await (db.prepare("SELECT u.id, u.email, u.name, u.role, u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(token)));
   if (!u) return res.status(401).json({ error: "session expired — sign in again", code: "bad_token" });
-  if (String(u.expires_at) < now()) { (await (db.prepare("DELETE FROM sessions WHERE token=?").run(token))); return res.status(401).json({ error: "session expired", code: "expired" }); }
+  if (ts(u.expires_at) < Date.now()) { (await (db.prepare("DELETE FROM sessions WHERE token=?").run(token))); return res.status(401).json({ error: "session expired", code: "expired" }); }
   if (!u.active) return res.status(403).json({ error: "account disabled" });
   req.user = u; req.actor = u.name;
   const caps = ROLE_CAPS[u.role] ?? [];
@@ -2973,10 +2985,17 @@ const throttleFail = async (kind, value) => {
   } else {
     /* Slide the window: a bucket whose window has lapsed starts counting again
        rather than carrying Monday's mistypes into Friday. */
-    const fresh = String(row.window_started_at) <= windowStart;
+    const fresh = iso(row.window_started_at) <= windowStart;
     failures = fresh ? 1 : (Number(row.failures) || 0) + 1;
-    windowStartedAt = fresh ? nowIso : String(row.window_started_at);
-    const lockedUntil = failures >= policy.limit ? new Date(t + policy.lockMs).toISOString() : row.locked_until;
+    windowStartedAt = fresh ? nowIso : iso(row.window_started_at);
+    /* EVERY timestamp written back must be an ISO string. Postgres returns a
+       Date object for a timestamptz column, and a Date reaching a parameter
+       serialises as "Tue Nov 10 2026 17:57:25 GMT+0000 (Coordinated …)" — which
+       Postgres rejects with 4276 while SQLite quietly accepts it. String() is
+       not enough: String(new Date()) is that same non-ISO form, which is why
+       the first fix here still failed the rehearsal. */
+    const carryLock = iso(row.locked_until);
+    const lockedUntil = failures >= policy.limit ? new Date(t + policy.lockMs).toISOString() : carryLock;
     await db.prepare(
       "UPDATE throttle_buckets SET failures = ?, window_started_at = ?, locked_until = ?, last_seen_at = ? WHERE bucket_key = ?"
     ).run(failures, windowStartedAt, lockedUntil, nowIso, key);
@@ -3107,7 +3126,7 @@ const rowPasswordReset = (r) => ({
   id: r.id, userId: r.user_id, reason: r.reason, requestedBy: r.requested_by,
   createdAt: r.created_at, expiresAt: r.expires_at,
   usedAt: r.used_at, revokedAt: r.revoked_at,
-  live: !r.used_at && !r.revoked_at && String(r.expires_at) > now(),
+  live: !r.used_at && !r.revoked_at && ts(r.expires_at) > Date.now(),
 });
 
 /* Which sessions should this password change end?
@@ -3228,7 +3247,7 @@ app.post("/api/auth/reset-password", wrapTxJson(async (req, res) => {
   if (!row) throw reject();
   if (row.used_at) throw reject();
   if (row.revoked_at) throw reject();
-  if (String(row.expires_at) <= now()) throw reject();
+  if (ts(row.expires_at) <= Date.now()) throw reject();
   const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(row.user_id);
   if (!u) throw reject();
   if (!u.active) {
@@ -6523,8 +6542,14 @@ app.patch("/api/credit-notes/:id", wrapTxJson(async (req, res) => {
 
   await db.prepare(
     `UPDATE credit_notes SET status = ?, issued_at = ?, applied_at = ?, journal_entry_id = ?, updated_at = ? WHERE id = ?`
-  ).run(want, want === "issued" || want === "applied" ? t : row.issued_at,
-    want === "applied" ? t : row.applied_at, journalEntryId, t, row.id);
+  /* Normalise the carried-over timestamps. Postgres returns a Date object for a
+     timestamptz column and passing it straight back serialises as a
+     non-ISO string that Postgres rejects (4276) while SQLite accepts it. This
+     survived only because the columns are usually null; a credit note moved to
+     "applied" after "issued" would have thrown on Postgres and nowhere else. */
+  ).run(want, want === "issued" || want === "applied" ? t : (row.issued_at ? new Date(row.issued_at).toISOString() : null),
+    want === "applied" ? t : (row.applied_at ? new Date(row.applied_at).toISOString() : null),
+    journalEntryId, t, row.id);
   const after = rowCreditNote(await db.prepare("SELECT * FROM credit_notes WHERE id = ?").get(row.id));
   await writeAudit(req, { action: `credit_note.${want}`, entityType: "credit_note", entityId: row.id, before, after });
   return { creditNote: after };
@@ -7885,9 +7910,9 @@ const sitemapDocument = async (req) => {
   for (const r of PUBLIC_ROUTES)
     urls.push(`  <url><loc>${xmlEsc(absoluteUrl(base, r.path))}</loc><lastmod>${today}</lastmod><changefreq>${r.changefreq}</changefreq><priority>${r.priority}</priority></url>`);
   for (const x of await db.prepare("SELECT slug, updated_at FROM pages WHERE status='Published' ORDER BY updated_at DESC").all())
-    urls.push(`  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`);
+    urls.push(`  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${isoDay(x.updated_at)}</lastmod></url>`);
   for (const x of await db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all())
-    urls.push(`  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`);
+    urls.push(`  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${isoDay(x.updated_at)}</lastmod></url>`);
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
 };
 
@@ -8512,7 +8537,7 @@ const bearerValid = async (req) => {
   const t = requestToken(req);
   if (!t) return false;
   const u = (await (db.prepare("SELECT u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(t)));
-  return !!u && !!u.active && String(u.expires_at) >= now();
+  return !!u && !!u.active && ts(u.expires_at) > Date.now();
 };
 app.post("/api/pages/:id/preview-link", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.id, req.params.id)));

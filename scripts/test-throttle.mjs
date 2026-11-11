@@ -241,6 +241,90 @@ try {
     }
   } finally { db3.close(); }
 
+  /* ---------------------------------------------------------------------
+     Postgres timestamp semantics. SQLite hands back strings, Postgres hands
+     back Date objects. Writing one back raw, or comparing String(date) to an
+     ISO string, works perfectly on SQLite and is broken on Postgres — which
+     is how a throttle that passed every local gate returned 500 on the
+     PostgreSQL rehearsal, and how two expiry checks silently never fired.
+     These four assertions run against real Postgres semantics via PGlite.
+     --------------------------------------------------------------------- */
+  console.log("\n[throttle] timestamps survive a Postgres round-trip");
+  const { PGlite } = await import("@electric-sql/pglite");
+  const pg = await PGlite.create();
+  try {
+    await pg.exec(fs.readFileSync(path.join(ROOT, "scripts/migrations/018_throttle.sql"), "utf8"));
+
+    /* 1. A timestamp read back is a Date, not the string SQLite would give. */
+    await pg.query(
+      "INSERT INTO throttle_buckets(bucket_key,kind,failures,window_started_at,last_seen_at,created_at) VALUES($1,'login',3,now(),now(),now())",
+      ["login:pg@x.pk"]
+    );
+    const back = (await pg.query("SELECT * FROM throttle_buckets WHERE bucket_key=$1", ["login:pg@x.pk"])).rows[0];
+    check(back.window_started_at instanceof Date, "Postgres returns a Date, not a string (the assumption that broke)");
+
+    /* 2. String(date) is NOT a timestamp. This is the exact call that turned a
+          Date into "Tue Nov 10 2026 17:57:25 GMT+0000 (…)" and made the login
+          endpoint answer 500 on Postgres while SQLite accepted it happily. */
+    let stringWriteFailed = false;
+    try {
+      await pg.query("UPDATE throttle_buckets SET window_started_at=$1 WHERE bucket_key=$2", [String(back.window_started_at), "login:pg@x.pk"]);
+    } catch { stringWriteFailed = true; }
+    check(stringWriteFailed, "String(date) written to a timestamptz column is rejected — the exact bug");
+
+    /* 3. A Date object is fine, because the driver serialises it properly. The
+          bug was never "passed a Date", it was "called String() on a Date". */
+    let dateWriteOk = true;
+    try {
+      await pg.query("UPDATE throttle_buckets SET last_seen_at=$1 WHERE bucket_key=$2", [new Date(), "login:pg@x.pk"]);
+    } catch { dateWriteOk = false; }
+    check(dateWriteOk, "a Date object itself serialises correctly — the fix is normalising, not avoiding");
+
+    /* 2. The fix: iso() normalises it, and the write succeeds. */
+    const iso = (v) => (v === null || v === undefined ? null : v instanceof Date ? v.toISOString() : String(v));
+    const ts = (v) => (v === null || v === undefined ? NaN : v instanceof Date ? v.getTime() : Date.parse(String(v)));
+    await pg.query(
+      "UPDATE throttle_buckets SET window_started_at=$1, locked_until=$2, last_seen_at=$3 WHERE bucket_key=$4",
+      [iso(back.window_started_at), iso(new Date(Date.now() + 60_000)), iso(new Date()), "login:pg@x.pk"]
+    );
+    check(true, "an ISO-normalised carry-back is accepted");
+
+    /* 3. The comparison bug: String(date) never sorts against an ISO string. */
+    const expired = (await pg.query("SELECT (now() - interval '1 day') AS at")).rows[0].at;
+    check(String(expired) < new Date().toISOString() === false, "String(date) misreads a day-old timestamp as not-expired (the bug)");
+    check(ts(expired) < Date.now(), "ts(date) reads the same timestamp correctly (the fix)");
+
+    /* 4. The window-slide predicate the throttle relies on. */
+    const slid = await pg.query(
+      "SELECT window_started_at <= $1 AS fresh FROM throttle_buckets WHERE bucket_key=$2",
+      [new Date(Date.now() + 60_000).toISOString(), "login:pg@x.pk"]
+    );
+    check(slid.rows[0].fresh === true, "an ISO string compares correctly against a timestamptz column");
+  } finally {
+    await pg.close();
+  }
+
+  /* A static guard, because the suites above provably cannot catch this one.
+     On SQLite `String(row.expires_at)` of a string IS that string, so a dead
+     expiry check still passes every SQLite test — which is exactly how it
+     reached production. A Postgres-backed unit test proves the semantics but
+     would not notice if the same pattern were reintroduced somewhere else. So
+     this scans the source for the pattern itself. */
+  console.log("\n[throttle] no timestamp is compared as a string");
+  {
+    const source = fs.readFileSync(path.join(ROOT, "apps/api/server.mjs"), "utf8");
+    const offenders = source.split("\n")
+      .map((line, i) => ({ line, n: i + 1 }))
+      /* Date.parse(String(x)) is legitimate — the parser accepts both forms.
+         Everything else that stringifies a timestamp is a bug, because
+         String(date) is "Tue Nov 10 2026 …", not an ISO timestamp. */
+      .filter(({ line }) => /String\(\s*[\w.$]+\.(expires_at|created_at|updated_at|locked_until|last_seen_at|used_at|revoked_at|issued_at|applied_at|window_started_at|published_at)\s*\)/.test(line))
+      .filter(({ line }) => !/Date\.parse\(\s*String\(/.test(line));
+    check(offenders.length === 0,
+      "String(<timestamp>) is never used — Postgres returns a Date and String(date) is not an ISO timestamp",
+      offenders.map((o) => `server.mjs:${o.n}`).join(", "));
+  }
+
 } catch (e) {
   problems.push(`suite crashed: ${e.message}`);
   console.error(e);

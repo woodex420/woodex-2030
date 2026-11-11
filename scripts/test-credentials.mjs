@@ -270,6 +270,51 @@ try {
   check(!auditText.includes("recovered1") && !auditText.includes("floorpass2"),
     "and no password appears anywhere in the audit trail");
 
+  /* ───────────── the expiry checks are not decorative ─────────────
+     Both of these were dead on Postgres. A timestamp arrives from the SQLite
+     driver as a string and from Postgres as a Date; the code compared
+     `String(row.expires_at) < now()`. On Postgres that compares "Tue Nov 10
+     2026 …" with "2026-11-10T…", which is false for every date that has ever
+     existed — so an expired session and an expired reset token both looked
+     valid forever. SQLite hid it because String() of a string is the string.
+     These assertions force a timestamp into the past and demand a refusal. */
+  console.log("\n[credentials] an expired timestamp is actually refused");
+
+  const victim = await login("nadeem@woodex.pk", "recovered1");
+  check(victim.status === 200, "a live session works to begin with", `got ${victim.status}`);
+  {
+    const db = new DatabaseSync(path.join(tempRoot, "woodex.db"));
+    try {
+      /* Back-date the session one day. */
+      db.prepare("UPDATE sessions SET expires_at = ? WHERE token = ?")
+        .run(new Date(Date.now() - 864e5).toISOString(), victim.json.token);
+    } finally { db.close(); }
+  }
+  const afterExpiry = await api("/api/auth/me", { token: victim.json.token });
+  check(afterExpiry.status === 401, "a session back-dated by one day is refused", `got ${afterExpiry.status}`);
+  check(afterExpiry.json?.code === "expired", "and says so, rather than 'unknown token'", afterExpiry.json?.code);
+
+  /* The reset token path: re-issue one, back-date it, and try to spend it.
+     `expires_at` has a CHECK that it is after `created_at`, so created_at moves
+     back with it. */
+  const reissue = await api(`/api/users/${staffId}/password-reset`, { method: "POST", token: ownerToken, body: {} });
+  const staleToken = reissue.json?.reset?.token;
+  check(typeof staleToken === "string", "a fresh reset token is minted", `${reissue.status}`);
+  {
+    const db = new DatabaseSync(path.join(tempRoot, "woodex.db"));
+    try {
+      db.prepare("UPDATE password_resets SET created_at = ?, expires_at = ? WHERE used_at IS NULL")
+        .run(new Date(Date.now() - 2 * 864e5).toISOString(), new Date(Date.now() - 864e5).toISOString());
+    } finally { db.close(); }
+  }
+  const spendStale = await api("/api/auth/reset-password", { method: "POST", body: { token: staleToken, newPassword: "tooSix1x" } });
+  check(spendStale.status >= 400, "a reset token back-dated by a day is refused", `got ${spendStale.status}`);
+  const stillOld = await login("nadeem@woodex.pk", "recovered1");
+  check(stillOld.status === 200, "and the password was NOT changed by the refused attempt", `got ${stillOld.status}`);
+
+  const liveOne = await api(`/api/users/${staffId}/password-resets`, { token: ownerToken });
+  check(liveOne.json?.live === 0, "the expired token is no longer counted as outstanding", `${liveOne.json?.live}`);
+
 } catch (e) {
   problems.push(`suite crashed: ${e.message}`);
   console.error(e);

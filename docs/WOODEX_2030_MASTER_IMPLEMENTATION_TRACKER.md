@@ -923,13 +923,40 @@ has no timer that outlives a request.
 - `apps/api/server.mjs` — `throttleState` / `throttleFail` / `throttleClear` / `throttleSweep`; the login gate now checks two keys before hashing a password
 - `apps/dashboard/src/pages/Throttle.tsx` — `/login-locks`, owner-only
 - `apps/dashboard/src/components/layout/Sidebar.tsx` — nav items can now declare a `cap`; before this every role saw every link and learned permissions from 403s
-- `scripts/test-throttle.mjs` — 37 checks, **two servers on one database**
+- `scripts/test-throttle.mjs` — 45 checks, **two servers on one database**, plus
+  a PGlite block for Postgres timestamp semantics and a static guard against
+  `String(<timestamp>)`
 
-**Verified:** `test:throttle` **37/37** · `test:credentials` 60/60 · `test:support` 60/60 ·
+**Verified:** `test:throttle` **45/45** · `test:credentials` 67/67 · `test:support` 60/60 ·
 `check:migration` 71 = 71 = 71 · `docs:verify` clean · PGlite: 18 migrations,
 71 tables, 604 CHECKs — rollback guard fires on a live lock and clears on an
 expired one, 018 re-applies, 5 constraint probes rejected, unique key proven to
 stop two processes starting from zero.
+
+#### What the Postgres rehearsal found that every local gate missed
+
+CI failed on PR #32 while all 24 local gates were green. The cause was a
+timestamp: SQLite returns a string for a `timestamptz`, Postgres returns a
+`Date`, and `String(new Date())` is `"Tue Nov 10 2026 17:57:25 GMT+0000 (…)"` —
+which Postgres rejects with `4276`. The throttle wrote that value back on the
+second failure, so the login endpoint answered **500** for every attempt after
+the first.
+
+The same mistake was already in production code, and it was worse than a crash
+because it failed *open*:
+
+| Site | Bug | Effect on Postgres |
+|---|---|---|
+| session check | `String(u.expires_at) < now()` | `"Tue Nov 10 2026…" < "2026-11-10T…"` is always **false** — **expired sessions never expired** |
+| reset-token check | `String(row.expires_at) <= now()` | same — **expired reset tokens stayed spendable** |
+| visitor session | `String(visitor.expires_at) >= now()` | same — **expired visitor sessions stayed valid** |
+| reset listing | `String(r.expires_at) > now()` | same — an expired token counted as live |
+| sitemap `<lastmod>` | `String(x.updated_at).slice(0,10)` | emitted `"Sat Mar 14"` instead of `2026-03-14` — a sitemap crawlers drop |
+
+All five now use `ts()` / `iso()` / `isoDay()`. Note that **no SQLite test can
+catch this class of bug** — on SQLite `String(string)` is the string, so the dead
+check still works. That is why the guard is a static scan for the pattern rather
+than another behavioural test; it found two sites the manual grep had missed.
 
 ---
 
