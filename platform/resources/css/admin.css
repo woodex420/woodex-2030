@@ -1,0 +1,334 @@
+/*
+ * Woodex OS admin: Tailwind v4 + TailAdmin layout utilities + Preline v5 plugin variants.
+ * TailAdmin Laravel (MIT) tokens are kept for UI legibility; its admin brand scale is neutral charcoal; public/PDF brand tokens stay separate.
+ */
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./auth.css";
+@import "preline/variants.css";
+
+@source "../views";
+@source "../js";
+@source "../../app/Livewire";
+@source "../../app/Support";
+@source "../../app/Domain";
+@source "../../node_modules/preline/dist/*.js";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --breakpoint-2xsm: 375px;
+  --breakpoint-xsm: 425px;
+  --breakpoint-3xl: 2000px;
+
+  --text-theme-xs: 12px;
+  --text-theme-xs--line-height: 18px;
+  --text-theme-sm: 14px;
+  --text-theme-sm--line-height: 20px;
+  --text-theme-xl: 20px;
+  --text-theme-xl--line-height: 30px;
+  --text-title-sm: 30px;
+  --text-title-sm--line-height: 38px;
+  --text-title-md: 36px;
+  --text-title-md--line-height: 44px;
+
+  /* Admin-only charcoal aliases. tokens.css stays unchanged for the website/PDFs. */
+  --color-navy-50: #fafafa;
+  --color-navy-100: #f5f5f5;
+  --color-navy-200: #e5e5e5;
+  --color-navy-300: #d4d4d4;
+  --color-navy-400: #a3a3a3;
+  --color-navy-500: #737373;
+  --color-navy-600: #595959;
+  --color-navy-700: #404040;
+  --color-navy-800: #303030;
+  --color-navy-900: #242424;
+  --color-navy-950: #171717;
+
+  /* Legacy brand utility names remain valid in the admin bundle. */
+  --color-brand-25: #fafafa;
+  --color-brand-50: var(--color-navy-50);
+  --color-brand-100: var(--color-navy-100);
+  --color-brand-200: var(--color-navy-200);
+  --color-brand-300: var(--color-navy-300);
+  --color-brand-400: var(--color-navy-400);
+  --color-brand-500: var(--color-navy-600);
+  --color-brand-600: var(--color-navy-700);
+  --color-brand-700: var(--color-navy-800);
+  --color-brand-800: var(--color-navy-900);
+  --color-brand-900: var(--color-navy-900);
+  --color-brand-950: var(--color-navy-950);
+
+  /* TailAdmin neutrals and status colours */
+  --color-gray-25: #fdfdfd;
+  --color-gray-50: #fafafa;
+  --color-gray-100: #f5f5f5;
+  --color-gray-200: #e5e5e5;
+  --color-gray-300: #d4d4d4;
+  --color-gray-400: #737373;
+  --color-gray-500: #737373;
+  --color-gray-600: #595959;
+  --color-gray-700: #404040;
+  --color-gray-800: #303030;
+  --color-gray-900: #242424;
+  --color-gray-950: #171717;
+
+  --color-success-50: #ecfdf3;
+  --color-success-100: #d1fadf;
+  --color-success-500: #12b76a;
+  --color-success-600: #039855;
+  --color-success-700: #027a48;
+
+  --color-error-50: #fef3f2;
+  --color-error-100: #fee4e2;
+  --color-error-500: #f04438;
+  --color-error-600: #d92d20;
+  --color-error-700: #b42318;
+
+  --color-warning-50: #fffaeb;
+  --color-warning-100: #fef0c7;
+  --color-warning-500: #f79009;
+  --color-warning-600: #dc6803;
+  --color-warning-700: #b54708;
+
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-500: #0ba5ec;
+  --color-info-600: #0086c9;
+  --color-info-700: #026aa2;
+
+  --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+  --shadow-theme-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.1), 0px 1px 2px 0px rgba(16, 24, 40, 0.06);
+  --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+  --shadow-theme-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+  --shadow-focus-ring: 0px 0px 0px 4px rgba(64, 64, 64, 0.18);
+}
+
+@layer base {
+  /* Desktop sidebar width. <html data-sidebar="collapsed"> is set before first paint (layouts/admin) and by the
+     sidebar store, so the layout never slides on page load or wire:navigate. */
+  :root {
+    --wx-sidebar-w: 280px;
+  }
+  :root[data-sidebar='collapsed'] {
+    --wx-sidebar-w: 88px;
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  body {
+    @apply relative bg-gray-50 font-sans text-theme-sm text-gray-700 antialiased dark:bg-gray-950 dark:text-gray-300;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-wood-500);
+    outline-offset: 2px;
+  }
+
+  [x-cloak] {
+    display: none !important;
+  }
+}
+
+/* ---- TailAdmin sidebar utilities (adapted) ---- */
+@utility menu-item {
+  @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-theme-sm font-medium;
+}
+
+@utility menu-item-active {
+  @apply bg-navy-50 text-navy-800 dark:bg-white/[0.06] dark:text-white;
+}
+
+@utility menu-item-inactive {
+  @apply text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white;
+}
+
+@utility menu-item-disabled {
+  @apply cursor-not-allowed text-gray-400 dark:text-gray-600;
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    @apply size-1.5;
+  }
+  &::-webkit-scrollbar-track {
+    @apply rounded-full;
+  }
+  &::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-gray-200 dark:bg-gray-700;
+  }
+}
+
+/* ---- Admin form controls ---- */
+/* Text-sized sibling of wx-mini-btn: a segmented control (Desktop / Tablet / Mobile), a copy
+   button, an "Open" link. wx-mini-btn is a square icon button, so labels overlap inside it. */
+@utility wx-seg-btn {
+  @apply inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 px-2.5 text-theme-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5;
+}
+
+@utility wx-mini-btn {
+    @apply inline-flex size-7 items-center justify-center rounded-lg border border-gray-200 text-theme-xs text-gray-500 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-white/5;
+}
+
+@utility wx-input {
+  @apply h-10 w-full rounded-lg border border-gray-300 bg-white px-3.5 text-theme-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-navy-300 focus:shadow-focus-ring focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30;
+}
+
+@utility wx-label {
+  @apply mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300;
+}
+
+/* Kanban drag states (SortableJS) */
+.sortable-ghost {
+  @apply opacity-40;
+}
+
+.sortable-drag {
+  @apply rotate-1 shadow-theme-lg;
+}
+
+/* Quotation workbench: preview occupies its own column, never covers editable controls. */
+.quotation-workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.quotation-editor { min-width: 0; }
+.quotation-preview { position: sticky; top: 88px; height: calc(100dvh - 108px); min-height: 480px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e5e5e5; border-radius: 12px; background: #e9e7e2; }
+.quotation-editor .sticky { z-index: 10; }
+@media (max-width: 1023px) {
+  .quotation-workbench { grid-template-columns: minmax(0, 1fr); }
+  .quotation-preview { position: relative; top: auto; height: 75dvh; min-height: 420px; }
+}
+
+/* Revision47: native CRM/communications workspaces. Scoped; public v1 layouts are untouched. */
+.wx-workspace { min-width: 0; }
+.wx-avatar { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:2.5rem; height:2.5rem; border:1px solid var(--color-gray-200); border-radius:50%; background:var(--color-gray-50); color:var(--color-navy-700); font-size:.8rem; font-weight:600; }
+.wx-icon-button { display:inline-flex; align-items:center; justify-content:center; width:2rem; height:2rem; border-radius:.65rem; color:var(--color-gray-500); flex-shrink:0; }
+.wx-icon-button:hover { background:var(--color-gray-100); }
+.wx-underline-tab { display:inline-flex; align-items:center; gap:.45rem; flex-shrink:0; padding:1rem .8rem; border-bottom:2px solid transparent; font-size:.8rem; color:var(--color-gray-500); font-weight:500; }
+.wx-underline-tab:hover,.wx-underline-tab.is-active { color:var(--color-navy-900); border-color:var(--color-navy-900); }
+.wx-count { border-radius:999px; padding:.1rem .45rem; background:var(--color-gray-100); color:var(--color-gray-600); font-size:.65rem; font-weight:600; }
+.wx-eyebrow { display:block; font-size:.65rem; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--color-gray-400); }
+.wx-summary-card { display:flex; flex-direction:column; gap:.5rem; padding:1.2rem 1.4rem; background:white; border:1px solid var(--color-gray-200); border-radius:1rem; }
+.wx-summary-card strong { font-size:1.8rem; line-height:1.1; color:var(--color-navy-900); font-weight:600; }
+button.wx-summary-card:hover { border-color:var(--color-navy-300); background:var(--color-brand-25); }
+.wx-filter-panel { padding:1rem; border:1px solid var(--color-gray-200); border-radius:1rem; background:white; }
+.wx-filter-pill,.wx-history-button { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--color-gray-200); border-radius:999px; background:white; padding:.45rem .9rem; font-size:.75rem; color:var(--color-gray-600); }
+.wx-filter-pill[aria-pressed=true] { background:var(--color-navy-900); color:white; border-color:var(--color-navy-900); }
+.wx-leads-table thead { background:var(--color-gray-50); }
+.wx-leads-table td { padding-top:1rem; padding-bottom:1rem; }
+.wx-section-nav { border-bottom:1px solid var(--color-gray-200); }
+.wx-activity-timeline > li { padding-bottom:.7rem; }
+.wx-activity-timeline > li > div { border:1px solid var(--color-gray-100); border-radius:.8rem; padding:.85rem 1rem; background:var(--color-gray-25); }
+.wx-inbox-grid { display:grid; grid-template-columns:minmax(0,1fr); overflow:hidden; border:1px solid var(--color-gray-200); border-radius:1rem; background:white; }
+.wx-conversation-list { min-width:0; }
+.wx-conversation-scroll { max-height:65dvh; }
+.wx-conversation-row.is-selected { box-shadow:inset 3px 0 0 var(--color-navy-800); }
+.wx-conversation-thread { height:min(850px,calc(100dvh - 14rem)); min-height:500px; }
+.wx-message-canvas { background:#f5f7fa; overscroll-behavior:contain; }
+.wx-message-bubble { overflow-wrap:anywhere; min-width:0; }
+.wx-message-bubble audio,.wx-message-bubble video { max-width:100%; }
+.wx-message-date { text-align:center; font-size:.65rem; color:var(--color-gray-400); padding:.6rem; }
+.wx-chat-drawer { max-width:680px; }
+.wx-live-chat-list { width:190px; }
+.dark .wx-summary-card,.dark .wx-filter-panel,.dark .wx-inbox-grid,.dark .wx-filter-pill,.dark .wx-history-button { background:var(--color-gray-900); border-color:var(--color-gray-800); color:var(--color-gray-300); }
+.dark .wx-summary-card strong,.dark .wx-underline-tab.is-active { color:white; }
+.dark .wx-avatar,.dark .wx-count { background:var(--color-gray-800); border-color:var(--color-gray-700); color:var(--color-gray-300); }
+.dark .wx-message-canvas { background:#111827; }
+.dark .wx-activity-timeline > li > div,.dark .wx-leads-table thead { background:var(--color-gray-900); border-color:var(--color-gray-800); }
+.dark .wx-underline-tab.is-active { border-color:white; }
+@media(min-width:1024px) { .wx-inbox-grid { grid-template-columns:310px minmax(0,1fr); } .wx-conversation-list { border-right:1px solid var(--color-gray-200); } .wx-conversation-scroll { max-height:min(780px,calc(100dvh - 19rem)); } }
+@media(max-width:639px) { .wx-live-chat-layout { flex-direction:column; } .wx-live-chat-list { display:flex; width:100%; max-height:130px; border-right:0; border-bottom:1px solid var(--color-gray-200); overflow-x:auto; } .wx-live-chat-list > button { flex:0 0 145px; margin-bottom:0; } .wx-conversation-thread { height:calc(100dvh - 10rem); } .wx-alert-panel { position:fixed; right:1rem; top:4.5rem; margin-top:0; } .wx-underline-tab { padding:.85rem .6rem; } }
+
+.wx-conversation-thread textarea.wx-input,.wx-chat-drawer textarea.wx-input { height:auto; min-height:3.25rem; }
+
+/* Never let a success toast intercept the right-hand chat Send button. */
+.wx-toast-stack { left:1rem; top:5rem; width:calc(100vw - 2rem); max-width:24rem; }
+@media(min-width:640px) { .wx-toast-stack { top:auto; bottom:1rem; } }
+
+/* Current79: neutral charcoal Light / Dark / System surfaces. Admin bundle only;
+   public v1, document iframe styles and frozen PDF renderers retain their own paper palette. */
+:root {
+  --wx-page: #f6f6f6;
+  --wx-surface: #ffffff;
+  --wx-elevated: #eeeeee;
+  --wx-text: #242424;
+  --wx-muted: #595959;
+  --wx-border: #d1d1d1;
+  --wx-control-border: #737373;
+  --wx-primary: #303030;
+  --wx-primary-hover: #171717;
+  --wx-on-primary: #ffffff;
+  --wx-focus: #8e5f35;
+  --wx-chat-canvas: #eeeeee;
+}
+:root.dark {
+  --wx-page: #171717;
+  --wx-surface: #212121;
+  --wx-elevated: #2b2b2b;
+  --wx-text: #f3f3f3;
+  --wx-muted: #b8b8b8;
+  --wx-border: #454545;
+  --wx-control-border: #858585;
+  --wx-primary: #e5e5e5;
+  --wx-primary-hover: #ffffff;
+  --wx-on-primary: #171717;
+  --wx-focus: #e6b98b;
+  --wx-chat-canvas: #1b1b1b;
+  --color-gray-400: #b8b8b8;
+  --color-gray-500: #a3a3a3;
+  --color-gray-900: #212121;
+  --color-gray-950: #171717;
+}
+body.wx-admin { background:var(--wx-page); color:var(--wx-text); }
+.wx-admin :is(.text-gray-400,.text-gray-500):not([class*="dark:text-"]) { color:var(--wx-muted); }
+.wx-admin :focus-visible { outline:2px solid var(--wx-focus); outline-offset:3px; }
+.wx-admin-header,.wx-admin-sidebar,.wx-surface,.wx-web-lead,.wx-theme-picker { background:var(--wx-surface); border-color:var(--wx-border); color:var(--wx-text); }
+.wx-theme-picker select { color:var(--wx-text); }
+.wx-theme-picker option { background:var(--wx-surface); color:var(--wx-text); }
+.wx-admin .wx-input { background:var(--wx-surface); border-color:var(--wx-control-border); color:var(--wx-text); }
+.wx-admin .wx-input::placeholder { color:var(--wx-muted); opacity:1; }
+.wx-primary-button,.wx-primary-bubble { background:var(--wx-primary); color:var(--wx-on-primary); }
+.wx-primary-button:hover { background:var(--wx-primary-hover); }
+.wx-summary-card,.wx-filter-panel,.wx-inbox-grid,.wx-filter-pill,.wx-history-button,
+.dark .wx-summary-card,.dark .wx-filter-panel,.dark .wx-inbox-grid,.dark .wx-filter-pill,.dark .wx-history-button { background:var(--wx-surface); border-color:var(--wx-border); color:var(--wx-text); }
+.wx-summary-card strong,.dark .wx-summary-card strong { color:var(--wx-text); }
+button.wx-summary-card:hover { background:var(--wx-elevated); border-color:var(--wx-control-border); }
+.wx-eyebrow,.wx-message-date { color:var(--wx-muted); }
+.wx-avatar,.wx-count,.dark .wx-avatar,.dark .wx-count { background:var(--wx-elevated); color:var(--wx-text); border-color:var(--wx-border); }
+.wx-message-canvas,.dark .wx-message-canvas { background:var(--wx-chat-canvas); }
+.wx-filter-pill[aria-pressed=true] { background:var(--wx-primary); color:var(--wx-on-primary); border-color:var(--wx-primary); }
+.wx-underline-tab:hover,.wx-underline-tab.is-active,.dark .wx-underline-tab.is-active { color:var(--wx-text); border-color:var(--wx-primary); }
+.wx-chat-pending,.wx-environment { background:var(--wx-elevated); color:var(--wx-text); border-color:var(--wx-border); }
+.dark .wx-admin :is(.text-success-700,.text-success-600) { color:#6ce9a6; }
+.dark .wx-admin :is(.text-error-700,.text-error-600) { color:#fda29b; }
+.dark .wx-admin :is(.text-warning-700,.text-warning-600) { color:#fec84b; }
+.dark .wx-admin .bg-success-50 { background:#12392d; }
+.dark .wx-admin .bg-error-50 { background:#402126; }
+.dark .wx-admin .bg-warning-50 { background:#3d301c; }
+@media (prefers-reduced-motion:reduce) { .wx-admin *, .wx-admin *::before, .wx-admin *::after { scroll-behavior:auto !important; transition-duration:0.01ms !important; animation-duration:0.01ms !important; } }
+
+/* Compact Preline-style operational surfaces; existing tokens/routes/plugins remain authoritative. */
+.wx-stat { box-shadow:0 1px 2px rgb(0 0 0 / .025); }
+a.wx-stat:hover { border-color:var(--wx-control-border); transform:translateY(-1px); }
+.wx-admin .menu-item-active::before { content:""; position:absolute; left:0; top:25%; bottom:25%; width:3px; border-radius:3px; background:var(--wx-primary); }
+@media (prefers-reduced-motion: reduce) {
+  .wx-admin-sidebar,.wx-stat,.wx-admin .menu-item { transition:none !important; }
+  a.wx-stat:hover { transform:none; }
+}

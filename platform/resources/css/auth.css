@@ -1,0 +1,58 @@
+/* Original single-card glass composition. Existing Woodex photograph; no gated Preline source. */
+.wx-auth { margin:0; min-height:100svh; background:#242424; color:#fff; font-family:var(--font-sans); }
+.wx-auth-backdrop { position:fixed; inset:0; background:linear-gradient(135deg,rgba(12,15,14,.63),rgba(12,15,14,.5)),url('/assets/img/svc-interior-design.webp') center/cover no-repeat; }
+.wx-auth-shell { position:relative; display:flex; flex-direction:column; min-height:100svh; max-width:1600px; margin:auto; padding:32px clamp(24px,5vw,80px) 24px; }
+.wx-auth-header { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.wx-auth-brand { color:#fff; text-decoration:none; }
+.wx-auth-brand svg { width:46px; height:44px; padding:4px; border-radius:10px; color:#17212d; background:rgba(255,255,255,.94); }
+.wx-auth-website { font-size:13px; color:#fff; text-decoration:none; }
+.wx-auth-website:hover { text-decoration:underline; }
+.wx-auth-main { display:flex; justify-content:center; align-items:center; flex:1; min-width:0; padding:40px 0; }
+.wx-auth-card { width:100%; max-width:440px; min-width:0; padding:32px; border:1px solid rgba(255,255,255,.32); border-radius:22px; color:#fff; background:rgba(28,28,28,.28); box-shadow:0 24px 80px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.1); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); }
+.wx-auth-card-eyebrow { margin:0 0 13px; color:#e6d4b8; font-size:10px; font-weight:700; letter-spacing:.19em; }
+.wx-auth-heading { margin:0; font-size:30px; line-height:1.2; letter-spacing:-.035em; font-weight:600; }
+.wx-auth-subheading { margin:10px 0 0; font-size:13px; line-height:1.65; color:#eeece8; }
+.wx-auth-content { margin-top:24px; }
+.wx-auth .wx-input { color:#fff; background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.7); }
+.wx-auth .wx-input:focus { background:rgba(255,255,255,.13); border-color:#e6d4b8; outline:2px solid rgba(230,212,184,.35); outline-offset:2px; }
+.wx-auth .wx-input::placeholder { color:#f5f5f4; }
+.wx-auth-card label,.wx-auth-card .wx-label { color:#f5f5f4; }
+.wx-auth-card a,.wx-auth-card [data-show-password] { color:#f5f5f4; }
+.wx-auth-card a:hover { color:#fff; }
+.wx-auth-card a.h-11:hover { background:rgba(255,255,255,.12); }
+.wx-auth-card input[type=checkbox] { accent-color:#e6d4b8; }
+.wx-auth [data-sign-in-status] { color:#fff; border-color:rgba(255,255,255,.35); background:rgba(0,0,0,.24); }
+/* The preview hint is a flat section, not a second opaque card inside the welcome card. */
+.wx-auth-demo { padding:13px 0; margin:0 0 20px; border:0; border-top:1px solid rgba(255,255,255,.24); border-bottom:1px solid rgba(255,255,255,.24); border-radius:0; background:transparent; font-size:12px; line-height:1.6; }
+.wx-auth-demo-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; font-weight:700; }
+.wx-auth-demo-heading span { color:#e6d4b8; font-size:9px; font-weight:600; letter-spacing:.08em; }
+.wx-auth-demo dl { display:grid; grid-template-columns:68px minmax(0,1fr); gap:3px 8px; margin:9px 0; }
+.wx-auth-demo dt { color:#eeece8; }
+.wx-auth-demo dd { margin:0; overflow-wrap:anywhere; font-family:ui-monospace,monospace; font-size:11px; }
+.wx-auth-demo p { margin:6px 0 0; color:#eeece8; }
+.wx-auth-demo button { font-size:11px; font-weight:600; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.wx-auth-submit { background:#f5f5f4; color:#242424; border:1px solid #f5f5f4; cursor:pointer; }
+.wx-auth-submit:hover { background:#e7e5e4; }
+.wx-auth-submit:disabled { cursor:wait; opacity:.7; }
+.wx-auth-fallback { margin:17px 0 0; color:#eeece8; font-size:11px; line-height:1.7; }
+.wx-auth-fallback a { color:inherit; font-weight:600; text-decoration:underline; text-underline-offset:3px; }
+.wx-auth-footer { display:flex; justify-content:space-between; gap:16px; color:#eeece8; font-size:11px; }
+.wx-auth a:focus-visible,.wx-auth button:focus-visible { outline:2px solid #e6d4b8; outline-offset:4px; }
+@supports not (backdrop-filter:blur(1px)) { :root:not([data-auth-glass="glass"]) .wx-auth-card { background:rgba(28,28,28,.94); } }
+@media(max-width:850px) {
+  .wx-auth-shell { padding:24px; }
+  .wx-auth-main { padding:32px 0; }
+  .wx-auth-header .font-heading { font-size:18px; }
+  .wx-auth-card { padding:28px; }
+  .wx-auth-footer span:last-child { display:none; }
+}
+@media(max-width:400px) {
+  .wx-auth-shell { padding:20px 16px; }
+  .wx-auth-card { padding:24px 20px; border-radius:20px; }
+  .wx-auth-website { font-size:11px; }
+}
+:root[data-auth-glass="solid"] .wx-auth-card { background:#242424; -webkit-backdrop-filter:none; backdrop-filter:none; }
+.wx-auth-card-tools { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.wx-auth-card-tools button { color:#eeece8; font-size:10px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+@media(prefers-reduced-transparency:reduce) { :root:not([data-auth-glass="glass"]) .wx-auth-card { background:#242424; -webkit-backdrop-filter:none; backdrop-filter:none; } }
+@media(prefers-reduced-motion:reduce) { .wx-auth *, .wx-auth *::before, .wx-auth *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }

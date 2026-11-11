@@ -1,0 +1,113 @@
+/*
+ * Woodex public website (phase P6). Studio look on Preline blocks; runtime theme variables come
+ * from the theme builder (/theme/{hash}.css) so publishing a theme never needs a rebuild.
+ */
+@import "tailwindcss";
+@import "./tokens.css";
+
+@source "../views/site";
+
+@layer base {
+  body {
+    @apply bg-paper font-sans text-[15px] leading-[1.65] tracking-[-0.025em] text-body antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading font-normal leading-[1.1] tracking-[-0.025em] text-ink;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-wood-500);
+    outline-offset: 5px;
+  }
+
+  /* Alpine: hide until initialised (thank-you panels, error lines). */
+  [x-cloak] {
+    display: none !important;
+  }
+}
+
+@utility btn-studio {
+  @apply inline-flex items-center justify-between gap-6 rounded-full border border-transparent bg-white py-2.5 pr-3 pl-5 text-sm font-medium whitespace-nowrap text-ink transition hover:-translate-y-0.5 hover:bg-beige;
+}
+
+/* ---- Section settings (the builder's section panel) --------------------------------
+   Admin v2.1 pro let an editor frame one section — background, spacing, width, centre — without
+   touching another. Here the section's view keeps its own design, and these classes on the wrapper
+   (SectionStyle::classes) change the frame around it. Nothing is printed when a section keeps the
+   design it was built with, so an untouched page is byte-for-byte what it was before.
+
+   The background and padding rules carry !important on purpose: each section is written with its own
+   Tailwind utilities (bg-soft, py-16 …), and a setting is the editor overriding that design. */
+.wx-sec--bg-white > section {
+  background-color: var(--color-paper) !important;
+}
+
+.wx-sec--bg-light > section {
+  background-color: var(--color-navy-50) !important;
+}
+
+.wx-sec--bg-beige > section {
+  background-color: var(--color-sand-100) !important;
+}
+
+.wx-sec--bg-navy > section {
+  background-color: var(--color-navy-950) !important;
+}
+
+/* A navy section prints its own text light; the elements that set a colour keep it. */
+.wx-sec--bg-navy > section :is(h1, h2, h3, h4) {
+  color: var(--color-paper);
+}
+
+.wx-sec--bg-navy > section p {
+  color: rgb(255 255 255 / 0.78);
+}
+
+/* Spacing: the section's own vertical rhythm, replaced. A section usually pads itself; the ones with
+   an inner container pad that instead, so both are covered. */
+.wx-sec--sp-compact > section,
+.wx-sec--sp-compact > section > div,
+.wx-sec--sp-spacious > section,
+.wx-sec--sp-spacious > section > div,
+.wx-sec--sp-flush > section,
+.wx-sec--sp-flush > section > div {
+  padding-top: unset;
+  padding-bottom: unset;
+}
+
+.wx-sec--sp-compact > section,
+.wx-sec--sp-compact > section > div {
+  padding-top: 2rem !important;
+  padding-bottom: 2rem !important;
+}
+
+.wx-sec--sp-spacious > section,
+.wx-sec--sp-spacious > section > div {
+  padding-top: 7rem !important;
+  padding-bottom: 7rem !important;
+}
+
+.wx-sec--sp-flush > section,
+.wx-sec--sp-flush > section > div {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Full width: the section's own max-width is what boxes it, on the section or on its first child. */
+.wx-sec--full > section[class*='max-w-'],
+.wx-sec--full > section > [class*='max-w-'] {
+  max-width: none !important;
+}
+
+/* Centred: the text of the section, whatever its inner grid. */
+.wx-sec--centre > section {
+  text-align: center;
+}
+
+.wx-sec--centre > section :is(h1, h2, h3, h4, p) {
+  text-align: center;
+}

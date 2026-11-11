@@ -1,0 +1,87 @@
+/*
+ * Woodex design tokens ("Studio"), shared by admin, website, client pages and PDFs.
+ * Source of truth: docs/05-DESIGN-SYSTEM.md §2. Do not hard-code hex values in Blade.
+ */
+
+@font-face {
+  font-family: "Nohemi";
+  src: url("../fonts/Nohemi-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nohemi";
+  src: url("../fonts/Nohemi-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nohemi";
+  src: url("../fonts/Nohemi-SemiBold.otf") format("opentype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("../fonts/Inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-heading: "Nohemi", "Inter", Arial, sans-serif;
+
+  /* Brand navy (Studio #0F1E36 = navy-900) */
+  --color-navy-50: #f2f5f9;
+  --color-navy-100: #e3e9f1;
+  --color-navy-200: #c5d1e2;
+  --color-navy-300: #9db0cb;
+  --color-navy-400: #6e87ac;
+  --color-navy-500: #4a6590;
+  --color-navy-600: #344d75;
+  --color-navy-700: #26395a;
+  --color-navy-800: #1a2a45;
+  --color-navy-900: #0f1e36;
+  --color-navy-950: #0a1426;
+
+  /* Wood accent (Studio focus colour #A87442 = wood-500) */
+  --color-wood-50: #fbf6f0;
+  --color-wood-100: #f5eadc;
+  --color-wood-200: #ead3b8;
+  --color-wood-300: #dcb78e;
+  --color-wood-400: #c99566;
+  --color-wood-500: #a87442;
+  --color-wood-600: #8e5f35;
+  --color-wood-700: #734b2b;
+  --color-wood-800: #5c3c24;
+  --color-wood-900: #4a301d;
+  --color-wood-950: #2a1a0f;
+
+  /* Sand (Studio beige #FCF2E8 = sand-100) */
+  --color-sand-50: #fdfaf6;
+  --color-sand-100: #fcf2e8;
+  --color-sand-200: #f6e6d5;
+  --color-sand-300: #ebd5be;
+  --color-sand-400: #d9bfa3;
+  --color-sand-500: #bfa285;
+  --color-sand-600: #9c836a;
+  --color-sand-700: #7a6653;
+  --color-sand-800: #5a4c3f;
+  --color-sand-900: #3d342c;
+  --color-sand-950: #221d18;
+
+  /* Studio named colours */
+  --color-ink: #111111;
+  --color-body: #525252;
+  --color-paper: #ffffff;
+  --color-soft: #f5f5f3;
+  --color-beige: #fcf2e8;
+  --color-line: #dededb;
+  --color-muted: #6b6b6b; /* 5.1:1 on white: AA for 14px secondary text (was #777 = 4.48) */
+
+  --radius-ui: 8px;
+}

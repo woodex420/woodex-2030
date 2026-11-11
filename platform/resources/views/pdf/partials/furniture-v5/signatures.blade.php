@@ -1,0 +1,1 @@
+@if ($people)<table class="signatures"><tr>@foreach ($people as $person)<td><div class="signature-line"><strong>{{ $person['name'] }}</strong>{{ $person['title'] }}</div></td>@endforeach</tr></table>@endif

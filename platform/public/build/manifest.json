@@ -1,0 +1,99 @@
+{
+  "node_modules/apexcharts/dist/apexcharts.esm.js": {
+    "file": "assets/apexcharts.esm-B_W7Ml2L.js",
+    "name": "apexcharts.esm",
+    "src": "node_modules/apexcharts/dist/apexcharts.esm.js",
+    "isDynamicEntry": true
+  },
+  "node_modules/pdfjs-dist/build/pdf.mjs": {
+    "file": "assets/pdf-CSBLqX4g.js",
+    "name": "pdf",
+    "src": "node_modules/pdfjs-dist/build/pdf.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs": {
+    "file": "assets/pdf.worker.min-CjEcRF4W.mjs",
+    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
+  },
+  "node_modules/sortablejs/modular/sortable.esm.js": {
+    "file": "assets/sortable.esm-B2mu1yQG.js",
+    "name": "sortable.esm",
+    "src": "node_modules/sortablejs/modular/sortable.esm.js",
+    "isDynamicEntry": true
+  },
+  "resources/css/admin.css": {
+    "file": "assets/admin-C8OSW9k8.css",
+    "name": "admin",
+    "names": [
+      "admin.css"
+    ],
+    "src": "resources/css/admin.css",
+    "isEntry": true,
+    "assets": [
+      "assets/Nohemi-Regular-DoV5ESMv.otf",
+      "assets/Nohemi-Medium-CmMArz_N.otf",
+      "assets/Nohemi-SemiBold-PyGDL_pG.otf",
+      "assets/Inter-DiVDrmQJ.woff2"
+    ]
+  },
+  "resources/css/site.css": {
+    "file": "assets/site.css",
+    "name": "site",
+    "names": [
+      "site.css"
+    ],
+    "src": "resources/css/site.css",
+    "isEntry": true,
+    "assets": [
+      "assets/Nohemi-Regular-DoV5ESMv.otf",
+      "assets/Nohemi-Medium-CmMArz_N.otf",
+      "assets/Nohemi-SemiBold-PyGDL_pG.otf",
+      "assets/Inter-DiVDrmQJ.woff2"
+    ]
+  },
+  "resources/fonts/Inter.woff2": {
+    "file": "assets/Inter-DiVDrmQJ.woff2",
+    "src": "resources/fonts/Inter.woff2"
+  },
+  "resources/fonts/Nohemi-Medium.otf": {
+    "file": "assets/Nohemi-Medium-CmMArz_N.otf",
+    "src": "resources/fonts/Nohemi-Medium.otf"
+  },
+  "resources/fonts/Nohemi-Regular.otf": {
+    "file": "assets/Nohemi-Regular-DoV5ESMv.otf",
+    "src": "resources/fonts/Nohemi-Regular.otf"
+  },
+  "resources/fonts/Nohemi-SemiBold.otf": {
+    "file": "assets/Nohemi-SemiBold-PyGDL_pG.otf",
+    "src": "resources/fonts/Nohemi-SemiBold.otf"
+  },
+  "resources/js/admin.js": {
+    "file": "assets/admin-BYe8tm-R.js",
+    "name": "admin",
+    "src": "resources/js/admin.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "node_modules/pdfjs-dist/build/pdf.mjs",
+      "node_modules/sortablejs/modular/sortable.esm.js",
+      "node_modules/apexcharts/dist/apexcharts.esm.js"
+    ],
+    "assets": [
+      "assets/pdf.worker.min-CjEcRF4W.mjs"
+    ]
+  },
+  "resources/js/auth.js": {
+    "file": "assets/auth-CpKduNcg.js",
+    "name": "auth",
+    "src": "resources/js/auth.js",
+    "isEntry": true
+  },
+  "resources/js/site.js": {
+    "file": "assets/site.js",
+    "name": "site",
+    "src": "resources/js/site.js",
+    "isEntry": true
+  }
+}
