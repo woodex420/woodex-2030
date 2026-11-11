@@ -51,6 +51,18 @@ const db = await createDb({ sqliteFile: path.join(DB_DIR, "woodex.db"), database
 console.log("[woodex-api] driver=" + db.kind);
 
 const now = () => new Date().toISOString();
+/* Timestamps arrive from Postgres as Date objects and from SQLite as strings.
+   Two bugs follow from forgetting that, and both hit production only:
+   - writing one back raw serialises as "Tue Nov 10 2026 …", which Postgres
+     rejects (4276) while SQLite accepts;
+   - comparing String(date) against an ISO string compares "Tue…" with "2026…",
+     so an expiry check is silently always-true and a timed-out token lives on.
+   `iso` normalises for both purposes. */
+const iso = (v) => (v === null || v === undefined ? null : v instanceof Date ? v.toISOString() : String(v));
+/* A sitemap <lastmod> is a calendar date. String(Date).slice(0,10) yields
+   "Tue Nov 0" on Postgres, producing a sitemap crawlers silently drop. */
+const isoDay = (v) => { const ms = ts(v); return Number.isFinite(ms) ? new Date(ms).toISOString().slice(0, 10) : ""; };
+const ts = (v) => (v === null || v === undefined ? NaN : v instanceof Date ? v.getTime() : Date.parse(String(v)));
 const fmtMoney = (n) => "PKR " + Math.round(n).toLocaleString("en-PK");
 
 /* ---- pre-DDL column migrations ----
@@ -733,6 +745,18 @@ CREATE TABLE IF NOT EXISTS password_resets(
   CHECK (reason IN ('forgotten','compromised','offboarding','initial')),
   CHECK (used_at IS NULL OR revoked_at IS NULL));
 CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id, created_at DESC);
+/* Shared throttling — mirror of scripts/migrations/018_throttle.sql.
+   The login throttle used to be a Map inside the process, which a cold start
+   threw away. A lockout is a fact about the account, so it lives with it. */
+CREATE TABLE IF NOT EXISTS throttle_buckets(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, bucket_key TEXT NOT NULL UNIQUE, kind TEXT NOT NULL,
+  failures INTEGER NOT NULL DEFAULT 0, window_started_at TEXT NOT NULL,
+  locked_until TEXT, last_seen_at TEXT NOT NULL, created_at TEXT NOT NULL,
+  CHECK (kind IN ('login','ip')), CHECK (trim(bucket_key) <> ''),
+  CHECK (failures >= 0), CHECK (window_started_at <= last_seen_at));
+CREATE INDEX IF NOT EXISTS idx_throttle_buckets_locked
+  ON throttle_buckets(bucket_key) WHERE locked_until IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_throttle_buckets_last_seen ON throttle_buckets(last_seen_at);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
 PRAGMA journal_mode = WAL;
 `);
@@ -1731,13 +1755,13 @@ app.use(async (req, res, next) => { try {
   if (isPublic(req.method, req.path)) {
     if (!token) return next();
     const visitor = (await (db.prepare("SELECT u.id, u.email, u.name, u.role, u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(token)));
-    if (visitor && visitor.active && String(visitor.expires_at) >= now()) { req.user = visitor; req.actor = visitor.name; }
+    if (visitor && visitor.active && ts(visitor.expires_at) > Date.now()) { req.user = visitor; req.actor = visitor.name; }
     return next();
   }
   if (!token) return res.status(401).json({ error: "sign in required", code: "no_token" });
   const u = (await (db.prepare("SELECT u.id, u.email, u.name, u.role, u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(token)));
   if (!u) return res.status(401).json({ error: "session expired — sign in again", code: "bad_token" });
-  if (String(u.expires_at) < now()) { (await (db.prepare("DELETE FROM sessions WHERE token=?").run(token))); return res.status(401).json({ error: "session expired", code: "expired" }); }
+  if (ts(u.expires_at) < Date.now()) { (await (db.prepare("DELETE FROM sessions WHERE token=?").run(token))); return res.status(401).json({ error: "session expired", code: "expired" }); }
   if (!u.active) return res.status(403).json({ error: "account disabled" });
   req.user = u; req.actor = u.name;
   const caps = ROLE_CAPS[u.role] ?? [];
@@ -1778,7 +1802,8 @@ app.use(async (req, res, next) => { try {
 } catch (error) { next(error); } });
 const hashPass = (pw, salt = crypto.randomBytes(8).toString("hex")) =>
   ({ salt, hash: crypto.scryptSync(String(pw), salt, 32).toString("hex") });
-const loginBucket = new Map();
+/* No in-process login bucket. It was here, and it protected the process rather
+   than the account: a cold start began counting from zero again. See 018. */
 
 app.get("/api/health", (req, res) => {
   // Keep the public liveness response deliberately free of customer and finance counts.
@@ -2906,27 +2931,161 @@ const validTimeZone = (value) => {
   return timezone;
 };
 
+/* ---- shared throttling (018) ------------------------------------------------
+   A lockout is a fact about the account, not about the process that happened to
+   serve the request. These live in the database for one reason: on Vercel every
+   cold start used to get an empty Map, so the 5th wrong password was the 1st
+   again. Two processes sharing one database were measured — one throttled, the
+   other wide open.
+
+   The window slides. `failures` counts within `window_started_at`; once that is
+   older than the window, the count restarts from zero. A person who mistypes
+   twice on Monday and twice on Friday is not an attacker, and a system that
+   treats them as one eventually locks out the whole office.
+
+   Nothing here trusts the caller to be honest about time: `now()` is this
+   process's clock, and a bucket whose clock skews forward simply expires
+   earlier for itself. */
+const THROTTLE = {
+  login: { windowMs: 60_000, limit: 5, lockMs: 60_000 },
+  ip:    { windowMs: 60_000, limit: 30, lockMs: 60_000 },
+};
+
+const throttleKey = (kind, value) => `${kind}:${String(value)}`;
+
+/* Read the bucket and decide, without writing. Called before the password is
+   checked so a locked-out caller costs one indexed lookup and no scrypt. */
+const throttleState = async (key) => {
+  const row = await db.prepare("SELECT * FROM throttle_buckets WHERE bucket_key = ?").get(key);
+  if (!row) return { locked: false, failures: 0, retryAfterMs: 0 };
+  const t = Date.now();
+  const lockedUntil = row.locked_until ? Date.parse(String(row.locked_until)) : 0;
+  if (lockedUntil > t) return { locked: true, failures: row.failures, retryAfterMs: lockedUntil - t, row };
+  return { locked: false, failures: Number(row.failures) || 0, retryAfterMs: 0, row };
+};
+
+/* Record a failure and return the new state. Upsert on the key so two parallel
+   instances cannot both insert a fresh bucket for the same account and each
+   count from zero — the database row is the single point of agreement. */
+const throttleFail = async (kind, value) => {
+  const policy = THROTTLE[kind];
+  const key = throttleKey(kind, value);
+  const t = Date.now();
+  const nowIso = new Date(t).toISOString();
+  const windowStart = new Date(t - policy.windowMs).toISOString();
+  const row = await db.prepare("SELECT * FROM throttle_buckets WHERE bucket_key = ?").get(key);
+  let failures;
+  let windowStartedAt;
+  if (!row) {
+    failures = 1; windowStartedAt = nowIso;
+    await db.prepare(
+      `INSERT INTO throttle_buckets(bucket_key, kind, failures, window_started_at, locked_until, last_seen_at, created_at)
+       VALUES(?,?,?,?,?,?,?)`
+    ).run(key, kind, failures, windowStartedAt, null, nowIso, nowIso);
+  } else {
+    /* Slide the window: a bucket whose window has lapsed starts counting again
+       rather than carrying Monday's mistypes into Friday. */
+    const fresh = iso(row.window_started_at) <= windowStart;
+    failures = fresh ? 1 : (Number(row.failures) || 0) + 1;
+    windowStartedAt = fresh ? nowIso : iso(row.window_started_at);
+    /* EVERY timestamp written back must be an ISO string. Postgres returns a
+       Date object for a timestamptz column, and a Date reaching a parameter
+       serialises as "Tue Nov 10 2026 17:57:25 GMT+0000 (Coordinated …)" — which
+       Postgres rejects with 4276 while SQLite quietly accepts it. String() is
+       not enough: String(new Date()) is that same non-ISO form, which is why
+       the first fix here still failed the rehearsal. */
+    const carryLock = iso(row.locked_until);
+    const lockedUntil = failures >= policy.limit ? new Date(t + policy.lockMs).toISOString() : carryLock;
+    await db.prepare(
+      "UPDATE throttle_buckets SET failures = ?, window_started_at = ?, locked_until = ?, last_seen_at = ? WHERE bucket_key = ?"
+    ).run(failures, windowStartedAt, lockedUntil, nowIso, key);
+  }
+  /* The limit-th failure is the last one accepted as a plain rejection; the
+     bucket is armed at that point and the NEXT attempt is refused without
+     checking a password. Returning `locked` here would make the 5th answer a
+     429 and the caller never learns their 5th attempt was counted — and,
+     worse, the count and the lock would stop agreeing with the policy name. */
+  const armed = failures >= policy.limit;
+  return {
+    locked: false,
+    armed,
+    failures,
+    retryAfterMs: armed ? policy.lockMs : 0,
+  };
+};
+
+/* Clear a bucket after a successful login. Only the account's own bucket — the
+   IP bucket is deliberately NOT cleared, because a success from one address
+   says nothing about the 40 failures from it, and clearing it would let a
+   sprayer with one working credential refresh their allowance. */
+const throttleClear = async (kind, value) => {
+  await db.prepare("DELETE FROM throttle_buckets WHERE bucket_key = ?").run(throttleKey(kind, value));
+};
+
+/* Housekeeping: drop buckets that are neither locked nor recently seen. Without
+   it this table grows for every invented email ever typed at the login screen. */
+const throttleSweep = async () => {
+  const cutoff = new Date(Date.now() - 24 * 3600_000).toISOString();
+  await db.prepare(
+    "DELETE FROM throttle_buckets WHERE (locked_until IS NULL OR locked_until < ?) AND last_seen_at < ?"
+  ).run(new Date().toISOString(), cutoff);
+};
+
 /* ---- auth endpoints + team management ---- */
 const rowUserLite = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, active: !!u.active, updatedAt: u.updated_at });
-const ipMisses = new Map(); // TODO-5: 30 failed logins/min/IP backstop (successes never count)
 app.post("/api/auth/login", wrap(async (req, res) => {
   const raw = String(req.body?.email ?? req.body?.username ?? "").trim().toLowerCase();
   const email = raw.includes("@") ? raw : raw + "@woodex.pk"; // username or full email both work
   const pw = String(req.body?.password ?? "");
-  const rl = loginBucket.get(email) ?? { n: 0, t: Date.now() };
-  if (Date.now() - rl.t > 60_000) { rl.n = 0; rl.t = Date.now(); }
-  const ipk = req.ip ?? "local"; const ipb = ipMisses.get(ipk) ?? { n: 0, t: Date.now() };
-  if (Date.now() - ipb.t > 60_000) { ipb.n = 0; ipb.t = Date.now(); }
-  if (rl.n >= 5 || ipb.n >= 30) { res.set("retry-after", "60"); return res.status(429).json({ error: "too many attempts — wait a minute" }); }
+  /* Two keys guard one login: the account and the address it is coming from.
+     The account key stops a targeted password guess; the address key stops one
+     source spraying many accounts. Checking before the hash means a locked
+     caller never costs a scrypt. */
+  const ipk = req.ip ?? "local";
+  const acct = await throttleState(throttleKey("login", email));
+  const addr = await throttleState(throttleKey("ip", ipk));
+  if (acct.locked || addr.locked) {
+    const wait = Math.max(acct.retryAfterMs, addr.retryAfterMs, 1000);
+    const secs = Math.ceil(wait / 1000);
+    res.set("retry-after", String(secs));
+    return res.status(429).json({
+      error: `too many attempts — try again in ${secs} second${secs === 1 ? "" : "s"}`,
+      code: "throttled",
+      retryAfterSeconds: secs,
+      /* Say WHICH limit tripped. An operator debugging "the owner is locked out"
+         needs to know whether to wait for the account or the office IP. */
+      scope: acct.locked ? "account" : "address",
+    });
+  }
   const u = (await (db.prepare("SELECT * FROM users WHERE email=?").get(email)));
   const guess = u ? hashPass(pw, u.pass_salt) : hashPass("x", "00");
   if (!u || !crypto.timingSafeEqual(Buffer.from(guess.hash, "hex"), Buffer.from(u.pass_hash, "hex"))) {
-    rl.n += 1; loginBucket.set(email, rl);
-    ipb.n += 1; ipMisses.set(ipk, ipb);
+    const after = await throttleFail("login", email);
+    await throttleFail("ip", ipk);
+    /* A wrong password is the same answer whether or not the address exists —
+       otherwise the login form is a directory of who works here. */
+    if (after.locked) {
+      const secs = Math.ceil(after.retryAfterMs / 1000);
+      res.set("retry-after", String(secs));
+      return res.status(429).json({
+        error: `too many attempts — try again in ${secs} second${secs === 1 ? "" : "s"}`,
+        code: "throttled", retryAfterSeconds: secs, scope: "account",
+      });
+    }
     return res.status(401).json({ error: "wrong email or password" });
   }
-  if (!u.active) return res.status(403).json({ error: "account disabled — ask an owner" });
-  loginBucket.delete(email);
+  /* A disabled account is refused AFTER the password check, so it costs a
+     correct password — but it still records a failure. Otherwise a disabled
+     account is a free oracle: unlimited guesses that never trip the throttle,
+     with the "disabled" answer confirming when the password was right. */
+  if (!u.active) {
+    await throttleFail("login", email);
+    return res.status(403).json({ error: "account disabled — ask an owner" });
+  }
+  /* Success clears the ACCOUNT bucket only. The address bucket is deliberately
+     left alone: one working credential does not excuse forty failures from the
+     same source, and clearing it would let a sprayer refresh their allowance. */
+  await throttleClear("login", email);
   const token = crypto.randomBytes(32).toString("hex");
   const t = now();
   (await (db.prepare("INSERT INTO sessions(token,user_id,created_at,expires_at) VALUES(?,?,?,?)").run(token, u.id, t, new Date(Date.now() + 7 * 864e5).toISOString())));
@@ -2967,7 +3126,7 @@ const rowPasswordReset = (r) => ({
   id: r.id, userId: r.user_id, reason: r.reason, requestedBy: r.requested_by,
   createdAt: r.created_at, expiresAt: r.expires_at,
   usedAt: r.used_at, revokedAt: r.revoked_at,
-  live: !r.used_at && !r.revoked_at && String(r.expires_at) > now(),
+  live: !r.used_at && !r.revoked_at && ts(r.expires_at) > Date.now(),
 });
 
 /* Which sessions should this password change end?
@@ -3088,7 +3247,7 @@ app.post("/api/auth/reset-password", wrapTxJson(async (req, res) => {
   if (!row) throw reject();
   if (row.used_at) throw reject();
   if (row.revoked_at) throw reject();
-  if (String(row.expires_at) <= now()) throw reject();
+  if (ts(row.expires_at) <= Date.now()) throw reject();
   const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(row.user_id);
   if (!u) throw reject();
   if (!u.active) {
@@ -5873,6 +6032,58 @@ app.patch("/api/warranty-claims/:id", wrapTxJson(async (req, res) => {
   return { claim: after };
 }));
 
+/* Throttle housekeeping and visibility. An operator asking "why is this person
+   locked out" needs the buckets by key, not a log line — and the sweep needs a
+   way to run on a serverless platform, where no timer survives between
+   requests. */
+app.get("/api/ops/throttle", wrap(async (req, res) => {
+  const where = [];
+  const params = [];
+  if (req.query.locked === "1") { where.push("locked_until IS NOT NULL AND locked_until > ?"); params.push(now()); }
+  if (req.query.kind) { where.push("kind = ?"); params.push(String(req.query.kind)); }
+  const rows = await db.prepare(
+    `SELECT * FROM throttle_buckets ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY last_seen_at DESC LIMIT 200`
+  ).all(...params);
+  const t = Date.now();
+  const items = rows.map((r) => {
+    const lockedUntil = r.locked_until ? Date.parse(String(r.locked_until)) : 0;
+    return {
+      key: r.bucket_key, kind: r.kind, failures: Number(r.failures),
+      windowStartedAt: r.window_started_at, lastSeenAt: r.last_seen_at,
+      locked: lockedUntil > t, retryAfterSeconds: lockedUntil > t ? Math.ceil((lockedUntil - t) / 1000) : 0,
+    };
+  });
+  res.json({ total: items.length, locked: items.filter((i) => i.locked).length, items });
+}));
+
+/* Clear a lock deliberately — the person is standing in front of you and has
+   proved who they are. Recording it, because lifting a security control by hand
+   is exactly the kind of act that must not be invisible afterwards. */
+app.delete("/api/ops/throttle/:key", wrapTxJson(async (req, res) => {
+  const key = decodeURIComponent(req.params.key);
+  const row = await db.prepare("SELECT * FROM throttle_buckets WHERE bucket_key = ?").get(key);
+  if (!row) throw Object.assign(new Error("no such bucket: " + key), { statusCode: 404 });
+  await db.prepare("DELETE FROM throttle_buckets WHERE bucket_key = ?").run(key);
+  await writeAudit(req, { action: "throttle.cleared", entityType: "throttle_bucket", entityId: key,
+    before: { failures: row.failures, lockedUntil: row.locked_until } });
+  await writeActivity({ entityType: "throttle_bucket", entityId: key, kind: "status_change",
+    summary: `Login lock cleared for ${key} by hand`, actor: req.user?.name ?? "system" });
+  return { ok: true, cleared: key };
+}));
+
+/* Run the sweep on demand. Serverless has no timer that outlives a request, so
+   the housekeeping is callable as well as scheduled. */
+app.post("/api/ops/throttle/sweep", wrapTxJson(async (req, res) => {
+  const before = await db.prepare("SELECT COUNT(*) AS n FROM throttle_buckets").get();
+  await throttleSweep();
+  const after = await db.prepare("SELECT COUNT(*) AS n FROM throttle_buckets").get();
+  const removed = Number(before?.n ?? 0) - Number(after?.n ?? 0);
+  await writeAudit(req, { action: "throttle.swept", entityType: "throttle_bucket", entityId: "all",
+    after: { removed, remaining: Number(after?.n ?? 0) } });
+  return { removed, remaining: Number(after?.n ?? 0) };
+}));
+
 /* Support in one number: what is open, what is late, and what the warranty
    decisions have cost. This is the page a manager reads on Monday. */
 app.get("/api/support/summary", wrap(async (req, res) => {
@@ -6331,8 +6542,14 @@ app.patch("/api/credit-notes/:id", wrapTxJson(async (req, res) => {
 
   await db.prepare(
     `UPDATE credit_notes SET status = ?, issued_at = ?, applied_at = ?, journal_entry_id = ?, updated_at = ? WHERE id = ?`
-  ).run(want, want === "issued" || want === "applied" ? t : row.issued_at,
-    want === "applied" ? t : row.applied_at, journalEntryId, t, row.id);
+  /* Normalise the carried-over timestamps. Postgres returns a Date object for a
+     timestamptz column and passing it straight back serialises as a
+     non-ISO string that Postgres rejects (4276) while SQLite accepts it. This
+     survived only because the columns are usually null; a credit note moved to
+     "applied" after "issued" would have thrown on Postgres and nowhere else. */
+  ).run(want, want === "issued" || want === "applied" ? t : (row.issued_at ? new Date(row.issued_at).toISOString() : null),
+    want === "applied" ? t : (row.applied_at ? new Date(row.applied_at).toISOString() : null),
+    journalEntryId, t, row.id);
   const after = rowCreditNote(await db.prepare("SELECT * FROM credit_notes WHERE id = ?").get(row.id));
   await writeAudit(req, { action: `credit_note.${want}`, entityType: "credit_note", entityId: row.id, before, after });
   return { creditNote: after };
@@ -7693,9 +7910,9 @@ const sitemapDocument = async (req) => {
   for (const r of PUBLIC_ROUTES)
     urls.push(`  <url><loc>${xmlEsc(absoluteUrl(base, r.path))}</loc><lastmod>${today}</lastmod><changefreq>${r.changefreq}</changefreq><priority>${r.priority}</priority></url>`);
   for (const x of await db.prepare("SELECT slug, updated_at FROM pages WHERE status='Published' ORDER BY updated_at DESC").all())
-    urls.push(`  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`);
+    urls.push(`  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${isoDay(x.updated_at)}</lastmod></url>`);
   for (const x of await db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all())
-    urls.push(`  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${String(x.updated_at).slice(0, 10)}</lastmod></url>`);
+    urls.push(`  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${isoDay(x.updated_at)}</lastmod></url>`);
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
 };
 
@@ -8320,7 +8537,7 @@ const bearerValid = async (req) => {
   const t = requestToken(req);
   if (!t) return false;
   const u = (await (db.prepare("SELECT u.active, s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?").get(t)));
-  return !!u && !!u.active && String(u.expires_at) >= now();
+  return !!u && !!u.active && ts(u.expires_at) > Date.now();
 };
 app.post("/api/pages/:id/preview-link", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM pages WHERE id=? OR slug=?").get(req.params.id, req.params.id)));
@@ -8681,5 +8898,15 @@ if (IS_SERVERLESS) {
   await ensureServerlessCatalog();
 } else {
   httpServer = app.listen(PORT, "0.0.0.0", () => console.log(`[woodex-api] http://localhost:${httpServer.address()?.port ?? PORT} · driver=${db.kind}`));
+  /* Sweep expired throttle buckets hourly on a long-running server. Deliberately
+     NOT started on serverless: a timer there either never fires (instance
+     recycled first) or keeps the instance alive, and the endpoint above exists
+     so the sweep can be driven from outside instead. */
+  if (process.env.WOODEX_DISABLE_SWEEP !== "1") {
+    const timer = setInterval(() => {
+      throttleSweep().catch((error) => console.error("[woodex-api] throttle sweep failed:", error.message));
+    }, 3600_000);
+    timer.unref?.();
+  }
 }
 export { app, db, httpServer };

@@ -181,6 +181,7 @@ try {
   await runChecked(process.execPath, ["scripts/test-delivery.mjs"], baseEnv, "delivery", 300_000);
   await runChecked(process.execPath, ["scripts/test-support.mjs"], baseEnv, "support", 300_000);
   await runChecked(process.execPath, ["scripts/test-credentials.mjs"], baseEnv, "credentials", 300_000);
+  await runChecked(process.execPath, ["scripts/test-throttle.mjs"], baseEnv, "throttle", 300_000);
 
   console.log("[ci] Starting isolated SQLite API for full API/security QA.");
   const api = start(process.execPath, ["--experimental-sqlite", "apps/api/server.mjs"], {

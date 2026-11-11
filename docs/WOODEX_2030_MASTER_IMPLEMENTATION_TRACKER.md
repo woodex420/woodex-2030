@@ -1,6 +1,6 @@
 # WOODEX 2030 — Master Implementation Tracker
 
-**Updated:** 2026-11-09 · **Baseline:** migration `017` (`credentials`)
+**Updated:** 2026-11-10 · **Baseline:** migration `018` (`throttle`)
 **Companions:** [`00-CURRENT-STATE.md`](agency-os/00-CURRENT-STATE.md) is authoritative for facts; this file is authoritative for *plan and status*.
 
 > Rule: a status may only move to **Verified** when a named command passes and
@@ -94,9 +94,10 @@ Each item is sized by *kind* of work, because that is what determines duration.
 | 10 | ~~Delivery + installation~~ **DONE** | New module | — | ✅ `015` + UI |
 | 11 | ~~Support + warranty~~ **DONE** | New module | — | ✅ `016` + UI |
 | 12 | **Tenant schema + context + RLS + cross-tenant tests** | **Architecture** | 2–3 wk | D-1 answered |
+| 12b | ~~Distributed rate limiting~~ **DONE** (database-backed, no Redis needed) | Code | — | ✅ `018` + UI |
 | 13 | Configurable roles/permissions | Schema + code | 1 wk | 12 |
 | 14 | ~~Password reset~~ **DONE (no email)** · email adapter **open** | Code | — | ✅ `017`; SMTP still needed |
-| 15 | Distributed rate limiting | Infra | 2 d | Redis/Upstash |
+| 15 | ~~Distributed rate limiting~~ **DONE as 12b** — no Redis required | Infra | — | ✅ `018` |
 | 16 | Scheduled offsite backup | Infra | 1–2 d | Bucket creds |
 | 17 | Page builder v2 (dnd, single renderer) | Frontend | 2 wk | Tailwind decision |
 | 18 | Provider messaging | Integration | 1–2 wk | Provider creds |
@@ -848,6 +849,114 @@ they are history.
 `test:crm` 67/67 · `check:migration` 70 = 70 = 70 · `docs:verify` clean ·
 PGlite: 17 migrations, 70 tables, 86 FKs — guard fires, expired token unblocks,
 017 re-applies, 4 constraint probes rejected, tokens cascade with the user.
+
+---
+
+## 4g. Increment 11 — a lockout that survives a cold start (018)
+
+The queue called this "distributed rate limiting" and blocked it on a Redis
+credential. It was not blocked. **It was already broken in production**, and the
+fix needed no new infrastructure at all.
+
+### What was measured
+
+The login throttle lived in a `Map` inside the process:
+
+```js
+const loginBucket = new Map();   // 5 attempts per account per minute
+const ipMisses    = new Map();   // 30 attempts per address per minute
+```
+
+That is correct for one long-running server and wrong for everything this system
+actually deploys as. Vercel runs each request in an instance that may be brand
+new, and several instances run in parallel.
+
+Proven directly, rather than argued — two processes, **one database**:
+
+| | attempt 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| process on :3002 (has been guessing) | 429 | 429 | — | — | — | — |
+| process on :3003, same database | 401 | 401 | 401 | … | … | 429 |
+
+The second process starts counting from zero. On a serverless platform *every*
+request can be that second process, so the "5 attempts per minute" was really
+"5 attempts per minute per warm instance, and unlimited across cold starts".
+
+### Why the database and not Redis
+
+A lockout is a fact about the **account**, not about the process that served the
+request — so it belongs where the accounts are. The table is one row per bucket
+key with a unique constraint, which is exactly the coordination a Redis counter
+would have provided, minus a credential, a network hop, and a second source of
+truth that can drift from the users it is protecting.
+
+### What the throttle refuses to become
+
+| Failure mode | What stops it |
+|---|---|
+| Locking out an honest person who mistypes twice a week | The window **slides**. `failures` counts within `window_started_at`; once the window is older than a minute the count restarts. A lifetime total would eventually lock out an office. |
+| A directory of who works here | A wrong password on a real account and on an invented one produce **the same status and the same message**. Proven in the suite. |
+| Free guesses at a typo'd address | An invented email **still gets a bucket**, because the key is the thing being throttled, not the users row. |
+| A sprayer refreshing their allowance | A success clears the **account** bucket only. The **address** bucket is deliberately left alone — one working credential does not excuse forty failures from the same source. |
+| Grinding a disabled account forever | A disabled account still records a failure, so it locks like any other. Otherwise "disabled" is the one account you can guess against without limit. |
+| A lock nobody can explain | `GET /api/ops/throttle` lists buckets by key with the time left; clearing one is audited (`throttle.cleared`). |
+
+### The off-by-one that mattered
+
+The first implementation returned `locked: true` on the *limit-th* failure, so the
+5th attempt answered 429 and the caller never learned their 5th attempt counted.
+The suite caught it. The limit-th failure is now the last plain rejection and the
+bucket is **armed**; the next attempt is refused without checking a hash.
+
+### Serverless housekeeping
+
+Expired counting buckets are noise that grows for every invented email ever
+typed at a login screen. `throttleSweep()` removes buckets that are neither
+locked nor seen in 24 hours, runs hourly on a long-running server
+(`timer.unref()`, and disabled outright by `WOODEX_DISABLE_SWEEP=1` in tests),
+and is exposed as `POST /api/ops/throttle/sweep` — because a serverless platform
+has no timer that outlives a request.
+
+### Files
+
+- `scripts/migrations/018_throttle.sql` — `throttle_buckets`, 4 CHECKs, 2 indexes
+- `apps/api/server.mjs` — `throttleState` / `throttleFail` / `throttleClear` / `throttleSweep`; the login gate now checks two keys before hashing a password
+- `apps/dashboard/src/pages/Throttle.tsx` — `/login-locks`, owner-only
+- `apps/dashboard/src/components/layout/Sidebar.tsx` — nav items can now declare a `cap`; before this every role saw every link and learned permissions from 403s
+- `scripts/test-throttle.mjs` — 45 checks, **two servers on one database**, plus
+  a PGlite block for Postgres timestamp semantics and a static guard against
+  `String(<timestamp>)`
+
+**Verified:** `test:throttle` **45/45** · `test:credentials` 67/67 · `test:support` 60/60 ·
+`check:migration` 71 = 71 = 71 · `docs:verify` clean · PGlite: 18 migrations,
+71 tables, 604 CHECKs — rollback guard fires on a live lock and clears on an
+expired one, 018 re-applies, 5 constraint probes rejected, unique key proven to
+stop two processes starting from zero.
+
+#### What the Postgres rehearsal found that every local gate missed
+
+CI failed on PR #32 while all 24 local gates were green. The cause was a
+timestamp: SQLite returns a string for a `timestamptz`, Postgres returns a
+`Date`, and `String(new Date())` is `"Tue Nov 10 2026 17:57:25 GMT+0000 (…)"` —
+which Postgres rejects with `4276`. The throttle wrote that value back on the
+second failure, so the login endpoint answered **500** for every attempt after
+the first.
+
+The same mistake was already in production code, and it was worse than a crash
+because it failed *open*:
+
+| Site | Bug | Effect on Postgres |
+|---|---|---|
+| session check | `String(u.expires_at) < now()` | `"Tue Nov 10 2026…" < "2026-11-10T…"` is always **false** — **expired sessions never expired** |
+| reset-token check | `String(row.expires_at) <= now()` | same — **expired reset tokens stayed spendable** |
+| visitor session | `String(visitor.expires_at) >= now()` | same — **expired visitor sessions stayed valid** |
+| reset listing | `String(r.expires_at) > now()` | same — an expired token counted as live |
+| sitemap `<lastmod>` | `String(x.updated_at).slice(0,10)` | emitted `"Sat Mar 14"` instead of `2026-03-14` — a sitemap crawlers drop |
+
+All five now use `ts()` / `iso()` / `isoDay()`. Note that **no SQLite test can
+catch this class of bug** — on SQLite `String(string)` is the string, so the dead
+check still works. That is why the guard is a static scan for the pattern rather
+than another behavioural test; it found two sites the manual grep had missed.
 
 ---
 
