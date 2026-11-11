@@ -61,4 +61,16 @@ php artisan package:discover
 
 That PHP build has no `pdo_mysql`, `exif` or `xmlwriter`. Consequences: SQLite only; nine tests fail there that pass in CI (two installer tests that need MySQL, seven that draw a two-factor QR code). MySQL evidence comes from the `os-ci.yml` workflow.
 
+### Running the test suite there
+
+```
+WOODEX_PHP=<php> sh tools/preview/sandbox/run-suite.sh <out-dir>          # five groups, SQLite in memory, about five minutes
+WOODEX_PHP=<php> python3 tools/preview/sandbox/suite-summary.py <out-dir> # totals, and every failure with its cause
+```
+
+Read a run **by cause, not by name**. The summary excuses a failure only when its own output shows one of the two missing extensions, and only while the PHP binary really lacks it. Anything else is printed as `UNEXPLAINED` and the exit code is 1.
+The reason: on 2026-11-11 a test that already failed here for the missing `xmlwriter` kept failing after a change on this branch, for a new reason. The list of failing names did not change, and only the MySQL run in CI caught it.
+
+Remember what this cannot show: the nine excused tests are not tested here at all. Only CI tests them.
+
 A real browser is available too: `npm install @sparticuz/chromium puppeteer-core` ships a headless Chromium inside the npm package, and it runs with `AWS_EXECUTION_ENV=AWS_Lambda_nodejs22.x` set so that its bundled libraries are unpacked.
