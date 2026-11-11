@@ -2,6 +2,20 @@
     <x-admin.page-header title="Catalogue categories" description="Customize the native category tree. Changes are saved here, not published to the existing storefront.">
         <x-slot:actions>@can('commerce.catalog.manage')<x-admin.button wire:click="create">New category</x-admin.button>@endcan</x-slot:actions>
     </x-admin.page-header>
+    <div class="mb-5 grid gap-4 lg:grid-cols-2">
+        @foreach($parents->whereIn('slug', ['office-furniture', 'home-furniture']) as $segment)
+            <x-admin.card :title="$segment->name" description="Native catalogue hierarchy. Categories without products remain valid; no products are invented.">
+                @foreach($parents->where('parent_id', $segment->id) as $group)
+                    <h3 class="mt-3 font-semibold">{{ $group->name }}</h3>
+                    <ul class="mt-1 space-y-1 text-sm">
+                        @foreach($parents->where('parent_id', $group->id) as $child)
+                            <li>{{ $child->name }} @if(!$child->is_active)<span class="text-gray-500">(inactive)</span>@endif</li>
+                        @endforeach
+                    </ul>
+                @endforeach
+            </x-admin.card>
+        @endforeach
+    </div>
     <x-admin.card>
         <label class="wx-label" for="category-search">Search categories</label>
         <input id="category-search" type="search" wire:model.live.debounce.300ms="search" class="wx-input mb-4" placeholder="Search by category name">

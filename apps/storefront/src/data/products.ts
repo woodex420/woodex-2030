@@ -1,3 +1,4 @@
+import { taxonomy, matchesCategory } from "@/lib/commerceTaxonomy";
 import { img } from "@/assets/img";
 
 
@@ -73,72 +74,17 @@ export interface Product {
 }
 
 // ─── CATEGORY STRUCTURE ────────────────────────────────────────────────
-export const categoryGroups = [
-  {
-    id: "office",
-    name: "Office Furniture",
-    subcategories: [
-      { id: "executive-tables", name: "Executive Tables", parent: "office-tables" },
-      { id: "manager-tables", name: "Manager Tables", parent: "office-tables" },
-      { id: "staff-tables", name: "Staff Tables", parent: "office-tables" },
-      { id: "meeting-tables", name: "Meeting Tables", parent: "office-tables" },
-      { id: "reception-tables", name: "Reception Tables", parent: "office-tables" },
-      { id: "chairs", name: "Office Chairs", parent: "chairs" },
-      { id: "workstations", name: "Workstations", parent: "workstations" },
-      { id: "cubicle-workstations", name: "Cubicle Workstations", parent: "workstations" },
-      { id: "office-sofas", name: "Office Sofas", parent: "sofas" },
-      { id: "office-storage", name: "Office Storage", parent: "storage" },
-      { id: "cafe-furniture", name: "Cafe Furniture", parent: "cafe" },
-      { id: "public-sitting", name: "Public Sitting", parent: "public" },
-      { id: "home-office", name: "Home Office", parent: "home-office" },
-      { id: "acoustic", name: "Acoustic Furniture", parent: "acoustic" },
-      { id: "collaborative", name: "Collaborative Furniture", parent: "collaborative" },
-    ],
-  },
-  {
-    id: "home",
-    name: "Home Furniture",
-    subcategories: [
-      { id: "bed-sets", name: "Bed Sets", parent: "bedroom" },
-      { id: "bedside-tables", name: "Bedside Tables", parent: "bedroom" },
-      { id: "dressing-tables", name: "Dressing Tables", parent: "bedroom" },
-      { id: "mirrors", name: "Mirrors", parent: "bedroom" },
-      { id: "bench-settee", name: "Bench & Settee", parent: "bedroom" },
-      { id: "home-sofa", name: "Home Sofa", parent: "living" },
-      { id: "center-side-tables", name: "Center & Side Tables", parent: "living" },
-      { id: "coffee-tables", name: "Coffee Tables", parent: "living" },
-      { id: "console", name: "Console", parent: "living" },
-      { id: "tv-units", name: "TV Units", parent: "living" },
-      { id: "dining-sets", name: "Dining Sets", parent: "dining" },
-      { id: "dining-chairs", name: "Dining Chairs", parent: "dining" },
-      { id: "dining-tables", name: "Dining Tables", parent: "dining" },
-    ],
-  },
-];
+export const categoryGroups = taxonomy.segments.map(segment => ({
+  id: segment.id, name: segment.name,
+  subcategories: segment.groups.flatMap(group => group.children.map(child => ({ id: child.id, name: child.name, parent: group.id }))),
+}));
 
 export const categories = [
   { id: "all", name: "All Products" },
-  // Office
-  { id: "office-tables", name: "Office Tables" },
-  { id: "executive-tables", name: "↳ Executive Tables" },
-  { id: "manager-tables", name: "↳ Manager Tables" },
-  { id: "staff-tables", name: "↳ Staff Tables" },
-  { id: "meeting-tables", name: "↳ Meeting Tables" },
-  { id: "reception-tables", name: "↳ Reception Tables" },
-  { id: "chairs", name: "Office Chairs" },
-  { id: "workstations", name: "Workstations" },
-  { id: "cubicle-workstations", name: "Cubicle Workstations" },
-  { id: "office-sofas", name: "Office Sofas" },
-  { id: "storage", name: "Office Storage" },
-  { id: "cafe", name: "Cafe Furniture" },
-  { id: "public", name: "Public Sitting" },
-  { id: "home-office", name: "Home Office" },
-  { id: "acoustic", name: "Acoustic Furniture" },
-  { id: "collaborative", name: "Collaborative Furniture" },
-  // Home
-  { id: "bedroom", name: "Bedroom Furniture" },
-  { id: "living", name: "Living Room" },
-  { id: "dining", name: "Dining Furniture" },
+  ...taxonomy.segments.flatMap(segment => segment.groups.flatMap(group => [
+    { id: group.id, name: group.name },
+    ...group.children.map(child => ({ id: child.id, name: child.name })),
+  ])),
 ];
 
 // ─── SERIES ─────────────────────────────────────────────────────────────
@@ -2892,18 +2838,7 @@ export const getProductById = (id: string): Product | undefined => {
 
 export const getProductsByCategory = (category: string): Product[] => {
   if (category === "all") return products;
-  const parentMap: Record<string, string[]> = {
-    "office-tables": ["executive-tables", "manager-tables", "staff-tables", "meeting-tables", "reception-tables"],
-    "bedroom": ["bed-sets", "bedside-tables", "dressing-tables", "mirrors", "bench-settee"],
-    "living": ["home-sofa", "center-side-tables", "coffee-tables", "console", "tv-units"],
-    "dining": ["dining-sets", "dining-chairs", "dining-tables"],
-  };
-  if (parentMap[category]) {
-    return products.filter(
-      (p) => p.category === category || parentMap[category].includes(p.subcategory || "")
-    );
-  }
-  return products.filter((p) => p.category === category || p.subcategory === category);
+  return products.filter(product => matchesCategory(product, category));
 };
 
 export const getProductsBySeries = (seriesId: string): Product[] => {

@@ -1,3 +1,4 @@
+import { categoryTree, matchesCategory } from "@/lib/commerceTaxonomy";
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
@@ -19,58 +20,8 @@ interface CategoryNode {
   children: { label: string; id: string }[];
 }
 
-const officeCategoryTree: CategoryNode[] = [
-  {
-    label: "Office Tables", id: "office-tables",
-    children: [
-      { label: "Executive Tables", id: "executive-tables" },
-      { label: "Manager Tables", id: "manager-tables" },
-      { label: "Staff Tables", id: "staff-tables" },
-      { label: "Meeting Tables", id: "meeting-tables" },
-      { label: "Reception Tables", id: "reception-tables" },
-    ],
-  },
-  { label: "Office Chairs", id: "chairs", children: [] },
-  { label: "Workstations", id: "workstations", children: [] },
-  { label: "Cubicle Workstations", id: "cubicle-workstations", children: [] },
-  { label: "Office Storage", id: "storage", children: [] },
-  { label: "Lounge / Office Sofas", id: "office-sofas", children: [] },
-  { label: "Acoustic Furniture", id: "acoustic", children: [] },
-  { label: "Collaborative Furniture", id: "collaborative", children: [] },
-  { label: "Cafe Furniture", id: "cafe", children: [] },
-  { label: "Public Sitting", id: "public", children: [] },
-];
-
-const homeCategoryTree: CategoryNode[] = [
-  {
-    label: "Bedroom Furniture", id: "bedroom",
-    children: [
-      { label: "Bed Sets", id: "bed-sets" },
-      { label: "Bedside Tables", id: "bedside-tables" },
-      { label: "Dressing Tables", id: "dressing-tables" },
-      { label: "Mirrors", id: "mirrors" },
-      { label: "Bench & Settee", id: "bench-settee" },
-    ],
-  },
-  {
-    label: "Living Room", id: "living",
-    children: [
-      { label: "Home Sofa", id: "home-sofa" },
-      { label: "Center & Side Tables", id: "center-side-tables" },
-      { label: "Coffee Tables", id: "coffee-tables" },
-      { label: "Console", id: "console" },
-      { label: "TV Units", id: "tv-units" },
-    ],
-  },
-  {
-    label: "Dining", id: "dining",
-    children: [
-      { label: "Dining Sets", id: "dining-sets" },
-      { label: "Dining Chairs", id: "dining-chairs" },
-      { label: "Dining Tables", id: "dining-tables" },
-    ],
-  },
-];
+const officeCategoryTree: CategoryNode[] = categoryTree("office");
+const homeCategoryTree: CategoryNode[] = categoryTree("home");
 
 const allCategoryTree = [...officeCategoryTree, ...homeCategoryTree];
 
@@ -100,10 +51,14 @@ const faqs = [
 
 const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialCategory = searchParams.get("category") || "all";
-
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const selectedCategory = searchParams.get("category") || "all";
+  const selectCategory = (category: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("segment");
+    if (category === "all") next.delete("category"); else next.set("category", category);
+    setSearchParams(next);
+  };
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["office-tables", "bedroom"]);
@@ -111,23 +66,10 @@ const Shop = () => {
 
   const seo = getCategorySeo(selectedCategory);
 
-  useEffect(() => {
-    // SeoContentBlock owns <title>, <meta description>, canonical, JSON-LD.
-    if (selectedCategory === "all") {
-      searchParams.delete("category");
-    } else {
-      searchParams.set("category", selectedCategory);
-    }
-    setSearchParams(searchParams, { replace: true });
-  }, [selectedCategory]);
-
-  useEffect(() => {
-    const cat = searchParams.get("category") || "all";
-    setSelectedCategory(cat);
-  }, [searchParams]);
-
   const filteredProducts = useMemo(() => {
     let result = getProductsByCategory(selectedCategory);
+    const segment = searchParams.get("segment");
+    if (segment === "office" || segment === "home") result = result.filter(product => matchesCategory(product, segment));
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -138,7 +80,7 @@ const Shop = () => {
       );
     }
     return sortProducts(result, sortBy);
-  }, [selectedCategory, searchQuery, sortBy, catalogRevision]);
+  }, [selectedCategory, searchQuery, sortBy, catalogRevision, searchParams]);
 
   const toggleExpand = (id: string) => {
     setExpandedCategories((prev) =>
@@ -147,7 +89,7 @@ const Shop = () => {
   };
 
   const getCategoryLabel = () => {
-    if (selectedCategory === "all") return "All Products";
+    if (selectedCategory === "all") return searchParams.get("segment") === "office" ? "Office Furniture" : searchParams.get("segment") === "home" ? "Home Furniture" : "All Products";
     for (const cat of allCategoryTree) {
       if (cat.id === selectedCategory) return cat.label;
       for (const child of cat.children) {
@@ -165,7 +107,7 @@ const Shop = () => {
     <div key={cat.id}>
       <div className="flex items-center">
         <button
-          onClick={() => setSelectedCategory(cat.id)}
+          onClick={() => selectCategory(cat.id)}
           className={`flex-1 text-left px-3 py-2 text-sm rounded-sm transition-colors flex items-center justify-between ${
             selectedCategory === cat.id
               ? "bg-accent text-accent-foreground font-semibold"
@@ -191,7 +133,7 @@ const Shop = () => {
           {cat.children.map((child) => (
             <button
               key={child.id}
-              onClick={() => setSelectedCategory(child.id)}
+              onClick={() => selectCategory(child.id)}
               className={`flex items-center gap-1 w-full text-left px-2 py-1.5 text-xs rounded-sm transition-colors justify-between ${
                 selectedCategory === child.id
                   ? "text-accent font-semibold bg-accent/10"
@@ -245,7 +187,7 @@ const Shop = () => {
                 <div className="sticky top-28">
                   {/* All Products */}
                   <button
-                    onClick={() => setSelectedCategory("all")}
+                    onClick={() => selectCategory("all")}
                     className={`w-full text-left px-3 py-2.5 text-sm rounded-sm transition-colors mb-3 font-semibold ${
                       selectedCategory === "all"
                         ? "bg-accent text-accent-foreground"
@@ -325,7 +267,7 @@ const Shop = () => {
                   <div className="text-center py-20 border border-dashed border-border rounded-sm">
                     <p className="text-xl font-bold mb-2">No products found</p>
                     <p className="text-muted-foreground mb-4">Try adjusting your search or filters</p>
-                    <Button onClick={() => { setSelectedCategory("all"); setSearchQuery(""); }} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <Button onClick={() => { selectCategory("all"); setSearchQuery(""); }} className="bg-accent hover:bg-accent/90 text-accent-foreground">
                       View All Products
                     </Button>
                   </div>

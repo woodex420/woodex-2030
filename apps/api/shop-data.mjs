@@ -86,10 +86,10 @@ async function bundleModule(entryAbs, outName) {
   return mod;
 }
 
-export async function loadShopData() {
+export async function loadShopData({ fromSource = false } = {}) {
   /* Snapshot first: present in production, and lets a fresh clone seed without
      a TypeScript build step. Fall through to the sources only for dev. */
-  const snapshot = readSeedSnapshot();
+  const snapshot = fromSource ? null : readSeedSnapshot();
   if (snapshot) return snapshot;
 
   const [prod, mats, serv] = await Promise.all([

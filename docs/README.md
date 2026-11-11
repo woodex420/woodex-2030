@@ -82,3 +82,5 @@ Nothing here is authoritative. Do not cite these as current.
 - [Basket quote-request foundation and catalogue gates](laravel-os/09-BASKET-QUOTE-REQUESTS.md)
 
 - [Commerce categories and catalogue audit](laravel-os/10-COMMERCE-CATEGORIES-AND-CATALOGUE-AUDIT.md)
+
+- [Office/Home taxonomy population and series correction](laravel-os/11-OFFICE-HOME-TAXONOMY-AND-SERIES.md)

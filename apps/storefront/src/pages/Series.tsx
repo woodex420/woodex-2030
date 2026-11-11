@@ -1,3 +1,4 @@
+import { useRuntimeRevision } from "@/lib/runtime";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
@@ -20,6 +21,7 @@ const seriesImages: Record<string, string> = {
 };
 
 const Series = () => {
+  useRuntimeRevision();
   const [activeTab, setActiveTab] = useState("woodex-series");
   const tabProducts = getProductsBySeries(activeTab).slice(0, 4);
   const activeSeo = getSeriesSeo(activeTab);
@@ -42,7 +44,7 @@ const Series = () => {
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Collections</p>
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Furniture Series</h1>
             <p className="text-primary-foreground/75 max-w-xl">
-              Four distinct collections designed for different workspace needs, budgets, and aesthetics — all made in Pakistan.
+              {seriesList.length} distinct collections designed for different workspace needs, budgets, and aesthetics — all made in Pakistan.
             </p>
           </div>
         </section>
@@ -79,7 +81,7 @@ const Series = () => {
                     <Badge className="bg-accent text-accent-foreground">{s.badge}</Badge>
                   </div>
                   <div className="absolute bottom-4 left-4">
-                    <span className="text-xs text-white/80 bg-primary/60 px-2 py-1 rounded">{s.products} products in this series</span>
+                    <span className="text-xs text-white/80 bg-primary/60 px-2 py-1 rounded">{getProductsBySeries(s.id).length} products in this series</span>
                   </div>
                 </div>
                 <div>
@@ -151,7 +153,7 @@ const Series = () => {
                   <Badge className="bg-hon-green-pale text-accent text-xs mb-3">{s.badge}</Badge>
                   <h3 className="font-bold text-lg mb-1 group-hover:text-accent transition-colors">{s.name}</h3>
                   <p className="text-sm text-muted-foreground mb-3">{s.tagline}</p>
-                  <p className="text-xs text-accent font-semibold">{s.products} products</p>
+                  <p className="text-xs text-accent font-semibold">{getProductsBySeries(s.id).length} products</p>
                 </Link>
               ))}
             </div>

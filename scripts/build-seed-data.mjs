@@ -58,7 +58,7 @@ export function serialise(data) {
 /** Bundles the storefront modules and returns the seed payload. */
 export async function buildSeedData() {
   const { loadShopData } = await import("../apps/api/shop-data.mjs");
-  const { products, materials, services, categoryGroups } = await loadShopData();
+  const { products, materials, services, categoryGroups } = await loadShopData({ fromSource: true });
   return { products, materials, services, categoryGroups };
 }
 

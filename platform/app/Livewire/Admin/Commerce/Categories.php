@@ -109,7 +109,7 @@ final class Categories extends Component
         return view('livewire.admin.commerce.categories', [
             'categories' => Category::query()->when($this->search !== '', fn ($q) => $q->where('name', 'like', '%'.substr($this->search, 0, 120).'%'))
                 ->orderBy('position')->orderBy('name')->paginate(20),
-            'parents' => Category::query()->orderBy('name')->get(['id', 'name']),
+            'parents' => Category::query()->orderBy('name')->get(['id', 'name', 'slug', 'parent_id', 'is_active']),
         ]);
     }
 }

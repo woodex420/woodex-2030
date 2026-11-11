@@ -1,3 +1,4 @@
+import { taxonomy } from "@/lib/commerceTaxonomy";
 import { useState } from "react";
 import { brand } from "@/config/brand";
 import { Link, useLocation } from "react-router-dom";
@@ -37,68 +38,10 @@ function ModeToggle() {
   );
 }
 
-const megaMenuProducts = {
-  office: {
-    title: "Office Furniture",
-    sections: [
-      {
-        heading: "Office Tables",
-        links: [
-          { label: "Executive Tables", href: "/shop?category=executive-tables" },
-          { label: "Manager Tables", href: "/shop?category=manager-tables" },
-          { label: "Staff Tables", href: "/shop?category=staff-tables" },
-          { label: "Meeting Tables", href: "/shop?category=meeting-tables" },
-          { label: "Reception Tables", href: "/shop?category=reception-tables" },
-        ],
-      },
-      {
-        heading: "Seating & More",
-        links: [
-          { label: "Office Chairs", href: "/shop?category=chairs" },
-          { label: "Workstations", href: "/shop?category=workstations" },
-          { label: "Cubicle Workstations", href: "/shop?category=cubicle-workstations" },
-          { label: "Office Sofas", href: "/shop?category=office-sofas" },
-          { label: "Office Storage", href: "/shop?category=storage" },
-          { label: "Cafe Furniture", href: "/shop?category=cafe" },
-          { label: "Public Sitting", href: "/shop?category=public" },
-        ],
-      },
-    ],
-  },
-  home: {
-    title: "Home Furniture",
-    sections: [
-      {
-        heading: "Bedroom",
-        links: [
-          { label: "Bed Sets", href: "/shop?category=bed-sets" },
-          { label: "Bedside Tables", href: "/shop?category=bedside-tables" },
-          { label: "Dressing Tables", href: "/shop?category=dressing-tables" },
-          { label: "Mirrors", href: "/shop?category=mirrors" },
-          { label: "Bench & Settee", href: "/shop?category=bench-settee" },
-        ],
-      },
-      {
-        heading: "Living Room",
-        links: [
-          { label: "Home Sofa", href: "/shop?category=home-sofa" },
-          { label: "Center & Side Tables", href: "/shop?category=center-side-tables" },
-          { label: "Coffee Tables", href: "/shop?category=coffee-tables" },
-          { label: "Console", href: "/shop?category=console" },
-          { label: "TV Units", href: "/shop?category=tv-units" },
-        ],
-      },
-      {
-        heading: "Dining",
-        links: [
-          { label: "Dining Sets", href: "/shop?category=dining-sets" },
-          { label: "Dining Chairs", href: "/shop?category=dining-chairs" },
-          { label: "Dining Tables", href: "/shop?category=dining-tables" },
-        ],
-      },
-    ],
-  },
-};
+const megaMenuProducts = Object.fromEntries(taxonomy.segments.map(segment => [segment.id, {
+  title: segment.name,
+  sections: segment.groups.map(group => ({ heading: group.name, links: group.children.map(child => ({ label: child.name, href: `/shop?category=${child.id}` })) })),
+}]));
 
 const navItems = [
   {
@@ -120,13 +63,7 @@ const navItems = [
   {
     label: "Series",
     href: "/series",
-    dropdown: [
-      { label: "Ek Series", href: "/series/ek-series" },
-      { label: "Infinity Series", href: "/series/infinity-series" },
-      { label: "Woodex Series", href: "/series/woodex-series" },
-      { label: "Cubicle Series", href: "/series/cubicle-series" },
-      { label: "Nova Series", href: "/series/nova-series" },
-    ],
+    dropdown: taxonomy.series.map(series => ({ label: series.name, href: `/series/${series.id}` })),
   },
   { label: "Projects", href: "/projects" },
   { label: "Services", href: "/services" },
