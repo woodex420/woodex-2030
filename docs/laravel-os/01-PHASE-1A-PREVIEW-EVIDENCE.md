@@ -1,7 +1,9 @@
 # Phase 1a — synthetic preview of the WOODEX OS source: evidence
 
 **Status: evidence record for an evaluation run. Not an acceptance, not a release.**
-The Laravel application is **not** in this repository. It ran from an isolated copy outside the git tree.
+At the time of this run the Laravel application was **not** in this repository. It ran from an isolated copy outside the git tree.
+
+**Follow-up:** the items left open in section 8 — sign-in from the owner's browser, a real-browser pass and MySQL — are answered in `02-PHASE-1B-FOUNDATION.md`.
 
 **Run:** 2026-11-11 · **Approved by the owner as:** "Run the preview now" (scope: section 9 of `00-REUSE-PROPOSAL-AND-ADMIN-MASTER-PLAN.md`)
 **Source:** `woodex420/woodexinterior` @ `603428cca1e45f9da2ffd9c4a0d88eb741285339`, archive sha256 `5e8c271b…2ee25c`

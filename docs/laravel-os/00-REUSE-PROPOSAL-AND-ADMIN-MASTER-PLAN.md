@@ -3,10 +3,12 @@
 **Status: PROPOSAL.** The Laravel application is not in this repository and nothing here is implemented in it.
 It does not supersede `docs/agency-os/` until the owner approves it and a decision is recorded.
 
-**Owner decisions recorded on 2026-11-11:** D-1 approved (preview only, no repository copy yet); D-3 rebuild one module at a time;
-D-4 keep the React storefront; D-7 "WOODEX OS" for the admin, "Woodex Furniture" on documents.
-**Phase 1a has been run.** Results, defects and what remains untested are in `01-PHASE-1A-PREVIEW-EVIDENCE.md`.
-Sections 0 and 14 below describe the position *before* that run.
+**Owner decisions recorded on 2026-11-11:** D-1 preview; D-2 SQLite locally with MySQL in CI; D-3 rebuild one module at a time;
+D-4 keep the React storefront; D-5 UTC storage (decided, not implemented); D-6 public repository accepted;
+D-7 "WOODEX OS" for the admin, "Woodex Furniture" on documents. D-8, D-9 and D-10 are still open.
+**Phase 1a and Phase 1b have been run.** `01-PHASE-1A-PREVIEW-EVIDENCE.md` and `02-PHASE-1B-FOUNDATION.md` hold the results;
+`03-MIGRATION-REGISTER.md` holds the migration review. `02` lists where the work differs from this proposal.
+Sections 0 and 14 below describe the position *before* those runs. `platform/` now exists on this branch.
 
 **Prepared:** 2026-11-11 · **Branch:** `arena/69363bda-woodex-2030` · **Base:** `main` @ `9b8cdca8`
 

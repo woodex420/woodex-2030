@@ -50,13 +50,16 @@ touching code.
 | [QUICK-TASKS.md](operations/QUICK-TASKS.md) | **Live backlog** — shipped vs open, owner-gated items marked 🔑 |
 | [VERCEL-RUNBOOK-2026-11-06.md](operations/VERCEL-RUNBOOK-2026-11-06.md) | Deployment, database and bootstrap-owner runbook |
 
-## Proposals — awaiting owner approval
-Not decisions. Nothing here is implemented, and nothing here overrides `agency-os/` until it is approved.
+## Laravel platform — on a branch, not merged
+The direction was approved by the owner step by step on 2026-11-11. The code lives in `platform/` on the working branch only.
+Nothing here overrides `agency-os/` until a merge is approved and the decision log is updated.
 
 | Document | Status |
 |---|---|
 | [laravel-os/00-REUSE-PROPOSAL-AND-ADMIN-MASTER-PLAN.md](laravel-os/00-REUSE-PROPOSAL-AND-ADMIN-MASTER-PLAN.md) | **Proposal** — reuse of the Laravel WOODEX OS source and the admin-upgrade master plan. Read-only inspection only; would reverse D-01 if approved |
 | [laravel-os/01-PHASE-1A-PREVIEW-EVIDENCE.md](laravel-os/01-PHASE-1A-PREVIEW-EVIDENCE.md) | **Evidence** — the synthetic SQLite preview of that source, run outside this repository on 2026-11-11. Not MySQL proof, not a browser test |
+| [laravel-os/02-PHASE-1B-FOUNDATION.md](laravel-os/02-PHASE-1B-FOUNDATION.md) | **Evidence** — the reviewed copy in `platform/` on this branch: import, module switches, test triage, MySQL results from CI, real-browser pass, the UTC audit, and what is still Interior-shaped |
+| [laravel-os/03-MIGRATION-REGISTER.md](laravel-os/03-MIGRATION-REGISTER.md) | **Review record** — all 72 migrations, 21 settings migrations and the 11 quarantined ones, each read before use |
 
 ## Archive — superseded, kept for traceability
 Nothing here is authoritative. Do not cite these as current.
