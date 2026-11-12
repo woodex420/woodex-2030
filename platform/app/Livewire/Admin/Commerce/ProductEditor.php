@@ -11,6 +11,7 @@ use App\Domain\Commerce\Models\Series;
 use App\Domain\Commerce\Services\ProductCatalogue;
 use App\Domain\Commerce\Services\ProductLibrary;
 use App\Domain\Commerce\Services\ProductTransfer;
+use App\Domain\Media\Services\MasterMedia;
 use App\Domain\Website\Models\Media;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Illuminate\Support\Facades\DB;
@@ -158,8 +159,9 @@ final class ProductEditor extends Component
             $bytes = Storage::disk('local')->get($item->path);
             $alt = '';
         }
+        $masterVersion = app(MasterMedia::class)->register($item);
         $this->saveDraft();
-        $media = app(ProductTransfer::class)->storeImage($this->product, $bytes);
+        $media = app(ProductTransfer::class)->storeImage($this->product, $bytes, $masterVersion);
         if (! in_array($media->id, array_column($this->form['images'], 'id'), true)) {
             $this->form['images'][] = ['id' => $media->id, 'alt' => mb_substr($alt, 0, 200)];
             $this->form['reviewed'] = false;

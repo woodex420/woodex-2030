@@ -4,6 +4,12 @@
     <x-admin.page-header title="Media library" description="Central website media organization. Product images can be reused from this library, but existing private product copies are not yet live-linked. Every photograph on the public website. Alt text is not optional: it is what a screen reader reads aloud, and the only description of an image that search engines and AI assistants ever see. Saving it writes the wording into the pages that show the photo."
                          :breadcrumbs="['Website' => null, 'Media' => null]" />
 
+    <x-admin.card title="React storefront media" description="Reuse this existing library for React product photos and website images. Import is non-destructive; replacements are published only after confirmation. Private product revisions retain their original images.">
+      <x-admin.button variant="secondary" wire:click="importReactImages" wire:loading.attr="disabled">Import existing React images</x-admin.button>
+      <p class="mt-2 text-sm text-gray-500">Connected storefronts poll approved replacements every 15 seconds. Production needs a configured Laravel origin and NATIVE_MEDIA_SYNC=1. Import alone does not change live images.</p>
+      @error('media')<p class="text-red-600">{{ $message }}</p>@enderror
+    </x-admin.card>
+
     <x-admin.card title="Add images" description="JPG, PNG, WebP or AVIF, up to 5 MB each. Large photographs slow a page down: keep them under 300 KB where you can.">
         <div class="flex flex-wrap items-end gap-3"><x-admin.field label="Upload folder" hint="Use website/products, website/banners, website/categories or your own folder."><input wire:model="uploadFolder" class="wx-input" placeholder="website/products">@error('uploadFolder')<p>{{ $message }}</p>@enderror</x-admin.field>
             <x-admin.field label="Choose images" class="grow">
@@ -43,8 +49,9 @@
                     <x-admin.field label="Folder (organization only)"><input wire:model="folders.{{ $image->id }}" class="wx-input">@error('folders.'.$image->id)<p>{{ $message }}</p>@enderror</x-admin.field><p class="text-theme-xs text-gray-500">{{ $image->width }}×{{ $image->height }} · {{ basename($image->path) }}
                         @if ($image->disk === 'site') <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-white/10">theme file</span> @endif
                     </p>
-                    <div class="flex items-center justify-between gap-2">
-                        <x-admin.button size="sm" variant="secondary" wire:click="updateMeta({{ $image->id }})">Save</x-admin.button>
+                    @if($image->storefront_key)<p class="text-xs text-gray-500">React: {{ $image->storefront_key }} · {{ $image->storefront_version_id ? 'Replacement published to connected storefronts' : 'Original unchanged' }}</p>@endif
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <x-admin.button size="sm" variant="secondary" wire:click="updateMeta({{ $image->id }})">Save</x-admin.button><x-admin.button size="sm" variant="secondary" wire:click="chooseReplacement({{ $image->id }})">Replace / reuse</x-admin.button><x-admin.button size="sm" variant="secondary" wire:click="optimizeImage({{ $image->id }})" wire:confirm="Optimize this library image? The original is retained. React publication stays unchanged.">Optimize</x-admin.button>@if($image->storefront_version_id)@can('website.publish')<x-admin.button size="sm" variant="secondary" wire:click="withdrawReplacement({{ $image->id }})" wire:confirm="Restore the original React image? Library files are retained.">Restore React original</x-admin.button>@endcan @endif
                         @if ($image->disk !== 'site')
                             <button type="button" wire:click="delete({{ $image->id }})" wire:confirm="Delete this image? It is also removed from the server." class="text-theme-sm text-error-600 hover:underline">Delete</button>
                         @else
@@ -60,5 +67,18 @@
         @endforelse
     </div>
 
+    @if($replacementMedia)
+    <x-admin.modal name="showReplacement" title="Replace or reuse image" width="max-w-2xl">
+      <p class="mb-3">{{ $replacementMedia->title }} · {{ $replacementMedia->storefront_key ?: 'Library image' }}</p>
+      <p class="mb-3 text-sm text-gray-500">This updates this library image identity and CMS uses by ID. Static legacy page files are not rewritten. Product snapshots remain pinned. For one product slot only, use Replace in the product editor.</p>
+      @if($replacementMedia->storefront_key)<details class="mb-3 rounded border p-3"><summary>{{ count($sourceReferences) }} source-catalogue products reference this key</summary><p class="text-xs text-gray-500">Snapshot references only, not a live usage audit. All current React uses of this shared key can change, including website sections.</p><ul class="text-sm">@foreach($sourceReferences as $reference)<li>{{ $reference }}</li>@endforeach</ul></details>@endif
+      <x-admin.field label="Upload replacement"><input type="file" wire:model="replacementUpload" accept="image/jpeg,image/png,image/webp" class="wx-input" /></x-admin.field>
+      <x-admin.field label="Or reuse an existing library image"><select wire:model="reuseId" class="wx-input"><option value="">Use uploaded file</option>@foreach($reuseImages as $reuse)<option value="{{ $reuse->id }}">#{{ $reuse->id }} {{ $reuse->title ?: basename($reuse->path) }}</option>@endforeach</select></x-admin.field>
+      @if($replacementMedia->storefront_key)@can('website.publish')<label class="mt-3 flex gap-2"><input type="checkbox" wire:model="publishReplacement">Also replace all React uses of {{ $replacementMedia->storefront_key }}</label>@endcan @endif
+      <label class="mt-3 flex gap-2"><input type="checkbox" wire:model="confirmReplacement">I confirm this replacement and the selected affected uses.</label>
+      @foreach(['replacement', 'replacementUpload', 'confirmReplacement', 'reuseId'] as $errorKey)@error($errorKey)<p class="text-red-600">{{ $message }}</p>@enderror @endforeach
+      <x-slot:footer><x-admin.button wire:click="replaceImage" wire:loading.attr="disabled">Confirm replacement</x-admin.button></x-slot:footer>
+    </x-admin.modal>
+    @endif
     <div class="mt-6">{{ $images->links() }}</div>
 </div>

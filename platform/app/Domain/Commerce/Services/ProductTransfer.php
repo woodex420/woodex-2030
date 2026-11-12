@@ -8,6 +8,7 @@ use App\Domain\Commerce\Models\Category;
 use App\Domain\Commerce\Models\Product;
 use App\Domain\Commerce\Models\ProductMedia;
 use App\Domain\Commerce\Models\Series;
+use App\Domain\Media\Services\MasterMedia;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -94,7 +95,7 @@ final class ProductTransfer
         });
     }
 
-    public function storeImage(Product $product, string $bytes): ProductMedia
+    public function storeImage(Product $product, string $bytes, ?int $masterVersionId = null): ProductMedia
     {
         $info = @getimagesizefromstring($bytes);
         $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
@@ -107,7 +108,15 @@ final class ProductTransfer
             throw ValidationException::withMessages(['images' => 'Image storage failed.']);
         }
 
-        return ProductMedia::firstOrCreate(['product_id' => $product->id, 'sha256' => $hash], ['path' => $path]);
+        $media = ProductMedia::firstOrCreate(['product_id' => $product->id, 'sha256' => $hash], ['path' => $path]);
+        $master = app(MasterMedia::class);
+        if ($masterVersionId !== null) {
+            $master->linkProduct($media, $masterVersionId);
+        } else {
+            $master->register($media);
+        }
+
+        return $media;
     }
 
     public function export(array $ids): array

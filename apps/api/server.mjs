@@ -20,6 +20,7 @@
  *   GET  /api/stats                  KPI + activity rollup for the dashboard
  *   GET  /img/:file                  shared product photography
  */
+import { nativeMediaBridge } from "./native-media-bridge.mjs";
 import { nativeCategoryBridge } from "./native-category-bridge.mjs";
 import fs from "node:fs";
 import crypto from "node:crypto";
@@ -1650,6 +1651,7 @@ const isPublic = (m, p) =>
      that touches credentials still requires one. */
   (m === "POST" && p === "/api/auth/reset-password") ||
   m === "GET" && (
+    /^\/api\/v1\/media(?:\/\d+\/\d+)?$/.test(p) ||
     p === "/api/health" || p === "/api/theme" || p === "/api/auth/demo-available" ||
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
     /^\/api\/pages\/[^/]+\/public$/.test(p) ||
@@ -1942,6 +1944,8 @@ function normalizeProduct(input, base = {}, id = base.id) {
 }
 
 // Same-origin read-only native categories. Runtime origin is a deployment setting, never a browser URL.
+app.get('/api/v1/media', nativeMediaBridge());
+app.get('/api/v1/media/:media/:version', nativeMediaBridge());
 app.get('/api/v1/catalogue/categories', nativeCategoryBridge());
 app.get('/api/v1/catalogue/categories/:category/hero/:revision', nativeCategoryBridge());
 

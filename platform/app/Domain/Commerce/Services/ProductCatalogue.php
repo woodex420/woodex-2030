@@ -8,6 +8,7 @@ use App\Domain\Commerce\Models\Category;
 use App\Domain\Commerce\Models\Product;
 use App\Domain\Commerce\Models\ProductMedia;
 use App\Domain\Commerce\Models\Series;
+use App\Domain\Media\Services\MasterMedia;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -80,7 +81,8 @@ final class ProductCatalogue
             abort_if($locked->archived_at, 409, 'Restore this archived product before editing.');
             $valid = $this->validate($data, $locked->exists ? $locked : null);
             $locked->forceFill(['name' => $valid['name'], 'slug' => $valid['slug'], 'draft' => $valid, 'version' => $version + 1])->save();
-            DB::table('commerce_product_revisions')->insert(['product_id' => $locked->id, 'content' => json_encode($valid, JSON_THROW_ON_ERROR), 'created_by' => $user->id, 'created_at' => now()]);
+            $revisionId = DB::table('commerce_product_revisions')->insertGetId(['product_id' => $locked->id, 'content' => json_encode($valid, JSON_THROW_ON_ERROR), 'created_by' => $user->id, 'created_at' => now()]);
+            app(MasterMedia::class)->recordRevision($locked->id, $revisionId, $valid['images']);
             activity('commerce')->performedOn($locked)->causedBy($user)->log('Product draft saved; storefront unchanged');
 
             return $locked;

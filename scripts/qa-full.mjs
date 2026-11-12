@@ -119,6 +119,12 @@ await T("rate limit: 5 misses then 429 + retry-after", async () => {
 await T("me without token → 401 no_token", async () => {
   const r = await api("/api/auth/me", { role: null }); want(r, 401); if (r.j.code !== "no_token") bad("code=" + r.j.code);
 });
+await T("published media bridge is anonymous but neighboring private paths are not", async () => {
+  const publicReply = await api("/api/v1/media", { role: null });
+  if (![200, 503].includes(publicReply.s)) bad("public media status=" + publicReply.s);
+  const privateReply = await api("/api/v1/media/admin", { role: null });
+  want(privateReply, 401);
+});
 await T("me with garbage token → 401 bad_token", async () => {
   const r = await fetch(BASE + "/api/auth/me", { headers: { authorization: "Bearer deadbeef" + TS } });
   const j = await r.json(); want({ s: r.status, j }, 401); if (j.code !== "bad_token") bad("code=" + j.code);

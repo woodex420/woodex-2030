@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Public\ChatWidgetController;
 use App\Http\Controllers\Api\Public\LeadController;
 use App\Http\Controllers\Api\Public\LeadHandoffController;
 use App\Http\Controllers\Api\Public\QuoteRequestController;
+use App\Http\Controllers\Api\Public\StorefrontMediaController;
 use App\Http\Controllers\Website\LegacySiteBridgeController;
 use App\Http\Middleware\AuthenticateMcpBridge;
 use Illuminate\Support\Facades\Route;
@@ -87,3 +88,7 @@ Route::prefix('bridge/v1')->name('api.bridge.')->middleware([
 // Read-only published category catalogue; independent of lead capture permissions/modules.
 Route::get('/v1/catalogue/categories', [CategoryCatalogueController::class, 'index'])->middleware('throttle:120,1');
 Route::get('/v1/catalogue/categories/{category}/hero/{revision}', [CategoryCatalogueController::class, 'image'])->middleware('throttle:120,1');
+
+// Only explicitly published React media mappings; never private product images or the whole library.
+Route::get('/v1/media', [StorefrontMediaController::class, 'index'])->middleware('throttle:120,1');
+Route::get('/v1/media/{media}/{version}', [StorefrontMediaController::class, 'image'])->whereNumber(['media', 'version'])->middleware('throttle:120,1');

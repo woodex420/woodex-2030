@@ -45,6 +45,7 @@ use App\Domain\Sales\Policies\InvoicePolicy;
 use App\Domain\Sales\Policies\PaymentPolicy;
 use App\Domain\Sales\Policies\QuotePolicy;
 use App\Domain\System\Models\ChangeRequest;
+use App\Domain\Website\Models\Media;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Integrations\Google\Contracts\GoogleGateway;
 use App\Integrations\Google\GoogleClient;
@@ -114,6 +115,7 @@ class AppServiceProvider extends ServiceProvider
         Relation::enforceMorphMap([
             'commerce_category' => Category::class,
             'commerce_product' => Product::class,
+            'website_media' => Media::class,
             'user' => User::class,
             'company' => Company::class,
             'contact' => Contact::class,

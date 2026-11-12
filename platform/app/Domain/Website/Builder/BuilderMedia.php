@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Website\Builder;
 
+use App\Domain\Media\Services\MasterMedia;
 use App\Domain\Website\Models\Media;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -40,7 +41,7 @@ final class BuilderMedia
     public function upload(?UploadedFile $file, ?User $user): array
     {
         Validator::make(['file' => $file], [
-            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,avif', 'max:5120'],
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,avif', 'max:5120', 'dimensions:max_width=6000,max_height=6000'],
         ], [
             'file.required' => 'Choose an image first.',
             'file.mimes' => 'Only JPG, PNG, WebP or AVIF images can be uploaded.',
@@ -65,6 +66,8 @@ final class BuilderMedia
             'folder' => $folder,
             'uploaded_by' => $user?->id,
         ]);
+
+        app(MasterMedia::class)->register($media);
 
         return [
             'ok' => true,

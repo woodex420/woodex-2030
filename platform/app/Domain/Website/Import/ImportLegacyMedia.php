@@ -41,7 +41,7 @@ final class ImportLegacyMedia
 
         // The hash is the content we are going to store, so an image imported from an export is recognised as the
         // same file even after it has been scaled down.
-        $hash = hash('sha256', $this->resize((string) file_get_contents($file)));
+        $hash = hash('sha256', $this->optimize((string) file_get_contents($file)));
 
         if (array_key_exists($hash, $this->seen)) {
             return $this->seen[$hash];
@@ -70,7 +70,7 @@ final class ImportLegacyMedia
         $target = 'website/imported/'.date('Y/m').'/'.basename($file);
         $target = $this->uniquePath($target);
 
-        Storage::disk('public')->put($target, $this->resize((string) file_get_contents($file)));
+        Storage::disk('public')->put($target, $this->optimize((string) file_get_contents($file)));
         $contents = (string) Storage::disk('public')->get($target);
 
         $size = @getimagesizefromstring($contents);
@@ -104,9 +104,9 @@ final class ImportLegacyMedia
      *
      * The old site shipped 2240px hero images; 1600px at quality 82 is what the layout actually uses.
      */
-    private function resize(string $contents): string
+    public function optimize(string $contents): string
     {
-        if (! extension_loaded('gd')) {
+        if (! extension_loaded('gd') || ! function_exists('imagewebp')) {
             return $contents;
         }
 
