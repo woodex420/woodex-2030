@@ -69,3 +69,39 @@ it('retains merchandising in portable exports without auto publishing and reject
     Livewire::test(Products::class)->call('openQuickEdit', $product->id)->set('quick.category_ids', [])->call('saveQuickEdit')->assertHasErrors('primary_category_id')->assertSet('showQuickEdit', true);
     expect(app(ProductMerchandising::class)->effectivePrice($product->draft))->toBe('0');
 });
+
+it('includes descendant and inactive assignments without leaking across search or sibling scopes', function () {
+    $root = Category::create(['name' => 'Filter root', 'slug' => 'filter-root', 'is_active' => true]);
+    $child = Category::create(['name' => 'Filter child', 'slug' => 'filter-child', 'parent_id' => $root->id, 'is_active' => false]);
+    $leaf = Category::create(['name' => 'Filter leaf', 'slug' => 'filter-leaf', 'parent_id' => $child->id, 'is_active' => true]);
+    foreach ([$root, $child, $leaf] as $category) {
+        $this->service->save(null, array_replace($this->draft, ['slug' => 'scope-'.$category->id, 'category_ids' => [$category->id], 'primary_category_id' => $category->id]), 0, $this->editor);
+    }
+    $this->service->save(null, array_replace($this->draft, ['slug' => 'outside-scope']), 0, $this->editor);
+    Livewire::test(Products::class)->set('categoryFilter', (string) $root->id)->assertViewHas('products', fn ($rows) => $rows->total() === 3)
+        ->set('search', 'No matching product')->assertViewHas('products', fn ($rows) => $rows->total() === 0);
+    Livewire::test(Products::class)->set('categoryFilter', (string) $child->id)->assertViewHas('products', fn ($rows) => $rows->total() === 2);
+    foreach (['999999999', 'invalid', '1 OR 1=1'] as $filter) {
+        Livewire::test(Products::class)->set('categoryFilter', $filter)->assertViewHas('products', fn ($rows) => $rows->total() === 0);
+    }
+});
+
+it('uses published descendant assignments for viewers and excludes private draft branch changes', function () {
+    $root = Category::create(['name' => 'Public branch', 'slug' => 'public-branch', 'is_active' => true]);
+    $leaf = Category::create(['name' => 'Public leaf', 'slug' => 'public-leaf', 'parent_id' => $root->id, 'is_active' => true]);
+    $product = $this->service->save(null, array_replace($this->draft, ['category_ids' => [$leaf->id], 'primary_category_id' => $leaf->id]), 0, $this->editor);
+    $product->update(['published_revision_id' => DB::table('commerce_product_revisions')->where('product_id', $product->id)->value('id')]);
+    $this->service->save($product, array_replace($this->draft, ['name' => 'Secret branch change']), $product->version, $this->editor);
+    $this->actingAs($this->userWithRole('sales'));
+    Livewire::test(Products::class)->set('categoryFilter', (string) $root->id)->assertViewHas('products', fn ($rows) => $rows->total() === 1)->assertDontSee('Secret branch change')
+        ->set('search', 'Secret branch change')->assertViewHas('products', fn ($rows) => $rows->total() === 0);
+    Livewire::test(Products::class)->set('categoryFilter', (string) $this->draft['primary_category_id'])->assertViewHas('products', fn ($rows) => $rows->total() === 0);
+});
+
+it('bounds descendant traversal even if legacy category data contains a cycle', function () {
+    $root = Category::create(['name' => 'Legacy root', 'slug' => 'legacy-cycle-root', 'is_active' => true]);
+    $child = Category::create(['name' => 'Legacy child', 'slug' => 'legacy-cycle-child', 'parent_id' => $root->id, 'is_active' => true]);
+    DB::table('commerce_categories')->where('id', $root->id)->update(['parent_id' => $child->id]);
+    $this->service->save(null, array_replace($this->draft, ['category_ids' => [$child->id], 'primary_category_id' => $child->id]), 0, $this->editor);
+    Livewire::test(Products::class)->set('categoryFilter', (string) $root->id)->assertViewHas('products', fn ($rows) => $rows->total() === 1);
+});

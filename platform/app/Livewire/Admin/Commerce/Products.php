@@ -183,14 +183,46 @@ final class Products extends Component
         abort_unless($this->user()->can('commerce.catalog.view'), 403);
 
         $manager = $this->user()->can('commerce.catalog.manage');
+        $categories = Category::orderBy('position')->orderBy('id')->get();
+        // Resolve once from the real tree. Include inactive descendants for management:
+        // their assignments still exist and must not disappear from the audit view.
+        $categoryIds = [];
+        if ($this->categoryFilter !== '' && preg_match('/^[1-9][0-9]{0,18}$/', $this->categoryFilter) && $categories->contains('id', (int) $this->categoryFilter)) {
+            $children = $categories->groupBy('parent_id');
+            $pending = [(int) $this->categoryFilter];
+            while ($pending) {
+                $id = array_pop($pending);
+                if (isset($categoryIds[$id])) {
+                    continue;
+                }
+                $categoryIds[$id] = $id;
+                foreach ($children->get($id, []) as $child) {
+                    $pending[] = $child->id;
+                }
+            }
+        }
+        // Group every OR predicate so siblings cannot escape search, publication or
+        // archived filters. Unknown/forged filter IDs must match nothing, not all.
+        $categoryScope = function ($builder, string $column) use ($categoryIds): void {
+            if (! $categoryIds) {
+                $builder->whereRaw('1 = 0');
+
+                return;
+            }
+            $builder->where(function ($group) use ($categoryIds, $column): void {
+                foreach ($categoryIds as $id) {
+                    $group->orWhereJsonContains($column, $id);
+                }
+            });
+        };
         $query = Product::query();
         if (! $manager) {
-            $query->whereNull('archived_at')->whereExists(fn ($q) => $q->selectRaw('1')->from('commerce_product_revisions as snapshot')->whereColumn('snapshot.id', 'commerce_products.published_revision_id')->whereColumn('snapshot.product_id', 'commerce_products.id')->when($this->search !== '', fn ($q) => $q->where('snapshot.content->name', 'like', '%'.mb_substr($this->search, 0, 120).'%'))->when($this->categoryFilter !== '', fn ($q) => $q->whereJsonContains('snapshot.content->category_ids', (int) $this->categoryFilter))->when($this->seriesFilter !== '', fn ($q) => $q->whereJsonContains('snapshot.content->series_ids', (int) $this->seriesFilter)));
+            $query->whereNull('archived_at')->whereExists(fn ($q) => $q->selectRaw('1')->from('commerce_product_revisions as snapshot')->whereColumn('snapshot.id', 'commerce_products.published_revision_id')->whereColumn('snapshot.product_id', 'commerce_products.id')->when($this->search !== '', fn ($q) => $q->where('snapshot.content->name', 'like', '%'.mb_substr($this->search, 0, 120).'%'))->when($this->categoryFilter !== '', fn ($q) => $categoryScope($q, 'snapshot.content->category_ids'))->when($this->seriesFilter !== '', fn ($q) => $q->whereJsonContains('snapshot.content->series_ids', (int) $this->seriesFilter)));
         } elseif ($this->search !== '') {
             $query->where('name', 'like', '%'.mb_substr($this->search, 0, 120).'%');
         }
         if ($manager) {
-            $query->when($this->categoryFilter !== '', fn ($q) => $q->whereJsonContains('draft->category_ids', (int) $this->categoryFilter))->when($this->seriesFilter !== '', fn ($q) => $q->whereJsonContains('draft->series_ids', (int) $this->seriesFilter));
+            $query->when($this->categoryFilter !== '', fn ($q) => $categoryScope($q, 'draft->category_ids'))->when($this->seriesFilter !== '', fn ($q) => $q->whereJsonContains('draft->series_ids', (int) $this->seriesFilter));
         }
         $products = $query->when($this->status === 'draft', fn ($q) => $q->whereNull('published_revision_id')->whereNull('archived_at'))
             ->when($this->status === 'published', fn ($q) => $q->whereNotNull('published_revision_id')->whereNull('archived_at'))
@@ -205,7 +237,6 @@ final class Products extends Component
                 $product->review_issues = [];
             }
         }
-        $categories = Category::orderBy('position')->orderBy('id')->get();
         $categoryPaths = [];
         foreach ($categories as $category) {
             $names = [];
