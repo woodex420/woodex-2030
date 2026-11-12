@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\ProductPreviewController;
 use App\Http\Controllers\Admin\QuoteDraftPreviewController;
 use App\Http\Controllers\Admin\QuotePdfController;
 use App\Http\Controllers\Admin\SeriesContentPreviewController;
+use App\Http\Controllers\Admin\ShopContentPreviewController;
 use App\Http\Controllers\Admin\SystemUpdateController;
 use App\Http\Controllers\Admin\WebsiteBuilderController;
 use App\Http\Controllers\Admin\WebsiteLibraryImageController;
@@ -33,6 +34,7 @@ use App\Livewire\Admin\Commerce\Products;
 use App\Livewire\Admin\Commerce\ProductTransfers;
 use App\Livewire\Admin\Commerce\SeriesEditor;
 use App\Livewire\Admin\Commerce\SeriesManager;
+use App\Livewire\Admin\Commerce\ShopEditor;
 use App\Livewire\Admin\Conversations\CannedRepliesIndex;
 use App\Livewire\Admin\Conversations\Inbox;
 use App\Livewire\Admin\Crm\AssignmentRules;
@@ -275,7 +277,8 @@ Route::get('/commerce/category-revisions/{revision}/preview', [CategoryContentPr
 Route::get('/commerce/category-revisions/{revision}/hero', [CategoryContentPreviewController::class, 'image'])->name('commerce.category-content.hero')->middleware('can:commerce.catalog.view');
 
 Route::livewire('/commerce', CommerceWorkspace::class)->name('commerce.overview')->middleware('can:commerce.catalog.view');
-Route::livewire('/commerce/shop', CommerceWorkspace::class)->name('commerce.shop')->middleware('can:commerce.catalog.view');
+Route::get('/commerce/shop-revisions/{revision}/preview', [ShopContentPreviewController::class, 'show'])->whereNumber('revision')->middleware('can:commerce.catalog.view')->name('commerce.shop-content.preview');
+Route::livewire('/commerce/shop', ShopEditor::class)->name('commerce.shop')->middleware('can:commerce.catalog.view');
 Route::livewire('/commerce/products', Products::class)->name('commerce.products')->middleware('can:commerce.catalog.view');
 Route::livewire('/commerce/products/transfers', ProductTransfers::class)->name('commerce.products.transfers')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage']);
 Route::livewire('/commerce/products/create', ProductEditor::class)->name('commerce.products.create')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage']);
