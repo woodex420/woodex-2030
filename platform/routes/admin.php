@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\QuoteDraftPreviewController;
 use App\Http\Controllers\Admin\QuotePdfController;
 use App\Http\Controllers\Admin\SystemUpdateController;
 use App\Http\Controllers\Admin\WebsiteBuilderController;
+use App\Http\Controllers\Admin\WebsiteLibraryImageController;
 use App\Http\Controllers\Admin\WebsitePagesRedirectController;
 use App\Http\Controllers\Admin\WebsiteStudioApiController;
 use App\Http\Controllers\Admin\WebsiteStudioController;
@@ -211,7 +212,9 @@ Route::get('/website/builder', [WebsiteBuilderController::class, 'show'])->name(
 Route::post('/website/builder/api', [WebsiteBuilderController::class, 'api'])->name('website.builder.api')->middleware('can:website.edit')->middleware('module:website');
 Route::livewire('/website/seo-overview', SeoOverviewIndex::class)->name('website.seo.overview')->middleware('can:website.edit')->middleware('module:website');
 Route::livewire('/website/health', SiteHealthIndex::class)->name('website.health')->middleware('can:website.edit')->middleware('module:website');
-Route::livewire('/website/media', MediaLibrary::class)->name('website.media')->middleware('can:website.edit')->middleware('module:website');
+// Central media management is core; the unfinished Website module stays disabled.
+Route::livewire('/website/media', MediaLibrary::class)->name('website.media')->middleware('can:website.edit');
+Route::get('/website/media/{media}/image', [WebsiteLibraryImageController::class, 'show'])->name('website.media.image')->middleware('can:website.edit');
 Route::livewire('/website/redirects', RedirectsIndex::class)->name('website.redirects')->middleware('can:website.edit')->middleware('module:website');
 Route::livewire('/website/seo', SeoAgentIndex::class)->name('website.seo')->middleware('can:website.edit')->middleware('module:website');
 Route::livewire('/website/speed', SpeedIndex::class)->name('website.speed')->middleware('can:website.edit')->middleware('module:website');

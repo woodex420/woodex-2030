@@ -35,6 +35,22 @@ class MediaLibrary extends Component
 
     public string $search = '';
 
+    public string $folder = '';
+
+    public string $uploadFolder = 'website/general';
+
+    public array $folders = [];
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFolder(): void
+    {
+        $this->resetPage();
+    }
+
     public bool $onlyMissingAlt = false;
 
     /** @var array<int, string> */
@@ -52,7 +68,7 @@ class MediaLibrary extends Component
     {
         abort_unless($this->user()->can('website.edit'), 403);
 
-        $this->validate(['uploads.*' => ['file', 'mimes:jpg,jpeg,png,webp,avif', 'max:5120']], [
+        $this->validate(['uploadFolder' => ['required', 'string', 'max:120', 'regex:~^website(?:/[a-z0-9-]+)*$~'], 'uploads.*' => ['image', 'mimes:jpg,jpeg,png,webp,avif', 'max:5120']], [
             'uploads.*.mimes' => 'Only JPG, PNG, WebP or AVIF images can be uploaded.',
             'uploads.*.max' => 'Each image must be smaller than 5 MB.',
         ]);
@@ -61,7 +77,7 @@ class MediaLibrary extends Component
 
         foreach ($this->uploads ?: [] as $upload) {
             $name = pathinfo($upload->getClientOriginalName(), PATHINFO_FILENAME);
-            $path = 'website/'.now()->format('Y/m').'/'.Str::slug($name).'-'.Str::lower(Str::random(6)).'.'.$upload->extension();
+            $path = $this->uploadFolder.'/'.Str::slug($name).'-'.Str::lower(Str::random(6)).'.'.$upload->extension();
 
             Storage::disk('public')->put($path, file_get_contents($upload->getRealPath()));
             [$width, $height] = @getimagesize($upload->getRealPath()) ?: [null, null];
@@ -73,7 +89,7 @@ class MediaLibrary extends Component
                 'title' => Str::headline($name),
                 'width' => $width,
                 'height' => $height,
-                'folder' => 'website/'.now()->format('Y/m'),
+                'folder' => $this->uploadFolder,
                 'uploaded_by' => $this->user()->id,
             ]);
 
@@ -93,7 +109,8 @@ class MediaLibrary extends Component
         $alt = trim($this->alt[$mediaId] ?? $media->alt);
         $title = trim($this->titles[$mediaId] ?? (string) $media->title);
 
-        $media->fill(['alt' => $alt, 'title' => $title])->save();
+        $this->validate(['folders.'.$mediaId => ['nullable', 'string', 'max:120', 'regex:~^website(?:/[a-z0-9-]+)*$~']]);
+        $media->fill(['alt' => $alt, 'title' => $title, 'folder' => $this->folders[$mediaId] ?? $media->folder])->save();
 
         $stem = PageImageAlt::stem($media->path);
 
@@ -117,7 +134,7 @@ class MediaLibrary extends Component
         $media = Media::query()->findOrFail($mediaId);
         $pages = PageImageAlt::pagesUsing(PageImageAlt::stem($media->path));
 
-        if ($pages !== []) {
+        if ($pages !== [] || $media->pagesUsing()->isNotEmpty()) {
             $this->toast(
                 'This image is used on '.count($pages).' '.Str::plural('page', count($pages)).'. Remove it from the page first.',
                 'error',
@@ -135,7 +152,9 @@ class MediaLibrary extends Component
 
     public function render(): View
     {
+        abort_unless($this->user()->can('website.edit'), 403);
         $images = Media::query()
+            ->when($this->folder !== '', fn ($query) => $query->where('folder', $this->folder))
             ->when($this->search !== '', fn ($query) => $query->where(fn ($q) => $q
                 ->where('alt', 'like', '%'.$this->search.'%')
                 ->orWhere('title', 'like', '%'.$this->search.'%')
@@ -145,12 +164,14 @@ class MediaLibrary extends Component
             ->paginate(24);
 
         foreach ($images as $image) {
+            $this->folders[$image->id] ??= $image->folder ?? 'website/general';
             $this->alt[$image->id] ??= $image->alt;
             $this->titles[$image->id] ??= (string) $image->title;
         }
 
         return view('livewire.admin.website.media-library', [
             'images' => $images,
+            'folderOptions' => Media::whereNotNull('folder')->distinct()->orderBy('folder')->pluck('folder'),
             'missingAlt' => Media::query()->where('alt', '')->count(),
             'total' => Media::query()->count(),
         ]);

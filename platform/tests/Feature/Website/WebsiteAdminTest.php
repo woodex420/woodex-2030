@@ -300,3 +300,22 @@ it('exports the redirect map as a CSV', function () {
 
     $this->get(route('admin.website.redirects'))->assertOk()->assertSee('/old-page/');
 });
+
+it('opens central media independently of the unfinished website module and keeps permissions', function () {
+    config(['modules.enabled' => []]);
+    $this->actingAs($this->editor)->get(route('admin.website.media'))->assertOk()->assertSee('Media library');
+    $this->actingAs($this->userWithRole('sales'))->get(route('admin.website.media'))->assertForbidden();
+});
+
+it('organizes uploads into product folders and serves private admin thumbnails', function () {
+    Storage::fake('public');
+    $this->actingAs($this->editor);
+    Livewire::test(MediaLibrary::class)->set('uploadFolder', 'website/products/chairs')
+        ->set('uploads', [UploadedFile::fake()->image('chair.jpg')])->call('save')->assertHasNoErrors();
+    $media = Media::sole();
+    expect($media->folder)->toBe('website/products/chairs')->and($media->path)->toStartWith('website/products/chairs/');
+    config(['modules.enabled' => []]);
+    $this->get(route('admin.website.media.image', $media))->assertOk()->assertHeader('Cache-Control', 'no-store, private');
+    Livewire::test(MediaLibrary::class)->set('folder', 'website/banners')->assertViewHas('images', fn ($images) => $images->total() === 0);
+    Livewire::test(MediaLibrary::class)->set('uploadFolder', 'website/../escape')->call('save')->assertHasErrors('uploadFolder');
+});
