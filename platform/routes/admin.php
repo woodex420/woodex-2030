@@ -265,6 +265,7 @@ Route::livewire('/data-import', DataImport::class)->name('data-import')->middlew
 
 Route::livewire('/commerce/categories', Categories::class)->name('commerce.categories')->middleware('can:commerce.catalog.view');
 Route::livewire('/commerce/series/{series}/edit', SeriesEditor::class)->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage'])->name('commerce.series.edit');
+Route::get('/commerce/series-revisions/{revision}/hero', [SeriesContentPreviewController::class, 'image'])->whereNumber('revision')->middleware('can:commerce.catalog.view')->name('commerce.series-content.hero');
 Route::get('/commerce/series-revisions/{revision}/preview', [SeriesContentPreviewController::class, 'show'])->whereNumber('revision')->middleware('can:commerce.catalog.view')->name('commerce.series-content.preview');
 Route::livewire('/commerce/series/organize', SeriesManager::class)->middleware('can:commerce.catalog.view')->name('commerce.series.organize');
 Route::livewire('/commerce/series', CommerceWorkspace::class)->middleware('can:commerce.catalog.view')->name('commerce.series');

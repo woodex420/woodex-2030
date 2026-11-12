@@ -11,7 +11,7 @@
 @if($index > 0)<x-admin.button variant="secondary" wire:click="reorder({{ $collection->id }}, {{ $collections[$index-1]->id }})" aria-label="Move {{ $collection->name }} up">↑</x-admin.button>@endif
 @if($index < count($collections)-1)<x-admin.button variant="secondary" wire:click="reorder({{ $collection->id }}, {{ $collections[$index+1]->id }})" aria-label="Move {{ $collection->name }} down">↓</x-admin.button>@endif
 @endcan
-</div><p class="mt-2 text-sm text-gray-500">Product assignments remain the existing catalogue's Series keys. Manual native collection drafts are available through Edit collection draft. Automatic published-product rules are available in collection drafts. Hero media and full Shop workflows remain Soon. Native collection membership does not rewrite product classifications or the React storefront.</p>
+</div><p class="mt-2 text-sm text-gray-500">Product assignments remain the existing catalogue's Series keys. Manual native collection drafts are available through Edit collection draft. Automatic published-product rules are available in collection drafts. Private hero media, layouts and FAQs are available in native drafts. Public React collections and full Shop workflows remain Soon. Native collection membership does not rewrite product classifications or the React storefront.</p>
 </x-admin.card>
 @endforeach
 </div>

@@ -4,13 +4,32 @@
 <x-admin.card title="Collection content">
 <div class="space-y-4">
 <x-admin.field label="Collection heading" for="series-heading"><input id="series-heading" wire:model="form.heading" class="wx-input" maxlength="160"></x-admin.field>
+<x-admin.field label="Hero layout" for="series-layout"><select id="series-layout" wire:model="form.layout" class="wx-input"><option value="banner">Banner</option><option value="split">Split</option><option value="minimal">Minimal text-first</option></select></x-admin.field>
+<x-admin.field label="Hero alternative text" for="series-hero-alt"><input id="series-hero-alt" wire:model="form.hero_alt" maxlength="200" class="wx-input"></x-admin.field>
+<div class="rounded-lg border p-3 space-y-3">
+<p>Hero: {{ $heroPath ? 'Private image staged / retained' : 'No hero image' }}. Selecting, staging or removing does not save the draft or change a published revision.</p>
+<input type="file" wire:model="heroUpload" accept="image/jpeg,image/png,image/webp" aria-label="Upload Series hero" class="max-w-full">
+@if($heroUpload)<x-admin.button variant="secondary" wire:click="$set('heroUpload', null)">Clear selected upload</x-admin.button>@endif
+<x-admin.button variant="secondary" wire:click="uploadHero" wire:loading.attr="disabled">Stage uploaded hero</x-admin.button>
+@if($heroPath)<x-admin.button variant="secondary" wire:click="removeHero">Remove staged hero</x-admin.button>@endif
+@can('website.edit')
+<label class="wx-label" for="series-hero-search">Website Media hero search</label><input id="series-hero-search" wire:model.live.debounce.300ms="heroSearch" class="wx-input" placeholder="Search image titles">
+<div class="grid grid-cols-3 gap-2">@foreach($heroMedia ?? [] as $media)<button type="button" wire:click="selectHero({{ $media->id }})" class="rounded border p-2 text-sm" aria-label="Use hero {{ $media->title }}"><img src="{{ route('admin.commerce.website-library', $media, false) }}" alt="{{ $media->alt ?? '' }}" class="h-16 w-full object-contain"><span class="break-words">{{ $media->title }}</span></button>@endforeach</div>
+@if($heroMedia){{ $heroMedia->links() }}@endif
+<p class="text-sm">Search and paginate Website Media; unavailable or unsupported files are omitted. A private immutable copy is retained; shared originals are never overwritten or deleted.</p>
+@endcan
+</div>
 <x-admin.field label="Introduction (plain text)" for="series-intro"><textarea id="series-intro" wire:model="form.intro" class="wx-input" rows="5" maxlength="5000"></textarea></x-admin.field>
+<x-admin.field label="Bottom content (plain text)" for="series-bottom"><textarea id="series-bottom" wire:model="form.bottom_text" rows="5" maxlength="10000" class="wx-input"></textarea></x-admin.field>
+<h3 class="font-semibold">Collection FAQs</h3>
+@foreach($form['faqs'] as $index => $faq)<div class="space-y-2 rounded border p-3"><input wire:model="form.faqs.{{ $index }}.question" class="wx-input" maxlength="250" aria-label="FAQ question {{ $index + 1 }}"><textarea wire:model="form.faqs.{{ $index }}.answer" class="wx-input" maxlength="2500" aria-label="FAQ answer {{ $index + 1 }}"></textarea><x-admin.button variant="secondary" wire:click="removeFaq({{ $index }})">Remove FAQ</x-admin.button></div>@endforeach
+<x-admin.button variant="secondary" wire:click="addFaq">Add FAQ</x-admin.button>
 <x-admin.field label="SEO title" for="series-seo"><input id="series-seo" wire:model="form.seo_title" class="wx-input" maxlength="160"></x-admin.field>
 <x-admin.field label="SEO description" for="series-description"><textarea id="series-description" wire:model="form.seo_description" class="wx-input" maxlength="320"></textarea></x-admin.field>
 @foreach($errors->all() as $message)<p role="alert" class="text-red-600">{{ $message }}</p>@endforeach
 <x-admin.button wire:click="saveDraft" wire:loading.attr="disabled">Save collection draft</x-admin.button>
 @if($revisionId)<x-admin.button variant="secondary" :href="route('admin.commerce.series-content.preview', $revisionId)" target="_blank" rel="noopener">Open saved collection preview</x-admin.button>@endif
-<p class="text-sm">Preview shows the saved revision, not unsaved edits. Native publication is separate from live storefront cutover. Hero media and full Shop configuration remain Soon.</p>
+<p class="text-sm">Preview shows the saved revision, not unsaved edits. Native publication is separate from live storefront cutover. Native hero/layout/FAQ preview is available; public React collection rendering and full Shop configuration remain Soon.</p>
 </div>
 </x-admin.card>
 <x-admin.card title="Product membership" description="Only current native publications are selectable. New private drafts never appear here. Selection order is collection order; no product classification is rewritten.">

@@ -7,7 +7,10 @@ namespace App\Livewire\Admin\Commerce;
 use App\Domain\Commerce\Models\Category;
 use App\Domain\Commerce\Models\Series;
 use App\Domain\Commerce\Services\ProductCatalogue;
+use App\Domain\Commerce\Services\ProductLibrary;
 use App\Domain\Commerce\Services\SeriesContent;
+use App\Domain\Commerce\Services\SeriesHero;
+use App\Domain\Website\Models\Media;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -16,7 +19,7 @@ use Livewire\Component;
 #[Layout('layouts::admin')]
 final class SeriesEditor extends Component
 {
-    use InteractsWithAdmin;
+    use InteractsWithAdmin, \Livewire\WithFileUploads;
 
     #[Locked]
     public Series $series;
@@ -28,6 +31,61 @@ final class SeriesEditor extends Component
     public ?int $revisionId = null;
 
     public array $form = [];
+
+    #[Locked]
+    public ?string $heroPath = null;
+
+    public $heroUpload;
+
+    public string $heroSearch = '';
+
+    public function updatedHeroSearch(): void
+    {
+        $this->resetPage('heroMediaPage');
+    }
+
+    public function selectHero(int $id): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        abort_unless($this->user()->can('website.edit'), 403);
+        $media = Media::findOrFail($id);
+        $path = app(ProductLibrary::class)->websitePath($media);
+        $bytes = @file_get_contents($path);
+        abort_unless(is_string($bytes), 404);
+        $this->heroPath = app(SeriesHero::class)->store($bytes);
+        $this->form['hero_alt'] = $media->alt ?? '';
+        $this->confirmPublish = false;
+    }
+
+    public function uploadHero(): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        $this->validate(['heroUpload' => ['required', 'file', 'max:4096']]);
+        $this->heroPath = app(SeriesHero::class)->store(file_get_contents($this->heroUpload->getRealPath()));
+        $this->heroUpload = null;
+        $this->confirmPublish = false;
+    }
+
+    public function removeHero(): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        $this->heroPath = null;
+        $this->confirmPublish = false;
+    }
+
+    public function addFaq(): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        abort_unless(count($this->form['faqs']) < 20, 422);
+        $this->form['faqs'][] = ['question' => '', 'answer' => ''];
+    }
+
+    public function removeFaq(int $index): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        abort_unless(isset($this->form['faqs'][$index]), 422);
+        array_splice($this->form['faqs'], $index, 1);
+    }
 
     public bool $confirmPublish = false;
 
@@ -41,11 +99,18 @@ final class SeriesEditor extends Component
         $this->revisionId = $series->draft_revision_id;
         $service = app(SeriesContent::class);
         $this->form = $this->revisionId ? $service->normalize(json_decode($service->revision($series, $this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR)) : $service->defaults($series);
+        $this->heroPath = $this->form['hero_path'];
     }
 
     public function saveDraft(): void
     {
-        $this->revisionId = app(SeriesContent::class)->save($this->series, $this->form, $this->version, $this->user());
+        app(ProductCatalogue::class)->authorize($this->user());
+        if ($this->heroUpload) {
+            $this->addError('hero', 'Stage the selected upload or clear it before saving the collection draft.');
+
+            return;
+        }
+        $this->revisionId = app(SeriesContent::class)->save($this->series, $this->form, $this->version, $this->user(), $this->heroPath);
         $this->series->refresh();
         $this->version = $this->series->content_version;
         $this->form = json_decode(app(SeriesContent::class)->revision($this->series, $this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR);
@@ -74,7 +139,7 @@ final class SeriesEditor extends Component
     {
         app(ProductCatalogue::class)->authorize($this->user(), true);
         $service = app(SeriesContent::class);
-        if (! $this->confirmPublish || ! $this->revisionId || $service->validate($this->form) !== $service->validate(json_decode($service->revision($this->series, $this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR))) {
+        if (! $this->confirmPublish || ! $this->revisionId || $this->heroUpload || $service->validate($this->form, $this->heroPath) !== $service->validate($saved = json_decode($service->revision($this->series, $this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR), $saved['hero_path'] ?? null)) {
             $this->addError('publish', 'Save your edits, open the saved preview and explicitly confirm publication.');
 
             return;
@@ -105,6 +170,11 @@ final class SeriesEditor extends Component
     {
         app(ProductCatalogue::class)->authorize($this->user());
 
-        return view('livewire.admin.commerce.series-editor', ['products' => app(SeriesContent::class)->eligibleProducts(), 'categories' => Category::orderBy('name')->get()]);
+        $heroMedia = $this->user()->can('website.edit') ? Media::where('disk', 'public')->where('path', 'like', 'website/%')->where('title', 'like', '%'.mb_substr($this->heroSearch, 0, 100).'%')->latest('id')->paginate(12, ['*'], 'heroMediaPage') : null;
+        if ($heroMedia) {
+            $heroMedia->setCollection($heroMedia->getCollection()->filter(fn ($media) => app(ProductLibrary::class)->isAvailableWebsiteImage($media)));
+        }
+
+        return view('livewire.admin.commerce.series-editor', ['products' => app(SeriesContent::class)->eligibleProducts(), 'heroMedia' => $heroMedia, 'categories' => Category::orderBy('name')->get()]);
     }
 }

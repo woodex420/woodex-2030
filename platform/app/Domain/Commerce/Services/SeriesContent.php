@@ -17,7 +17,7 @@ final class SeriesContent
 {
     public function defaults(Series $series): array
     {
-        return ['heading' => $series->name, 'intro' => '', 'seo_title' => $series->name, 'seo_description' => '', 'product_ids' => [], 'membership_mode' => 'manual', 'rule_category_id' => '', 'rule_hot' => false, 'rule_featured' => false, 'rule_sort' => 'catalogue', 'rule_limit' => 12];
+        return $this->normalize(['heading' => $series->name, 'intro' => '', 'seo_title' => $series->name, 'seo_description' => '', 'product_ids' => [], 'membership_mode' => 'manual', 'rule_category_id' => '', 'rule_hot' => false, 'rule_featured' => false, 'rule_sort' => 'catalogue', 'rule_limit' => 12]);
     }
 
     public function create(array $identity, User $user): Series
@@ -39,7 +39,7 @@ final class SeriesContent
 
     public function normalize(array $content): array
     {
-        return array_replace(['membership_mode' => 'manual', 'rule_category_id' => '', 'rule_hot' => false, 'rule_featured' => false, 'rule_sort' => 'catalogue', 'rule_limit' => 12], $content);
+        return array_replace(['hero_path' => null, 'hero_alt' => '', 'layout' => 'banner', 'bottom_text' => '', 'faqs' => [], 'membership_mode' => 'manual', 'rule_category_id' => '', 'rule_hot' => false, 'rule_featured' => false, 'rule_sort' => 'catalogue', 'rule_limit' => 12], $content);
     }
 
     public function revision(Series $series, int $id): object
@@ -88,10 +88,14 @@ final class SeriesContent
         return array_values(array_filter(array_map(fn ($id) => $byId[$id] ?? null, $content['product_ids'])));
     }
 
-    public function validate(array $content): array
+    public function validate(array $content, ?string $heroPath = null): array
     {
         $content = $this->normalize($content);
         $valid = Validator::make($content, [
+            'hero_alt' => [$heroPath ? 'required' : 'nullable', 'string', 'max:200'],
+            'layout' => ['required', Rule::in(['banner', 'split', 'minimal'])],
+            'bottom_text' => ['nullable', 'string', 'max:10000'],
+            'faqs' => ['array', 'max:20'], 'faqs.*.question' => ['required', 'string', 'max:250'], 'faqs.*.answer' => ['required', 'string', 'max:2500'],
             'heading' => ['required', 'string', 'max:160'], 'intro' => ['nullable', 'string', 'max:5000'],
             'seo_title' => ['required', 'string', 'max:160'], 'seo_description' => ['nullable', 'string', 'max:320'],
             'membership_mode' => ['required', Rule::in(['manual', 'automatic'])],
@@ -101,6 +105,11 @@ final class SeriesContent
             'product_ids' => ['present', 'array', 'max:100'],
             'product_ids.*' => ['required', 'integer', 'distinct'],
         ])->validate();
+        $valid['faqs'] = array_map(fn ($faq) => ['question' => $faq['question'], 'answer' => $faq['answer']], array_values($valid['faqs']));
+        if ($heroPath !== null) {
+            app(SeriesHero::class)->path($heroPath);
+        }
+        $valid['hero_path'] = $heroPath;
         $valid['product_ids'] = array_values(array_map('intval', $valid['product_ids']));
         $valid['rule_category_id'] = filled($valid['rule_category_id']) ? (int) $valid['rule_category_id'] : '';
         $valid['rule_hot'] = (bool) $valid['rule_hot'];
@@ -125,14 +134,14 @@ final class SeriesContent
         }
     }
 
-    public function save(Series $series, array $content, int $version, User $user): int
+    public function save(Series $series, array $content, int $version, User $user, ?string $heroPath = null): int
     {
         app(ProductCatalogue::class)->authorize($user);
 
-        return DB::transaction(function () use ($series, $content, $version, $user): int {
+        return DB::transaction(function () use ($series, $content, $version, $user, $heroPath): int {
             $locked = Series::lockForUpdate()->findOrFail($series->id);
             $this->checkVersion($locked, $version);
-            $valid = $this->validate($content);
+            $valid = $this->validate($content, $heroPath);
             $id = DB::table('series_content_revisions')->insertGetId(['series_id' => $locked->id, 'content' => json_encode($valid, JSON_THROW_ON_ERROR), 'created_by' => $user->id, 'created_at' => now()]);
             $locked->forceFill(['draft_revision_id' => $id, 'content_version' => $version + 1])->save();
             activity('commerce')->performedOn($locked)->causedBy($user)->withProperties(['revision_id' => $id])->log('Series collection draft saved');
@@ -149,7 +158,8 @@ final class SeriesContent
             $this->checkVersion($locked, $version);
             abort_unless((int) $locked->draft_revision_id === $revisionId, 409);
             $revision = $this->revision($locked, $revisionId);
-            $content = $this->validate(json_decode($revision->content, true, flags: JSON_THROW_ON_ERROR));
+            $saved = json_decode($revision->content, true, flags: JSON_THROW_ON_ERROR);
+            $content = $this->validate($saved, $saved['hero_path'] ?? null);
             if (! DB::table('series_content_previews')->where('revision_id', $revisionId)->where('user_id', $user->id)->where('context_hash', $this->fingerprint($locked, $content))->exists()) {
                 throw ValidationException::withMessages(['publish' => 'Open the exact saved preview with the current published products before publishing.']);
             }
