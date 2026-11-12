@@ -14,6 +14,6 @@ final class Series extends Model
 
     protected function casts(): array
     {
-        return ['position' => 'integer', 'is_active' => 'boolean'];
+        return ['content_version' => 'integer', 'draft_revision_id' => 'integer', 'published_revision_id' => 'integer', 'position' => 'integer', 'is_active' => 'boolean'];
     }
 }

@@ -37,7 +37,7 @@ Preserved preview execution returned7 blockers: non-production environment, non-
 | Image gallery/library | Multi-select image delivery implemented; no video claim |
 | Video | Upload/container/codec checks, embed allowlist, posters, playback and portable format remain pending |
 | Categories | Existing cycle-safe tree/reorder/full-content editor reused; descendant filters, direct/branch counts and guarded Quick Edit move previews implemented; richer redirect/delete impact policies remain pending |
-| Full Series and Shop management | Full collection/section draft-preview-publish workflows remain pending; honest Soon screens retained |
+| Full Series and Shop management | Manual existing-Series content/SEO/ordered membership drafts, preview, native publish/withdraw implemented. New collection creation, hero/automatic rules/full layouts and Shop remain pending; honest Soon screens retained |
 | React image replacement | Implemented opt-in media-only mapping; permanent origin/storage/deployed acceptance still required |
 | React product/pricing/quotes | Authoritative native product/variant/sale projection and quote/basket parity not implemented; do not mix native display prices with legacy charged totals |
 | Host acceptance | Confirm target host + permanent Laravel URL, persistent public/private media, backups/restore, MySQL migrations/permissions, authorization and end-to-end publication/rollback |

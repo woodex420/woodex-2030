@@ -27,7 +27,7 @@ final class CommerceReadiness extends Command
                 $failed++;
             }
         };
-        foreach (['commerce_products', 'commerce_product_media', 'commerce_product_revisions', 'website_media', 'master_media_versions', 'master_media_sources', 'master_media_usages'] as $table) {
+        foreach (['commerce_products', 'commerce_product_media', 'commerce_product_revisions', 'website_media', 'master_media_versions', 'master_media_sources', 'master_media_usages', 'series_content_revisions', 'series_content_previews'] as $table) {
             $check('Schema: '.$table, Schema::hasTable($table), 'Additive migrations must be installed; never reset production.');
         }
         foreach (['local', 'public'] as $disk) {
@@ -52,7 +52,7 @@ final class CommerceReadiness extends Command
         }
         // Explicit implementation gates: remove only after each phase lands and its acceptance is recorded.
         $check('Mixed image/video gallery', false, 'Image multi-select exists; video upload/embed, poster and playback acceptance are not implemented.', $strict);
-        $check('Complete Shop/Series management', false, 'Full section/collection draft-preview-publish workflow remains pending.', $strict);
+        $check('Complete Shop/Series management', false, 'Manual native Series drafts/preview/publication exist; full hero/automatic rules and Shop workflows remain pending.', $strict);
         $check('Native product/price/quote cutover', false, 'Authoritative React product/variant pricing and quote parity remain pending; media-only sync is not product cutover.', $strict);
         $check('Host storage and live acceptance', false, 'Permanent upstream, persistent storage, backup/restore and deployed RBAC/checkout acceptance must be recorded on the target host.', $strict);
         $this->table(['Check', 'Status', 'Evidence / required action'], $rows);

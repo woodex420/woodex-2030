@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\ProductPreviewController;
 use App\Http\Controllers\Admin\QuoteDraftPreviewController;
 use App\Http\Controllers\Admin\QuotePdfController;
+use App\Http\Controllers\Admin\SeriesContentPreviewController;
 use App\Http\Controllers\Admin\SystemUpdateController;
 use App\Http\Controllers\Admin\WebsiteBuilderController;
 use App\Http\Controllers\Admin\WebsiteLibraryImageController;
@@ -30,6 +31,7 @@ use App\Livewire\Admin\Commerce\CommerceWorkspace;
 use App\Livewire\Admin\Commerce\ProductEditor;
 use App\Livewire\Admin\Commerce\Products;
 use App\Livewire\Admin\Commerce\ProductTransfers;
+use App\Livewire\Admin\Commerce\SeriesEditor;
 use App\Livewire\Admin\Commerce\SeriesManager;
 use App\Livewire\Admin\Conversations\CannedRepliesIndex;
 use App\Livewire\Admin\Conversations\Inbox;
@@ -262,6 +264,8 @@ Route::livewire('/integrations/whatsapp-templates', WhatsAppTemplates::class)->n
 Route::livewire('/data-import', DataImport::class)->name('data-import')->middleware('can:system.import');
 
 Route::livewire('/commerce/categories', Categories::class)->name('commerce.categories')->middleware('can:commerce.catalog.view');
+Route::livewire('/commerce/series/{series}/edit', SeriesEditor::class)->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage'])->name('commerce.series.edit');
+Route::get('/commerce/series-revisions/{revision}/preview', [SeriesContentPreviewController::class, 'show'])->whereNumber('revision')->middleware('can:commerce.catalog.view')->name('commerce.series-content.preview');
 Route::livewire('/commerce/series/organize', SeriesManager::class)->middleware('can:commerce.catalog.view')->name('commerce.series.organize');
 Route::livewire('/commerce/series', CommerceWorkspace::class)->middleware('can:commerce.catalog.view')->name('commerce.series');
 

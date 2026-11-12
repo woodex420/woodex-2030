@@ -126,7 +126,7 @@ it('rejects tampered import media and protects bulk actions with confirmation', 
 it('shows explicit Soon shop and Series pages and the source import audit', function () {
     $this->get(route('admin.commerce.overview'))->assertOk()->assertSee('E-commerce');
     $this->get(route('admin.commerce.shop'))->assertOk()->assertSee('Shop customization')->assertSee('Soon');
-    $this->get(route('admin.commerce.series'))->assertOk()->assertSee('Soon')->assertSee('Open existing Series organizer');
+    $this->get(route('admin.commerce.series'))->assertOk()->assertSee('Soon')->assertSee('Open Series organizer / manual drafts');
     $this->get(route('admin.commerce.products.transfers'))->assertOk()->assertSee('148 source products')->assertSee('18 distinct source photographs');
     Livewire::test(ProductTransfers::class)->call('importSource')->assertHasErrors('import');
     expect(Product::count())->toBe(0);
