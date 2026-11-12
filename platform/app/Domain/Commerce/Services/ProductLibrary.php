@@ -6,9 +6,21 @@ namespace App\Domain\Commerce\Services;
 
 use App\Domain\Website\Models\Media;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class ProductLibrary
 {
+    public function isAvailableWebsiteImage(Media $media): bool
+    {
+        try {
+            $this->websitePath($media);
+
+            return true;
+        } catch (HttpException $exception) {
+            return false;
+        }
+    }
+
     public function websitePath(Media $media): string
     {
         abort_unless($media->disk === 'public' && str_starts_with($media->path, 'website/') && ! preg_match('~(^|/)\.\.?(/|$)|[\\\\\x00]~', $media->path), 404);

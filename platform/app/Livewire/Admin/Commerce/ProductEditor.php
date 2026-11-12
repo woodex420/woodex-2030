@@ -293,7 +293,7 @@ final class ProductEditor extends Component
 
         return view('livewire.admin.commerce.product-editor', ['categories' => $categories, 'categoryPaths' => $paths, 'visibleCategoryIds' => array_unique($visible), 'series' => Series::orderBy('position')->get(),
             'library' => $this->showMediaLibrary ? ProductMedia::whereIn('product_id', Product::where('name', 'like', '%'.mb_substr($this->mediaSearch, 0, 100).'%')->pluck('id'))->latest('id')->limit(36)->get()->unique('sha256') : collect(),
-            'websiteLibrary' => $this->showMediaLibrary && $this->user()->can('website.edit') ? Media::where('disk', 'public')->where('path', 'like', 'website/%')->where(fn ($q) => $q->where('title', 'like', '%'.mb_substr($this->mediaSearch, 0, 100).'%')->orWhere('alt', 'like', '%'.mb_substr($this->mediaSearch, 0, 100).'%'))->latest('id')->limit(24)->get() : collect(),
+            'websiteLibrary' => $this->showMediaLibrary && $this->user()->can('website.edit') ? Media::where('disk', 'public')->where('path', 'like', 'website/%')->where(fn ($q) => $q->where('title', 'like', '%'.mb_substr($this->mediaSearch, 0, 100).'%')->orWhere('alt', 'like', '%'.mb_substr($this->mediaSearch, 0, 100).'%'))->latest('id')->limit(24)->get()->filter(fn (Media $media) => app(ProductLibrary::class)->isAvailableWebsiteImage($media)) : collect(),
             'related' => Product::where('id', '!=', $this->product?->id ?? 0)->whereNull('archived_at')->orderBy('name')->get(['id', 'name']),
             'revisions' => $this->product ? DB::table('commerce_product_revisions')->where('product_id', $this->product->id)->latest('id')->limit(10)->get() : collect()]);
     }

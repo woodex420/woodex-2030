@@ -6,6 +6,7 @@ use App\Domain\Commerce\Models\ProductMedia;
 use App\Domain\Commerce\Services\ProductCatalogue;
 use App\Domain\Commerce\Services\ProductTransfer;
 use App\Domain\Website\Models\Media;
+use App\Livewire\Admin\Commerce\CommerceWorkspace;
 use App\Livewire\Admin\Commerce\ProductEditor;
 use App\Livewire\Admin\Commerce\Products;
 use App\Livewire\Admin\Commerce\ProductTransfers;
@@ -228,4 +229,25 @@ it('rejects traversal and unsupported website library files', function () {
         $media = Media::create(['disk' => 'public', 'path' => $path]);
         $this->get(route('admin.commerce.website-library', $media))->assertNotFound();
     }
+});
+
+it('omits unavailable and unsupported website images from the product picker', function () {
+    Storage::fake('public');
+    $fixture = UploadedFile::fake()->image('available.png');
+    Storage::disk('public')->put('website/available.png', file_get_contents($fixture->getRealPath()));
+    Storage::disk('public')->put('website/document.txt', 'not an image');
+    foreach (['available.png', 'missing.png', 'document.txt'] as $file) {
+        Media::create(['disk' => 'public', 'path' => 'website/'.$file, 'title' => $file]);
+    }
+    Livewire::test(ProductEditor::class)->set('showMediaLibrary', true)
+        ->assertViewHas('websiteLibrary', fn ($images) => $images->count() === 1 && $images->first()->title === 'available.png');
+});
+
+it('excludes archived products from overview totals and recent cards', function () {
+    app(ProductCatalogue::class)->save(null, nativeDraft(['name' => 'Visible catalogue record']), 0, $this->editor);
+    $archived = app(ProductCatalogue::class)->save(null, nativeDraft(['name' => 'Archived catalogue record', 'slug' => 'archived-record']), 0, $this->editor);
+    $archived->update(['archived_at' => now()]);
+    Livewire::test(CommerceWorkspace::class)
+        ->assertViewHas('counts', fn ($counts) => $counts['Native products'] === 1)
+        ->assertSee('Visible catalogue record')->assertDontSee('Archived catalogue record');
 });

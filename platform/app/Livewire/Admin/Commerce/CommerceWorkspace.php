@@ -45,6 +45,6 @@ final class CommerceWorkspace extends Component
             }
         }
 
-        return view('livewire.admin.commerce.workspace', ['recentProducts' => $products, 'counts' => ['Native products' => Product::count(), 'Published native products' => Product::whereNotNull('published_revision_id')->count(), 'Categories' => Category::count(), 'Series collections' => Series::count()]]);
+        return view('livewire.admin.commerce.workspace', ['recentProducts' => $products, 'counts' => ['Native products' => Product::whereNull('archived_at')->count(), 'Published native products' => Product::whereNull('archived_at')->whereNotNull('published_revision_id')->count(), 'Categories' => Category::count(), 'Series collections' => Series::count()]]);
     }
 }
