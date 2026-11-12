@@ -36,7 +36,7 @@ Preserved preview execution returned7 blockers: non-production environment, non-
 | Product drafts, quick edit, schedule/manual merchandising | Implemented; native draft/preview/publication only |
 | Image gallery/library | Multi-select image delivery implemented; no video claim |
 | Video | Upload/container/codec checks, embed allowlist, posters, playback and portable format remain pending |
-| Categories | Existing cycle-safe tree/reorder/full-content editor reused; descendant-inclusive Products filtering implemented; counts/move-impact UX still pending |
+| Categories | Existing cycle-safe tree/reorder/full-content editor reused; descendant filters, direct/branch counts and guarded Quick Edit move previews implemented; richer redirect/delete impact policies remain pending |
 | Full Series and Shop management | Full collection/section draft-preview-publish workflows remain pending; honest Soon screens retained |
 | React image replacement | Implemented opt-in media-only mapping; permanent origin/storage/deployed acceptance still required |
 | React product/pricing/quotes | Authoritative native product/variant/sale projection and quote/basket parity not implemented; do not mix native display prices with legacy charged totals |

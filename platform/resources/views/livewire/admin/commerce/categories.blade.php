@@ -22,7 +22,8 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800" wire:key="category-{{ $category->id }}">
                     <div class="min-w-0 break-words">
                         <p class="font-semibold">{{ $category->name }} <x-admin.badge :color="$category->is_active ? 'success' : 'gray'">{{ $category->is_active ? 'Active' : 'Draft / inactive' }}</x-admin.badge></p>
-                        <p class="text-sm text-gray-500">{{ $category->slug }} · Position {{ $category->position }} · Parent: {{ $parents->firstWhere('id', $category->parent_id)?->name ?? 'Top level' }}</p>
+                        <p class="text-sm text-gray-500">{{ $category->slug }} · Position {{ $category->position }} · Parent: {{ $categoryPaths[$category->parent_id] ?? 'Top level' }}</p>
+                        <p class="mt-2 text-sm">Published products: {{ $categoryCounts[$category->id]['direct_published'] }} direct · {{ $categoryCounts[$category->id]['branch_published'] }} in branch @can('commerce.catalog.manage')<br>Saved draft products: {{ $categoryCounts[$category->id]['direct_draft'] }} direct · {{ $categoryCounts[$category->id]['branch_draft'] }} in branch @endcan</p>
                         @if($category->description)<p class="mt-2 text-sm whitespace-pre-line">{{ $category->description }}</p>@endif
                     </div>
                     @can('commerce.catalog.manage')<div class="ml-auto flex shrink-0 items-center gap-2"><x-admin.button variant="secondary" wire:click="edit({{ $category->id }})" aria-label="Quick edit {{ $category->name }}" title="Quick edit name, parent and status"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 5 5-13 13H3v-5Z"/><path d="m14 5 5 5"/></svg></x-admin.button><x-admin.button variant="secondary" :href="route('admin.commerce.categories.edit', $category)">Edit</x-admin.button></div>@endcan
@@ -38,7 +39,21 @@
             <div class="space-y-4">
                 <x-admin.field label="Name" for="form.name"><input id="form.name" wire:model="form.name" class="wx-input" maxlength="120"></x-admin.field>
                 <x-admin.field label="Slug (lowercase words separated by hyphens)" for="form.slug"><input id="form.slug" wire:model="form.slug" class="wx-input" maxlength="140"></x-admin.field>
-                <x-admin.field label="Parent category" for="form.parent_id"><select id="form.parent_id" wire:model="form.parent_id" class="wx-input"><option value="">Top level</option>@foreach($parents as $parent)@if($parent->id !== $editingId)<option value="{{ $parent->id }}">{{ $parent->name }}</option>@endif@endforeach</select></x-admin.field>
+                <x-admin.field label="Parent category" for="form.parent_id"><select id="form.parent_id" wire:model.live="form.parent_id" class="wx-input"><option value="">Top level</option>@foreach($parents as $parent)@if(!in_array($parent->id, $excludedParents, true))<option value="{{ $parent->id }}">{{ $categoryPaths[$parent->id] }}</option>@endif@endforeach</select></x-admin.field>
+                @if($editingId)
+                    <x-admin.button variant="secondary" wire:click="previewMove">Preview move impact</x-admin.button>
+                    @error('tree')<p role="alert" class="text-red-600">{{ $message }}</p>@enderror
+                    @error('move')<p role="alert" class="text-red-600">{{ $message }}</p>@enderror
+                    @if($moveImpact)
+                        <div class="rounded-lg border p-3 space-y-2 text-sm" role="status">
+                            <p>Move from: {{ $moveImpact['from'] }}</p><p>Destination: {{ $moveImpact['to'] }}</p>
+                            <p>{{ $moveImpact['descendants'] }} descendant categories · {{ $moveImpact['draft_products'] }} saved draft products · {{ $moveImpact['published_products'] }} published products in this branch.</p>
+                            <p>Product assignments, category page revisions and slugs are retained. Ancestor navigation changes immediately for connected storefronts; this is not a draft-only move. Archived products are excluded from counts. Counts are distinct per branch and advisory, not reservations; product edits can continue.</p>
+                            @if($moveImpact['inactive_destination'])<p class="text-amber-700">Warning: the destination has an inactive ancestor. This branch may be hidden in storefront navigation.</p>@endif
+                            <label class="flex gap-2"><input type="checkbox" wire:model="confirmMove"> I reviewed this move and its storefront impact.</label>
+                        </div>
+                    @endif
+                @endif
                 <x-admin.field label="Description" for="form.description"><textarea id="form.description" wire:model="form.description" class="wx-input" rows="3" maxlength="3000"></textarea></x-admin.field>
                 <x-admin.field label="Sort position" for="form.position"><input id="form.position" wire:model="form.position" type="number" min="0" max="100000" class="wx-input"></x-admin.field>
                 <label class="flex gap-2"><input type="checkbox" wire:model="form.is_active"> Active in the storefront category hierarchy (page content requires publication)</label>
