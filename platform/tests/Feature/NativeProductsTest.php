@@ -5,6 +5,7 @@ use App\Domain\Commerce\Models\Product;
 use App\Domain\Commerce\Models\ProductMedia;
 use App\Domain\Commerce\Services\ProductCatalogue;
 use App\Domain\Commerce\Services\ProductTransfer;
+use App\Domain\Website\Models\Media;
 use App\Livewire\Admin\Commerce\ProductEditor;
 use App\Livewire\Admin\Commerce\Products;
 use App\Livewire\Admin\Commerce\ProductTransfers;
@@ -122,7 +123,7 @@ it('rejects tampered import media and protects bulk actions with confirmation', 
 });
 
 it('shows explicit Soon shop and Series pages and the source import audit', function () {
-    $this->get(route('admin.commerce.overview'))->assertOk()->assertSee('Commerce Overview');
+    $this->get(route('admin.commerce.overview'))->assertOk()->assertSee('E-commerce');
     $this->get(route('admin.commerce.shop'))->assertOk()->assertSee('Shop customization')->assertSee('Soon');
     $this->get(route('admin.commerce.series'))->assertOk()->assertSee('Soon')->assertSee('Open existing Series organizer');
     $this->get(route('admin.commerce.products.transfers'))->assertOk()->assertSee('148 source products')->assertSee('18 distinct source photographs');
@@ -168,4 +169,63 @@ it('keeps source-key imports and image paths from bypassing the reviewed draft b
     $manager = $this->userWithRole('sales_manager');
     $this->actingAs($manager);
     Livewire::test(ProductEditor::class, ['product' => $product])->set('confirmPublish', true)->call('publish')->assertForbidden();
+});
+
+it('opens saved previews inline using same-origin media URLs and keeps the product layout usable', function () {
+    $product = app(ProductCatalogue::class)->save(null, nativeDraft(), 0, $this->editor);
+    $this->get(route('admin.commerce.products.edit', $product))->assertOk()->assertSee('Product identity')->assertSee('Pricing &amp; stock', false)->assertSee('Choose from media library')->assertSee('Search category hierarchy');
+    Livewire::test(ProductEditor::class, ['product' => $product])->call('openPreview')->assertSet('showPreview', true)->assertSee('src="/admin/commerce/products/'.$product->id.'/preview"', false);
+    $fixture = UploadedFile::fake()->image('preview-relative.png');
+    $media = app(ProductTransfer::class)->storeImage($product, file_get_contents($fixture->getRealPath()));
+    $data = $product->draft;
+    $data['images'] = [['id' => $media->id, 'alt' => 'Actual test fixture']];
+    app(ProductCatalogue::class)->save($product, $data, $product->version, $this->editor);
+    $this->get(route('admin.commerce.products.preview', $product))->assertOk()->assertSee('src="/admin/commerce/product-media/'.$media->id.'"', false)->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+});
+
+it('replaces an image without deleting old revision media and resets review', function () {
+    $editor = Livewire::test(ProductEditor::class)->set('form', nativeDraft(['reviewed' => true]))->set('uploads', [UploadedFile::fake()->image('first.png', 10, 10)])->call('uploadImages')->assertHasNoErrors();
+    $product = Product::sole();
+    $oldId = $product->draft['images'][0]['id'];
+    $editor->call('chooseReplacement', 0)->assertSet('showReplacement', true)->set('replacementUpload', UploadedFile::fake()->image('replacement.png', 20, 20))->call('replaceImage')->assertHasNoErrors()->assertSet('showReplacement', false);
+    $fresh = $product->fresh();
+    expect($fresh->draft['images'][0]['id'])->not->toBe($oldId)->and($fresh->draft['reviewed'])->toBeFalse()->and($fresh->draft['images'][0]['alt'])->toBe('');
+    Storage::disk('local')->assertExists(ProductMedia::find($oldId)->path);
+});
+
+it('reuses media through product-owned copies and requires website permission for website files', function () {
+    $source = app(ProductCatalogue::class)->save(null, nativeDraft(), 0, $this->editor);
+    $fixture = UploadedFile::fake()->image('library.png');
+    $media = app(ProductTransfer::class)->storeImage($source, file_get_contents($fixture->getRealPath()));
+    $target = app(ProductCatalogue::class)->save(null, nativeDraft(['slug' => 'library-target']), 0, $this->editor);
+    Livewire::test(ProductEditor::class, ['product' => $target])->call('useLibraryImage', $media->id)->assertHasNoErrors();
+    $attached = ProductMedia::find($target->fresh()->draft['images'][0]['id']);
+    expect($attached->product_id)->toBe($target->id)->and($attached->sha256)->toBe($media->sha256)->and($attached->id)->not->toBe($media->id);
+    Storage::fake('public');
+    Storage::disk('public')->put('website/library.png', file_get_contents($fixture->getRealPath()));
+    $website = Media::create(['disk' => 'public', 'path' => 'website/library.png', 'alt' => 'Website sample', 'title' => 'Website image']);
+    $this->get(route('admin.commerce.website-library', $website))->assertOk();
+    Livewire::test(ProductEditor::class, ['product' => $target->fresh()])->call('useLibraryImage', $website->id, 'website')->assertHasNoErrors();
+    $manager = $this->userWithRole('sales_manager');
+    $manager->revokePermissionTo('website.edit');
+    // Remove the role's website edit permission, not just an unused direct grant.
+    $manager->roles->each(fn ($role) => $role->revokePermissionTo('website.edit'));
+    $this->actingAs($manager);
+    Livewire::test(ProductEditor::class, ['product' => $target->fresh()])->call('useLibraryImage', $website->id, 'website')->assertForbidden();
+    $this->get(route('admin.commerce.website-library', $website))->assertForbidden();
+});
+
+it('keeps primary selection and category chips consistent', function () {
+    $primary = Category::where('slug', 'chairs')->sole();
+    Livewire::test(ProductEditor::class)->set('form.name', 'Hierarchy test')->set('form.slug', 'hierarchy-test')->set('form.primary_category_id', (string) $primary->id)
+        ->assertSet('form.category_ids', [$primary->id])->call('removeCategory', $primary->id)->assertSet('form.category_ids', [])->assertSet('form.primary_category_id', '');
+});
+
+it('rejects traversal and unsupported website library files', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('website/not-an-image.txt', 'not an image');
+    foreach (['website/../secret.png', 'website/not-an-image.txt', 'crm/attachment.png', 'website/invalid\\image.png'] as $path) {
+        $media = Media::create(['disk' => 'public', 'path' => $path]);
+        $this->get(route('admin.commerce.website-library', $media))->assertNotFound();
+    }
 });

@@ -8,6 +8,8 @@ use App\Domain\Commerce\Models\Category;
 use App\Domain\Commerce\Models\Product;
 use App\Domain\Commerce\Models\ProductMedia;
 use App\Domain\Commerce\Services\ProductCatalogue;
+use App\Domain\Commerce\Services\ProductLibrary;
+use App\Domain\Website\Models\Media;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +24,7 @@ final class ProductPreviewController extends Controller
         $manage = $request->user()->can('commerce.catalog.manage');
         if ($manage) {
             $data = $product->draft;
-            DB::table('commerce_product_previews')->updateOrInsert(['product_id' => $product->id, 'user_id' => $request->user()->id], ['version' => $product->version, 'fingerprint' => $service->fingerprint($product), 'previewed_at' => now()]);
+
         } else {
             abort_unless($product->published_revision_id, 403);
             $revision = DB::table('commerce_product_revisions')->where('product_id', $product->id)->find($product->published_revision_id);
@@ -48,9 +50,21 @@ final class ProductPreviewController extends Controller
             return ['id' => $item->id, 'name' => json_decode($revision->content, true)['name']];
         });
 
-        return response()->view('commerce.product-preview', ['product' => $product, 'data' => $data, 'related' => $related, 'categories' => Category::whereIn('id', $data['category_ids'])->pluck('name')])
+        $response = response()->view('commerce.product-preview', ['product' => $product, 'data' => $data, 'related' => $related, 'categories' => Category::whereIn('id', $data['category_ids'])->pluck('name')])
             ->header('Cache-Control', 'no-store, private')->header('X-Robots-Tag', 'noindex, nofollow')
             ->header('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'");
+        if ($manage) {
+            DB::table('commerce_product_previews')->updateOrInsert(['product_id' => $product->id, 'user_id' => $request->user()->id], ['version' => $product->version, 'fingerprint' => $service->fingerprint($product), 'previewed_at' => now()]);
+        }
+
+        return $response;
+    }
+
+    public function libraryImage(Request $request, Media $media)
+    {
+        abort_unless($request->user()->can('commerce.catalog.view') && $request->user()->can('commerce.catalog.manage') && $request->user()->can('website.edit'), 403);
+
+        return response()->file(app(ProductLibrary::class)->websitePath($media), ['Cache-Control' => 'no-store, private', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     public function image(Request $request, ProductMedia $media)

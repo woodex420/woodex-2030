@@ -47,7 +47,7 @@ final class FurnitureNavigation
                 }
                 unset($item);
                 $native = [];
-                foreach ([['Commerce Overview', 'overview', null], ['Products', 'products', null], ['Categories', 'categories', null], ['Series', 'series', 'soon'], ['Shop customization', 'shop', 'soon']] as [$label, $route, $phase]) {
+                foreach ([['E-commerce', 'overview', null], ['Products', 'products', null], ['Categories', 'categories', null], ['Series', 'series', 'soon'], ['Shop customization', 'shop', 'soon']] as [$label, $route, $phase]) {
                     $native[] = ['label' => $label, 'icon' => 'folder', 'route' => 'admin.commerce.'.$route, 'permission' => 'commerce.catalog.view', 'phase' => $phase, 'url' => null];
                 }
                 $items = array_merge($native, $items);

@@ -274,3 +274,5 @@ Route::livewire('/commerce/products/create', ProductEditor::class)->name('commer
 Route::livewire('/commerce/products/{product}/edit', ProductEditor::class)->name('commerce.products.edit')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage']);
 Route::get('/commerce/products/{product}/preview', [ProductPreviewController::class, 'show'])->name('commerce.products.preview')->middleware('can:commerce.catalog.view');
 Route::get('/commerce/product-media/{media}', [ProductPreviewController::class, 'image'])->name('commerce.product-media')->middleware('can:commerce.catalog.view');
+
+Route::get('/commerce/website-library/{media}', [ProductPreviewController::class, 'libraryImage'])->name('commerce.website-library')->middleware(['can:commerce.catalog.view', 'can:commerce.catalog.manage', 'can:website.edit']);

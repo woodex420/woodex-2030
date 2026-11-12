@@ -84,3 +84,11 @@ Latest attachments in the paused user message: `image-7.png` (Ecommerce overview
 4. Implement preview-sidebar gallery and click-to-replace/media chooser with safe media ownership/revision behavior.
 5. Improve hierarchical multi-category/primary selection and Product identity / Pricing & stock layout; keep unverified source quantities visibly unverified.
 6. Run focused permission/data/media/preview tests, mobile+desktop browser checks, full regression and required repository checks; update docs without claiming live product cutover or full Shop/Series completion.
+
+## Resumed product UX slice — 11 November 2026
+
+Implemented E-commerce navigation/overview with real catalogue counts, recent saved records and honest Soon modules; separate Import/Export actions; responsive editor with prominent identity/pricing, sidebar gallery, selectable thumbnails, click-to-replace and retained historical media; hierarchical category search/chips/primary selection; authorized product/website media reuse via private product-owned copies; same-origin inline saved preview and relative media URLs. No CRM attachment aggregation, data reset, production changes or storefront product cutover.
+
+Validation for this slice: 31 focused tests passed / 362 assertions (native products, navigation, Commerce feature tests), including replacement retention/review reset, website permissions, path rejection, category consistency and relative preview URLs. Vite production build passed (existing large-chunk warning). Authenticated browser checked overview/list/editor HTTP 200; inline product86 preview rendered both actual images (768/800 natural width), no JS exceptions, mobile viewport390 had scrollWidth390. This is focused validation, not a fresh full-suite run; earlier full-suite totals remain specific to the earlier commit.
+
+The originally reported external Arena URL still failed with ERR_CONNECTION_CLOSED during diagnosis. Local authenticated preview86 and the new inline preview work; do not claim the reported deployment/origin problem resolved. Permanent origin and live native product cutover remain pending. Preview database/media were preserved, not included as Git backups.

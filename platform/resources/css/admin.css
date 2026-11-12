@@ -332,3 +332,12 @@ a.wx-stat:hover { border-color:var(--wx-control-border); transform:translateY(-1
   .wx-admin-sidebar,.wx-stat,.wx-admin .menu-item { transition:none !important; }
   a.wx-stat:hover { transform:none; }
 }
+
+/* Product workspace: readable form + persistent visual summary; no fixed-width mobile overflow. */
+.wx-product-layout { display: grid; gap: 24px; align-items: start; }
+.wx-product-sidebar { min-width: 0; }
+.wx-category-picker { max-height: 340px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+@media (min-width: 1100px) {
+    .wx-product-layout { grid-template-columns: minmax(0, 1fr) 340px; }
+    .wx-product-sidebar { position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow: auto; }
+}
