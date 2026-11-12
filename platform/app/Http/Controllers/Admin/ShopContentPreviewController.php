@@ -17,7 +17,7 @@ final class ShopContentPreviewController extends Controller
         $row = $service->revision($revision);
         $manager = $request->user()->can('commerce.catalog.manage');
         abort_unless($manager || (int) $service->state()->published_revision_id === $revision, 403);
-        $content = json_decode($row->content, true, flags: JSON_THROW_ON_ERROR);
+        $content = $service->normalize(json_decode($row->content, true, flags: JSON_THROW_ON_ERROR));
         if ($manager) {
             $content = $service->validate($content);
         }

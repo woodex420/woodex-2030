@@ -49,6 +49,18 @@ final class ProductMerchandising
         }
     }
 
+    /** One explicit price row only: variants never inherit a base-product discount. */
+    public function isOnSale(array $row, ?CarbonImmutable $at = null): bool
+    {
+        $regular = (string) ($row['price'] ?? '');
+        $sale = (string) ($row['sale_price'] ?? '');
+        if (! preg_match('/^\d{1,9}(?:\.\d{1,2})?$/', $regular) || ! preg_match('/^\d{1,9}(?:\.\d{1,2})?$/', $sale) || $this->cents($sale) >= $this->cents($regular)) {
+            return false;
+        }
+
+        return $this->effectivePrice($row, $at) === $sale;
+    }
+
     public function effectivePrice(array $row, ?CarbonImmutable $at = null): string
     {
         $at ??= CarbonImmutable::now('UTC');

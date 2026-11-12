@@ -52,7 +52,7 @@ final class CommerceReadiness extends Command
         }
         // Explicit implementation gates: remove only after each phase lands and its acceptance is recorded.
         $check('Mixed image/video gallery', false, 'Image multi-select exists; video upload/embed, poster and playback acceptance are not implemented.', $strict);
-        $check('Complete Shop/Series management', false, 'Native Series content and Shop section drafts/preview/publication exist; activation/redirect controls, full Shop hero/sale/navigation/footer and React projection remain pending.', $strict);
+        $check('Complete Shop/Series management', false, 'Native Series content and Shop section drafts/preview/publication exist; activation/redirect controls, full Shop hero/navigation/footer and React projection remain pending.', $strict);
         $check('Native product/price/quote cutover', false, 'Authoritative React product/variant pricing and quote parity remain pending; media-only sync is not product cutover.', $strict);
         $check('Host storage and live acceptance', false, 'Permanent upstream, persistent storage, backup/restore and deployed RBAC/checkout acceptance must be recorded on the target host.', $strict);
         $this->table(['Check', 'Status', 'Evidence / required action'], $rows);

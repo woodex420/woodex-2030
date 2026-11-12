@@ -6,6 +6,7 @@ namespace App\Domain\Commerce\Services;
 
 use App\Domain\Commerce\Models\Category;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -21,7 +22,16 @@ final class ShopContent
 
     public function section(): array
     {
-        return ['heading' => '', 'type' => 'manual', 'category_id' => '', 'series_id' => '', 'product_ids' => [], 'limit' => 8];
+        return ['heading' => '', 'type' => 'manual', 'category_id' => '', 'series_id' => '', 'product_ids' => [], 'limit' => 8, 'sort' => 'source'];
+    }
+
+    public function normalize(array $content): array
+    {
+        if (isset($content['sections']) && is_array($content['sections'])) {
+            $content['sections'] = array_map(fn ($section) => is_array($section) ? array_replace($this->section(), $section) : $section, $content['sections']);
+        }
+
+        return $content;
     }
 
     public function state(bool $lock = false): object
@@ -44,13 +54,15 @@ final class ShopContent
 
     public function validate(array $content): array
     {
+        $content = $this->normalize($content);
         $valid = Validator::make($content, [
             'heading' => ['required', 'string', 'max:160'], 'intro' => ['nullable', 'string', 'max:5000'],
             'seo_title' => ['required', 'string', 'max:160'], 'seo_description' => ['nullable', 'string', 'max:320'],
             'sections' => ['present', 'array', 'max:12'],
             'sections.*.heading' => ['required', 'string', 'max:120'],
-            'sections.*.type' => ['required', Rule::in(['manual', 'category', 'series', 'hot', 'featured'])],
+            'sections.*.type' => ['required', Rule::in(['manual', 'category', 'series', 'hot', 'featured', 'sale'])],
             'sections.*.category_id' => ['nullable', 'integer'], 'sections.*.series_id' => ['nullable', 'integer'],
+            'sections.*.sort' => ['required', Rule::in(['source', 'name', 'featured'])],
             'sections.*.limit' => ['required', 'integer', 'between:1,24'],
             'sections.*.product_ids' => ['present', 'array', 'max:24'], 'sections.*.product_ids.*' => ['required', 'integer'],
         ])->validate();
@@ -85,11 +97,26 @@ final class ShopContent
         })->where('s.id', $id)->first(['r.id', 'r.content']);
     }
 
-    public function project(array $content): array
+    public function project(array $content, ?CarbonImmutable $at = null): array
     {
+        $at ??= CarbonImmutable::now('UTC');
+        $content = $this->normalize($content);
         $service = app(SeriesContent::class);
         $eligible = $service->eligibleProducts();
         $byId = array_column($eligible, null, 'id');
+        // IDs originate only from the product-owned publications above; revision content is immutable.
+        $details = DB::table('commerce_product_revisions')->whereIn('id', array_column($eligible, 'revision_id'))->get(['id', 'content'])->mapWithKeys(fn ($row) => [(int) $row->id => json_decode($row->content, true, flags: JSON_THROW_ON_ERROR)])->all();
+        $onSale = function (array $product) use ($details, $at): bool {
+            $data = $details[$product['revision_id']] ?? [];
+            $pricing = app(ProductMerchandising::class);
+            foreach ([$data, ...($data['variants'] ?? [])] as $row) {
+                if ($pricing->isOnSale($row, $at)) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
         $categories = Category::all();
         $result = [];
         foreach ($content['sections'] as $section) {
@@ -105,10 +132,16 @@ final class ShopContent
                 $branch = $section['type'] === 'category' && $categories->contains('id', (int) $section['category_id']) ? app(CategoryImpact::class)->branch($categories, (int) $section['category_id']) : [];
                 $products = array_values(array_filter($eligible, fn ($p) => match ($section['type']) {
                     'category' => (bool) array_intersect($p['category_ids'], $branch),
-                    'hot' => $p['is_hot'], 'featured' => $p['is_featured'], default => false,
+                    'hot' => $p['is_hot'], 'featured' => $p['is_featured'], 'sale' => $onSale($p), default => false,
                 }));
             }
-            $result[] = ['heading' => $section['heading'], 'type' => $section['type'], 'products' => array_slice($products, 0, max(1, min(24, (int) $section['limit'])))];
+            // Sort before limiting; preserve source/manual/Series order by default.
+            if ($section['sort'] === 'name') {
+                usort($products, fn ($a, $b) => strcasecmp($a['name'], $b['name']) ?: $a['id'] <=> $b['id']);
+            } elseif ($section['sort'] === 'featured') {
+                usort($products, fn ($a, $b) => ((int) ($details[$a['revision_id']]['featured_position'] ?? 0) <=> (int) ($details[$b['revision_id']]['featured_position'] ?? 0)) ?: $a['id'] <=> $b['id']);
+            }
+            $result[] = ['heading' => $section['heading'], 'type' => $section['type'], 'sort' => $section['sort'], 'products' => array_slice($products, 0, max(1, min(24, (int) $section['limit'])))];
         }
 
         return $result;
@@ -116,7 +149,7 @@ final class ShopContent
 
     public function fingerprint(array $content, ?array $projection = null): string
     {
-        return hash('sha256', json_encode([$content, $projection ?? $this->project($content)], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$this->normalize($content), $projection ?? $this->project($content)], JSON_THROW_ON_ERROR));
     }
 
     private function check(object $state, int $version): void

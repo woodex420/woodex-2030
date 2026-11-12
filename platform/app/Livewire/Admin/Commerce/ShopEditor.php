@@ -43,7 +43,7 @@ final class ShopEditor extends Component
         if ($this->user()->can('commerce.catalog.manage')) {
             $this->version = (int) $state->version;
             $this->revisionId = $state->draft_revision_id === null ? null : (int) $state->draft_revision_id;
-            $this->form = $this->revisionId ? json_decode($service->revision($this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR) : $service->defaults();
+            $this->form = $this->revisionId ? $service->normalize(json_decode($service->revision($this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR)) : $service->defaults();
         }
     }
 
@@ -72,6 +72,16 @@ final class ShopEditor extends Component
         $this->confirmPublish = false;
     }
 
+    public function moveProduct(int $section, int $index, int $direction): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        $to = $index + $direction;
+        abort_unless(in_array($direction, [-1, 1], true) && ($this->form['sections'][$section]['type'] ?? '') === 'manual' && isset($this->form['sections'][$section]['product_ids'][$index], $this->form['sections'][$section]['product_ids'][$to]), 422);
+        $ids = &$this->form['sections'][$section]['product_ids'];
+        [$ids[$index], $ids[$to]] = [$ids[$to], $ids[$index]];
+        $this->confirmPublish = false;
+    }
+
     public function clearProducts(int $index): void
     {
         app(ProductCatalogue::class)->authorize($this->user());
@@ -93,7 +103,7 @@ final class ShopEditor extends Component
     {
         app(ProductCatalogue::class)->authorize($this->user(), true);
         $service = app(ShopContent::class);
-        if (! $this->confirmPublish || ! $this->revisionId || $service->validate($this->form) !== json_decode($service->revision($this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR)) {
+        if (! $this->confirmPublish || ! $this->revisionId || $service->validate($this->form) !== $service->validate(json_decode($service->revision($this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR))) {
             $this->addError('publish', 'Save edits, open the saved preview and explicitly confirm native publication.');
 
             return;
