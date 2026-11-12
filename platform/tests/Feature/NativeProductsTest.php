@@ -174,7 +174,7 @@ it('keeps source-key imports and image paths from bypassing the reviewed draft b
 
 it('opens saved previews inline using same-origin media URLs and keeps the product layout usable', function () {
     $product = app(ProductCatalogue::class)->save(null, nativeDraft(), 0, $this->editor);
-    $this->get(route('admin.commerce.products.edit', $product))->assertOk()->assertSee('Product identity')->assertSee('Pricing &amp; stock', false)->assertSee('Choose from media library')->assertSee('Search category hierarchy');
+    $this->get(route('admin.commerce.products.edit', $product))->assertOk()->assertSee('Product identity')->assertSee('Pricing &amp; stock', false)->assertSee('Add media to product gallery')->assertSee('Search category hierarchy');
     Livewire::test(ProductEditor::class, ['product' => $product])->call('openPreview')->assertSet('showPreview', true)->assertSee('src="/admin/commerce/products/'.$product->id.'/preview"', false);
     $fixture = UploadedFile::fake()->image('preview-relative.png');
     $media = app(ProductTransfer::class)->storeImage($product, file_get_contents($fixture->getRealPath()));

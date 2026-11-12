@@ -59,3 +59,8 @@ After catalogue/shop acceptance: Orders → Delivery & Installation → Support 
 - Existing library + preservation: `Livewire/Admin/Website/MediaLibrary`, `Domain/Website/Models/Media`, `Domain/Website/Services/StorefrontMedia`, `Domain/Media/Services/MasterMedia`.
 - Agency reference: `apps/dashboard/src/pages/{ProductEditor,Catalog}.tsx`; React frontend: `apps/storefront/src/lib/{runtime,mediaSync,nativeCategories}` and actual product/gallery components.
 - New phase1 regression: `tests/Feature/CommerceWorkflowTest.php`; retain NativeProducts, media, category, transfer and RBAC tests.
+
+
+### Phase2 image-picker progress
+
+Multi-select image staging, attachment details, selection ordering, separate upload/library tabs, folder/search pagination, duplicate skipping and atomic reference rollback are now implemented in the existing product editor. Existing gallery removal/reordering remains. Videos, full Shop/Series and product/quote cutover are not implemented by this slice. See18-PRODUCTION-READINESS.md and `commerce:readiness --production`; strict readiness currently blocks complete production Commerce rather than certifying it.

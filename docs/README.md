@@ -90,3 +90,4 @@ Nothing here is authoritative. Do not cite these as current.
 - [Paused work and next-session product UX handoff](laravel-os/15-NEXT-SESSION-HANDOFF.md)
 - [Central media reuse, replacement and React synchronization](laravel-os/16-CENTRAL-MEDIA-PLAN.md)
 - [Commerce workflow upgrade: audit, phases and acceptance](laravel-os/17-COMMERCE-WORKFLOW-UPGRADE.md)
+- [Commerce production-readiness gate and gallery delivery](laravel-os/18-PRODUCTION-READINESS.md)
