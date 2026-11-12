@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Commerce;
 
 use App\Domain\Commerce\Models\Series;
+use App\Domain\Commerce\Services\ProductCatalogue;
+use App\Domain\Commerce\Services\SeriesContent;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
@@ -14,6 +16,24 @@ use Livewire\Component;
 final class SeriesManager extends Component
 {
     use InteractsWithAdmin;
+
+    public bool $showCreate = false;
+
+    public array $identity = ['name' => '', 'slug' => ''];
+
+    public function openCreate(): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        $this->identity = ['name' => '', 'slug' => ''];
+        $this->resetValidation();
+        $this->showCreate = true;
+    }
+
+    public function createCollection(): void
+    {
+        $series = app(SeriesContent::class)->create($this->identity, $this->user());
+        $this->redirectRoute('admin.commerce.series.edit', ['series' => $series->id]);
+    }
 
     public function mount(): void
     {

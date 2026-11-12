@@ -20,10 +20,10 @@ final class SeriesContentPreviewController extends Controller
         $series = Series::findOrFail($row->series_id);
         $manager = $request->user()->can('commerce.catalog.manage');
         abort_unless($manager || $series->published_revision_id === $revision, 403);
-        $content = json_decode($row->content, true, flags: JSON_THROW_ON_ERROR);
+        $content = $service->normalize(json_decode($row->content, true, flags: JSON_THROW_ON_ERROR));
         // Published viewers omit withdrawn/archived products instead of exposing drafts.
         if ($manager) {
-            $service->validate($content);
+            $content = $service->validate($content);
         }
         $products = $service->products($content);
         if ($manager) {

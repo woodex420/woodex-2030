@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Commerce;
 
+use App\Domain\Commerce\Models\Category;
 use App\Domain\Commerce\Models\Series;
 use App\Domain\Commerce\Services\ProductCatalogue;
 use App\Domain\Commerce\Services\SeriesContent;
@@ -39,7 +40,7 @@ final class SeriesEditor extends Component
         $this->version = $series->content_version;
         $this->revisionId = $series->draft_revision_id;
         $service = app(SeriesContent::class);
-        $this->form = $this->revisionId ? json_decode($service->revision($series, $this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR) : $service->defaults($series);
+        $this->form = $this->revisionId ? $service->normalize(json_decode($service->revision($series, $this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR)) : $service->defaults($series);
     }
 
     public function saveDraft(): void
@@ -73,7 +74,7 @@ final class SeriesEditor extends Component
     {
         app(ProductCatalogue::class)->authorize($this->user(), true);
         $service = app(SeriesContent::class);
-        if (! $this->confirmPublish || ! $this->revisionId || $service->validate($this->form) !== json_decode($service->revision($this->series, $this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR)) {
+        if (! $this->confirmPublish || ! $this->revisionId || $service->validate($this->form) !== $service->validate(json_decode($service->revision($this->series, $this->revisionId)->content, true, flags: JSON_THROW_ON_ERROR))) {
             $this->addError('publish', 'Save your edits, open the saved preview and explicitly confirm publication.');
 
             return;
@@ -104,6 +105,6 @@ final class SeriesEditor extends Component
     {
         app(ProductCatalogue::class)->authorize($this->user());
 
-        return view('livewire.admin.commerce.series-editor', ['products' => app(SeriesContent::class)->eligibleProducts()]);
+        return view('livewire.admin.commerce.series-editor', ['products' => app(SeriesContent::class)->eligibleProducts(), 'categories' => Category::orderBy('name')->get()]);
     }
 }
