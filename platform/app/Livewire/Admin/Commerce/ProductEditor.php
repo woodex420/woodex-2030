@@ -60,7 +60,7 @@ final class ProductEditor extends Component
         app(ProductCatalogue::class)->authorize($this->user());
         $this->product = $product?->exists ? $product : null;
         $this->version = $this->product?->version ?? 0;
-        $this->form = $this->product?->draft ?? app(ProductCatalogue::class)->defaults();
+        $this->form = array_replace(app(ProductCatalogue::class)->defaults(), $this->product?->draft ?? []);
     }
 
     public function saveDraft(): void

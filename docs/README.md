@@ -89,3 +89,4 @@ Nothing here is authoritative. Do not cite these as current.
 - [Native Products review, import/export and full editor](laravel-os/14-NATIVE-PRODUCTS-REVIEW-IMPORT-AND-EDITOR.md)
 - [Paused work and next-session product UX handoff](laravel-os/15-NEXT-SESSION-HANDOFF.md)
 - [Central media reuse, replacement and React synchronization](laravel-os/16-CENTRAL-MEDIA-PLAN.md)
+- [Commerce workflow upgrade: audit, phases and acceptance](laravel-os/17-COMMERCE-WORKFLOW-UPGRADE.md)

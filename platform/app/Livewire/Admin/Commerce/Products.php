@@ -12,6 +12,7 @@ use App\Domain\Commerce\Services\ProductTransfer;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -20,9 +21,56 @@ final class Products extends Component
 {
     use InteractsWithAdmin, WithPagination;
 
+    #[Locked]
+    public ?int $quickProductId = null;
+
+    #[Locked]
+    public int $quickVersion = 0;
+
+    public bool $showQuickEdit = false;
+
+    public array $quick = [];
+
+    public function openQuickEdit(int $id): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        $product = Product::whereNull('archived_at')->findOrFail($id);
+        $this->quickProductId = $id;
+        $this->quickVersion = $product->version;
+        $this->quick = array_intersect_key(array_replace(app(ProductCatalogue::class)->defaults(), $product->draft), array_flip(['name', 'price', 'availability', 'category_ids', 'primary_category_id', 'series_ids', 'sale_price', 'sale_start', 'sale_end', 'is_hot', 'is_featured', 'featured_position']));
+        $this->showQuickEdit = true;
+        $this->resetErrorBag();
+    }
+
+    public function saveQuickEdit(): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        $product = Product::findOrFail($this->quickProductId);
+        $allowed = array_flip(['name', 'price', 'availability', 'category_ids', 'primary_category_id', 'series_ids', 'sale_price', 'sale_start', 'sale_end', 'is_hot', 'is_featured', 'featured_position']);
+        $data = array_replace($product->draft, array_intersect_key($this->quick, $allowed));
+        $data['reviewed'] = false;
+        app(ProductCatalogue::class)->save($product, $data, $this->quickVersion, $this->user());
+        $this->showQuickEdit = false;
+        $this->toast('Quick changes saved to draft. Review, preview and explicitly publish/update; storefront unchanged.');
+    }
+
     public string $search = '';
 
     public string $status = '';
+
+    public string $categoryFilter = '';
+
+    public string $seriesFilter = '';
+
+    public function updatedCategoryFilter(): void
+    {
+        $this->updatedSearch();
+    }
+
+    public function updatedSeriesFilter(): void
+    {
+        $this->updatedSearch();
+    }
 
     public array $selected = [];
 
@@ -42,11 +90,15 @@ final class Products extends Component
     public function updatedSearch(): void
     {
         $this->resetPage();
+        $this->selected = [];
+        $this->confirmBulk = false;
     }
 
     public function updatedStatus(): void
     {
         $this->resetPage();
+        $this->selected = [];
+        $this->confirmBulk = false;
     }
 
     private function ids(): array
@@ -130,15 +182,49 @@ final class Products extends Component
     {
         abort_unless($this->user()->can('commerce.catalog.view'), 403);
 
+        $manager = $this->user()->can('commerce.catalog.manage');
+        $query = Product::query();
+        if (! $manager) {
+            $query->whereNull('archived_at')->whereExists(fn ($q) => $q->selectRaw('1')->from('commerce_product_revisions as snapshot')->whereColumn('snapshot.id', 'commerce_products.published_revision_id')->whereColumn('snapshot.product_id', 'commerce_products.id')->when($this->search !== '', fn ($q) => $q->where('snapshot.content->name', 'like', '%'.mb_substr($this->search, 0, 120).'%'))->when($this->categoryFilter !== '', fn ($q) => $q->whereJsonContains('snapshot.content->category_ids', (int) $this->categoryFilter))->when($this->seriesFilter !== '', fn ($q) => $q->whereJsonContains('snapshot.content->series_ids', (int) $this->seriesFilter)));
+        } elseif ($this->search !== '') {
+            $query->where('name', 'like', '%'.mb_substr($this->search, 0, 120).'%');
+        }
+        if ($manager) {
+            $query->when($this->categoryFilter !== '', fn ($q) => $q->whereJsonContains('draft->category_ids', (int) $this->categoryFilter))->when($this->seriesFilter !== '', fn ($q) => $q->whereJsonContains('draft->series_ids', (int) $this->seriesFilter));
+        }
+        $products = $query->when($this->status === 'draft', fn ($q) => $q->whereNull('published_revision_id')->whereNull('archived_at'))
+            ->when($this->status === 'published', fn ($q) => $q->whereNotNull('published_revision_id')->whereNull('archived_at'))
+            ->when($this->status === 'archived', fn ($q) => $q->whereNotNull('archived_at'))->orderBy($manager ? 'name' : 'id')->paginate(20);
+        if (! $manager) {
+            $snapshots = DB::table('commerce_product_revisions')->whereIn('id', $products->pluck('published_revision_id'))->get()->keyBy('id');
+            foreach ($products as $product) {
+                $snapshot = json_decode($snapshots[$product->published_revision_id]->content, true, flags: JSON_THROW_ON_ERROR);
+                $product->draft = $snapshot;
+                $product->name = $snapshot['name'];
+                $product->slug = $snapshot['slug'];
+                $product->review_issues = [];
+            }
+        }
+        $categories = Category::orderBy('position')->orderBy('id')->get();
+        $categoryPaths = [];
+        foreach ($categories as $category) {
+            $names = [];
+            $seen = [];
+            $node = $category;
+            while ($node && ! in_array($node->id, $seen, true) && count($seen) < 20) {
+                array_unshift($names, $node->name);
+                $seen[] = $node->id;
+                $node = $categories->firstWhere('id', $node->parent_id);
+            }
+            $categoryPaths[$category->id] = implode(' → ', $names);
+        }
+
         return view('livewire.admin.commerce.products', [
-            'products' => Product::query()->when(! $this->user()->can('commerce.catalog.manage'), fn ($q) => $q->whereNotNull('published_revision_id')->whereNull('archived_at'))->when($this->search !== '', fn ($q) => $q->where('name', 'like', '%'.mb_substr($this->search, 0, 120).'%'))
-                ->when($this->status === 'draft', fn ($q) => $q->whereNull('published_revision_id')->whereNull('archived_at'))
-                ->when($this->status === 'published', fn ($q) => $q->whereNotNull('published_revision_id'))
-                ->when($this->status === 'archived', fn ($q) => $q->whereNotNull('archived_at'))
-                ->orderBy('name')->paginate(20),
-            'categories' => Category::orderBy('name')->get(['id', 'name']),
+            'products' => $products,
+            'categoryPaths' => $categoryPaths,
+            'categories' => $categories,
             'series' => Series::orderBy('position')->get(['id', 'name']),
-            'counts' => ['total' => Product::count(), 'published' => Product::whereNotNull('published_revision_id')->count(), 'archived' => Product::whereNotNull('archived_at')->count()],
+            'counts' => ['total' => $manager ? Product::count() : Product::whereNotNull('published_revision_id')->whereNull('archived_at')->count(), 'published' => Product::whereNotNull('published_revision_id')->whereNull('archived_at')->count(), 'archived' => $manager ? Product::whereNotNull('archived_at')->count() : 0],
         ]);
     }
 }

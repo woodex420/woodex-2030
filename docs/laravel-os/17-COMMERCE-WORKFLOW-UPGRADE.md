@@ -1,0 +1,61 @@
+# Commerce workflow upgrade — approved phased implementation specification
+
+Authority: `docs/product/MASTER-PLAN.md`. This is its detailed Commerce implementation specification, not a competing roadmap. Owner approved the recommended catalogue-first approach after providing product-editor and multi-select media-library references.
+
+## Decisions and limits
+
+- Reuse Laravel Commerce, Categories, Series organizer, Website Media, draft/revision/preview/publish and transfer services. Reuse the Agency OS interaction patterns, not its invented defaults or a second authentication/data store.
+- React storefront is the frontend target. Keep authoritative prices, variants, quote/basket mapping and publication aligned before product-backend cutover. Media key sync is separate from product price/content sync.
+- Regular + optional lower sale price, optional UTC start/end (end exclusive), explicit per-variant prices/sales. No implicit variant discount. Manual Hot/Featured flags and featured order, not invented verified bestsellers.
+- Home/Office → groups → leaves. Multiple categories + one primary; parent/group assignments remain allowed to preserve current data. Series are independent collections.
+- Save draft and Publish/Update are separate. Quick edit never publishes and resets review. Keep exact saved-preview and permission gates.
+- Uploaded video plus approved YouTube/Vimeo embeds are the proposed video target, pending storage/codec/embedding acceptance. Neither is claimed implemented in Phase1. No arbitrary iframe HTML or remote-fetch URLs.
+- Preserve all existing products, media, originals and revision references. No production changes, database reset, fabricated records/photos/stock/reviews or silent publication.
+
+## Audited flow and findings
+
+1. **Existing native flow:** Products → full editor → identity/pricing/classification/variants/content/SEO + private gallery → save → own saved preview → review + explicit publish. Portable image transfer, confirmed bulk draft classification and archive/withdraw already exist. Website Media reuse retains immutable master references; React `/img/…` replacement sync is opt-in.
+2. **View-only search defect:** list projected published card identity, but SQL search matched newer draft names. A viewer could test a private draft name through search results. Fixed by querying the product-owned published revision for search/classification and projecting it before Blade; test reproduces the old leak and verifies isolation.
+3. **Quick-edit gap:** only full editor existed. Added a locked product/version quick editor for name, regular/sale pricing/schedule, availability, categories/primary, Series and Hot/Featured/order. Merge only allowed fields into the saved full draft, retaining descriptions, galleries, variants and publication pointer. Optimistic conflict rejection and archived-product protection remain enforced.
+4. **Classification ambiguity:** bulk choices used bare category names. Full ancestry paths now appear in quick edit, bulk choices and list filters. Filters currently match directly assigned categories/Series; descendant-inclusive group filtering remains a later hierarchy improvement.
+5. **Hidden bulk selections:** search/status changes previously retained selected IDs. Filters now reset selection and confirmation so hidden rows cannot be accidentally acted on.
+6. **Published status:** published filtering/count now exclude archived rows. View-only totals omit draft/archive counts and view-only cards do not expose newer review issues. Published search/filter metadata uses the saved snapshot, not draft metadata.
+7. **Merchandising gap:** added native draft sale schedules, manual flags/order and independent variant sale fields. Integer-cent comparison, lower-price rules, date format/window validation and UTC boundary evaluation. Older drafts/packages receive safe defaults; new fields survive validation/export/revisions. Saved preview evaluates current sale windows. Live React prices are intentionally unchanged until the authoritative cutover phase.
+8. **Agency OS reference cautions:** legacy ProductEditor uses fallback stock10/99, prefilled photo/content/options and rating/review fields. Do not copy those defaults. Its product table/shape is not the native revision schema.
+9. **Existing category safety is reusable:** parent edits already lock the tree and reject self/ancestor cycles; reorder already validates sibling groups and tree fingerprints. Extend those controls rather than implementing another taxonomy. Keep full category-content/carousel editor plus Quick Edit.
+10. **Media/video gap:** current product picker selects one image and closes; image reorder/remove exists. A true multi-select staging tray and mixed image/video gallery, poster handling, portable video transfer and frontend playback are still required. Screenshot behavior is a target, not current functionality.
+11. **Runtime limitation:** exact supplied Arena origin previously closed connections in sandbox probes; authenticated local Products/preview work. Do not call an external transport issue fixed by local UI changes. Permanent Laravel upstream/storage remains a deployment prerequisite.
+
+## Delivery phases and acceptance
+
+### Phase1 — product management cleanup and merchandising drafts (this slice)
+
+Quick edit; full-path classification choices + category/Series filters; clear hidden selections; published-snapshot search isolation; sale schedule + Hot/Featured/order in full and quick editor; independent variant sale fields; active sale prices in saved native preview. Drafts/older packages remain compatible. Regression tests cover privacy, permissions, optimistic conflicts, content/publication retention, money/date validation and UTC boundaries. No new publications or source product mutations are needed for browser layout tests.
+
+### Phase2 — shared media selection and gallery/video workflow
+
+Extend **existing Website Media and its picker** with image/video kinds, upload and library tabs, searchable folder grid, multi-select, details sidebar, staged selection count and explicit Add to gallery. Preserve current image IDs and old revision references. Add/remove/reorder staged slots, set primary/poster and per-slot alt/caption, then Save/Publish. Removal detaches the slot; do not delete shared bytes.
+
+Video requirements: allowlisted YouTube/Vimeo IDs only (no arbitrary iframe markup), MP4/WebM codec/container inspection rather than trusting filename/MIME, bounded upload/storage/processing budgets, processing/error states, required poster image, keyboard-accessible playback, no autoplay with sound, lazy loading and portable-transfer versioning. Derive actual duration/dimensions when tooling is available; do not invent metadata. Private drafts never become public merely by uploading. Prove video preview/playback and publication before enabling the frontend feature.
+
+### Phase3 — hierarchy, Series and Shop management
+
+Extend existing category tree with descendant-inclusive catalogue filters/counts, explicit move target/ancestor paths, inactive-branch warnings, assignment-impact preview and rollback-safe moves; keep existing cycle/concurrency/order safeguards. Category deletion must account for descendants and actual assignments. Preserve custom content/carousels and reviewed slug/redirect behavior.
+
+Extend Series organizer into collections with membership, manual/automatic rules, order, hero/SEO, draft/preview/publish and empty states. Build Shop's section configuration by reusing existing content/revision patterns: category sections, featured/manual-hot, active-sale and Series sections; real products only, ordered deterministically. Draft-only products must never appear as live recommendations. Leave Soon labels honest until working acceptance.
+
+### Phase4 — authoritative React catalogue projection and product cutover
+
+Publish immutable native product/variant/merchandising/media snapshots through an allowlisted projection; validate source/external IDs and quote/basket mappings. Compute effective sale prices server-side for catalogue display AND quote/order totals using the same service and clock; UTC transitions must work without scheduled rewrites or rebuilds. Tie frontend cache versions to publication, with last-known-good behavior, rollback and visible connection state. Do not mix a native displayed discount with legacy checkout pricing. Confirm permanent origin, persistent media and production acceptance before switching traffic. Separate media-only sync does not satisfy this gate.
+
+### Phase5 — operational Commerce (later)
+
+After catalogue/shop acceptance: Orders → Delivery & Installation → Support & Warranty → Operations. Define stock reservations, payments, returns/refunds and audit/reconciliation against real integrations before implementation. Existing screens retain their own permissions and remain clearly legacy/Soon where appropriate; no fake operational metrics.
+
+## Reuse map
+
+- Native management: `app/Livewire/Admin/Commerce/{Products,ProductEditor,Categories,CategoryEditor,SeriesManager,CommerceWorkspace}`.
+- Validation/revisions/media/transfer: `Domain/Commerce/Services/{ProductCatalogue,ProductMerchandising,ProductTransfer,ProductLibrary,CategoryContent}`.
+- Existing library + preservation: `Livewire/Admin/Website/MediaLibrary`, `Domain/Website/Models/Media`, `Domain/Website/Services/StorefrontMedia`, `Domain/Media/Services/MasterMedia`.
+- Agency reference: `apps/dashboard/src/pages/{ProductEditor,Catalog}.tsx`; React frontend: `apps/storefront/src/lib/{runtime,mediaSync,nativeCategories}` and actual product/gallery components.
+- New phase1 regression: `tests/Feature/CommerceWorkflowTest.php`; retain NativeProducts, media, category, transfer and RBAC tests.

@@ -29,11 +29,13 @@ final class ProductCatalogue
             'category_ids' => [], 'primary_category_id' => '', 'series_ids' => [], 'price' => '', 'availability' => 'on_request',
             'variants' => [], 'images' => [], 'specifications' => [], 'features' => [], 'faqs' => [],
             'seo_title' => '', 'seo_description' => '', 'og_title' => '', 'og_description' => '',
+            'sale_price' => '', 'sale_start' => '', 'sale_end' => '', 'is_hot' => false, 'is_featured' => false, 'featured_position' => 0,
             'related_mode' => 'category', 'related_ids' => [], 'reviewed' => false];
     }
 
     public function validate(array $data, ?Product $product = null): array
     {
+        $data = array_replace($this->defaults(), $data);
         $money = ['nullable', 'string', 'regex:/^\d{1,9}(?:\.\d{1,2})?$/'];
         $valid = Validator::make($data, [
             'name' => ['required', 'string', 'max:160'], 'slug' => ['required', 'string', 'max:140', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('commerce_products', 'slug')->ignore($product?->id)],
@@ -45,7 +47,7 @@ final class ProductCatalogue
             'price' => $money, 'availability' => ['required', Rule::in(['available', 'unavailable', 'on_request'])],
             'variants' => ['array', 'max:100'], 'variants.*.sku' => ['required', 'string', 'max:100', 'distinct'],
             'variants.*.colour' => ['nullable', 'string', 'max:100'], 'variants.*.material' => ['nullable', 'string', 'max:150'], 'variants.*.size' => ['nullable', 'string', 'max:150'],
-            'variants.*.price' => $money, 'variants.*.availability' => ['required', Rule::in(['available', 'unavailable', 'on_request'])],
+            'variants.*.price' => $money, 'variants.*.sale_price' => $money, 'variants.*.sale_start' => ['nullable', 'date_format:Y-m-d\TH:i'], 'variants.*.sale_end' => ['nullable', 'date_format:Y-m-d\TH:i'], 'variants.*.availability' => ['required', Rule::in(['available', 'unavailable', 'on_request'])],
             'images' => ['array', 'max:24'], 'images.*.id' => ['required', 'integer', 'distinct', Rule::exists('commerce_product_media', 'id')->where('product_id', $product?->id ?? 0)],
             'images.*.alt' => ['nullable', 'string', 'max:200'],
             'specifications' => ['array', 'max:60'], 'specifications.*.label' => ['required', 'string', 'max:150'], 'specifications.*.value' => ['required', 'string', 'max:1500'],
@@ -57,7 +59,8 @@ final class ProductCatalogue
             'related_ids.*' => ['integer', 'distinct', Rule::exists('commerce_products', 'id'), Rule::notIn([$product?->id])],
             'reviewed' => ['required', 'boolean'],
         ])->validate();
-        foreach (['variants' => ['sku', 'colour', 'material', 'size', 'price', 'availability'], 'images' => ['id', 'alt'], 'specifications' => ['label', 'value'], 'faqs' => ['question', 'answer']] as $key => $keys) {
+        $merchandising = app(ProductMerchandising::class)->validate($data);
+        foreach (['variants' => ['sku', 'colour', 'material', 'size', 'price', 'availability', 'sale_price', 'sale_start', 'sale_end'], 'images' => ['id', 'alt'], 'specifications' => ['label', 'value'], 'faqs' => ['question', 'answer']] as $key => $keys) {
             $valid[$key] = array_values(array_map(fn ($row) => array_intersect_key($row, array_flip($keys)), $valid[$key]));
         }
         foreach (['category_ids', 'series_ids', 'related_ids'] as $key) {
@@ -66,7 +69,7 @@ final class ProductCatalogue
         $valid['primary_category_id'] = filled($valid['primary_category_id']) ? (int) $valid['primary_category_id'] : null;
         $valid['reviewed'] = (bool) $valid['reviewed'];
 
-        return $valid;
+        return array_replace($valid, array_intersect_key($merchandising, array_flip(['sale_price', 'sale_start', 'sale_end', 'is_hot', 'is_featured', 'featured_position'])));
     }
 
     public function save(?Product $product, array $data, int $version, User $user): Product
