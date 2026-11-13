@@ -23,7 +23,7 @@ beforeEach(function () {
 });
 
 it('saves immutable private collection revisions without changing menu identity or product assignments', function () {
-    $before = $this->product->draft;
+    $before = $this->product->fresh()->draft;
     $slug = $this->series->slug;
     $component = Livewire::test(SeriesEditor::class, ['series' => $this->series])->set('form', $this->content)->call('saveDraft')->assertHasNoErrors()->assertSet('version', 1);
     $first = $this->series->fresh()->draft_revision_id;

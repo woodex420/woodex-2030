@@ -76,11 +76,13 @@ it('normalizes legacy source order without rewriting revisions and rejects unall
     $legacy = array_replace($this->service->defaults(), ['sections' => [array_replace($this->service->section(), ['heading' => 'Legacy', 'product_ids' => [$product->id]])]]);
     unset($legacy['sections'][0]['sort']);
     $id = DB::table('shop_content_revisions')->insertGetId(['content' => json_encode($legacy), 'created_by' => $this->editor->id, 'created_at' => now()]);
+    // Preserve exact stored history, independent of MySQL JSON key ordering.
+    $persisted = $this->service->revision($id)->content;
     DB::table('commerce_shop_state')->where('id', 1)->update(['draft_revision_id' => $id, 'version' => 1]);
     $component = Livewire::test(ShopEditor::class)->assertSet('form.sections.0.sort', 'source');
     $this->get(route('admin.commerce.shop-content.preview', $id))->assertOk();
     $component->set('confirmPublish', true)->call('publish')->assertHasNoErrors();
-    expect(json_decode($this->service->revision($id)->content, true))->toBe($legacy);
+    expect($this->service->revision($id)->content)->toBe($persisted);
     $legacy['sections'][0]['sort'] = 'price-sql';
     expect(fn () => $this->service->validate($legacy))->toThrow(ValidationException::class);
 });

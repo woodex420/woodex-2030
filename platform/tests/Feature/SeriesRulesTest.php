@@ -86,9 +86,11 @@ it('loads and publishes legacy manual revisions without adding fields to immutab
     $product = ruleProduct($this, 'rule-legacy', 'Legacy manual product');
     $legacy = ['heading' => 'Legacy collection', 'intro' => '', 'seo_title' => 'Legacy title', 'seo_description' => '', 'product_ids' => [$product->id]];
     $id = DB::table('series_content_revisions')->insertGetId(['series_id' => $this->series->id, 'content' => json_encode($legacy), 'created_by' => $this->editor->id, 'created_at' => now()]);
+    // Compare persisted snapshots: MySQL JSON normalizes object key order.
+    $persisted = DB::table('series_content_revisions')->where('id', $id)->value('content');
     $this->series->update(['draft_revision_id' => $id, 'content_version' => 1]);
     $component = Livewire::test(SeriesEditor::class, ['series' => $this->series->fresh()])->assertSet('form.membership_mode', 'manual');
     $this->get(route('admin.commerce.series-content.preview', $id))->assertOk()->assertSee('Legacy manual product');
     $component->set('confirmPublish', true)->call('publish')->assertHasNoErrors();
-    expect(json_decode(DB::table('series_content_revisions')->where('id', $id)->value('content'), true))->toBe($legacy);
+    expect(DB::table('series_content_revisions')->where('id', $id)->value('content'))->toBe($persisted);
 });

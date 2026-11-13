@@ -32,7 +32,7 @@ it('counts distinct branch products and separates saved drafts from owned public
 });
 
 it('requires a preview and explicit confirmation then retains assignments and publication while moving the branch', function () {
-    $draft = $this->product->draft;
+    $draft = $this->product->fresh()->draft;
     $pointer = $this->product->published_revision_id;
     $component = Livewire::test(Categories::class)->call('edit', $this->root->id)->set('form.parent_id', $this->destination->id)
         ->call('save')->assertHasErrors('move')->call('previewMove')->assertSet('moveImpact.descendants', 1)->assertSet('moveImpact.draft_products', 1)
