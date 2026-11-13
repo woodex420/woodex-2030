@@ -3,13 +3,8 @@ run-name: Staging package — ${{ github.sha }}
 on:
   push:
     branches: ["arena/69363bda-woodex-2030"]
-    paths: [".github/workflows/hostinger-staging.yml", "deploy/hostinger/ssh-preflight.sh"]
+    paths: [".github/workflows/hostinger-staging.yml", "deploy/hostinger/**", "platform/**", "index.php", ".htaccess", "scripts/test-laravel-entrypoint.mjs"]
   workflow_dispatch:
-    inputs:
-      check_hostinger:
-        description: Run read-only SSH readiness checks using the staging environment secrets
-        type: boolean
-        default: false
 permissions:
   contents: read
 jobs:
@@ -29,6 +24,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Test entrypoint and release validator in isolation
+        run: |
+          PHP_BINARY="$(command -v php)" node scripts/test-laravel-entrypoint.mjs
+          python3 deploy/hostinger/verify-release.py --self-test
       - name: Install locked production PHP dependencies
         working-directory: platform
         run: |
@@ -52,32 +51,11 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > release/source-commit.txt
           printf '%s\n' 'PRIVATE application candidate. Never extract into public_html.' 'No .env, owner account, database writes, seed or migration execution included.' 'Requires a verified private app directory and a public root exposing public/ only.' 'Does not include the uncommitted local implementation. Verify source-commit.txt.' > release/README.txt
           cd release && sha256sum woodex-laravel-private.tar.gz > SHA256SUMS
+      - name: Verify private package before publishing
+        run: python3 deploy/hostinger/verify-release.py release/woodex-laravel-private.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: woodex-laravel-private-${{ github.sha }}
           path: release/
           retention-days: 7
           if-no-files-found: error
-  ssh-readiness:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_hostinger }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    environment: hostinger-staging
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Check SSH runtime without changing hosting
-        env:
-          SSH_KEY: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
-          KNOWN_HOSTS: ${{ secrets.HOSTINGER_SSH_KNOWN_HOSTS }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
-          install -d -m 700 "$HOME/.ssh"
-          trap 'rm -f "$HOME/.ssh/staging_key" "$HOME/.ssh/staging_known_hosts"' EXIT
-          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/staging_key"
-          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/staging_known_hosts"
-          chmod 600 "$HOME/.ssh/staging_key" "$HOME/.ssh/staging_known_hosts"
-          ssh -i "$HOME/.ssh/staging_key" -p 65002 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/staging_known_hosts" u128159657@72.60.93.138 'bash -s' < deploy/hostinger/ssh-preflight.sh
