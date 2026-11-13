@@ -10,6 +10,7 @@ RewriteEngine On
 RewriteRule (^|/)\. - [F,END]
 RewriteRule ^(?:platform|apps|api-source|deploy|docs|scripts|node_modules|vendor|storage|tests|resources|bootstrap|config|database)(?:/|$) - [F,END,NC]
 RewriteRule ^(?:install)(?:/|$) - [F,END,NC]
+RewriteRule ^(?:composer\.(?:json|lock)|package(?:-lock)?\.json|README\.md|AGENTS\.md|vercel\.json)$ - [F,END,NC]
 
 # Keep the owner-approved frontend destination; do not forward private query strings.
 RewriteRule ^$ https://woodex-2030.vercel.app/ [R=302,END,QSD]
