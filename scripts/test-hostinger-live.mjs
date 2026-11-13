@@ -9,9 +9,13 @@ async function request(path) {
     headers: { 'User-Agent': 'Woodex-Staging-Acceptance/1.0', 'Cache-Control': 'no-cache' },
   });
   const body = (await response.text()).slice(0, 200000);
+  // Metadata only: never publish response bodies, cookies, redirect queries or credentials.
+  const pathname = path.split('?')[0];
+  console.log(`::notice title=Staging HTTP probe::${pathname.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A')} HTTP ${response.status}`);
   assert.doesNotMatch(body, /-----BEGIN (?:OPENSSH |RSA )?PRIVATE KEY-----|APP_KEY=base64:|Illuminate\\.*Stack trace/i, 'Sensitive debug/source response');
   return { response, body };
 }
+try {
 const root = await request('/');
 assert.equal(root.response.status, 302, 'Staging homepage must keep its temporary frontend redirect');
 assert.equal(root.response.headers.get('location'), 'https://woodex-2030.vercel.app/');
@@ -46,3 +50,10 @@ for (let redirects = 0; redirects < 6; redirects++) {
 assert.ok(login, 'Admin redirect loop or missing login');
 checks.push(`native login at ${login}`);
 console.log(`PASS hosted read-only staging smoke: ${checks.join('; ')}. Authentication, database writes and TOTP not tested.`);
+
+} catch (error) {
+  const summary = String(error.message).split('\n')[0].slice(0, 400)
+    .replaceAll('%', '%25').replaceAll('\r', '%0D');
+  console.error(`::error title=Live staging acceptance failure::${summary}`);
+  process.exitCode = 1;
+}
