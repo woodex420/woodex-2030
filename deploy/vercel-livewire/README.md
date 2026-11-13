@@ -15,3 +15,9 @@ Required runtime configuration: stable APP_KEY, explicit APP_URL, isolated compa
 Only /build static assets are exposed; other requests route through Laravel including Livewire updates and auth/TOTP routes. No source/vendor public filesystem route. Installer/security middleware remains intact. Deployment protection must stay enabled for initial preview. Do not change the existing project's runtime/settings/aliases to this package until its dependencies and isolated database are ready.
 
 Current evidence: package extraction/config assertions and no-overwrite guard passed. No local PHP executable is available in this session; PHP lint/runtime tests not run. Native deployment, login/TOTP and Livewire interactions are not yet accepted. Packaging is the first implemented step, not complete admin delivery.
+
+## Runtime validation follow-up
+
+A cached PHP8.4.21 executable was discovered at /home/user/.cache/woodex-os/php/php; the earlier statement that PHP was unavailable was incorrect. Entry syntax and missing-configuration response were exercised successfully. Locked production dependency check exposed missing ext-exif in that local binary; PHP version itself passed. This is not evidence that the Vercel runtime lacks exif. No ignore-platform-reqs workaround is used.
+
+The Vercel Livewire runtime validation workflow installs PHP8.5 with explicit required extensions, packages the committed source, installs locked production dependencies with scripts disabled, and asserts the entry returns503 without credentials. This tests dependency installability and fail-closed behavior, not actual Vercel runtime parity or authenticated Livewire acceptance. It never connects to a hosted DB or deploys a partially configured application.
