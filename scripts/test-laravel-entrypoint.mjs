@@ -11,13 +11,14 @@ if (!php) throw new Error('Set PHP_BINARY to a PHP 8.4.1+ CLI binary. No tests e
 const temp = await mkdtemp(join(tmpdir(), 'woodex-entrypoint-'));
 let child;
 try {
-  await mkdir(join(temp, 'public'));
-  await copyFile(resolve('platform/public/index.php'), join(temp, 'public/index.php'));
+  await mkdir(join(temp, 'platform/public'), { recursive: true });
+  await copyFile(resolve('platform/public/index.php'), join(temp, 'platform/public/index.php'));
+  await copyFile(resolve('index.php'), join(temp, 'index.php'));
   const probe = createServer();
   await new Promise((yes, no) => { probe.once('error', no); probe.listen(0, '127.0.0.1', yes); });
   const port = probe.address().port;
   await new Promise(yes => probe.close(yes));
-  child = spawn(php, ['-S', `127.0.0.1:${port}`, '-t', join(temp, 'public')], { stdio: ['ignore', 'ignore', 'pipe'] });
+  child = spawn(php, ['-S', `127.0.0.1:${port}`, '-t', temp], { stdio: ['ignore', 'ignore', 'pipe'] });
   await new Promise((yes, no) => {
     const timer = setTimeout(() => no(new Error('PHP startup timeout')), 10000);
     child.once('error', error => { clearTimeout(timer); no(error); });

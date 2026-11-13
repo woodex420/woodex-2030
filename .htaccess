@@ -1,0 +1,31 @@
+# Guarded Hostinger staging Git-root bridge.
+# Preferred deployment: private app source, document root platform/public.
+# Never enable directory listings or let existing repository files bypass rules.
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+RewriteEngine On
+
+# Block dotfiles and source/configuration paths, including direct public-path access.
+RewriteRule (^|/)\. - [F,END]
+RewriteRule ^(?:platform|apps|api-source|deploy|docs|scripts|node_modules|vendor|storage|tests|resources|bootstrap|config|database)(?:/|$) - [F,END,NC]
+RewriteRule ^(?:install)(?:/|$) - [F,END,NC]
+
+# Keep the owner-approved frontend destination; do not forward private query strings.
+RewriteRule ^$ https://woodex-2030.vercel.app/ [R=302,END,QSD]
+
+# Only serve explicit public asset types from Laravel's public tree.
+RewriteCond %{DOCUMENT_ROOT}/platform/public/$1 -f
+RewriteRule ^((?:build|assets)/[a-zA-Z0-9_./-]+\.(?:css|js|mjs|png|jpe?g|webp|svg|ico|woff2?|ttf))$ platform/public/$1 [END]
+
+# Real repository files must NOT win. Only the PHP front controller is executable.
+RewriteRule ^index\.php$ - [END]
+RewriteRule ^ index.php [END]
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Robots-Tag "noindex, nofollow"
+</IfModule>
+<IfModule mod_mime.c>
+    AddType text/javascript .mjs
+</IfModule>
