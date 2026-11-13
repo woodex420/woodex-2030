@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
@@ -112,7 +112,22 @@ export function Sidebar({
 }) {
   const { pathname } = useLocation();
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
+  const previousPath = useRef(pathname);
   const toggleGroup = (g: string) => setClosedGroups((c) => ({ ...c, [g]: !c[g] }));
+  const activeDestination = groups.flatMap(group => group.items)
+    .filter(item => (!item.cap || can(item.cap)) && isActive(item.to, pathname))
+    .sort((a, b) => b.to.length - a.to.length)[0]?.to;
+
+  useEffect(() => {
+    // Initial passive effects must not undo a user's immediate manual collapse.
+    if (previousPath.current === pathname) return;
+    previousPath.current = pathname;
+    // A route change reveals its parent, but users can still collapse it manually.
+    setClosedGroups(previous => {
+      const parent = groups.find(group => group.items.some(item => item.to === activeDestination));
+      return parent && previous[parent.label] ? { ...previous, [parent.label]: false } : previous;
+    });
+  }, [pathname, activeDestination]);
 
   const inner = (
     <div className="flex h-full min-h-0 flex-col bg-charcoal-950">
@@ -175,7 +190,7 @@ export function Sidebar({
         {groups.map((g) => {
           const visible = g.items.filter((item) => !item.cap || can(item.cap));
           if (!visible.length) return null;
-          const open = !closedGroups[g.label];
+          const open = collapsed || !closedGroups[g.label];
           return (
             <div key={g.label} className="mb-1.5">
               {!collapsed ? (
@@ -196,13 +211,15 @@ export function Sidebar({
               {open && (
                 <ul className="mt-0.5 space-y-0.5">
                   {visible.map((item) => {
-                    const active = isActive(item.to, pathname);
+                    const active = item.to === activeDestination;
                     const Icon = item.icon;
                     return (
                       <li key={item.label}>
                         <Link
                           to={item.to}
                           title={collapsed ? item.label : undefined}
+                          aria-label={item.label}
+                          aria-current={active ? "page" : undefined}
                           onClick={onCloseMobile}
                           className={cn(
                             "group relative flex h-9 items-center gap-2.5 rounded-control px-2.5 text-small font-medium transition-all duration-150",

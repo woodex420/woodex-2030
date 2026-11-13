@@ -54,7 +54,7 @@ export default function StockReservations() {
   /* Availability for the selected product, so the form can show "you can hold
      at most N" while the number is being typed rather than after a 409. */
   const avail = useApi<{ onHand: number; held: number; available: number }>(
-    form.productId ? `/api/stock-reservations/availability?product_id=${encodeURIComponent(form.productId)}` : "/api/stock-reservations/availability?product_id=",
+    form.productId ? `/api/stock-reservations/availability?product_id=${encodeURIComponent(form.productId)}` : null,
     10000);
 
   const hold = async () => {
