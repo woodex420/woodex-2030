@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import ts from 'typescript';
+import path from 'node:path';
+const filename = path.resolve('apps/storefront/tsconfig.json');
+const raw = ts.readConfigFile(filename, ts.sys.readFile);
+assert.equal(raw.error, undefined);
+const parsed = ts.parseJsonConfigFileContent(raw.config, ts.sys, path.dirname(filename));
+assert.equal(parsed.errors.length, 0);
+assert.equal(parsed.options.jsx, ts.JsxEmit.ReactJSX);
+assert.equal(parsed.options.moduleResolution, ts.ModuleResolutionKind.Bundler);
+assert.equal(parsed.options.target, ts.ScriptTarget.ES2020);
+assert.equal(parsed.options.noEmit, true);
+assert.equal(parsed.fileNames.length, 0, 'Solution config must not inherit app source inclusion alongside references');
+const resolved = ts.resolveModuleName('@/components/ui/button', path.resolve('apps/storefront/src/components/home/WorkspacePlanning.tsx'), parsed.options, ts.sys);
+assert.ok(resolved.resolvedModule, 'Alias must resolve for independently traced storefront files');
+console.log('PASS storefront solution config: JSX, module resolution, target, alias, no duplicate project inclusion');
