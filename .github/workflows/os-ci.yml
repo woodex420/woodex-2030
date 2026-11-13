@@ -129,6 +129,32 @@ jobs:
       - name: Rebuild from nothing a second time
         run: php artisan migrate:fresh --force | tail -3
 
+      - name: Export rebuilt disposable schema and migration records
+        env:
+          MYSQL_PWD: disposable-ci-only
+        run: |
+          mkdir -p ../release-artifacts
+          mysqldump --protocol=TCP -h 127.0.0.1 -uwoodex_test \
+            --single-transaction --no-tablespaces --set-gtid-purged=OFF \
+            --skip-add-drop-table --skip-comments woodex_test > ../release-artifacts/woodex-laravel-staging.sql
+          test -s ../release-artifacts/woodex-laravel-staging.sql
+          printf '%s\n' "$GITHUB_SHA" > ../release-artifacts/source-commit.txt
+          printf '%s\n' 'Generated from a rebuilt disposable MySQL database, not Hostinger.' \
+            'Contains schema, migration records and migration-created defaults only; no neutral seed or admin user.' \
+            'Import only into a verified empty staging database after backup and compatibility review.' \
+            'Does not deploy Laravel, configure secrets, create login credentials or certify Hostinger/MariaDB compatibility.' \
+            > ../release-artifacts/README.txt
+          cd ../release-artifacts
+          sha256sum woodex-laravel-staging.sql > SHA256SUMS
+
+      - name: Upload staging SQL candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: woodex-laravel-staging-sql-${{ github.sha }}
+          path: release-artifacts/
+          retention-days: 7
+          if-no-files-found: error
+
   tests:
     name: Tests on MySQL 8.4 — ${{ matrix.group }}
     runs-on: ubuntu-24.04
