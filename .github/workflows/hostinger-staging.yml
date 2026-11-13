@@ -1,0 +1,83 @@
+name: Hostinger staging release preparation
+run-name: Staging package — ${{ github.sha }}
+on:
+  push:
+    branches: ["arena/69363bda-woodex-2030"]
+    paths: [".github/workflows/hostinger-staging.yml", "deploy/hostinger/ssh-preflight.sh"]
+  workflow_dispatch:
+    inputs:
+      check_hostinger:
+        description: Run read-only SSH readiness checks using the staging environment secrets
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, intl, mbstring, bcmath, zip, gd, exif, dom, xml, xmlwriter, fileinfo, sodium
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked production PHP dependencies
+        working-directory: platform
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --optimize-autoloader
+          composer check-platform-reqs --no-dev
+          APP_ENV=production APP_DEBUG=false php artisan package:discover
+      - name: Build native Laravel admin assets
+        working-directory: platform
+        run: |
+          npm ci
+          npm run build
+          test -s public/build/manifest.json
+      - name: Assemble private application candidate (not a public-root upload)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          test ! -f platform/.env
+          test ! -f platform/bootstrap/cache/config.php
+          tar --exclude='./node_modules' --exclude='./.env*' --exclude='./public/hot' --exclude='./storage/logs/*' --exclude='./storage/framework/cache/data/*' --exclude='./storage/framework/sessions/*' --exclude='./storage/framework/views/*' --exclude='./database/*.sqlite*' --exclude='./tests' -czf release/woodex-laravel-private.tar.gz -C platform .
+          printf '%s\n' "$GITHUB_SHA" > release/source-commit.txt
+          printf '%s\n' 'PRIVATE application candidate. Never extract into public_html.' 'No .env, owner account, database writes, seed or migration execution included.' 'Requires a verified private app directory and a public root exposing public/ only.' 'Does not include the uncommitted local implementation. Verify source-commit.txt.' > release/README.txt
+          cd release && sha256sum woodex-laravel-private.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: woodex-laravel-private-${{ github.sha }}
+          path: release/
+          retention-days: 7
+          if-no-files-found: error
+  ssh-readiness:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_hostinger }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: hostinger-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check SSH runtime without changing hosting
+        env:
+          SSH_KEY: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.HOSTINGER_SSH_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          trap 'rm -f "$HOME/.ssh/staging_key" "$HOME/.ssh/staging_known_hosts"' EXIT
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/staging_key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/staging_known_hosts"
+          chmod 600 "$HOME/.ssh/staging_key" "$HOME/.ssh/staging_known_hosts"
+          ssh -i "$HOME/.ssh/staging_key" -p 65002 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/staging_known_hosts" u128159657@72.60.93.138 'bash -s' < deploy/hostinger/ssh-preflight.sh
