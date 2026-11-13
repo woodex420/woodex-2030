@@ -40,6 +40,21 @@ jobs:
           npm ci
           npm run build
           test -s public/build/manifest.json
+      - name: Prepare dependency-only repair (no application or environment replacement)
+        run: |
+          mkdir -p staging-repair/public
+          cp -a platform/vendor staging-repair/vendor
+          cp -a platform/public/build staging-repair/public/build
+          test -s staging-repair/vendor/autoload.php
+          test -s staging-repair/public/build/manifest.json
+          test ! -e staging-repair/.env
+      - uses: actions/upload-artifact@v4
+        with:
+          name: woodex-staging-dependencies
+          path: staging-repair/
+          retention-days: 7
+          if-no-files-found: error
+          include-hidden-files: true
       - name: Assemble private application candidate (not a public-root upload)
         shell: bash
         run: |
