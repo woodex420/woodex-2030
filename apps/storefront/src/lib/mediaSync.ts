@@ -46,15 +46,23 @@ export function applyMediaMappings() {
   });
 }
 
+/* Where the connection to the Laravel admin is switched off, the API says so
+   ("disabled"). The shop then asks again in ten minutes, not in fifteen
+   seconds: on a site that has the connection off — every site, today — each
+   open page would otherwise send four requests a minute to be told no. A new
+   visit asks at once, so switching the connection on needs no rebuild. */
+const DISABLED_PAUSE_MS = 10 * 60_000;
+let pausedUntil = 0;
+
 export async function syncMediaMappings() {
-  if (pending) return;
+  if (pending || Date.now() < pausedUntil) return;
   pending = true;
   try {
     const response = await fetch('/api/v1/media', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(7000) });
     if (!response.ok) {
       if (response.status === 503) {
         const body = await response.json().catch(() => ({}));
-        if (body.disabled === true) { mappings.clear(); applyMediaMappings(); }
+        if (body.disabled === true) { pausedUntil = Date.now() + DISABLED_PAUSE_MS; mappings.clear(); applyMediaMappings(); }
       }
       return;
     }

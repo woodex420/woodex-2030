@@ -11,18 +11,26 @@ export type NativeCatalogue = { schema: 1; categories: NativeCategory[]; series:
 let current: NativeCatalogue | null = null;
 let signature = '';
 let pending = false;
+/* Where the connection to the Laravel admin is switched off, the API says so
+   ("disabled"). The shop then asks again in ten minutes, not in fifteen
+   seconds: on a site that has the connection off — every site, today — each
+   open page would otherwise send four requests a minute to be told no. A new
+   visit asks at once, so switching the connection on needs no rebuild. */
+const DISABLED_PAUSE_MS = 10 * 60_000;
+let pausedUntil = 0;
 export const nativeCatalogue = () => current;
 export function nativeCategory(id: string) {
   return current?.categories.find(c => c.slug === id || (id === 'office' && c.slug === 'office-furniture') || (id === 'home' && c.slug === 'home-furniture'));
 }
 export async function syncNativeCategories() {
-  if (pending) return;
+  if (pending || Date.now() < pausedUntil) return;
   pending = true;
   try {
     const response = await fetch('/api/v1/catalogue/categories', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(7000) });
     if (!response.ok) {
       if (response.status === 503) {
         const error = await response.json().catch(() => ({}));
+        if (error.disabled === true) pausedUntil = Date.now() + DISABLED_PAUSE_MS;
         if (error.disabled === true && current) { current = null; signature = ''; window.dispatchEvent(new CustomEvent('woodex:runtime')); }
       }
       return;

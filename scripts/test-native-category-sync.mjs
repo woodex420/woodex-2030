@@ -38,4 +38,10 @@ globalThis.fetch = async () => new Response('<script>unsafe</script>', { headers
 res = reply(); await nativeCategoryBridge({ NATIVE_CATALOGUE_ORIGIN: 'https://native.example.test' })(req, res); assert.equal(res.statusCode, 502);
 globalThis.fetch = async () => Response.json({ disabled: true }, { status: 503 });
 await api.syncNativeCategories(); assert.equal(api.nativeCatalogue(), null); assert.equal(api.categorySegments()[0].id, 'office');
+// Told "disabled", the shop does not ask again fifteen seconds later.
+let askedAfterDisabled = 0; globalThis.fetch = async () => { askedAfterDisabled++; return Response.json(fixture); };
+await api.syncNativeCategories(); assert.equal(askedAfterDisabled, 0, 'After "disabled" the next poll is not sent');
+const realNow = Date.now; Date.now = () => realNow() + 11 * 60_000;
+await api.syncNativeCategories(); assert.equal(askedAfterDisabled, 1, 'Ten minutes after "disabled" the shop asks again');
+assert.equal(api.categorySegments()[0].name, 'Home renamed', '…and takes the categories it is given');
 console.log('Native category sync: dynamic names/order/descendants, Series, last-good outage, explicit rollback, schema rejection and read-only bridge safety passed.');

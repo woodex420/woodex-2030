@@ -17,8 +17,14 @@ await api.syncMediaMappings(); assert.equal(document.querySelector('#photo').get
 globalThis.fetch = async () => Response.json({ disabled: true }, { status: 503 });
 await api.syncMediaMappings(); assert.equal(document.querySelector('#photo').getAttribute('src'), '/img/chair.png');
 assert.match(document.querySelector('#hero').getAttribute('style'), /\/img\/chair.png/);
-globalThis.fetch = async () => Response.json({ schema: 1, items: [{ key: '/img/chair.png', url: '/api/v1/media/3/5' }] });
-await api.syncMediaMappings();
+// Told "disabled", the shop does not ask again at once; ten minutes later it does.
+let mediaAsked = 0;
+globalThis.fetch = async () => { mediaAsked++; return Response.json({ schema: 1, items: [{ key: '/img/chair.png', url: '/api/v1/media/3/5' }] }); };
+await api.syncMediaMappings(); assert.equal(mediaAsked, 0, 'After "disabled" the next poll is not sent');
+const realNow = Date.now; Date.now = () => realNow() + 11 * 60_000;
+await api.syncMediaMappings(); assert.equal(mediaAsked, 1, 'Ten minutes after "disabled" the shop asks again');
+// The replacement must really be on the page before its failure is simulated: otherwise the fallback below proves nothing.
+assert.equal(document.querySelector('#photo').getAttribute('src'), '/api/v1/media/3/5');
 document.querySelector('#photo').dispatchEvent(new dom.window.Event('error'));
 assert.equal(document.querySelector('#photo').getAttribute('src'), '/img/chair.png');
 api.applyMediaMappings(); assert.equal(document.querySelector('#photo').getAttribute('src'), '/img/chair.png');
