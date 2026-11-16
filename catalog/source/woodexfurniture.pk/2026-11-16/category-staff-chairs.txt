@@ -1,0 +1,13 @@
+# Source: https://woodexfurniture.pk/categories/staff-chairs   label: Staff Chairs   page says: 11 of 11 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+grid-staff-chair | Grid Staff Chair | 0 |  | 1772822635_Grid%20staff%20chair.webp
+lite-compact-staff-chair | Lite Compact Staff Chair | 0 |  | 1772822879_Lite-Compact-Staff-Chair.jpg
+max-staff-chair | Max Staff Chair | 0 |  | 1772822948_Max%20Staff%20Chair.jpg
+pace-staff-chair | Pace Staff Chair | 0 |  | 1772823049_Pace-Staff-Chair.jpg
+support-staff-chair | Support Staff Chair | 0 |  | 1772823148_Premium-Staff-Chair.jpg
+signal-staff-chair | Signal Staff Chair | 0 |  | 1772823221_Signal-Staff-Chair.jpg
+rock-solid-staff-chair | Rock Solid Staff Chair | 0 |  | 1772823312_Rock-Solid-Staff-Chair.jpg
+premium-staff-chair | Premium Staff Chair | 0 |  | 1772823381_Premium-Staff-Chair.jpg
+task-master-staff-chair | Task Master Staff Chair | 0 |  | 1772823451_Task-Master-Staff-Chair.jpg
+unit-staff-chair | Unit Staff Chair | 0 |  | 1772823612_Unit%20Staff%20Chair.jpg
+wave-comfort-staff-chair | Wave Comfort Staff Chair | 0 |  | 1772823681_Wave-Comfort-Staff-Chair.jpg

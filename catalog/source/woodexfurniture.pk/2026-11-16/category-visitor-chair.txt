@@ -1,0 +1,18 @@
+# Source: https://woodexfurniture.pk/categories/visitor-chair   label: Visitor Chair   page says: 16 of 16 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+back-support-visitor-chair | Back Support Visitor Chair | 15,500 |  | 69aae90f3a74a.jpg
+balance-visitor-chair | Balance Visitor Chair | 10,500 |  | 1772808615_Balance%20Visitor%20Chair.jpg
+clarity-manager-visitor-chair | Clarity Manager Visitor Chair | 14,500 |  | 1772808714_Clarity%20Manager%20Visitor%20Chair.jpg
+curve-visitor-chair | Curve Visitor Chair | 11,500 |  | 1772808842_Curve%20Visitor%20Chair.jpg
+quad-conference-visitor-chair | QUAD Conference Visitor Chair | 10,500 |  | 1772808948_QUAD%20Conference%20Visitor%20Chair.jpg
+back-support-visitor-chair-1772809047 | Back Support Visitor Chair | 15,500 |  | 1772809047_Back%20Support%20Visitor%20Chair.jpg
+star-visitor-chair | Star Visitor Chair | 16,500 |  | 1772809140_Star%20Visitor%20Chair.jpg
+edge-executive-visitor-chair | Edge Executive Visitor Chair | 25,000 |  | 1772809229_Edge%20Executive%20Visitor%20Chair.jpg
+grid-conference-visitor-chair | Grid Conference Visitor Chair | 28,500 |  | 1772809306_Grid%20Conference%20Visitor%20Chair.jpg
+line-visitor-chair | Line Visitor Chair | 11,500 |  | 1772809377_Line%20Visitor%20Chair.jpg
+welcome-visitor-chair | Welcome Visitor Chair | 14,500 |  | 1772809448_Welcome%20Visitor%20Chair.jpg
+wing-conference-visitor-chair | WING Conference Visitor Chair | 15,000 |  | 1772809524_WING%20Conference%20Visitor%20Chair.jpg
+prime-manager-visitor-chair | Prime Manager Visitor Chair | 28,500 |  | 1772809590_Prime%20Manager%20Visitor%20Chair.jpg
+comfort-conference-visitor-chair | Comfort Conference Visitor Chair | 85,000 |  | 1772809674_Comfort%20Conference%20Visitor%20Chair.jpg
+swan-executive-visitor-chair | SWAN Executive Visitor Chair | 38,000 |  | 1772809747_SWAN-Executive-Visitor-Chair.jpg
+crown-executive-visitor-chair | Crown Executive Visitor Chair | 38,500 |  | 1772809837_Crown%20Executive%20Visitor%20Chair.jpg
