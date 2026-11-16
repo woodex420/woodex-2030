@@ -1,10 +1,14 @@
 /*
  * Woodex OS admin: Tailwind v4 + TailAdmin layout utilities + Preline v5 plugin variants.
  *
- * The look is the Agency OS look (docs/woodex-os/spec/05-ADMIN-IA-AND-UX.md §5, decision DL-007):
- * a charcoal sidebar, white surfaces on a light canvas, WOODEX green for primary actions, Inter.
- * The values are the ones the React dashboard uses (apps/dashboard/src/index.css), so the two admins
- * look alike while both are in use.
+ * One global design, taken from the storefront (decision DL-013): the store's font (Inter), its
+ * charcoal, its green, its plain greys and its small corners. The values come from
+ * apps/storefront/src/index.css; tests/Unit/AdminDesignTokensTest.php compares the two files, so the
+ * shop and the admin cannot drift apart unnoticed. (Until DL-013 the palette was the React dashboard's.)
+ *
+ * Two of the store's values are not used as they are, because text in them is too faint (WCAG AA):
+ * white on the store green #629924 is 3.4:1, so filled controls use a darker step of the same green;
+ * and the store's secondary text #737373 is 4.35:1 on its own grey surface, so the admin uses #6b6b6b.
  *
  * Colours are set in two places only, both in this file: the scales in @theme below, and the --wx-*
  * roles under ":root". Blade names a role or a scale step, never a hex value.
@@ -41,50 +45,59 @@
   --text-title-md: 36px;
   --text-title-md--line-height: 44px;
 
-  /* Admin neutrals: the charcoal/slate scale of the Agency OS look. tokens.css stays unchanged for the website/PDFs. */
-  --color-navy-50: #f8f9f9;
-  --color-navy-100: #f1f3f4;
-  --color-navy-200: #e5e8ea;
-  --color-navy-300: #d2d7da;
-  --color-navy-400: #a2aab0;
-  --color-navy-500: #66717a;
-  --color-navy-600: #47515a;
-  --color-navy-700: #353c42;
-  --color-navy-800: #252b30;
-  --color-navy-900: #1d2226;
-  --color-navy-950: #171b1e;
+  /* Admin neutrals: the store's charcoal (hsl 210 11% x) for the dark steps, its plain greys for the
+     light ones. tokens.css stays unchanged for the website/PDFs. */
+  --color-navy-50: #fafafa;
+  --color-navy-100: #f5f5f5;
+  --color-navy-200: #e0e0e0;
+  --color-navy-300: #d4d4d4;
+  --color-navy-400: #a8adb3;
+  --color-navy-500: #6b6b6b;
+  --color-navy-600: #49525b;
+  --color-navy-700: #394047;
+  --color-navy-800: #2d3339;
+  --color-navy-900: #22262a;
+  --color-navy-950: #17191c;
 
   /* Legacy brand utility names remain valid in the admin bundle. */
-  /* WOODEX green. brand-400 is the logo green (#4f9d21): for accents that carry no text — white on it is
-     only 3.4:1. brand-500 is the fill that carries white text (4.55:1); every "bg-brand-500 text-white"
-     in the views is therefore readable. */
-  --color-brand-25: #fafdf8;
-  --color-brand-50: #f5faf1;
-  --color-brand-100: #eaf5e3;
-  --color-brand-200: #cfe8c0;
-  --color-brand-300: #a9d68f;
-  --color-brand-400: #4f9d21;
-  --color-brand-500: #43851c;
-  --color-brand-600: #376f18;
-  --color-brand-700: #2c5913;
-  --color-brand-800: #23470f;
-  --color-brand-900: #1b370c;
-  --color-brand-950: #102207;
+  /* The store's green (hsl 88 62% x). brand-400 is the store accent itself (#629924): for accents that
+     carry no text — white on it is only 3.4:1. brand-500 is the fill that carries white text (4.7:1);
+     every "bg-brand-500 text-white" in the views is therefore readable. */
+  --color-brand-25: #fafdf6;
+  --color-brand-50: #f5fbee;
+  --color-brand-100: #ebf6df;
+  --color-brand-200: #d3e8ba;
+  --color-brand-300: #b0d685;
+  --color-brand-400: #629924;
+  --color-brand-500: #52801e;
+  --color-brand-600: #4d781c;
+  --color-brand-700: #426718;
+  --color-brand-800: #355313;
+  --color-brand-900: #283e0f;
+  --color-brand-950: #1a2a0a;
 
   /* TailAdmin neutrals and status colours */
-  --color-gray-25: #fcfcfd;
-  --color-gray-50: #f8f9f9;
-  --color-gray-100: #f1f3f4;
-  --color-gray-200: #e5e8ea;
-  --color-gray-300: #d2d7da;
-  /* 400 and 500 are the same on purpose: both are used for text, and #7b858d is only 3.8:1 on white. */
-  --color-gray-400: #66717a;
-  --color-gray-500: #66717a;
-  --color-gray-600: #47515a;
-  --color-gray-700: #353c42;
-  --color-gray-800: #252b30;
-  --color-gray-900: #1d2226;
-  --color-gray-950: #171b1e;
+  --color-gray-25: #fcfcfc;
+  --color-gray-50: #fafafa;
+  --color-gray-100: #f5f5f5;
+  --color-gray-200: #e0e0e0;
+  --color-gray-300: #d4d4d4;
+  /* 400 and 500 are the same on purpose: both are used for text, and a lighter grey is not readable. */
+  --color-gray-400: #6b6b6b;
+  --color-gray-500: #6b6b6b;
+  --color-gray-600: #525252;
+  --color-gray-700: #404040;
+  --color-gray-800: #2b2b2b;
+  --color-gray-900: #1f1f1f;
+  --color-gray-950: #171717;
+
+  /* Corners, as in the store (--radius: 0.25rem): controls 4px, cards 8px. Every rounded-* utility in the
+     views follows from these five values. */
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.75rem;
 
   --color-success-50: #e9f4ee;
   --color-success-100: #d3eadd;
@@ -114,7 +127,7 @@
   --shadow-theme-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.1), 0px 1px 2px 0px rgba(16, 24, 40, 0.06);
   --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
   --shadow-theme-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
-  --shadow-focus-ring: 0px 0px 0px 4px rgba(79, 157, 33, 0.22);
+  --shadow-focus-ring: 0px 0px 0px 4px rgba(98, 153, 36, 0.22);
 }
 
 @layer base {
@@ -284,52 +297,51 @@ button.wx-summary-card:hover { border-color:var(--color-navy-300); background:va
 /* Current79: neutral charcoal Light / Dark / System surfaces. Admin bundle only;
    public v1, document iframe styles and frozen PDF renderers retain their own paper palette. */
 :root {
-  --wx-page: #f6f7f8;
+  --wx-page: #f7f7f7;
   --wx-surface: #ffffff;
-  /* A shade lighter than slate-100 (#f1f3f4): the secondary text is 4.48:1 on that, 4.56:1 on this. */
-  --wx-elevated: #f3f5f6;
-  --wx-text: #1d2226;
-  --wx-muted: #66717a;
-  --wx-border: #e5e8ea;
-  --wx-control-border: #7b858d;
-  --wx-primary: #43851c;
-  --wx-primary-hover: #376f18;
+  --wx-elevated: #f5f5f5;
+  --wx-text: #1f1f1f;
+  --wx-muted: #6b6b6b;
+  --wx-border: #e0e0e0;
+  --wx-control-border: #858585;
+  --wx-primary: #52801e;
+  --wx-primary-hover: #4d781c;
   --wx-on-primary: #ffffff;
-  --wx-accent: #4f9d21;
-  --wx-focus: #43851c;
-  --wx-chat-canvas: #f3f5f6;
+  --wx-accent: #629924;
+  --wx-focus: #52801e;
+  --wx-chat-canvas: #f5f5f5;
 
-  /* The sidebar: charcoal, in the light theme and in the dark one. */
-  --wx-sidebar-bg: #171b1e;
-  --wx-sidebar-border: #252b30;
-  --wx-sidebar-text: #d2d7da;
+  /* The sidebar: the store's charcoal, in the light theme and in the dark one. */
+  --wx-sidebar-bg: #22262a;
+  --wx-sidebar-border: #2d3339;
+  --wx-sidebar-text: #d4d7da;
   --wx-sidebar-strong: #ffffff;
-  --wx-sidebar-muted: #a2aab0;
-  --wx-sidebar-hover: #252b30;
-  --wx-sidebar-active: #2d343a;
-  --wx-sidebar-accent: #4f9d21;
-  --wx-sidebar-focus: #7fc457;
+  --wx-sidebar-muted: #a8adb3;
+  --wx-sidebar-hover: #2d3339;
+  --wx-sidebar-active: #394047;
+  --wx-sidebar-accent: #91d345;
+  --wx-sidebar-focus: #91d345;
 }
 :root.dark {
-  --wx-page: #171b1e;
-  --wx-surface: #1d2226;
-  --wx-elevated: #252b30;
-  --wx-text: #f1f3f4;
-  --wx-muted: #a2aab0;
-  --wx-border: #353c42;
-  --wx-control-border: #7b858d;
-  --wx-primary: #4f9d21;
-  --wx-primary-hover: #5fb32a;
-  --wx-on-primary: #0d1110;
-  --wx-accent: #4f9d21;
-  --wx-focus: #7fc457;
-  --wx-chat-canvas: #171b1e;
-  --wx-sidebar-bg: #121518;
-  --wx-sidebar-border: #252b30;
-  --color-gray-400: #a2aab0;
-  --color-gray-500: #a2aab0;
-  --color-gray-900: #1d2226;
-  --color-gray-950: #171b1e;
+  --wx-page: #17191c;
+  --wx-surface: #22262a;
+  --wx-elevated: #2d3339;
+  --wx-text: #f2f2f2;
+  --wx-muted: #a8adb3;
+  --wx-border: #394047;
+  --wx-control-border: #858585;
+  --wx-primary: #629924;
+  --wx-primary-hover: #6fae29;
+  --wx-on-primary: #0f1410;
+  --wx-accent: #629924;
+  --wx-focus: #91d345;
+  --wx-chat-canvas: #17191c;
+  --wx-sidebar-bg: #1b1e22;
+  --wx-sidebar-border: #2d3339;
+  --color-gray-400: #a8adb3;
+  --color-gray-500: #a8adb3;
+  --color-gray-900: #22262a;
+  --color-gray-950: #17191c;
 }
 body.wx-admin { background:var(--wx-page); color:var(--wx-text); }
 .wx-admin :is(.text-gray-400,.text-gray-500):not([class*="dark:text-"]) { color:var(--wx-muted); }

@@ -90,15 +90,56 @@ it('keeps the scale steps that carry text readable', function () {
     }
 });
 
-it('uses the palette of the Agency OS look', function () {
+it('uses the storefront\'s palette', function () {
     $roles = wxRoles(':root');
 
-    expect($roles['--wx-sidebar-bg'])->toBe('#171b1e')
-        ->and($roles['--wx-page'])->toBe('#f6f7f8')
+    expect($roles['--wx-sidebar-bg'])->toBe('#22262a')
+        ->and($roles['--wx-page'])->toBe('#f7f7f7')
         ->and($roles['--wx-surface'])->toBe('#ffffff')
-        ->and($roles['--wx-text'])->toBe('#1d2226')
-        ->and($roles['--wx-muted'])->toBe('#66717a')
-        ->and($roles['--wx-border'])->toBe('#e5e8ea')
-        ->and($roles['--wx-accent'])->toBe('#4f9d21')
-        ->and($roles['--wx-primary'])->toBe('#43851c');
+        ->and($roles['--wx-text'])->toBe('#1f1f1f')
+        ->and($roles['--wx-muted'])->toBe('#6b6b6b')
+        ->and($roles['--wx-border'])->toBe('#e0e0e0')
+        ->and($roles['--wx-accent'])->toBe('#629924')
+        ->and($roles['--wx-primary'])->toBe('#52801e');
+});
+
+it('takes its charcoal, green, text and border colours from the storefront\'s own stylesheet', function () {
+    // One global design (decision DL-013). The store declares its colours as HSL triples; the admin as hex.
+    // This reads both files, so changing one without the other fails here.
+    $storefront = dirname(__DIR__, 3).'/apps/storefront/src/index.css';
+    if (! is_file($storefront)) {
+        $this->markTestSkipped('The storefront is not beside this application (a packaged deployment).');
+    }
+    preg_match('/:root \{(.*?)\n  \}/s', file_get_contents($storefront), $root);
+    expect($root)->not->toBeEmpty('no :root block in the storefront stylesheet');
+
+    $store = static function (string $name) use ($root): string {
+        preg_match('/--'.preg_quote($name, '/').':\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%;/', $root[1], $m);
+        expect($m)->not->toBeEmpty("the storefront has no --{$name}");
+        [$h, $s, $l] = [(float) $m[1] / 360, (float) $m[2] / 100, (float) $m[3] / 100];
+        $q = $l < 0.5 ? $l * (1 + $s) : $l + $s - $l * $s;
+        $p = 2 * $l - $q;
+        $channel = static function (float $t) use ($p, $q): int {
+            $t = $t < 0 ? $t + 1 : ($t > 1 ? $t - 1 : $t);
+            $v = match (true) {
+                $t < 1 / 6 => $p + ($q - $p) * 6 * $t,
+                $t < 1 / 2 => $q,
+                $t < 2 / 3 => $p + ($q - $p) * (2 / 3 - $t) * 6,
+                default => $p,
+            };
+
+            return (int) round($v * 255);
+        };
+
+        return sprintf('#%02x%02x%02x', $channel($h + 1 / 3), $channel($h), $channel($h - 1 / 3));
+    };
+
+    $roles = wxRoles(':root');
+    expect($roles['--wx-accent'])->toBe($store('accent'), 'the green')
+        ->and($roles['--wx-sidebar-bg'])->toBe($store('primary'), 'the charcoal')
+        ->and($roles['--wx-text'])->toBe($store('foreground'), 'the text colour')
+        ->and($roles['--wx-border'])->toBe($store('border'), 'the border colour')
+        ->and($roles['--wx-surface'])->toBe($store('background'), 'the surface');
+    expect(wxAdminCss())->toContain('--radius-lg: 0.25rem;');
+    expect(file_get_contents($storefront))->toContain('--radius: 0.25rem;');
 });

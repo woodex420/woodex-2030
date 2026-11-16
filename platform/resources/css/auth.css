@@ -1,5 +1,5 @@
 /* Original single-card glass composition. Existing Woodex photograph; no gated Preline source. */
-.wx-auth { margin:0; min-height:100svh; background:#242424; color:#fff; font-family:var(--font-sans); }
+.wx-auth { margin:0; min-height:100svh; background:#22262a; color:#fff; font-family:var(--font-sans); }
 .wx-auth-backdrop { position:fixed; inset:0; background:radial-gradient(ellipse at top left,#395747 0%,#202b25 45%,#141a17 100%); }
 .wx-auth-shell { position:relative; display:flex; flex-direction:column; min-height:100svh; max-width:1600px; margin:auto; padding:32px clamp(24px,5vw,80px) 24px; }
 .wx-auth-header { display:flex; align-items:center; justify-content:space-between; gap:20px; }
@@ -51,8 +51,8 @@
   .wx-auth-card { padding:24px 20px; border-radius:20px; }
   .wx-auth-website { font-size:11px; }
 }
-:root[data-auth-glass="solid"] .wx-auth-card { background:#242424; -webkit-backdrop-filter:none; backdrop-filter:none; }
+:root[data-auth-glass="solid"] .wx-auth-card { background:#22262a; -webkit-backdrop-filter:none; backdrop-filter:none; }
 .wx-auth-card-tools { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
 .wx-auth-card-tools button { color:#eeece8; font-size:10px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-@media(prefers-reduced-transparency:reduce) { :root:not([data-auth-glass="glass"]) .wx-auth-card { background:#242424; -webkit-backdrop-filter:none; backdrop-filter:none; } }
+@media(prefers-reduced-transparency:reduce) { :root:not([data-auth-glass="glass"]) .wx-auth-card { background:#22262a; -webkit-backdrop-filter:none; backdrop-filter:none; } }
 @media(prefers-reduced-motion:reduce) { .wx-auth *, .wx-auth *::before, .wx-auth *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
