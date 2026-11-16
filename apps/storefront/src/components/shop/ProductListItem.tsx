@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingBag, Eye, Check } from "lucide-react";
 import { Product, formatPKR, priceText, fromPrice, hasOptions, availabilityText } from "@/data/products";
 import { useQuote } from "@/contexts/QuoteContext";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 interface ProductListItemProps {
   product: Product;
@@ -23,16 +24,12 @@ const ProductListItem = ({ product }: ProductListItemProps) => {
       <div className="flex flex-col md:flex-row">
         {/* Image */}
         <div className="relative w-full md:w-72 aspect-square md:aspect-auto shrink-0 overflow-hidden bg-muted">
-          {product.images[0] ? (
-            <img
-              src={product.images[0]}
-              alt={product.name}
-              loading="lazy"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className="w-full h-full min-h-40 flex items-center justify-center text-5xl font-bold text-muted-foreground/40" aria-hidden="true">{product.name[0]}</div>
-          )}
+          <ProductImage
+            src={product.images[0]}
+            name={product.name}
+            className="w-full h-full min-h-40 object-cover group-hover:scale-105 transition-transform duration-500"
+            initialClassName="text-5xl"
+          />
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-2">

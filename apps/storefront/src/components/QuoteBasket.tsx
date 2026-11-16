@@ -5,10 +5,11 @@ import { Separator } from "@/components/ui/separator";
 import { useQuote } from "@/contexts/QuoteContext";
 import { formatPKR } from "@/data/products";
 import { keyOf } from "@/contexts/lineKey";
+import { ProductImage } from "@/components/shop/ProductImage";
 import { Link } from "react-router-dom";
 
 const QuoteBasket = () => {
-  const { items, removeItem, updateQuantity, clearQuote, totalItems, totalPrice, onRequestCount, isOpen, setIsOpen } = useQuote();
+  const { items, removeItem, updateQuantity, clearQuote, totalItems, estimateText, onRequestCount, isOpen, setIsOpen } = useQuote();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,8 +65,7 @@ const QuoteBasket = () => {
             items.map((item) => (
               <div key={keyOf(item)} className="flex gap-4 p-4 border border-border rounded-sm hover:border-accent transition-colors">
                 <div className="w-16 h-16 bg-section-light rounded-sm flex-shrink-0 overflow-hidden">
-                  {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
-                  {!item.image && <div className="w-full h-full flex items-center justify-center text-accent font-bold text-xl">{item.name[0]}</div>}
+                  <ProductImage src={item.image} name={item.name} className="w-full h-full object-cover" initialClassName="text-xl" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link to={`/shop/${item.id}`} onClick={() => setIsOpen(false)}>
@@ -114,17 +114,18 @@ const QuoteBasket = () => {
           <div className="border-t p-5 space-y-4 bg-section-light">
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{totalItems} items</span>
-                <span>{formatPKR(totalPrice)}</span>
+                <span>{totalItems} item{totalItems === 1 ? "" : "s"}</span>
               </div>
               <Separator />
-              <div className="flex justify-between font-bold text-lg">
+              {/* The estimate as words: "PKR 84,000", "PKR 84,000 + 1 on request"
+                  or "On request" — never "PKR 0" for a basket that has no price yet. */}
+              <div className="flex justify-between gap-3 font-bold text-lg">
                 <span>Estimated Total</span>
-                <span className="text-accent">{formatPKR(totalPrice)}</span>
+                <span className="text-accent text-right">{estimateText}</span>
               </div>
               <p className="text-xs text-muted-foreground">
                 {onRequestCount > 0
-                  ? `Not counting ${onRequestCount} item${onRequestCount === 1 ? "" : "s"} priced on request. Final pricing is confirmed in your quotation.`
+                  ? `We will send the price of the ${onRequestCount === 1 ? "item" : `${onRequestCount} items`} priced on request in your quotation.`
                   : "Final pricing confirmed in your quotation"}
               </p>
             </div>

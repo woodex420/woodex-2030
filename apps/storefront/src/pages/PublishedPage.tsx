@@ -11,6 +11,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ArrowRight, CheckCircle2, Star, Send, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { ProductImage } from "@/components/shop/ProductImage";
 import { Link2, MessageCircle } from "lucide-react";
 import { attachTrackers, trackPage } from "@/lib/track";
 
@@ -97,7 +98,7 @@ function ProductGrid({ b, th }: { b: Block; th?: Theme }) {
       {list.map((p) => (
         <Link key={p.id} to={"/shop/" + p.id} data-wx-cta={"product:" + p.id} className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
           <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-            {p.images[0] && <img src={p.images[0]} alt={p.name} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />}
+            <ProductImage src={p.images[0]} name={p.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
             {!p.inStock && <Badge className="absolute top-2 left-2 bg-destructive text-destructive-foreground">Not available</Badge>}
             {wasPriceOf(p) !== null && (
               <Badge className="absolute top-2 right-2 bg-accent text-accent-foreground">−{Math.round((1 - (fromPrice(p) ?? 0) / (wasPriceOf(p) ?? 1)) * 100)}%</Badge>)}
@@ -194,7 +195,7 @@ function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
       if (!p) return null;
       return (
         <section className="grid items-center gap-6 rounded-3xl border bg-card p-6 py-8 sm:p-10 lg:grid-cols-2">
-          {p.images[0] ? <img src={p.images[0]} alt={p.name} className="aspect-[4/3] w-full rounded-2xl object-cover" /> : <div className="aspect-[4/3] w-full rounded-2xl bg-muted" aria-hidden="true" />}
+          <ProductImage src={p.images[0]} name={p.name} className="aspect-[4/3] w-full rounded-2xl object-cover" initialClassName="text-6xl" />
           <div>
             <h2 className="text-2xl font-black">{S(b, "heading") || p.name}</h2>
             <p className="mt-2 text-muted-foreground">{S(b, "body") || p.shortDescription}</p>

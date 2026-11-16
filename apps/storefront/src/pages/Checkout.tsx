@@ -15,6 +15,7 @@ import { useCart } from "@/contexts/CartContext";
 import { formatPKR } from "@/data/products";
 import { brand } from "@/config/brand";
 import { keyOf } from "@/contexts/lineKey";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 const cities = [
   "Lahore", "Karachi", "Islamabad", "Rawalpindi", "Faisalabad", "Multan",
@@ -239,11 +240,9 @@ const Checkout = () => {
                     <CardContent className="space-y-4">
                       {items.map((item) => (
                         <div key={keyOf(item)} className="flex gap-3">
-                          {item.image && (
-                            <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-muted">
-                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                            </div>
-                          )}
+                          <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-muted">
+                            <ProductImage src={item.image} name={item.name} className="w-full h-full object-cover" initialClassName="text-base" />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium line-clamp-1">{item.name}</p>
                             {(item.variant || item.color) && <p className="text-xs text-muted-foreground">{[item.variant, item.color].filter(Boolean).join(" · ")}</p>}

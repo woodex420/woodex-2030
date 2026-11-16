@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { products, categoryLabel } from "@/data/products";
 import type { Product } from "@/data/products";
 import { useCatalogStatus } from "@/lib/runtime";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 /**
  * Four products from the catalogue, on the home page.
@@ -59,7 +60,7 @@ const LatestCollection = () => {
             : shown.map((p) => (
                 <Link key={p.id} to={`/shop/${p.id}`} className="group border border-border rounded-sm overflow-hidden bg-background hover:border-accent hover:shadow-lg transition-all">
                   <div className="aspect-square bg-muted overflow-hidden">
-                    <img src={p.images[0]} alt={p.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <ProductImage src={p.images[0]} name={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <div className="p-4 text-center">
                     <p className="text-xs text-muted-foreground mb-1">{categoryLabel(p.subcategory || p.category)}</p>

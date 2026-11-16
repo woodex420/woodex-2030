@@ -6,6 +6,7 @@ import { ShoppingCart, Minus, Plus, Trash2, X } from "lucide-react";
 import { useCart, MAX_ORDER_QTY } from "@/contexts/CartContext";
 import { formatPKR } from "@/data/products";
 import { keyOf } from "@/contexts/lineKey";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 const CartDrawer = () => {
   const { items, removeItem, updateQuantity, totalItems, totalPrice, issueCount, isOpen, setIsOpen } = useCart();
@@ -44,11 +45,9 @@ const CartDrawer = () => {
             <div className="flex-1 overflow-y-auto space-y-3 py-4">
               {items.map((item) => (
                 <div key={keyOf(item)} className="flex gap-3 p-3 border border-border rounded-sm">
-                  {item.image && (
-                    <div className="w-16 h-16 rounded-sm overflow-hidden flex-shrink-0 bg-muted">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                    </div>
-                  )}
+                  <div className="w-16 h-16 rounded-sm overflow-hidden flex-shrink-0 bg-muted">
+                    <ProductImage src={item.image} name={item.name} className="w-full h-full object-cover" initialClassName="text-xl" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <Link
                       to={`/shop/${item.id}`}

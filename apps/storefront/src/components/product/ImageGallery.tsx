@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ZoomIn, RotateCcw, ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 interface ImageGalleryProps {
   images: string[];
@@ -49,11 +50,7 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
      business's data, and a row without a picture is still a product. Show its
      initial rather than a broken image and controls that have nothing to turn. */
   if (images.length === 0) {
-    return (
-      <div className="aspect-square rounded-lg bg-muted flex items-center justify-center" role="img" aria-label={`${productName}: no photograph yet`}>
-        <span className="text-7xl font-bold text-muted-foreground/30" aria-hidden="true">{productName.charAt(0)}</span>
-      </div>
-    );
+    return <ProductImage src={null} name={productName} className="aspect-square w-full rounded-lg" initialClassName="text-7xl" />;
   }
   const several = images.length > 1;
 
@@ -72,10 +69,13 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
           onMouseLeave={() => setIsZoomed(false)}
           onClick={() => setIsZoomed(!isZoomed)}
         >
-          <img
+          <ProductImage
             src={images[selectedIndex]}
+            name={productName}
             alt={`${productName} - View ${selectedIndex + 1}`}
+            loading="eager"
             className="w-full h-full object-cover transition-transform duration-300"
+            initialClassName="text-7xl"
             style={{
               transform: isZoomed
                 ? `scale(2) translate(${50 - zoomPosition.x}%, ${50 - zoomPosition.y}%)`
@@ -148,10 +148,12 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
             </DialogTrigger>
             <DialogContent className="max-w-5xl">
               <div className="aspect-square relative">
-                <img
+                <ProductImage
                   src={images[selectedIndex]}
-                  alt={productName}
+                  name={productName}
+                  loading="eager"
                   className="w-full h-full object-contain"
+                  initialClassName="text-7xl"
                 />
               </div>
             </DialogContent>
@@ -172,10 +174,12 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
                 : "border-border hover:border-accent/50"
             )}
           >
-            <img
+            <ProductImage
               src={image}
+              name={productName}
               alt={`${productName} thumbnail ${index + 1}`}
               className="w-full h-full object-cover"
+              initialClassName="text-xl"
             />
           </button>
         ))}

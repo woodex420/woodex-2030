@@ -34,7 +34,7 @@ const Quotation = () => {
   const [productSearch, setProductSearch] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
   const catalogRevision = useRuntimeRevision();
-  const { items, removeItem, updateQuantity, totalPrice, totalItems, onRequestCount, issueCount, addItem } = useQuote();
+  const { items, removeItem, updateQuantity, estimateText, totalItems, onRequestCount, issueCount, addItem } = useQuote();
   const printRef = useRef<HTMLDivElement>(null);
 
   // Client info state
@@ -236,7 +236,7 @@ const Quotation = () => {
       const subject = encodeURIComponent(`WOODEX Quotation Request — ${clientInfo.name}`);
       const itemsList = items.map((item, i) => `${i + 1}. ${lineTitle(item)}${item.sku ? ` [${item.sku}]` : ""} x${item.quantity} — ${lineAmount(item)}`).join("\n");
       const body = encodeURIComponent(
-        `Quotation Request\n\nClient: ${clientInfo.name}\nLocation: ${clientInfo.location}\nContact: ${clientInfo.contactNumber}\nWhatsApp: ${clientInfo.whatsapp}\n\nProducts:\n${itemsList}\n\nEstimated Total: ${formatPKR(totalPrice)}\nFinal payment terms will be included in formal quotation.`
+        `Quotation Request\n\nClient: ${clientInfo.name}\nLocation: ${clientInfo.location}\nContact: ${clientInfo.contactNumber}\nWhatsApp: ${clientInfo.whatsapp}\n\nProducts:\n${itemsList}\n\nEstimated Total: ${estimateText}\nFinal payment terms will be included in formal quotation.`
       );
       window.open(`mailto:info@woodex.pk?subject=${subject}&body=${body}`, "_blank");
       toast.success("Email draft opened. Review and send it yourself; Woodex did not send it automatically.");
@@ -426,11 +426,11 @@ const Quotation = () => {
                 <div className="px-5 py-4 bg-section-light border-t">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold">Estimated Total</span>
-                    <span className="text-xl font-black text-accent">{formatPKR(totalPrice)}</span>
+                    <span className="text-xl font-black text-accent">{estimateText}</span>
                   </div>
                   {onRequestCount > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Not counting {onRequestCount} item{onRequestCount === 1 ? "" : "s"} priced on request; we will send {onRequestCount === 1 ? "its price" : "their prices"} in the quotation.
+                      We will send the price of the {onRequestCount === 1 ? "item" : `${onRequestCount} items`} priced on request in the quotation.
                     </p>
                   )}
                   <p className="mt-2 text-xs text-muted-foreground">Final payment terms will be included in formal quotation.</p>
@@ -542,7 +542,7 @@ const Quotation = () => {
                       {items.length > 0 && (
                         <div className="p-4 bg-hon-green-pale rounded-sm border border-accent/30">
                           <p className="text-sm font-semibold text-accent">
-                            ✓ {totalItems} product{totalItems !== 1 ? "s" : ""} from your quote basket will be included ({formatPKR(totalPrice)} estimated{onRequestCount > 0 ? `, plus ${onRequestCount} priced on request` : ""})
+                            ✓ {totalItems} product{totalItems !== 1 ? "s" : ""} from your quote basket will be included (estimate: {estimateText})
                           </p>
                         </div>
                       )}
@@ -656,7 +656,6 @@ const Quotation = () => {
       <PrintableInvoice
         ref={printRef}
         items={items.filter((item) => !item.issue)}
-        totalPrice={totalPrice}
         totalItems={items.filter((item) => !item.issue).reduce((sum, item) => sum + item.quantity, 0)}
         quoteNumber={manualHandoff?.ref || undefined}
         clientInfo={clientInfo}

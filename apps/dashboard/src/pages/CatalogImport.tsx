@@ -64,10 +64,14 @@ const actionTone = (action: Action) =>
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export default function CatalogImport() {
-  const plan = useApi<Plan>("/api/catalog/import");
-  const status = useApi<Status>("/api/catalog/status");
-  const { push } = useToast();
+  /* Reading the import needs a catalogue role (manage, or view for purchasing
+     and production). The other roles are told so; before, the screen asked
+     anyway, was refused, and reported that "the server did not answer". */
   const mayManage = can("catalog.manage");
+  const mayRead = mayManage || can("catalog.view");
+  const plan = useApi<Plan>(mayRead ? "/api/catalog/import" : null);
+  const status = useApi<Status>(mayRead ? "/api/catalog/status" : null);
+  const { push } = useToast();
   const [replaceDemo, setReplaceDemo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportReply | null>(null);
@@ -88,6 +92,22 @@ export default function CatalogImport() {
   const items = useMemo(() => plan.data?.items ?? [], [plan.data]);
   const shownItems = useMemo(() => items.filter((item) =>
     filter === "all" ? true : filter === "review" ? item.review > 0 : item.action === filter), [items, filter]);
+
+  if (!mayRead) {
+    return (
+      <div>
+        {header}
+        <Card>
+          <EmptyState
+            icon={<Package size={22} />}
+            title="Your role cannot open the catalogue import"
+            description="Loading the catalogue and withdrawing the demo products is for the owner and for the content role. You can read every product, drafts included, on the Products screen."
+            action={<Link to="/catalog" className={buttonCls("primary", "md")}>Open Products</Link>}
+          />
+        </Card>
+      </div>
+    );
+  }
 
   if ((plan.loading && !plan.data) || (status.loading && !status.data)) return <div>{header}<Skeleton className="h-[420px]" /></div>;
 

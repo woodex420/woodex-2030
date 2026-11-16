@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { keyOf, lineKey } from "./lineKey";
 import { reconcile } from "./reconcile";
+import { formatPKR } from "@/data/products";
 
 export interface QuoteItem {
   id: string;
@@ -23,6 +24,24 @@ export interface QuoteItem {
   issue?: string;
 }
 
+/**
+ * The estimate of a basket, as it is written wherever a total is shown: the
+ * drawer, the quotation page, the printed sheet, the e-mail draft.
+ *
+ * It is the sum of the lines that have a price. A line priced on request adds
+ * nothing to it and is named beside it; when no line has a price the estimate
+ * is "On request" — never "PKR 0", which reads as free. A line that can no
+ * longer be quoted is left out altogether.
+ */
+export const estimateOf = (items: QuoteItem[]): string => {
+  const live = items.filter((item) => !item.issue);
+  const onRequest = live.filter((item) => item.priceOnRequest).length;
+  const priced = live.filter((item) => !item.priceOnRequest);
+  if (priced.length === 0) return onRequest > 0 ? "On request" : "—";
+  const total = priced.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  return formatPKR(total) + (onRequest > 0 ? ` + ${onRequest} on request` : "");
+};
+
 interface QuoteContextType {
   items: QuoteItem[];
   addItem: (item: Omit<QuoteItem, "quantity"> & { quantity?: number }) => void;
@@ -31,8 +50,10 @@ interface QuoteContextType {
   updateQuantity: (key: string, quantity: number) => void;
   clearQuote: () => void;
   totalItems: number;
-  /** The sum of the priced lines only. */
+  /** The sum of the priced lines only. To print an estimate use `estimateText`. */
   totalPrice: number;
+  /** `estimateOf(items)`: the estimate as words — see there. */
+  estimateText: string;
   /** How many lines have no list price and are left out of `totalPrice`. */
   onRequestCount: number;
   /** How many lines cannot be quoted as they stand (see `QuoteItem.issue`). */
@@ -109,10 +130,11 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const totalPrice = items.reduce((sum, i) => sum + (i.priceOnRequest || i.issue ? 0 : i.price * i.quantity), 0);
   const onRequestCount = items.filter((i) => i.priceOnRequest && !i.issue).length;
   const issueCount = items.filter((i) => i.issue).length;
+  const estimateText = estimateOf(items);
 
   return (
     <QuoteContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearQuote, totalItems, totalPrice, onRequestCount, issueCount, isOpen, setIsOpen }}
+      value={{ items, addItem, removeItem, updateQuantity, clearQuote, totalItems, totalPrice, estimateText, onRequestCount, issueCount, isOpen, setIsOpen }}
     >
       {children}
     </QuoteContext.Provider>

@@ -64,7 +64,12 @@ export default function Catalog() {
 
   /* Every state, not only what is on sale: this is where drafts are checked. */
   const products = useProducts(30000);
-  const status = useApi<CatalogStatus>("/api/catalog/status", 60000);
+  /* The state of the catalogue (migration pending, demo still on sale) is for
+     the roles that may read it. Every signed-in role can open this list; asking
+     for the summary as a viewer, sales or finance was answered 403 on every
+     visit, for two notices those roles could not act on anyway. */
+  const mayReadStatus = mayManage || can("catalog.view");
+  const status = useApi<CatalogStatus>(mayReadStatus ? "/api/catalog/status" : null, 60000);
   useRealtime(/products/, () => { void products.reload(); void status.reload(); });
 
   const list = useMemo(() => products.data?.items ?? [], [products.data]);

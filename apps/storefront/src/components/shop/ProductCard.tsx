@@ -6,6 +6,7 @@ import { Eye, ShoppingBag, ShoppingCart } from "lucide-react";
 import { Product, formatPKR, priceText, fromPrice, hasOptions, availabilityText } from "@/data/products";
 import { useQuote } from "@/contexts/QuoteContext";
 import { useCart } from "@/contexts/CartContext";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 interface ProductCardProps {
   product: Product;
@@ -42,16 +43,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
   return (
     <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-border hover:border-accent">
       <div className="relative aspect-square overflow-hidden bg-section-light">
-        {product.images[0] ? (
-          <img
-            src={product.images[0]}
-            alt={product.name}
-            loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-muted-foreground/40">{product.name[0]}</div>
-        )}
+        <ProductImage
+          src={product.images[0]}
+          name={product.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">

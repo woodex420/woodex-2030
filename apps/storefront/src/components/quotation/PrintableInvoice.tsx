@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { brand } from "@/config/brand";
-import { QuoteItem } from "@/contexts/QuoteContext";
+import { QuoteItem, estimateOf } from "@/contexts/QuoteContext";
 import { formatPKR, categoryLabel } from "@/data/products";
 import { keyOf } from "@/contexts/lineKey";
 import woodexLogo from "@/assets/woodex-logo.png";
@@ -14,7 +14,6 @@ export interface ClientInfo {
 
 interface PrintableInvoiceProps {
   items: QuoteItem[];
-  totalPrice: number;
   totalItems: number;
   /** The reference the request was saved under. Printed only when there is one. */
   quoteNumber?: string;
@@ -22,7 +21,7 @@ interface PrintableInvoiceProps {
 }
 
 const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
-  ({ items, totalPrice, totalItems, quoteNumber, clientInfo }, ref) => {
+  ({ items, totalItems, quoteNumber, clientInfo }, ref) => {
     const today = new Date();
     const dateStr = today.toLocaleDateString("en-PK", {
       day: "2-digit",
@@ -140,7 +139,7 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
               <tbody>
                 <tr className="totals-highlight">
                   <td>ESTIMATED TOTAL</td>
-                  <td>{formatPKR(totalPrice)}</td>
+                  <td>{estimateOf(items)}</td>
                 </tr>
               </tbody>
             </table>
