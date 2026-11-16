@@ -68,7 +68,10 @@
     "test:modules:pg": "node --experimental-sqlite scripts/test-modules.mjs --engine pglite",
     "test:return-id": "node --experimental-sqlite scripts/test-return-id.mjs",
     "test:migrate": "node --experimental-sqlite scripts/test-pg-migrate.mjs",
-    "e2e:routes": "node scripts/e2e-dashboard-routes.mjs"
+    "e2e:routes": "node scripts/e2e-dashboard-routes.mjs",
+    "catalog:build": "node scripts/catalog-build.mjs",
+    "catalog:check": "node scripts/catalog-build.mjs --check",
+    "test:catalog-build": "node scripts/test-catalog-build.mjs"
   },
   "engines": {
     "node": ">=22.5"
