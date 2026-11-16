@@ -87,7 +87,19 @@ try {
   same([sample.status, sample.priceOnRequest, sample.trackStock, sample.sku, Array.isArray(sample.variants)], ["published", false, true, null, true],
     "an existing product reads as published, priced, stock counted, no SKU, no options");
   check(first.json.items.every((p) => !("rating" in p) && !("reviews" in p)), "no product carries a rating or a review count");
-  check(DEMO.every((p) => "rating" in p && "reviews" in p), "…although the stored demo documents still hold them (the API drops them on the way out)");
+  check(DEMO.every((p) => !("rating" in p) && !("reviews" in p)), "…and the demo seed no longer invents them");
+  /* A database seeded before this change still holds them in its stored
+     documents, and nobody will rewrite those. Put one back the way it was and
+     read it: the API drops them on the way out, whatever is stored. */
+  const stored = await db.get("SELECT json FROM products WHERE id = ?", sample.id);
+  await db.run("UPDATE products SET json = ? WHERE id = ?", JSON.stringify({ ...JSON.parse(stored.json), rating: 4.9, reviews: 412, stockQty: 99 }), sample.id);
+  const asStored = (await api("/api/products/" + sample.id)).json ?? {};
+  same(["rating", "reviews", "stockQty"].filter((key) => key in asStored), [], "a document stored with a rating, a review count and a quantity is served without them");
+  same(asStored.name, sample.name, "…and is otherwise the same product");
+  const asStoredStaff = (await staff("/api/products/" + sample.id)).json ?? {};
+  same(["rating", "reviews"].filter((key) => key in asStoredStaff), [], "staff do not receive the invented figures either");
+  same(typeof asStoredStaff.stockQty, "number", "…but do receive the quantity, from the column and not from the document");
+  await db.run("UPDATE products SET json = ? WHERE id = ?", stored.json, sample.id);
   check(!("counts" in first.json), "the public is not told how many drafts exist");
   check(first.json.items.every((p) => !("review" in p) && !("source" in p)), "the public never receives the import's working notes");
 
@@ -173,6 +185,17 @@ try {
   const counted = await staff("/api/products", { method: "POST", body: desk({ id: "probe-counted", sku: "PD-10005", status: "published", stockQty: 3 }) });
   same([counted.json?.trackStock, counted.json?.stockQty], [true, 3], "a quantity sent: stock is counted");
   same((await api("/api/products/probe-mto/stock")).status, 401, "the stock ledger of a product is not public");
+  /* What a visitor is told is "available" and "made to order" — never a
+     quantity, and never the figures the demo catalogue carried. Checked on the
+     single product and on every product of the public list. */
+  const NOT_PUBLIC = ["stockQty", "rating", "reviews", "review", "source"];
+  const publicCounted = (await api("/api/products/probe-counted")).json ?? {};
+  same(NOT_PUBLIC.filter((key) => key in publicCounted), [], "the public product carries no quantity, rating, review count or import note");
+  same([publicCounted.inStock, publicCounted.trackStock], [true, true], "…it says the product is available and that its stock is counted");
+  const publicList = (await api("/api/products")).json?.items ?? [];
+  check(publicList.length > 0 && publicList.every((p) => NOT_PUBLIC.every((key) => !(key in p))), "…and neither does any product of the public list",
+    `first offender: ${JSON.stringify(publicList.find((p) => NOT_PUBLIC.some((key) => key in p)))?.slice(0, 160)}`);
+  same((await staff("/api/products/probe-counted")).json?.stockQty, 3, "staff still read the quantity");
   same((await staff("/api/products/probe-counted/stock")).json?.ledgerQty, 3, "staff can read it, and the opening quantity is in the ledger");
   same((await staff("/api/products/probe-mto/stock")).json?.total, 0, "a made-to-order product starts with no movement at all");
 
@@ -396,11 +419,13 @@ try {
     const oldDb = rawDb(old);
     const columns = (await oldDb.all("PRAGMA table_info(products)")).map((c) => c.name);
     check(["sku", "status", "price_on_request", "track_stock"].every((c) => columns.includes(c)), "the file gained the four columns at boot");
-    const oldDesk = (await oldApi("/api/products/old-desk")).json;
+    const oldToken = await signIn(oldApi);
+    const oldDesk = (await oldApi("/api/products/old-desk", { token: oldToken })).json;
     same([oldDesk?.status, oldDesk?.priceOnRequest, oldDesk?.trackStock, oldDesk?.stockQty, oldDesk?.price], ["published", false, true, 99, 30000],
       "the product that was there reads exactly as before: published, priced, stock counted");
-    check(!("rating" in oldDesk) && !("reviews" in oldDesk), "…without the invented rating it was stored with");
-    const oldToken = await signIn(oldApi);
+    const oldDeskPublic = (await oldApi("/api/products/old-desk")).json ?? {};
+    same(["rating", "reviews", "stockQty"].filter((key) => key in oldDesk || key in oldDeskPublic).filter((key) => key !== "stockQty" || key in oldDeskPublic), [],
+      "…without the invented rating it was stored with, and without its quantity for the public");
     same((await oldApi("/api/products/old-desk", { method: "PATCH", token: oldToken, body: { sku: "OLD-10001", status: "draft" } })).json?.status, "draft", "the new features work on the upgraded file");
     check(await refuses(oldDb, "INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at,sku) VALUES('old-dup','{}',1,1,0,'2026-01-01','old-10001')"),
       "…including the unique SKU, enforced by the file itself");

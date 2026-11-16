@@ -1266,21 +1266,26 @@ const catalogPending = (what) => Object.assign(
 
    `review` and `source` are the import's working notes ("this price looks
    wrong", what the old shop showed). Staff need them; the public must not read
-   that a price is under question. */
+   that a price is under question.
+
+   `stockQty` is for staff too. A visitor is told whether a product can be
+   ordered (`inStock`) and whether it is made to order (`trackStock`), not how
+   many are in the warehouse: that is the business's own figure, and until 019
+   every product without one was published as "99". The stock HISTORY route
+   was closed to the public for the same reason. */
 const rowProduct = (r, { staff = false, variants = [] } = {}) => {
-  const { rating: _rating, reviews: _reviews, review, source, ...doc } = safeJson(r.json, {});
+  const { rating: _rating, reviews: _reviews, stockQty: _stockQty, review, source, ...doc } = safeJson(r.json, {});
   return {
     ...doc,
     price: Number(r.price),
     inStock: !!Number(r.in_stock),
-    stockQty: Number(r.stock_qty),
     updatedAt: r.updated_at,
     sku: r.sku ?? null,
     status: r.status ?? "published",
     priceOnRequest: !!Number(r.price_on_request ?? 0),
     trackStock: r.track_stock === undefined || r.track_stock === null ? true : !!Number(r.track_stock),
     variants,
-    ...(staff ? { review: Array.isArray(review) ? review : [], ...(source ? { source } : {}) } : {}),
+    ...(staff ? { stockQty: Number(r.stock_qty), review: Array.isArray(review) ? review : [], ...(source ? { source } : {}) } : {}),
   };
 };
 const rowVariant = (v) => ({

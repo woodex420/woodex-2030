@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, ShoppingBag, Eye, Check } from "lucide-react";
-import { Product, formatPKR } from "@/data/products";
+import { ShoppingBag, Eye, Check } from "lucide-react";
+import { Product, formatPKR, priceText, fromPrice, hasOptions, availabilityText } from "@/data/products";
 import { useQuote } from "@/contexts/QuoteContext";
 
 interface ProductListItemProps {
@@ -12,8 +12,10 @@ interface ProductListItemProps {
 
 const ProductListItem = ({ product }: ProductListItemProps) => {
   const { addItem } = useQuote();
-  const discount = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const price = fromPrice(product);
+  const options = hasOptions(product);
+  const discount = price !== null && !options && product.originalPrice && product.originalPrice > price
+    ? Math.round(((product.originalPrice - price) / product.originalPrice) * 100)
     : 0;
 
   return (
@@ -21,11 +23,14 @@ const ProductListItem = ({ product }: ProductListItemProps) => {
       <div className="flex flex-col md:flex-row">
         {/* Image */}
         <div className="relative w-full md:w-72 aspect-square md:aspect-auto shrink-0 overflow-hidden bg-muted">
-          <img
-            src={product.images[0]}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+          {product.images[0] && (
+            <img
+              src={product.images[0]}
+              alt={product.name}
+              loading="lazy"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          )}
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-2">
@@ -44,12 +49,8 @@ const ProductListItem = ({ product }: ProductListItemProps) => {
         {/* Content */}
         <CardContent className="flex-1 p-6">
           <div className="flex flex-col h-full">
-            {/* Rating */}
-            <div className="flex items-center gap-1 mb-2">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-              <span className="text-sm font-medium">{product.rating}</span>
-              <span className="text-sm text-muted-foreground">({product.reviews} reviews)</span>
-            </div>
+            {/* Availability. No rating: the shop has no review system. */}
+            <p className="text-sm text-muted-foreground mb-2">{availabilityText(product)}</p>
 
             {/* Title */}
             <Link to={`/shop/${product.id}`}>
@@ -91,8 +92,8 @@ const ProductListItem = ({ product }: ProductListItemProps) => {
             {/* Price & Actions */}
             <div className="flex items-center justify-between mt-auto pt-4 border-t">
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold">{formatPKR(product.price)}</span>
-                {product.originalPrice && (
+                <span className={price === null ? "text-lg font-semibold" : "text-2xl font-bold"}>{priceText(product)}</span>
+                {discount > 0 && product.originalPrice && (
                   <span className="text-sm text-muted-foreground line-through">
                     {formatPKR(product.originalPrice)}
                   </span>
@@ -103,22 +104,26 @@ const ProductListItem = ({ product }: ProductListItemProps) => {
                 <Button variant="outline" asChild>
                   <Link to={`/shop/${product.id}`}>
                     <Eye className="h-4 w-4 mr-2" />
-                    View Details
+                    {options ? "Choose options" : "View Details"}
                   </Link>
                 </Button>
-                <Button
-                  disabled={!product.inStock}
-                  onClick={() => addItem({
-                    id: product.id,
-                    name: product.name,
-                    category: product.category,
-                    price: product.price,
-                    image: product.images[0],
-                  })}
-                >
-                  <ShoppingBag className="h-4 w-4 mr-2" />
-                  {product.inStock ? "Add to Quote" : "Out of Stock"}
-                </Button>
+                {!options && (
+                  <Button
+                    disabled={!product.inStock}
+                    onClick={() => addItem({
+                      id: product.id,
+                      name: product.name,
+                      category: product.category,
+                      price: price ?? 0,
+                      priceOnRequest: price === null,
+                      sku: product.sku ?? null,
+                      image: product.images[0],
+                    })}
+                  >
+                    <ShoppingBag className="h-4 w-4 mr-2" />
+                    {product.inStock ? "Add to Quote" : "Not available"}
+                  </Button>
+                )}
               </div>
             </div>
           </div>

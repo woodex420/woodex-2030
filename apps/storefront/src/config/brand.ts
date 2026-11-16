@@ -63,6 +63,18 @@ export const brand = {
   locale: "en-PK",
   currency: "PKR",
 
+  /**
+   * The delivery charge, in whole rupees: `fee` per order, nothing from
+   * `freeFrom` upwards. Every page that mentions delivery reads it from here —
+   * the product page used to promise "free delivery nationwide" (and, in one
+   * tab, "free within UAE above AED 2,000") while checkout charged for it.
+   *
+   * The API applies the same rule when it saves an order (POST /api/orders in
+   * apps/api/server.mjs) and is the authority: change the two together.
+   * Whether this is the business's rule at all is the owner's call (Q-4).
+   */
+  delivery: { fee: 2500, freeFrom: 50000 },
+
   /** Theme colour used by browsers and PWA manifests. */
   themeColor: "#16A34A",
 } as const;

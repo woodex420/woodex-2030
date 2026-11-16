@@ -1,7 +1,8 @@
 import { forwardRef } from "react";
 import { brand } from "@/config/brand";
 import { QuoteItem } from "@/contexts/QuoteContext";
-import { formatPKR } from "@/data/products";
+import { formatPKR, categoryLabel } from "@/data/products";
+import { keyOf } from "@/contexts/lineKey";
 import woodexLogo from "@/assets/woodex-logo.png";
 
 export interface ClientInfo {
@@ -15,6 +16,7 @@ interface PrintableInvoiceProps {
   items: QuoteItem[];
   totalPrice: number;
   totalItems: number;
+  /** The reference the request was saved under. Printed only when there is one. */
   quoteNumber?: string;
   clientInfo: ClientInfo;
 }
@@ -27,7 +29,11 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
       month: "2-digit",
       year: "numeric",
     });
-    const qNumber = quoteNumber || `WDX-${10000 + Math.floor(Math.random() * 90000)}`;
+    /* A reference is printed only when the request has really been saved under
+       one. This used to fall back to "WDX-" plus a random number — a quote
+       number that existed nowhere and changed on every render. */
+    const qNumber = quoteNumber?.trim() || "";
+    const onRequest = items.filter((item) => item.priceOnRequest).length;
 
     return (
       <div ref={ref} className="print-invoice hidden print:block">
@@ -62,10 +68,12 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
           <div className="invoice-meta-right">
             <table className="invoice-meta-table">
               <tbody>
-                <tr>
-                  <td className="meta-label">Quote No.</td>
-                  <td className="meta-value">{qNumber}</td>
-                </tr>
+                {qNumber && (
+                  <tr>
+                    <td className="meta-label">Reference</td>
+                    <td className="meta-value">{qNumber}</td>
+                  </tr>
+                )}
                 <tr>
                   <td className="meta-label">Date</td>
                   <td className="meta-value">{dateStr}</td>
@@ -103,13 +111,14 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
           </thead>
           <tbody>
             {items.map((item, idx) => (
-              <tr key={item.id}>
+              <tr key={keyOf(item)}>
                 <td className="col-sr">{idx + 1}</td>
-                <td className="col-item">{item.name}</td>
-                <td className="col-desc">{item.category}{item.color ? ` — ${item.color}` : ""}</td>
+                <td className="col-item">{item.name}{item.sku ? ` (${item.sku})` : ""}</td>
+                <td className="col-desc">{[categoryLabel(item.category), item.variant, item.color].filter(Boolean).join(" — ")}</td>
                 <td className="col-qty">{item.quantity}</td>
-                <td className="col-unit">{formatPKR(item.price)}</td>
-                <td className="col-total">{formatPKR(item.price * item.quantity)}</td>
+                {/* No price yet is printed as words. "PKR 0" on paper reads as free. */}
+                <td className="col-unit">{item.priceOnRequest ? "On request" : formatPKR(item.price)}</td>
+                <td className="col-total">{item.priceOnRequest ? "On request" : formatPKR(item.price * item.quantity)}</td>
               </tr>
             ))}
           </tbody>
@@ -120,6 +129,11 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
           <div className="invoice-totals-left">
             <p className="totals-note">Transportation and delivery terms will be confirmed in the formal quotation.</p>
             <p className="totals-note">* This enquiry estimate is shown in Pakistani Rupees (PKR).</p>
+            {onRequest > 0 && (
+              <p className="totals-note">
+                * {onRequest === 1 ? "One item is" : `${onRequest} items are`} priced on request and not included in the estimated total.
+              </p>
+            )}
           </div>
           <div className="invoice-totals-right">
             <table className="totals-table">

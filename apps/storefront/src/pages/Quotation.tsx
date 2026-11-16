@@ -9,7 +9,10 @@ import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useQuote } from "@/contexts/QuoteContext";
-import { formatPKR, products } from "@/data/products";
+import { formatPKR, products, optionPrice, categoryLabel } from "@/data/products";
+import type { Product, ProductVariant } from "@/data/products";
+import { keyOf } from "@/contexts/lineKey";
+import type { QuoteItem } from "@/contexts/QuoteContext";
 import { brand } from "@/config/brand";
 import { useEffect } from "react";
 import PrintableInvoice, { ClientInfo } from "@/components/quotation/PrintableInvoice";
@@ -31,7 +34,7 @@ const Quotation = () => {
   const [productSearch, setProductSearch] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
   const catalogRevision = useRuntimeRevision();
-  const { items, removeItem, updateQuantity, totalPrice, totalItems, addItem } = useQuote();
+  const { items, removeItem, updateQuantity, totalPrice, totalItems, onRequestCount, issueCount, addItem } = useQuote();
   const printRef = useRef<HTMLDivElement>(null);
 
   // Client info state
@@ -42,11 +45,42 @@ const Quotation = () => {
   const [manualHandoffUrl, setManualHandoffUrl] = useState("");
   const [handoffBusy, setHandoffBusy] = useState(false);
 
+  /* One row per thing that can be quoted: a product, or — for a product sold
+     in options — each of its options. A product that is switched off is left
+     out; the API would refuse a request that names it. */
   const searchResults = useMemo(() => {
-    if (!productSearch.trim()) return [];
-    const q = productSearch.toLowerCase();
-    return products.filter(p => p.name.toLowerCase().includes(q) || p.shortDescription.toLowerCase().includes(q)).slice(0, 8);
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return [];
+    const rows: { product: Product; variant: ProductVariant | null }[] = [];
+    for (const p of products) {
+      if (!p.inStock) continue;
+      const hit = [p.name, p.shortDescription, p.sku ?? ""].join(" ").toLowerCase().includes(q);
+      const options = p.variants ?? [];
+      if (options.length === 0) {
+        if (hit) rows.push({ product: p, variant: null });
+      } else {
+        for (const v of options) {
+          if (hit || [v.label, v.sku].join(" ").toLowerCase().includes(q)) rows.push({ product: p, variant: v });
+        }
+      }
+      if (rows.length >= 8) break;
+    }
+    return rows.slice(0, 8);
   }, [productSearch, catalogRevision]);
+
+  /* What a line is called and priced as, wherever it is written out. */
+  const lineTitle = (item: QuoteItem) => item.name + (item.variant ? ` — ${item.variant}` : "");
+  const lineAmount = (item: QuoteItem) => (item.priceOnRequest ? "price on request" : formatPKR(item.price * item.quantity));
+  /* What the API needs to identify a line. It looks up the price itself. */
+  const lineRequest = (item: QuoteItem) => ({
+    productId: item.id, name: item.name, qty: item.quantity ?? 1, material: item.color,
+    ...(item.variantId != null ? { variantId: item.variantId } : {}),
+  });
+  const blockedByIssues = () => {
+    if (issueCount === 0) return false;
+    toast.error(`${issueCount === 1 ? "One item" : `${issueCount} items`} in your basket can no longer be quoted. Remove ${issueCount === 1 ? "it" : "them"} to continue.`);
+    return true;
+  };
 
   useEffect(() => {
     document.title = "Get E-Quotation — WOODEX Pakistan | Free Quote Request";
@@ -64,6 +98,7 @@ const Quotation = () => {
     const preferredChannel = String(fd.get("preferredChannel") || "email");
     const contact = [email, phone].filter(Boolean).join(" · ");
     const attribution = getLeadAttribution();
+    if (blockedByIssues()) return;
     setSubmitting(true);
     setSubmitError("");
     try {
@@ -74,8 +109,8 @@ const Quotation = () => {
             email,
             phone,
             contact,
-            // `productId` is what the server re-prices from; the display price is only a hint.
-            items: items.map((i) => ({ productId: i.id, name: i.name, price: i.price, qty: i.quantity ?? 1, material: i.color })),
+            // `productId` (and the option) is what the server prices from; nothing the page shows is trusted.
+            items: items.map(lineRequest),
             source: "storefront",
             leadSource: "E-Quotation Form",
             captureLead: true,
@@ -160,7 +195,7 @@ const Quotation = () => {
           /* `productId` is mandatory: the server re-prices every anonymous line from
              the catalog and zeroes any item it cannot identify. Omitting it (as this
              path used to) saved a quotation with a PKR 0 total. */
-          items: items.map((item) => ({ productId: item.id, name: item.name, qty: item.quantity ?? 1, material: item.color })),
+          items: items.map(lineRequest),
         });
         const leadId = Number(result?.leadId);
         if (!result || !Number.isSafeInteger(leadId) || leadId < 1) throw new Error("The quotation request could not be saved.");
@@ -185,6 +220,7 @@ const Quotation = () => {
       toast.error("Please add at least one product to your quote basket first.");
       return;
     }
+    if (blockedByIssues()) return;
     if (!isClientInfoValid || (action === "whatsapp" && !clientInfo.contactConsent)) {
       setPendingAction(action);
       setShowClientDialog(true);
@@ -198,7 +234,7 @@ const Quotation = () => {
       window.print();
     } else if (action === "email") {
       const subject = encodeURIComponent(`WOODEX Quotation Request — ${clientInfo.name}`);
-      const itemsList = items.map((item, i) => `${i + 1}. ${item.name} x${item.quantity} — ${formatPKR(item.price * item.quantity)}`).join("\n");
+      const itemsList = items.map((item, i) => `${i + 1}. ${lineTitle(item)}${item.sku ? ` [${item.sku}]` : ""} x${item.quantity} — ${lineAmount(item)}`).join("\n");
       const body = encodeURIComponent(
         `Quotation Request\n\nClient: ${clientInfo.name}\nLocation: ${clientInfo.location}\nContact: ${clientInfo.contactNumber}\nWhatsApp: ${clientInfo.whatsapp}\n\nProducts:\n${itemsList}\n\nEstimated Total: ${formatPKR(totalPrice)}\nFinal payment terms will be included in formal quotation.`
       );
@@ -278,24 +314,34 @@ const Quotation = () => {
                 />
                 {showProductSearch && searchResults.length > 0 && (
                   <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-background border border-border rounded-sm shadow-lg max-h-80 overflow-y-auto">
-                    {searchResults.map((p) => (
-                      <button
-                        key={p.id}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-section-light transition-colors border-b border-border last:border-b-0"
-                        onClick={() => {
-                          addItem({ id: p.id, name: p.name, category: p.category, price: p.price, image: p.images[0] });
-                          setProductSearch("");
-                          setShowProductSearch(false);
-                        }}
-                      >
-                        <img src={p.images[0]} alt={p.name} className="w-10 h-10 object-cover rounded-sm flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">{p.subcategory || p.category}</p>
-                        </div>
-                        <span className="text-sm font-bold text-accent flex-shrink-0">{formatPKR(p.price)}</span>
-                      </button>
-                    ))}
+                    {searchResults.map(({ product: p, variant }) => {
+                      const price = optionPrice(p, variant);
+                      return (
+                        <button
+                          key={p.id + "|" + (variant?.id ?? "")}
+                          type="button"
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-section-light transition-colors border-b border-border last:border-b-0"
+                          onClick={() => {
+                            addItem({
+                              id: p.id, name: p.name, category: p.category, image: p.images[0],
+                              price: price ?? 0, priceOnRequest: price === null,
+                              variantId: variant?.id ?? null, variant: variant?.label, sku: variant?.sku || p.sku || null,
+                            });
+                            setProductSearch("");
+                            setShowProductSearch(false);
+                          }}
+                        >
+                          {p.images[0]
+                            ? <img src={p.images[0]} alt="" className="w-10 h-10 object-cover rounded-sm flex-shrink-0" />
+                            : <span className="w-10 h-10 rounded-sm bg-muted flex-shrink-0" aria-hidden="true" />}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{p.name}{variant ? ` — ${variant.label}` : ""}</p>
+                            <p className="text-xs text-muted-foreground">{categoryLabel(p.subcategory || p.category)}</p>
+                          </div>
+                          <span className="text-sm font-bold text-accent flex-shrink-0">{price === null ? "On request" : formatPKR(price)}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -353,24 +399,25 @@ const Quotation = () => {
                   <div className="col-span-1"></div>
                 </div>
                 {items.map((item) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-4 px-5 py-4 items-center border-b border-border last:border-b-0">
+                  <div key={keyOf(item)} className="grid grid-cols-12 gap-4 px-5 py-4 items-center border-b border-border last:border-b-0">
                     <div className="col-span-12 sm:col-span-5">
-                      <Link to={`/shop/${item.id}`} className="font-semibold text-sm hover:text-accent transition-colors">{item.name}</Link>
-                      <p className="text-xs text-muted-foreground">{item.category}</p>
+                      <Link to={`/shop/${item.id}`} className="font-semibold text-sm hover:text-accent transition-colors">{lineTitle(item)}</Link>
+                      <p className="text-xs text-muted-foreground">{categoryLabel(item.category)}{item.sku ? ` · ${item.sku}` : ""}</p>
+                      {item.issue && <p className="text-xs text-destructive mt-0.5">{item.issue}</p>}
                     </div>
                     <div className="col-span-4 sm:col-span-2 text-center text-sm text-muted-foreground">{item.color || "—"}</div>
                     <div className="col-span-4 sm:col-span-2 flex items-center justify-center gap-2">
-                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 border border-border rounded-sm flex items-center justify-center hover:border-accent transition-colors">
+                      <button type="button" aria-label={`One fewer ${item.name}`} onClick={() => updateQuantity(keyOf(item), item.quantity - 1)} className="w-7 h-7 border border-border rounded-sm flex items-center justify-center hover:border-accent transition-colors">
                         <Minus className="h-3 w-3" />
                       </button>
                       <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 border border-border rounded-sm flex items-center justify-center hover:border-accent transition-colors">
+                      <button type="button" aria-label={`One more ${item.name}`} onClick={() => updateQuantity(keyOf(item), item.quantity + 1)} className="w-7 h-7 border border-border rounded-sm flex items-center justify-center hover:border-accent transition-colors">
                         <Plus className="h-3 w-3" />
                       </button>
                     </div>
-                    <div className="col-span-3 sm:col-span-2 text-right font-semibold text-sm">{formatPKR(item.price * item.quantity)}</div>
+                    <div className="col-span-3 sm:col-span-2 text-right font-semibold text-sm">{item.issue ? "—" : item.priceOnRequest ? "On request" : formatPKR(item.price * item.quantity)}</div>
                     <div className="col-span-1 text-right">
-                      <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                      <button type="button" aria-label={`Remove ${item.name}`} onClick={() => removeItem(keyOf(item))} className="text-muted-foreground hover:text-destructive transition-colors">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -381,6 +428,11 @@ const Quotation = () => {
                     <span className="font-bold">Estimated Total</span>
                     <span className="text-xl font-black text-accent">{formatPKR(totalPrice)}</span>
                   </div>
+                  {onRequestCount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Not counting {onRequestCount} item{onRequestCount === 1 ? "" : "s"} priced on request; we will send {onRequestCount === 1 ? "its price" : "their prices"} in the quotation.
+                    </p>
+                  )}
                   <p className="mt-2 text-xs text-muted-foreground">Final payment terms will be included in formal quotation.</p>
                 </div>
               </div>
@@ -490,7 +542,7 @@ const Quotation = () => {
                       {items.length > 0 && (
                         <div className="p-4 bg-hon-green-pale rounded-sm border border-accent/30">
                           <p className="text-sm font-semibold text-accent">
-                            ✓ {totalItems} product{totalItems !== 1 ? "s" : ""} from your quote basket will be included ({formatPKR(totalPrice)} estimated)
+                            ✓ {totalItems} product{totalItems !== 1 ? "s" : ""} from your quote basket will be included ({formatPKR(totalPrice)} estimated{onRequestCount > 0 ? `, plus ${onRequestCount} priced on request` : ""})
                           </p>
                         </div>
                       )}
@@ -599,11 +651,14 @@ const Quotation = () => {
       </Dialog>
 
       {/* Printable Invoice — hidden on screen, shown on print */}
+      {/* Lines that can no longer be quoted are not printed: the estimate
+          would list something the shop does not offer. */}
       <PrintableInvoice
         ref={printRef}
-        items={items}
+        items={items.filter((item) => !item.issue)}
         totalPrice={totalPrice}
-        totalItems={totalItems}
+        totalItems={items.filter((item) => !item.issue).reduce((sum, item) => sum + item.quantity, 0)}
+        quoteNumber={manualHandoff?.ref || undefined}
         clientInfo={clientInfo}
       />
 

@@ -45,6 +45,18 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
     setRotation(0);
   };
 
+  /* A product can arrive with no photograph at all: the catalogue is the
+     business's data, and a row without a picture is still a product. Show its
+     initial rather than a broken image and controls that have nothing to turn. */
+  if (images.length === 0) {
+    return (
+      <div className="aspect-square rounded-lg bg-muted flex items-center justify-center" role="img" aria-label={`${productName}: no photograph yet`}>
+        <span className="text-7xl font-bold text-muted-foreground/30" aria-hidden="true">{productName.charAt(0)}</span>
+      </div>
+    );
+  }
+  const several = images.length > 1;
+
   return (
     <div className="space-y-4">
       {/* Main Image */}
@@ -89,35 +101,43 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
           )}
         </div>
 
-        {/* Navigation Arrows */}
-        <Button
-          variant="secondary"
-          size="icon"
-          className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
-          onClick={handlePrev}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
-          onClick={handleNext}
-        >
-          <ChevronRight className="h-5 w-5" />
-        </Button>
+        {/* Navigation Arrows — only when there is another photograph to go to */}
+        {several && (
+          <>
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label="Previous photograph"
+              className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity rounded-full shadow-lg"
+              onClick={handlePrev}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label="Next photograph"
+              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity rounded-full shadow-lg"
+              onClick={handleNext}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </>
+        )}
 
         {/* Action Buttons */}
         <div className="absolute bottom-4 right-4 flex gap-2">
-          <Button
-            variant={is360Mode ? "default" : "secondary"}
-            size="sm"
-            onClick={toggle360Mode}
-            className="rounded-full shadow-lg"
-          >
-            <RotateCcw className="h-4 w-4 mr-1" />
-            360°
-          </Button>
+          {several && (
+            <Button
+              variant={is360Mode ? "default" : "secondary"}
+              size="sm"
+              onClick={toggle360Mode}
+              className="rounded-full shadow-lg"
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              360°
+            </Button>
+          )}
 
           <Dialog>
             <DialogTrigger asChild>
@@ -139,8 +159,8 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
         </div>
       </div>
 
-      {/* Thumbnails */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      {/* Thumbnails — a single photograph needs no strip to choose from */}
+      <div className={cn("flex gap-2 overflow-x-auto pb-2", !several && "hidden")}>
         {images.map((image, index) => (
           <button
             key={index}

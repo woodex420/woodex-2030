@@ -89,7 +89,9 @@ try {
   });
   check(created.status === 201, "probe product created with stock 3", `got ${created.status} ${JSON.stringify(created.json)?.slice(0, 120)}`);
 
-  const stockOf = async () => (await api("/api/products/ledger-probe")).json?.stockQty;
+  /* Read as staff: the quantity on hand is not part of the public product
+     (Furniture 2030 Phase 2 — a visitor learns "available", not "how many"). */
+  const stockOf = async () => (await api("/api/products/ledger-probe", { token })).json?.stockQty;
   const movementsOf = async () => {
     const rows = await api("/api/products/ledger-probe/stock", { token });
     return rows.json;

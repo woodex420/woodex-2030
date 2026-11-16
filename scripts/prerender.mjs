@@ -13,7 +13,17 @@
  * canonical, OG tags and JSON-LD. The app still hydrates as a normal SPA — the
  * markup is a fast first paint and crawler fodder, not a second renderer.
  *
- * Usage:  node scripts/prerender.mjs [--dist dist] [--api http://127.0.0.1:3001]
+ * What it does NOT do: product pages. The catalogue lives in the database, and
+ * a build has no database — on purpose; the build never touches a hosted one.
+ * Until Furniture 2030 Phase 2 this script prerendered the first 60 products
+ * of a list compiled into the storefront, which were demo products: sample
+ * names and prices written into static HTML for crawlers. That list is gone
+ * from the storefront, and so are those pages. A product page is rendered in
+ * the browser from the API. Giving crawlers a product page without JavaScript
+ * needs the server to fill the page from the database at request time; that is
+ * open work (docs/furniture-2030/02-AUDIT-FINDINGS.md, F-11).
+ *
+ * Usage:  node scripts/prerender.mjs [--dist dist]
  * Runs automatically as part of `npm run vercel:build`.
  */
 import { JSDOM, VirtualConsole } from "jsdom";
@@ -33,8 +43,8 @@ const argOf = (flag, fallback) => {
 const DIST = path.resolve(ROOT, argOf("--dist", "dist"));
 const SRC = path.join(ROOT, "apps/storefront/src");
 /* Brand facts come from the app's own config so a rename is one edit there.
-   Bundled with esbuild exactly like the product catalogue below: the file is
-   TypeScript with no imports, so it can be evaluated in plain Node. */
+   Bundled with esbuild: the file is TypeScript with no imports, so it can be
+   evaluated in plain Node. */
 async function loadBrand() {
   const out = await build({
     entryPoints: [path.join(SRC, "config/brand.ts")],
@@ -57,8 +67,7 @@ const ORIGIN = String(process.env.SITE_URL || BRAND.url).replace(/\/+$/, "");
 if (!/^https?:\/\//.test(ORIGIN)) throw new Error(`SITE_URL must be an absolute http(s) URL, got "${ORIGIN}"`);
 
 /* ---------- route table ----------
-   Static routes plus their per-route metadata. Dynamic product/series/blog
-   pages are enumerated from the catalogue below. */
+   The static public routes and their per-route metadata. */
 /* Shared with the API, which builds /sitemap.xml from the same list, so a
    public page cannot exist in one place and be missing from the other. */
 const STATIC_ROUTES = PUBLIC_ROUTES;
@@ -84,6 +93,11 @@ function makeWindow(url, errs) {
   // Every API call during prerender is answered with an empty payload: the goal
   // is a stable shell, not a database snapshot that would go stale in dist/.
   w.fetch = async () => ({ ok: false, status: 503, json: async () => ({}), text: async () => "" });
+  /* Tells the storefront it is being rendered to a file. It then leaves the
+     catalogue in its "loading" state, so the static page carries the loading
+     placeholder — not "the catalogue is unavailable", which is what a refused
+     request means in a real browser. See startRuntimeSync() in lib/runtime.ts. */
+  w.__WOODEX_PRERENDER__ = true;
   /* React (and Radix) reach for constructor globals at render time. Missing
      ones surface as "ReferenceError: HTMLFormElement is not defined". */
   const DOM_GLOBALS = [
@@ -230,35 +244,7 @@ async function main() {
   const shell = fs.readFileSync(shellPath, "utf8");
   const code = await bundle();
 
-  // Product, series and blog routes come from the built catalogue module.
-  let catalogue = { products: [], series: [], posts: [] };
-  try {
-    const dataBundle = await build({
-      entryPoints: [path.join(SRC, "data/products.ts")],
-      bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent",
-      loader: { ".jpg": "text", ".png": "text", ".svg": "text" },
-    });
-    const tmp = path.join(ROOT, ".prerender-products.mjs");
-    fs.writeFileSync(tmp, dataBundle.outputFiles[0].text);
-    const mod = await import(tmp + "?t=" + Date.now());
-    catalogue.products = (mod.products ?? []).slice(0, 60);
-    fs.unlinkSync(tmp);
-  } catch (e) {
-    console.warn("[prerender] product catalogue unavailable:", e.message);
-  }
-
   let targets = [...STATIC_ROUTES];
-  for (const p of catalogue.products) {
-    if (!p?.id) continue;
-    targets.push({
-      path: `/shop/${p.id}`,
-      title: `${p.name} — ${p.category ?? "Office Furniture"}`,
-      desc: String(p.description ?? `${p.name} by WOODEX.`).slice(0, 158),
-      priority: "0.7", changefreq: "weekly",
-      productSchema: true,
-      product: p,
-    });
-  }
 
   /* PRERENDER_ONLY=/about,/shop narrows a run for debugging. Never set in CI:
      a partial run rewrites sitemap.xml with only the routes it rendered. */
@@ -305,14 +291,6 @@ async function main() {
     w.close();
 
     const extra = [];
-    if (route.productSchema && route.product) {
-      extra.push({
-        "@context": "https://schema.org", "@type": "Product",
-        name: route.product.name, sku: route.product.id, brand: { "@type": "Brand", name: "WOODEX" },
-        category: route.product.category,
-        offers: { "@type": "Offer", priceCurrency: "PKR", price: Number(route.product.price) || 0, availability: route.product.inStock === false ? "https://schema.org/OutOfStock" : "https://schema.org/InStock", url },
-      });
-    }
 
     // Compose: original shell with a replaced <head> block and prefilled root.
     let html = shell.replace(/<title>[\s\S]*?<\/title>/, "");

@@ -13,6 +13,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { formatPKR } from "@/data/products";
+import { brand } from "@/config/brand";
+import { keyOf } from "@/contexts/lineKey";
 
 const cities = [
   "Lahore", "Karachi", "Islamabad", "Rawalpindi", "Faisalabad", "Multan",
@@ -20,7 +22,7 @@ const cities = [
 ];
 
 const Checkout = () => {
-  const { items, totalPrice, totalItems, clearCart } = useCart();
+  const { items, totalPrice, totalItems, issueCount, removeItem, clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderRef, setOrderRef] = useState("");
@@ -34,7 +36,7 @@ const Checkout = () => {
     document.title = "Checkout — WOODEX Pakistan";
   }, []);
 
-  const deliveryFee = totalPrice >= 50000 ? 0 : 2500;
+  const deliveryFee = totalPrice >= brand.delivery.freeFrom ? 0 : brand.delivery.fee;
   const grandTotal = totalPrice + deliveryFee;
 
   const handleChange = (field: string, value: string) => {
@@ -43,14 +45,19 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || issueCount > 0) return;
     setIsSubmitting(true);
     setSubmitError("");
     try {
       const result = await submitOrder({
         customer: formData.name || "Website checkout",
         contact: [formData.email.trim(), formData.phone.trim()].filter(Boolean).join(" · "),
-        items: items.map((item) => ({ id: item.id, name: item.name, price: item.price, qty: item.quantity, color: item.color })),
+        /* The id, the option and the quantity are what the API acts on; it
+           looks up the name and the price itself. They are sent as hints only. */
+        items: items.map((item) => ({
+          id: item.id, name: item.name, price: item.price, qty: item.quantity, color: item.color,
+          ...(item.variantId != null ? { variantId: item.variantId } : {}),
+        })),
         total: grandTotal,
         source: "Storefront checkout",
         note: `${formData.address}, ${formData.city}${formData.notes ? " — " + formData.notes : ""}`,
@@ -231,7 +238,7 @@ const Checkout = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {items.map((item) => (
-                        <div key={`${item.id}-${item.color}`} className="flex gap-3">
+                        <div key={keyOf(item)} className="flex gap-3">
                           {item.image && (
                             <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-muted">
                               <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
@@ -239,10 +246,18 @@ const Checkout = () => {
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium line-clamp-1">{item.name}</p>
-                            {item.color && <p className="text-xs text-muted-foreground">{item.color}</p>}
+                            {(item.variant || item.color) && <p className="text-xs text-muted-foreground">{[item.variant, item.color].filter(Boolean).join(" · ")}</p>}
                             <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                            {item.issue && (
+                              <p className="mt-1 text-xs text-destructive">
+                                {item.issue}.{" "}
+                                <button type="button" className="font-semibold underline underline-offset-2" onClick={() => removeItem(keyOf(item))}>
+                                  Remove
+                                </button>
+                              </p>
+                            )}
                           </div>
-                          <p className="text-sm font-semibold whitespace-nowrap">{formatPKR(item.price * item.quantity)}</p>
+                          <p className="text-sm font-semibold whitespace-nowrap">{item.issue ? "—" : formatPKR(item.price * item.quantity)}</p>
                         </div>
                       ))}
 
@@ -258,7 +273,7 @@ const Checkout = () => {
                           <span className="font-medium">{deliveryFee === 0 ? <span className="text-accent">FREE</span> : formatPKR(deliveryFee)}</span>
                         </div>
                         {deliveryFee > 0 && (
-                          <p className="text-xs text-muted-foreground">Free delivery on orders above PKR 50,000</p>
+                          <p className="text-xs text-muted-foreground">Free delivery on orders of {formatPKR(brand.delivery.freeFrom)} or more</p>
                         )}
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Assembly</span>
@@ -273,8 +288,13 @@ const Checkout = () => {
                         <span className="font-bold text-xl text-accent">{formatPKR(grandTotal)}</span>
                       </div>
 
+                      {issueCount > 0 && (
+                        <p role="alert" className="text-sm text-destructive">
+                          {issueCount === 1 ? "One item" : `${issueCount} items`} above cannot be ordered. Remove {issueCount === 1 ? "it" : "them"} to continue.
+                        </p>
+                      )}
                       {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
-                      <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base h-12 disabled:cursor-not-allowed disabled:opacity-60">
+                      <Button type="submit" disabled={isSubmitting || issueCount > 0} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base h-12 disabled:cursor-not-allowed disabled:opacity-60">
                         {isSubmitting ? "Saving request…" : "Submit order request"}
                       </Button>
 

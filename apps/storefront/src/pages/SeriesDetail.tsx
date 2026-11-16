@@ -6,6 +6,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/shop/ProductCard";
 import { seriesList, getProductsBySeries } from "@/data/products";
+import { useCatalogStatus } from "@/lib/runtime";
+import { CatalogLoading, CatalogUnavailable } from "@/components/shop/CatalogNotice";
 import { useEffect } from "react";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getSeriesSeo } from "@/data/seoContent";
@@ -22,6 +24,7 @@ const SeriesDetail = () => {
   const { seriesId } = useParams<{ seriesId: string }>();
   const series = seriesList.find((s) => s.id === seriesId);
   const seriesProducts = getProductsBySeries(seriesId || "");
+  const catalogStatus = useCatalogStatus();
   const seo = series ? getSeriesSeo(series.id) : undefined;
 
   useEffect(() => {
@@ -98,14 +101,22 @@ const SeriesDetail = () => {
               <div>
                 <div className="w-12 h-1 bg-accent mb-4" />
                 <h2 className="text-3xl font-bold">{series.name} Products</h2>
-                <p className="text-muted-foreground mt-2">{seriesProducts.length} products in this collection</p>
+                {catalogStatus === "ready" && seriesProducts.length > 0 && (
+                  <p className="text-muted-foreground mt-2">
+                    {seriesProducts.length} product{seriesProducts.length === 1 ? "" : "s"} in this collection
+                  </p>
+                )}
               </div>
               <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground" asChild>
                 <Link to="/shop">All Products</Link>
               </Button>
             </div>
 
-            {seriesProducts.length > 0 ? (
+            {catalogStatus === "loading" ? (
+              <CatalogLoading cards={4} />
+            ) : catalogStatus === "unavailable" ? (
+              <CatalogUnavailable />
+            ) : seriesProducts.length > 0 ? (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {seriesProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />

@@ -1,49 +1,109 @@
 import { refreshTheme } from "./theme";
 import { Fragment, createElement, useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { products } from "@/data/products";
-import type { Product } from "@/data/products";
+import { products, catalog } from "@/data/products";
+import type { Product, ProductVariant } from "@/data/products";
 
 /**
- * WOODEX runtime bridge — the storefront and the agency dashboard share one
- * backend (apps/api, SQLite). This module:
- *  1. hydrates the catalog and price/stock changes from the shared API;
- *  2. refreshes product data after dashboard CRUD without a storefront rebuild;
- *  3. posts quotes, leads and orders to the same DB the dashboard reads.
+ * WOODEX runtime bridge — the storefront and the dashboard share one backend
+ * (apps/api). This module:
+ *  1. loads the catalogue from the API — the ONLY place the site's products
+ *     come from; nothing is compiled in, so nothing is shown that the database
+ *     does not hold;
+ *  2. refreshes price and availability after a dashboard edit, without a rebuild;
+ *  3. posts quotes, leads and orders to the same database the dashboard reads.
  */
-type Override = { id: string; price?: number; inStock?: boolean; updatedAt?: string };
-type CatalogReply = { items: Product[] };
+type Override = { id: string; price?: number; priceOnRequest?: boolean; inStock?: boolean; updatedAt?: string };
 let lastSync = "";
 let lastCatalogSignature = "";
+
+const announce = () => window.dispatchEvent(new CustomEvent("woodex:runtime"));
 
 function storefrontImage(value: string) {
   if (/^(https?:|data:)/i.test(value) || value.startsWith("/")) return value;
   return "/img/" + value;
 }
 
+const list = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+/* The API's reply is a claim, not a guarantee: a product without an id or a
+   name is dropped here rather than rendered as a blank card. */
+function toProduct(raw: unknown): Product | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Record<string, unknown>;
+  if (typeof p.id !== "string" || !p.id || typeof p.name !== "string" || !p.name) return null;
+  const variants = list<Record<string, unknown>>(p.variants)
+    .filter((v) => v && typeof v.id === "number" && typeof v.label === "string" && v.active !== false)
+    .map((v): ProductVariant => ({
+      id: v.id as number,
+      sku: String(v.sku ?? ""),
+      label: v.label as string,
+      attributes: v.attributes && typeof v.attributes === "object" ? (v.attributes as Record<string, string>) : {},
+      price: Number(v.price) || 0,
+      priceOnRequest: v.priceOnRequest === true,
+    }));
+  return {
+    id: p.id,
+    name: p.name,
+    category: String(p.category ?? ""),
+    subcategory: typeof p.subcategory === "string" && p.subcategory ? p.subcategory : undefined,
+    series: typeof p.series === "string" && p.series ? p.series : undefined,
+    price: Number(p.price) || 0,
+    originalPrice: typeof p.originalPrice === "number" && p.originalPrice > 0 ? p.originalPrice : undefined,
+    description: String(p.description ?? ""),
+    shortDescription: String(p.shortDescription ?? ""),
+    images: list<string>(p.images).filter((image) => typeof image === "string" && image).map(storefrontImage),
+    colors: list<Product["colors"][number]>(p.colors),
+    specifications: list<Product["specifications"][number]>(p.specifications),
+    features: list<string>(p.features),
+    inStock: p.inStock !== false,
+    isNew: p.isNew === true,
+    isBestSeller: p.isBestSeller === true,
+    sku: typeof p.sku === "string" && p.sku ? p.sku : null,
+    priceOnRequest: p.priceOnRequest === true,
+    trackStock: p.trackStock !== false,
+    variants,
+    updatedAt: typeof p.updatedAt === "string" ? p.updatedAt : undefined,
+  };
+}
+
+/**
+ * Reads the published catalogue. Returns how many products changed.
+ *
+ * A failure before anything was loaded turns the catalogue "unavailable", and
+ * the pages say so. A failure after a successful load changes nothing: the
+ * last good list stays on screen.
+ */
 export async function syncCatalog(): Promise<number> {
   try {
     const res = await fetch("/api/products", { headers: { accept: "application/json" } });
-    if (!res.ok) return 0;
-    const json = (await res.json()) as CatalogReply;
-    if (!Array.isArray(json.items)) return 0;
-    const next = json.items.map((product) => ({
-      ...product,
-      images: Array.isArray(product.images) ? product.images.map(storefrontImage) : [],
-      colors: Array.isArray(product.colors) ? product.colors : [],
-      specifications: Array.isArray(product.specifications) ? product.specifications : [],
-      features: Array.isArray(product.features) ? product.features : [],
-    }));
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const json = (await res.json()) as { items?: unknown };
+    if (!json || !Array.isArray(json.items)) throw new Error("unexpected catalogue reply");
+    const next = json.items.map(toProduct).filter((product): product is Product => product !== null);
     const signature = JSON.stringify(next);
-    if (signature === lastCatalogSignature) return 0;
+    if (catalog.status === "ready" && signature === lastCatalogSignature) return 0;
     const previousCount = products.length;
     products.splice(0, products.length, ...next);
     lastCatalogSignature = signature;
-    window.dispatchEvent(new CustomEvent("woodex:runtime"));
+    catalog.status = "ready";
+    announce();
     return Math.abs(next.length - previousCount) || 1;
   } catch {
+    if (catalog.status === "loading") {
+      catalog.status = "unavailable";
+      announce();
+    }
     return 0;
   }
+}
+
+/** The "Try again" button of the unavailable message. */
+export async function retryCatalog(): Promise<void> {
+  if (catalog.status === "ready") return;
+  catalog.status = "loading";
+  announce();
+  await syncCatalog();
 }
 
 export async function syncOverrides(): Promise<number> {
@@ -53,12 +113,16 @@ export async function syncOverrides(): Promise<number> {
     if (!res.ok) return 0;
     const json = (await res.json()) as { serverTime: string; items: Override[] };
     lastSync = json.serverTime;
-    if (!json.items.length) return 0;
+    if (!Array.isArray(json.items) || !json.items.length) return 0;
     const byId = new Map(products.map((p) => [p.id, p]));
     let changed = 0;
     for (const override of json.items) {
       const product = byId.get(override.id);
       if (!product) continue;
+      if (typeof override.priceOnRequest === "boolean" && override.priceOnRequest !== !!product.priceOnRequest) {
+        product.priceOnRequest = override.priceOnRequest;
+        changed++;
+      }
       if (typeof override.price === "number" && override.price !== product.price) {
         product.price = override.price;
         changed++;
@@ -68,7 +132,7 @@ export async function syncOverrides(): Promise<number> {
         changed++;
       }
     }
-    if (changed > 0) window.dispatchEvent(new CustomEvent("woodex:runtime"));
+    if (changed > 0) announce();
     return changed;
   } catch {
     return 0;
@@ -76,10 +140,20 @@ export async function syncOverrides(): Promise<number> {
 }
 
 export function startRuntimeSync(intervalMs = 15000) {
-  void syncCatalog();
+  /* The build renders each page to static HTML in a window with no API. Leave
+     the catalogue "loading" there: the static page then carries the loading
+     placeholder, not a message that the shop is unavailable. */
+  if ((window as unknown as { __WOODEX_PRERENDER__?: boolean }).__WOODEX_PRERENDER__) return;
+
+  /* Until the catalogue has loaded once, ask again soon; after that, once a
+     minute is enough — price and availability arrive through the overrides. */
+  const refreshCatalog = async () => {
+    await syncCatalog();
+    window.setTimeout(() => void refreshCatalog(), catalog.status === "ready" ? Math.max(intervalMs * 4, 60000) : 8000);
+  };
+  void refreshCatalog();
   void syncOverrides();
   window.setInterval(() => void syncOverrides(), intervalMs);
-  window.setInterval(() => void syncCatalog(), Math.max(intervalMs * 4, 60000));
   // The serverless runtime has no cross-instance event bus; refresh public settings on a bounded poll.
   window.setInterval(() => void refreshTheme(), Math.max(intervalMs * 4, 60000));
 }
@@ -93,6 +167,12 @@ export function useRuntimeRevision() {
     return () => window.removeEventListener("woodex:runtime", handler);
   }, []);
   return revision;
+}
+
+/** Where the catalogue stands — loading, ready or unavailable — kept current. */
+export function useCatalogStatus() {
+  useRuntimeRevision();
+  return catalog.status;
 }
 
 /** Re-render wrapper: bumps on `woodex:runtime` so catalog price/stock stay live. */
@@ -127,7 +207,39 @@ async function post(path: string, body: unknown) {
   }
 }
 
-export const submitQuoteRequest = (payload: unknown) => post("/api/quotes", payload);
+/**
+ * Like post(), for the two requests whose refusal the customer can act on.
+ *
+ * post() answers null for every failure, so "this product is priced on
+ * request" and "the server is down" looked the same on the page: "could not be
+ * saved, please try again" — and trying again never helps the first one. Here
+ * a refusal (4xx) throws the reason the API gave; a failure to reach it, or a
+ * server error, throws a message that says so.
+ */
+async function postOrExplain(path: string, body: unknown): Promise<Record<string, unknown>> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("We could not reach the shop. Check your connection and try again; nothing was sent.");
+  }
+  let data: unknown = null;
+  try { data = await res.json(); } catch { /* not JSON: handled below */ }
+  const record = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  if (res.ok && record) return record;
+  const reason = record && typeof record.error === "string" ? record.error.trim() : "";
+  if (res.status >= 400 && res.status < 500 && reason) {
+    /* The API writes its reasons as sentences without a capital or a full stop. */
+    throw new Error(reason.charAt(0).toUpperCase() + reason.slice(1) + (/[.!?]$/.test(reason) ? "" : "."));
+  }
+  throw new Error("The request could not be saved right now. Please try again in a moment.");
+}
+
+export const submitQuoteRequest = (payload: unknown) => postOrExplain("/api/quotes", payload);
 export const submitLead = (payload: unknown) => post("/api/leads", payload);
 export const logManualWhatsAppHandoff = (leadId: number) => post(`/api/leads/${leadId}/whatsapp-handoff`, {});
-export const submitOrder = (payload: unknown) => post("/api/orders", payload);
+export const submitOrder = (payload: unknown) => postOrExplain("/api/orders", payload);
