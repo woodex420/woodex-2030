@@ -159,6 +159,33 @@ server, and in the built bundle served from `dist/` (so run `vercel:build` first
   API error, a missing file, a console error or an empty page. It exists because
   two screens crashed on open with everything else green: nothing opened them.
   It opens screens; it does not press their buttons.
+- **`e2e:catalog` is the catalogue journey**, shop and admin together, in a
+  browser: the catalogue arrives from the API, a product without a price never
+  reads "PKR 0", an option is carried from the product page to the order, an
+  old cart is reconciled with what the catalogue says today, a refused order
+  says why, and the real catalogue is loaded as drafts and released in the
+  admin. By default it serves `dist/` itself (port `E2E_CATALOG_PORT`, 4183) on
+  a database of its own. `ci-test.mjs` runs it after the built-routes step
+  (port `CI_CATALOG_PORT`). It was checked by breaking the storefront on
+  purpose, nine ways; each made it fail.
+- **The storefront shows what the database holds, and nothing else.** No
+  product is compiled into it. `apps/storefront/src/data/demo-products.ts` is
+  read by the seed build only, and `smoke:render` fails if a demo product is
+  found in the storefront bundle. When the API cannot be reached the shop says
+  so; it never falls back to a list of its own.
+- **`test:catalog`** (one of the module suites, both engines) is the server
+  side of the same rules: drafts are invisible, one SKU names one thing, no
+  price is not a price of zero, an order and a quotation are priced by the
+  catalogue whatever the page sent, and a database that has not received
+  migration 019 keeps working as before. A price check must **send** a price:
+  the suite once passed against a server that priced lines from the request,
+  because it never sent one.
+- **A browser script signs in through `signInToDashboard()`**
+  (`scripts/lib/browser.mjs`), never by typing straight after `goto`. The
+  sign-in form fills in the demo account when the API answers; typing in the
+  same instant lost one sign-in in 120. The form now keeps what was typed and
+  marks itself `aria-busy` until it has heard from the API; the helper waits
+  for that.
 - **Playwright's Chromium cannot be installed in the Arena sandbox** — the
   download host is blocked. Without a browser the scripts print `SKIP` and exit
   0 (or `ERROR` and exit 1 with `E2E_REQUIRED=1`, as in CI). Do not treat a skip

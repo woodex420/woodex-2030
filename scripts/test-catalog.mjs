@@ -380,6 +380,10 @@ try {
     same([plain.status, plain.json?.status], [201, "published"], "a product can be created as it could before: published at once");
     same((await asStaff("/api/products/old-plain", { method: "PATCH", body: { price: 41000 } })).json?.price, 41000, "…and edited");
     same((await oldApi("/api/orders", { method: "POST", body: { customer: "Old", contact: "0300", items: [{ id: "old-plain", qty: 1 }] } })).status, 201, "…and ordered");
+    /* What the shop sends most: a basket as a quotation request. On a database
+       without 019 the catalogue still prices it — not the page. */
+    const oldQuote = await oldApi("/api/quotes", { method: "POST", body: { customer: "Old Customer", phone: "0300 0000000", items: [{ productId: "old-plain", qty: 2, price: 1 }] } });
+    same([oldQuote.status, oldQuote.json?.items?.[0]?.price, oldQuote.json?.total], [201, 41000, 82000], "…and quoted from the shop, at the catalogue's price whatever the page sent");
     for (const [what, body] of [["a SKU", { sku: "OLD-10001" }], ["a draft", { status: "draft" }], ["price on request", { priceOnRequest: true }], ["made-to-order stock", { trackStock: false }]]) {
       const r = await asStaff("/api/products/old-plain", { method: "PATCH", body });
       same([r.status, r.json?.code], [409, "catalog_migration_pending"], `${what} is refused with the reason, not with a database error`);

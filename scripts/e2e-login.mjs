@@ -37,6 +37,19 @@ try {
   if (await out.count()) { await out.click(); await page.waitForSelector('input[type="password"]', { timeout: 8000 }).catch(() => {}); }
   if (!(await page.locator('input[type="password"]').count())) await fail("sign-out did not return to login form");
 
+  /* The demo account, where it exists, arrives selected: whoever starts to
+     type their own e-mail replaces "admin" instead of adding to it. */
+  await page.goto(BASE + "/dashboard", { waitUntil: "domcontentloaded" });
+  await page.locator('form[aria-busy="false"]').waitFor({ timeout: 8000 }).catch(() => fail("the sign-in form never settled"));
+  const userField = page.getByPlaceholder("admin").first();
+  if ((await userField.inputValue()) === "admin") {
+    const selection = await userField.evaluate((el) => [document.activeElement === el, el.selectionStart, el.selectionEnd]);
+    if (!selection[0] || selection[1] !== 0 || selection[2] !== 5) await fail(`the prefilled demo username is not focused and selected (focused ${selection[0]}, selection ${selection[1]}–${selection[2]})`);
+    await page.keyboard.type("bilal@woodex.pk");
+    const after = await userField.inputValue();
+    if (after !== "bilal@woodex.pk") await fail(`typing over the prefilled demo username gave "${after}"`);
+  }
+
   /* An e-mail and a password, typed before the form has heard from the API.
      The form asks whether the demo account exists and fills it in when the
      answer comes; on a slow connection that is after somebody has begun to
