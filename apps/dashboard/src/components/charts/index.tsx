@@ -9,6 +9,16 @@ export type ChartSeries = {
   area?: boolean;
 };
 
+/* The top of a chart's scale. A series of zeros (a new site with no traffic
+   yet, a period with no revenue) has a peak of 0, and dividing by it made every
+   coordinate NaN: the chart drew nothing and the browser logged an error for
+   each point. With nothing to scale against, the scale is 1 and the line sits
+   on the baseline. */
+const scaleTop = (values: number[], headroom: number) => {
+  const peak = Math.max(0, ...values.filter((v) => Number.isFinite(v)));
+  return peak > 0 ? peak * headroom : 1;
+};
+
 /**
  * Dependency-free line/area chart with grid, axes and hover tooltip.
  * Clean treatment per §8.1 — subtle grid, no decoration.
@@ -31,16 +41,13 @@ export function LineAreaChart({
   const [hover, setHover] = useState<number | null>(null);
 
   const primary = series[0];
-  const max = useMemo(() => {
-    const all = series.flatMap((s) => s.values);
-    return Math.max(...all) * 1.12;
-  }, [series]);
+  const max = useMemo(() => scaleTop(series.flatMap((s) => s.values), 1.12), [series]);
 
   const n = labels.length;
   const x = (i: number) => pad.l + (i * (W - pad.l - pad.r)) / Math.max(1, n - 1);
   const y = (v: number, s: ChartSeries) => {
-    const smax = s === primary ? max : Math.max(...s.values) * 1.25;
-    return pad.t + (1 - v / smax) * (H - pad.t - pad.b);
+    const smax = s === primary ? max : scaleTop(s.values, 1.25);
+    return pad.t + (1 - (Number.isFinite(v) ? v : 0) / smax) * (H - pad.t - pad.b);
   };
 
   const linePath = (s: ChartSeries) =>

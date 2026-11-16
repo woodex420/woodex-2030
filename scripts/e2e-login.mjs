@@ -13,7 +13,7 @@ let chromium;
 try { ({ chromium } = await import("playwright")); }
 catch { unavailable("Playwright is unavailable (npm i -D playwright)."); }
 let browser;
-try { browser = await chromium.launch(); }
+try { browser = await chromium.launch((await import("./lib/browser.mjs")).launchOptions()); }
 catch (e) { unavailable("no browser binary — run `npx playwright install chromium` in an environment with network. (" + String(e.message).split("\n")[0] + ")"); }
 const fail = (m) => { console.error("E2E FAIL:", m); return browser.close().then(() => process.exit(1)); };
 try {
