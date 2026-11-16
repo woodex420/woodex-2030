@@ -65,6 +65,31 @@ const isoDay = (v) => { const ms = ts(v); return Number.isFinite(ms) ? new Date(
 const ts = (v) => (v === null || v === undefined ? NaN : v instanceof Date ? v.getTime() : Date.parse(String(v)));
 const fmtMoney = (n) => "PKR " + Math.round(n).toLocaleString("en-PK");
 
+/* A PATCH handler builds its SET list as it reads the request: a generic loop
+   pushes "resolution = ?" for the field as typed, and the status branch pushes
+   "resolution = ?" again with the trimmed value it validated. SQLite accepts
+   that and keeps the rightmost assignment. PostgreSQL rejects the statement —
+   "multiple assignments to same column" — so on production resolving a ticket,
+   or completing a service visit, with the note in the same request was a 500.
+
+   This keeps the LAST assignment to each column, which is exactly what SQLite
+   was already doing, and returns the parameters that go with what is left.
+   `params` holds one value per `?` in `sets`, in order; anything after those
+   (the WHERE values) comes back untouched in `rest`. */
+const lastAssignmentWins = (sets, params) => {
+  const kept = new Map();
+  let at = 0;
+  for (const assignment of sets) {
+    const holders = (assignment.match(/\?/g) ?? []).length;
+    const column = assignment.slice(0, assignment.indexOf("=")).trim();
+    kept.delete(column); // re-insert, so the surviving one sits where the last one was
+    kept.set(column, { assignment, values: params.slice(at, at + holders) });
+    at += holders;
+  }
+  const survivors = [...kept.values()];
+  return { sets: survivors.map((x) => x.assignment), params: survivors.flatMap((x) => x.values), rest: params.slice(at) };
+};
+
 /* ---- pre-DDL column migrations ----
    011 adds stock_movements.idem_key, and 011's unique index — created in the
    DDL immediately below — references it. Putting the column in the CREATE
@@ -5733,7 +5758,10 @@ app.post("/api/tickets", wrapTxJson(async (req, res) => {
      reads as a conversation from its first line instead of starting with a
      reply to something nobody can see. */
   if (b.description && String(b.description).trim()) {
-    await db.prepare("INSERT INTO ticket_messages(ticket_id, author, body, internal, channel, created_at) VALUES(?,?,?,0,?,?)")
+    /* FALSE, not 0: `internal` is INTEGER on SQLite and BOOLEAN on PostgreSQL,
+       and PostgreSQL will not put the integer literal 0 in a boolean column —
+       it refused the whole ticket. The keyword is valid on both. */
+    await db.prepare("INSERT INTO ticket_messages(ticket_id, author, body, internal, channel, created_at) VALUES(?,?,?,FALSE,?,?)")
       .run(id, customer, String(b.description).trim(), channel, t);
   }
 
@@ -5840,7 +5868,11 @@ app.patch("/api/tickets/:id", wrapTxJson(async (req, res) => {
   }
   if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
   sets.push("updated_at = ?"); params.push(now(), row.id);
-  await db.prepare(`UPDATE tickets SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  {
+    /* `resolution` can be assigned by the field loop and again by the resolved branch. */
+    const u = lastAssignmentWins(sets, params);
+    await db.prepare(`UPDATE tickets SET ${u.sets.join(", ")} WHERE id = ?`).run(...u.params, ...u.rest);
+  }
   const after = rowTicket(await db.prepare(ticketSql("t.id = ?")).get(row.id));
   await writeAudit(req, { action: "ticket.updated", entityType: "ticket", entityId: row.id, before, after });
   if (before.status !== after.status) {
@@ -5940,7 +5972,11 @@ app.patch("/api/service-visits/:id", wrapTxJson(async (req, res) => {
   }
   if (!sets.length) throw Object.assign(new Error("nothing to update"), { statusCode: 400 });
   sets.push("updated_at = ?"); params.push(now(), row.id);
-  await db.prepare(`UPDATE service_visits SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  {
+    /* `work_done` can be assigned by the field loop and again by the completed branch. */
+    const u = lastAssignmentWins(sets, params);
+    await db.prepare(`UPDATE service_visits SET ${u.sets.join(", ")} WHERE id = ?`).run(...u.params, ...u.rest);
+  }
   const after = rowServiceVisit(await db.prepare(
     "SELECT v.*, t.ref AS ticket_ref FROM service_visits v JOIN tickets t ON t.id = v.ticket_id WHERE v.id = ?"
   ).get(row.id));
@@ -7972,14 +8008,32 @@ const insertInvoice = async ({ ref, quoteId, orderId, customer, items, subtotal,
    physical object rather than a document number. Parameterised rather than
    guessing, because "no such column: ref" is a 500 at the moment a technician
    is standing in a kitchen. */
+/* The highest number already issued for THIS prefix, plus one.
+
+   This used to be `MAX(CAST(substr(ref, n) AS INTEGER))` over every row in the
+   table, whatever its prefix. SQLite quietly casts text that is not a number to
+   0, so it worked. PostgreSQL does not cast it at all — it raises
+   `invalid input syntax for type integer` — and the journal holds references
+   with several prefixes (JE-, JE-EXP-, JE-INV-…). Asking for the next JE-EXP-
+   number made PostgreSQL cast the tail of "JE-1001", which is "", and the
+   request died: on production an expense could not be recorded once any other
+   journal entry existed. No test saw it because the finance suite ran on
+   SQLite only.
+
+   The CASE is what makes it safe: a row is cast only when its reference starts
+   with this prefix and everything after the prefix is a digit. `ltrim(x, set)`
+   strips those characters and exists with the same meaning on both engines.
+   BIGINT, so an absurdly long number is not a second way to raise. */
 const nextRefColumn = async (table, column, prefix, floor = 0) => {
-  const m = (await (db.prepare(`SELECT MAX(CAST(substr(${column}, ?) AS INTEGER)) v FROM ${table}`).get(prefix.length + 1))).v ?? 0;
-  return prefix + String(Math.max(Number(m), floor) + 1);
+  const at = prefix.length;
+  const row = await db.prepare(
+    `SELECT MAX(CASE WHEN substr(${column}, 1, ?) = ? AND length(${column}) > ? AND ltrim(substr(${column}, ?), '0123456789') = ''
+                     THEN CAST(substr(${column}, ?) AS BIGINT) END) v
+       FROM ${table}`
+  ).get(at, prefix, at, at + 1, at + 1);
+  return prefix + String(Math.max(Number(row?.v ?? 0), floor) + 1);
 };
-const nextRef = async (table, prefix, floor = 0) => { // MAX-based: survives row deletion (QA TODO-3)
-  const m = (await (db.prepare("SELECT MAX(CAST(substr(ref, ?) AS INTEGER)) v FROM " + table).get(prefix.length + 1))).v ?? 0;
-  return prefix + String(Math.max(m, floor) + 1);
-};
+const nextRef = (table, prefix, floor = 0) => nextRefColumn(table, "ref", prefix, floor); // MAX-based: survives row deletion (QA TODO-3)
 
 app.get("/api/invoices", wrap(async (req, res) => {
   let rows = (await (db.prepare("SELECT * FROM invoices ORDER BY datetime(created_at) DESC").all())).map(decorateInvoice);

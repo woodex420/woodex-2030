@@ -28,12 +28,11 @@
  *   6. THE SUMMARY ADDS UP. What is open, what is late, and what the warranty
  *      decisions have cost.
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
+import { spawnApi, rawDb } from "./lib/api-under-test.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-support-${process.pid}`);
@@ -46,12 +45,7 @@ function check(ok, label, detail = "") {
 let child;
 try {
   fs.mkdirSync(tempRoot, { recursive: true });
-  child = spawn(process.execPath, ["apps/api/server.mjs"], {
-    cwd: ROOT,
-    env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  child = await spawnApi({ tempRoot });
 
   let log = "";
   const base = await new Promise((resolve, reject) => {
@@ -225,22 +219,25 @@ try {
 
   /* ─────────────── the SLA deadline is frozen ─────────────── */
   console.log("\n[support] the SLA deadline is frozen");
-  const dbFile = path.join(tempRoot, "woodex.db");
-  const db = new DatabaseSync(dbFile);
-  try {
-    const original = db.prepare("SELECT resolve_by FROM tickets WHERE id = ?").get(urgent.json.ticket.id).resolve_by;
+  /* Raw SQL on the server's own connection, on whichever engine this run uses. */
+  const db = rawDb(child);
+  {
+    const deadline = async () => (await db.get("SELECT resolve_by FROM tickets WHERE id = ?", urgent.json.ticket.id)).resolve_by;
+    const original = await deadline();
+    check(Boolean(original), "the urgent ticket carries a deadline to protect", String(original));
     let blocked = false, message = "";
     try {
-      db.prepare("UPDATE tickets SET resolve_by = ? WHERE id = ?").run("2030-01-01T00:00:00.000Z", urgent.json.ticket.id);
+      await db.run("UPDATE tickets SET resolve_by = ? WHERE id = ?", "2030-01-01T00:00:00.000Z", urgent.json.ticket.id);
     } catch (e) { blocked = /SLA deadline/i.test(String(e.message)); message = String(e.message); }
     check(blocked, "the database refuses to move an SLA deadline", message.slice(0, 70));
-    const kept = db.prepare("SELECT resolve_by FROM tickets WHERE id = ?").get(urgent.json.ticket.id).resolve_by;
-    check(kept === original, "so the promise made at intake survives");
+    check((await deadline()) === original, "so the promise made at intake survives");
     /* Re-raising the priority is still allowed — the deadline simply does not move. */
-    db.prepare("UPDATE tickets SET priority = 'high' WHERE id = ?").run(urgent.json.ticket.id);
-    const stillKept = db.prepare("SELECT resolve_by FROM tickets WHERE id = ?").get(urgent.json.ticket.id).resolve_by;
-    check(stillKept === original, "and raising the priority does not move it either");
-  } finally { db.close(); }
+    let priorityError = "";
+    try { await db.run("UPDATE tickets SET priority = 'high' WHERE id = ?", urgent.json.ticket.id); }
+    catch (e) { priorityError = String(e.message); }
+    check(!priorityError, "the priority itself can still be raised", priorityError.slice(0, 70));
+    check((await deadline()) === original, "and raising the priority does not move it either");
+  }
 
   /* ──────────────────────── the summary ──────────────────────── */
   console.log("\n[support] the Monday number");

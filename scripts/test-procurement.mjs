@@ -30,11 +30,11 @@
  *   6. THE PO CANNOT LIE ABOUT ITS STATE. A draft cannot jump to received, and
  *      an issued order cannot exist without an approver.
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnApi, rawDb } from "./lib/api-under-test.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-proc-${process.pid}`);
@@ -47,12 +47,7 @@ const check = (ok, label, detail = "") => {
 let child;
 try {
   fs.mkdirSync(tempRoot, { recursive: true });
-  child = spawn(process.execPath, ["apps/api/server.mjs"], {
-    cwd: ROOT,
-    env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  child = await spawnApi({ tempRoot });
 
   let log = "";
   const base = await new Promise((resolve, reject) => {
@@ -213,13 +208,11 @@ try {
 
   console.log("\n[procurement] reconciliation still holds end to end");
   {
-    const { DatabaseSync } = await import("node:sqlite");
-    const db = new DatabaseSync(path.join(tempRoot, "woodex.db"));
-    const rows = db.prepare(`
+    const rows = await rawDb(child).all(`
       SELECT p.id, p.stock_qty AS cache,
              COALESCE((SELECT SUM(delta) FROM stock_movements m WHERE m.product_id = p.id), 0) AS ledger
-        FROM products p`).all();
-    db.close();
+        FROM products p`);
+    check(rows.length > 0, "there are products to reconcile", String(rows.length));
     const drifted = rows.filter((r) => Number(r.cache) !== Number(r.ledger));
     check(drifted.length === 0, `every product reconciles after procurement (${rows.length} checked)`,
       drifted.slice(0, 4).map((r) => `${r.id}: cache ${r.cache} vs ledger ${r.ledger}`).join("; "));
@@ -229,11 +222,12 @@ try {
   /* The unique index is the guard; this proves it is actually reachable, i.e.
      the predicate matches real rows rather than being vacuous. */
   {
-    const { DatabaseSync } = await import("node:sqlite");
-    const db = new DatabaseSync(path.join(tempRoot, "woodex.db"));
-    const idx = db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='uq_stock_movements_receipt_ref'").get();
-    db.close();
-    check(Boolean(idx), "the receipt idempotency index exists on the SQLite side");
+    /* Each engine keeps its catalogue in a different place; the index must be in both. */
+    const db = rawDb(child);
+    const idx = db.engine === "sqlite"
+      ? await db.get("SELECT name FROM sqlite_master WHERE type='index' AND name='uq_stock_movements_receipt_ref'")
+      : await db.get("SELECT indexname AS name FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'uq_stock_movements_receipt_ref'");
+    check(Boolean(idx), `the receipt idempotency index exists in the ${db.engine === "sqlite" ? "SQLite" : "PostgreSQL"} database`);
   }
   {
     const src = fs.readFileSync(path.join(ROOT, "apps/api/server.mjs"), "utf8");

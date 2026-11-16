@@ -31,11 +31,11 @@
  *   6. THE TRIAL BALANCE ADDS UP. `balanced` is computed from the totals, not
  *      asserted, and an account's normal side is stated rather than assumed.
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnApi, rawDb } from "./lib/api-under-test.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-fin-${process.pid}`);
@@ -48,12 +48,7 @@ function check(ok, label, detail = "") {
 let child;
 try {
   fs.mkdirSync(tempRoot, { recursive: true });
-  child = spawn(process.execPath, ["apps/api/server.mjs"], {
-    cwd: ROOT,
-    env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  child = await spawnApi({ tempRoot });
 
   let log = "";
   const base = await new Promise((resolve, reject) => {
@@ -142,28 +137,29 @@ try {
 
   console.log("\n[finance] immutability is a mechanism");
   /* The API has no UPDATE for journal_lines at all, which proves nothing on its
-     own — the question is whether the data CAN be changed. This opens the SQLite
-     file directly, as a repair script or a person at a shell would. */
-  const { DatabaseSync } = await import("node:sqlite");
-  const direct = new DatabaseSync(path.join(tempRoot, "woodex.db"));
-  let updateBlocked = false;
-  let deleteBlocked = false;
-  let dateBlocked = false;
-  let memoAllowed = false;
-  try { direct.prepare("UPDATE journal_lines SET debit = 1 WHERE id = 1").run(); }
-  catch { updateBlocked = true; }
-  try { direct.prepare("DELETE FROM journal_lines WHERE id = 1").run(); }
-  catch { deleteBlocked = true; }
-  try { direct.prepare("UPDATE journal_entries SET entry_date = '2020-01-01' WHERE id = ?").run(entryId); }
-  catch { dateBlocked = true; }
-  try { direct.prepare("UPDATE journal_entries SET memo = 'corrected prose' WHERE id = ?").run(entryId); memoAllowed = true; }
-  catch { memoAllowed = false; }
-  direct.close();
+     own — the question is whether the data CAN be changed. This runs raw SQL on
+     the database, past every rule the API enforces in JavaScript, as a repair
+     script or a person at a shell would — on whichever engine this run uses. */
+  const direct = rawDb(child);
+  const refused = async (sql, ...params) => {
+    try { await direct.run(sql, ...params); return { refused: false, why: "" }; }
+    catch (e) { return { refused: true, why: String(e.message).slice(0, 110) }; }
+  };
+  const lineBefore = await direct.get("SELECT debit, credit FROM journal_lines WHERE id = 1");
+  const update = await refused("UPDATE journal_lines SET debit = 1 WHERE id = 1");
+  const del = await refused("DELETE FROM journal_lines WHERE id = 1");
+  const date = await refused("UPDATE journal_entries SET entry_date = '2020-01-01' WHERE id = ?", entryId);
+  const memo = await refused("UPDATE journal_entries SET memo = 'corrected prose' WHERE id = ?", entryId);
+  const lineAfter = await direct.get("SELECT debit, credit FROM journal_lines WHERE id = 1");
+  const entryAfter = await direct.get("SELECT entry_date, memo FROM journal_entries WHERE id = ?", entryId);
 
-  check(updateBlocked, "a journal line cannot be UPDATEd even from a direct database connection");
-  check(deleteBlocked, "a journal line cannot be DELETEd even from a direct database connection");
-  check(dateBlocked, "an entry's date cannot be moved to another period");
-  check(memoAllowed, "a memo typo CAN be corrected — prose is not a financial fact, and forbidding it would push people to delete and repost");
+  check(update.refused, "a journal line cannot be UPDATEd even from a direct database connection");
+  check(del.refused, "a journal line cannot be DELETEd even from a direct database connection");
+  check(Boolean(lineAfter) && Number(lineAfter.debit) === Number(lineBefore.debit) && Number(lineAfter.credit) === Number(lineBefore.credit),
+    "and the line is still there, unchanged", JSON.stringify(lineAfter));
+  check(date.refused && String(entryAfter?.entry_date).slice(0, 10) !== "2020-01-01", "an entry's date cannot be moved to another period");
+  check(!memo.refused && entryAfter?.memo === "corrected prose",
+    "a memo typo CAN be corrected — prose is not a financial fact, and forbidding it would push people to delete and repost", memo.why);
 
   console.log("\n[finance] correction is a reversal");
   const rev = await api(`/api/journal/${entryId}/reverse`, { method: "POST", token, body: {} });

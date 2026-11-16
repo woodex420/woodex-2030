@@ -33,12 +33,11 @@
  *   6. PARTIAL DELIVERY IS NOT FAILURE. A kitchen arrives in three runs. The
  *      shortfall is a number computed from the lines, not a stage someone set.
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
+import { spawnApi, rawDb } from "./lib/api-under-test.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-deliv-${process.pid}`);
@@ -51,12 +50,7 @@ function check(ok, label, detail = "") {
 let child;
 try {
   fs.mkdirSync(tempRoot, { recursive: true });
-  child = spawn(process.execPath, ["apps/api/server.mjs"], {
-    cwd: ROOT,
-    env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  child = await spawnApi({ tempRoot });
 
   let log = "";
   const base = await new Promise((resolve, reject) => {
@@ -233,20 +227,23 @@ try {
 
   /* ───────────────── the departure stamp, at the database ───────────────── */
   console.log("\n[delivery] a departure time is stamped once");
-  const dbFile = path.join(tempRoot, "woodex.db");
-  const db = new DatabaseSync(dbFile);
-  try {
+  /* Raw SQL on the server's own connection, on whichever engine this run uses. */
+  const db = rawDb(child);
+  {
     let blocked = false, message = "";
     try {
-      db.prepare("UPDATE dispatch_runs SET departed_at = ? WHERE id = ?").run("2026-11-16T05:00:00.000Z", runId);
+      await db.run("UPDATE dispatch_runs SET departed_at = ? WHERE id = ?", "2026-11-16T05:00:00.000Z", runId);
     } catch (e) { blocked = /departure/i.test(String(e.message)); message = String(e.message); }
     check(blocked, "the database refuses to rewrite a departure time", message.slice(0, 80));
-    const kept = db.prepare("SELECT departed_at FROM dispatch_runs WHERE id = ?").get(runId).departed_at;
-    check(kept === departureStamp, "so the original stamp survives");
+    const kept = (await db.get("SELECT departed_at FROM dispatch_runs WHERE id = ?", runId)).departed_at;
+    check(kept === departureStamp, "so the original stamp survives", `${kept} vs ${departureStamp}`);
     /* The fields a dispatcher may still correct stay writable. */
-    db.prepare("UPDATE dispatch_runs SET vehicle = ? WHERE id = ?").run("LEB-9999", runId);
-    check(true, "but the vehicle can still be corrected");
-  } finally { db.close(); }
+    let vehicleError = "";
+    try { await db.run("UPDATE dispatch_runs SET vehicle = ? WHERE id = ?", "LEB-9999", runId); }
+    catch (e) { vehicleError = String(e.message); }
+    const vehicle = (await db.get("SELECT vehicle FROM dispatch_runs WHERE id = ?", runId)).vehicle;
+    check(vehicle === "LEB-9999", "but the vehicle can still be corrected", vehicleError.slice(0, 80));
+  }
 
   const timeline = await api(`/api/deliveries/${delId}`, { token });
   const kinds = (timeline.json?.timeline ?? []).map((a) => a.kind);
