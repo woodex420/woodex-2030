@@ -8,6 +8,11 @@ One canonical document per question. If two files disagree, the older one is in
 **[../AGENTS.md](../AGENTS.md)** — rules, traps, and the definition of done. Read before
 touching code.
 
+## Furniture 2030 launch — owner decisions and plan
+| Document | Status |
+|---|---|
+| [furniture-2030/README.md](furniture-2030/README.md) | **Current (2026-11-16).** Owner decisions, independent audit with evidence, launch plan, Hostinger Business preflight |
+
 ## Engineering specifications — start here
 | Document | Status |
 |---|---|
@@ -49,6 +54,7 @@ touching code.
 |---|---|
 | [QUICK-TASKS.md](operations/QUICK-TASKS.md) | **Live backlog** — shipped vs open, owner-gated items marked 🔑 |
 | [VERCEL-RUNBOOK-2026-11-06.md](operations/VERCEL-RUNBOOK-2026-11-06.md) | Deployment, database and bootstrap-owner runbook |
+| [DATA-MIGRATION-RUNBOOK.md](operations/DATA-MIGRATION-RUNBOOK.md) | Copying a SQLite database into PostgreSQL: rehearsal, the real run, reading the output |
 
 ## Archive — superseded, kept for traceability
 Nothing here is authoritative. Do not cite these as current.

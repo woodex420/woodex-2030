@@ -1,0 +1,431 @@
+{
+ "note": "The same script (as first written, before the redirect section was added) run against the API and dashboard of main at 9b8cdca. It must fail: this is the proof that the gate detects the defects it was written for.",
+ "ranAt": "2026-11-16T10:15:15.403Z",
+ "declared": 43,
+ "opened": 43,
+ "clean": 38,
+ "ok": false,
+ "problems": [
+  "/purchase-orders: console error: %o",
+  "/purchase-orders: console error: [dashboard] render failed: TypeError: (products.data ?? []).map is not a function",
+  "/purchase-orders: rendered nothing",
+  "/production: console error: %o",
+  "/production: console error: [dashboard] render failed: TypeError: (products.data ?? []).map is not a function",
+  "/production: rendered nothing",
+  "/stock-reservations: API error: GET /api/stock-reservations/availability?product_id= → 400",
+  "/analytics: console error: Error: <path> attribute d: Expected number, \"M46.0,NaN L92.3,NaN L1…\".",
+  "/analytics: console error: Received NaN for the `%s` attribute. If this is expected, cast the value to a string. cy",
+  "/analytics: console error: Error: <circle> attribute cy: Expected length, \"NaN\".",
+  "/website/edit/:id: missing file: GET /img/office-desk-setup.jpg → 404",
+  "a screen that throws is reported as an error card — faults seen: {\"pageErrors\":[],\"rendered\":0}",
+  "the sidebar is still there beside the error card",
+  "there is another screen to choose in the sidebar",
+  "the card offers \"Go to Overview\"",
+  "the card offers \"Try again\""
+ ],
+ "screens": [
+  {
+   "route": "/",
+   "opened": "/",
+   "ms": 1869,
+   "heading": "",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/crm",
+   "opened": "/crm",
+   "ms": 876,
+   "heading": "CRM — Lead Pipeline",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/clients",
+   "opened": "/clients",
+   "ms": 1269,
+   "heading": "Clients — one record per customer",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/companies",
+   "opened": "/companies",
+   "ms": 858,
+   "heading": "Companies",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/meetings",
+   "opened": "/meetings",
+   "ms": 1184,
+   "heading": "Meetings",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/deliveries",
+   "opened": "/deliveries",
+   "ms": 802,
+   "heading": "Delivery & installation",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/support",
+   "opened": "/support",
+   "ms": 1152,
+   "heading": "Support & warranty",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/login-locks",
+   "opened": "/login-locks",
+   "ms": 846,
+   "heading": "Login locks",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/quotations",
+   "opened": "/quotations",
+   "ms": 1025,
+   "heading": "Sales & Quotations",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/quotations/new",
+   "opened": "/quotations/new",
+   "ms": 1005,
+   "heading": "New E-Quotation",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/catalog",
+   "opened": "/catalog",
+   "ms": 1598,
+   "heading": "Furniture Catalog",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/catalog/new",
+   "opened": "/catalog/new",
+   "ms": 860,
+   "heading": "Create product",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/catalog/:id/edit",
+   "opened": "/catalog/acoustic-desk-panel-48/edit",
+   "ms": 1209,
+   "heading": "Edit Acoustic Desk Panel 48\"",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/catalog/:id",
+   "opened": "/catalog/acoustic-desk-panel-48",
+   "ms": 787,
+   "heading": "Acoustic Desk Panel 48\"",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/orders",
+   "opened": "/orders",
+   "ms": 1330,
+   "heading": "Orders",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/orders/:id",
+   "opened": "/orders/1",
+   "ms": 835,
+   "heading": "WX-4210",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/invoices",
+   "opened": "/invoices",
+   "ms": 1301,
+   "heading": "Invoices & Payments",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/projects",
+   "opened": "/projects",
+   "ms": 826,
+   "heading": "Interior Projects",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/tasks",
+   "opened": "/tasks",
+   "ms": 1330,
+   "heading": "Tasks & follow-ups",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/ui-components",
+   "opened": "/ui-components",
+   "ms": 841,
+   "heading": "UI Components",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/operations",
+   "opened": "/operations",
+   "ms": 1176,
+   "heading": "Operations — Production to Installation",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/operations/:stage",
+   "opened": "/operations/production",
+   "ms": 814,
+   "heading": "Operations — Production to Installation",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/suppliers",
+   "opened": "/suppliers",
+   "ms": 1188,
+   "heading": "Suppliers",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/purchase-orders",
+   "opened": "/purchase-orders",
+   "ms": 896,
+   "heading": "",
+   "ok": false,
+   "faults": [
+    "console error: %o",
+    "console error: [dashboard] render failed: TypeError: (products.data ?? []).map is not a function",
+    "rendered nothing"
+   ],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/goods-receipts",
+   "opened": "/goods-receipts",
+   "ms": 768,
+   "heading": "Goods Receipts",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/supplier-invoices",
+   "opened": "/supplier-invoices",
+   "ms": 1529,
+   "heading": "Supplier Invoices",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/production",
+   "opened": "/production",
+   "ms": 935,
+   "heading": "",
+   "ok": false,
+   "faults": [
+    "console error: %o",
+    "console error: [dashboard] render failed: TypeError: (products.data ?? []).map is not a function",
+    "rendered nothing"
+   ],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/stock-ledger",
+   "opened": "/stock-ledger",
+   "ms": 824,
+   "heading": "Stock Ledger",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/warehouses",
+   "opened": "/warehouses",
+   "ms": 1403,
+   "heading": "Warehouses",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/stock-transfers",
+   "opened": "/stock-transfers",
+   "ms": 879,
+   "heading": "Stock Transfers",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/stock-reservations",
+   "opened": "/stock-reservations",
+   "ms": 1442,
+   "heading": "Stock Reservations",
+   "ok": false,
+   "faults": [
+    "API error: GET /api/stock-reservations/availability?product_id= → 400"
+   ],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/ledger",
+   "opened": "/ledger",
+   "ms": 908,
+   "heading": "Ledger",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/expenses",
+   "opened": "/expenses",
+   "ms": 1197,
+   "heading": "Expenses",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/credit-notes",
+   "opened": "/credit-notes",
+   "ms": 794,
+   "heading": "Credit Notes",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/payment-schedules",
+   "opened": "/payment-schedules",
+   "ms": 1457,
+   "heading": "Payment Schedules",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/analytics",
+   "opened": "/analytics",
+   "ms": 922,
+   "heading": "Analytics",
+   "ok": false,
+   "faults": [
+    "console error: Error: <path> attribute d: Expected number, \"M46.0,NaN L92.3,NaN L1…\".",
+    "console error: Received NaN for the `%s` attribute. If this is expected, cast the value to a string. cy",
+    "console error: Error: <circle> attribute cy: Expected length, \"NaN\"."
+   ],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/settings",
+   "opened": "/settings",
+   "ms": 1663,
+   "heading": "Settings",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/ecommerce",
+   "opened": "/ecommerce",
+   "ms": 931,
+   "heading": "Ecommerce",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/website",
+   "opened": "/website",
+   "ms": 1537,
+   "heading": "Website Studio",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/website/theme",
+   "opened": "/website/theme",
+   "ms": 772,
+   "heading": "Theme Studio",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/website/edit/:id",
+   "opened": "/website/edit/1",
+   "ms": 2410,
+   "heading": "Ramadan Workspace Sale",
+   "ok": false,
+   "faults": [
+    "missing file: GET /img/office-desk-setup.jpg → 404"
+   ],
+   "notesNotCounted": 4
+  },
+  {
+   "route": "/marketing",
+   "opened": "/marketing",
+   "ms": 836,
+   "heading": "Campaign analytics",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/omnichannel",
+   "opened": "/omnichannel",
+   "ms": 1325,
+   "heading": "Shared inbox",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  }
+ ]
+}

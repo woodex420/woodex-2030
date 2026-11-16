@@ -1,0 +1,174 @@
+{
+ "root": "repository checkout at 9b8cdca",
+ "commit": "9b8cdca",
+ "node": "v22.22.3",
+ "ranAt": "2026-11-16T08:51:31.309Z",
+ "driver": "PGlite (PostgreSQL semantics)",
+ "results": [
+  {
+   "test": "public-surface",
+   "exit": 0,
+   "seconds": 1,
+   "pass": 20,
+   "fail": 0,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": []
+  },
+  {
+   "test": "procurement",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 6,
+   "fail": 18,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "a supplier can be created — got 500 {\"error\":\"internal error\"}",
+    "the supplier keeps the code it was given",
+    "a new supplier defaults to active",
+    "a duplicate supplier code is refused with 409, not a 500 — got 500",
+    "suppliers are searchable by name — 0 row(s)",
+    "a PO with a product line and a material line is accepted — got 400 {\"error\":\"supplierId is required\"}"
+   ]
+  },
+  {
+   "test": "supplier-invoices",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 10,
+   "fail": 40,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "supplier created",
+    "PO raised for 10 units at 1000 — got 400",
+    "only 4 of 10 units received — got 400",
+    "a bill matching the receipt is accepted — got 400 {\"error\":\"supplierId is required\"}",
+    "and matches: billed 4 = received 4 ≤ ordered 10",
+    "total is derived from the lines (4 × 1000) — undefined"
+   ]
+  },
+  {
+   "test": "production",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 9,
+   "fail": 12,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "BOM created for 2 brackets + 3 finish per frame — got 500 {\"error\":\"internal error\"}",
+    "both component lines stored",
+    "the new BOM is active",
+    "a revised BOM is accepted — got 500",
+    "the revision is version 2 — got undefined",
+    "only one BOM is active per product after the revision"
+   ]
+  },
+  {
+   "test": "ops-api",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 10,
+   "fail": 43,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "a supplier can be created from the screen's payload — got 500",
+    "it appears in the active list the screen renders",
+    "rows carry the fields the table shows (code, name, active)",
+    "a duplicate code is refused, and says so — got 500",
+    "a PO can be created from the screen's payload — got 400",
+    "the response carries a computed `value` for the total column"
+   ]
+  },
+  {
+   "test": "inventory",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 31,
+   "fail": 36,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "baseline: no drift — cacheDrift=148 levelDrift=0 [{\"productId\":\"ballmer-executive-desk\",\"name\":\"BALLMER Executive Desk\",\"stockQty\":99,\"ledgerQty\":0,\"difference\":99,\"kind\":\"stock_qty\"},{\"productId\":\"titan-executive-desk\",",
+    "a warehouse can be created — got 500 {\"error\":\"internal error\"}",
+    "the FIRST warehouse becomes the default without being asked",
+    "the second warehouse is not the default",
+    "a duplicate warehouse code is refused with 409, not a 500 — got 500",
+    "a location can be created — {\"error\":\"warehouseId is required\"}"
+   ]
+  },
+  {
+   "test": "finance",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 43,
+   "fail": 24,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "a balanced entry posts — got 500 {\"error\":\"internal error\"}",
+    "the stored entry reports itself balanced",
+    "all three lines are stored",
+    "cash carries the debit — 0",
+    "revenue carries the credit — 0",
+    "a memo typo CAN be corrected — prose is not a financial fact, and forbidding it would push people to delete and repost"
+   ]
+  },
+  {
+   "test": "crm",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 14,
+   "fail": 45,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "a company is created — got 500 {\"error\":\"internal error\"}",
+    "\"clifton villa private limited\" is recognised as the same company — got 500",
+    "\"CLIFTON VILLA\" is recognised as the same company — got 500",
+    "\"Clifton Villa Ltd\" is recognised as the same company — got 500",
+    "\"Clifton-Villa\" is recognised as the same company — got 500",
+    "\"Clifton Villa (Pvt) Ltd.\" is recognised as the same company — got 500"
+   ]
+  },
+  {
+   "test": "delivery",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 6,
+   "fail": 43,
+   "sqliteOnlyArtefacts": 1,
+   "firstFailures": [
+    "a run is planned — got 500 {\"error\":\"internal error\"}",
+    "with a reference",
+    "and starts as planned",
+    "with no departure time yet",
+    "an unknown run status is refused — got 500",
+    "a run cannot complete without having departed — got 500"
+   ]
+  },
+  {
+   "test": "support",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 1,
+   "fail": 4,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "there is an installed asset under warranty — got 500",
+    "a ticket is opened — got 500 {\"error\":\"internal error\"}",
+    "with a reference",
+    "and both deadlines set"
+   ]
+  },
+  {
+   "test": "credentials",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 26,
+   "fail": 4,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "an administrator can issue a reset — got 500 {\"error\":\"internal error\"}",
+    "the token is 32 random bytes — 9",
+    "and lives for an hour — undefined",
+    "the response says it is shown once"
+   ]
+  }
+ ]
+}

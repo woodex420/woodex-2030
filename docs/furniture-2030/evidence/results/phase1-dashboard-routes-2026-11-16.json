@@ -1,0 +1,398 @@
+{
+ "note": "scripts/e2e-dashboard-routes.mjs on the Phase 1 branch: API on SQLite with the demo seed, dashboard dev server, headless Chromium.",
+ "ranAt": "2026-11-16T10:34:02.087Z",
+ "declared": 43,
+ "opened": 43,
+ "clean": 43,
+ "ok": true,
+ "problems": [],
+ "screens": [
+  {
+   "route": "/",
+   "opened": "/",
+   "ms": 1948,
+   "heading": "",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/crm",
+   "opened": "/crm",
+   "ms": 816,
+   "heading": "CRM — Lead Pipeline",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/clients",
+   "opened": "/clients",
+   "ms": 1411,
+   "heading": "Clients — one record per customer",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/companies",
+   "opened": "/companies",
+   "ms": 825,
+   "heading": "Companies",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/meetings",
+   "opened": "/meetings",
+   "ms": 1289,
+   "heading": "Meetings",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/deliveries",
+   "opened": "/deliveries",
+   "ms": 938,
+   "heading": "Delivery & installation",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/support",
+   "opened": "/support",
+   "ms": 1070,
+   "heading": "Support & warranty",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/login-locks",
+   "opened": "/login-locks",
+   "ms": 733,
+   "heading": "Login locks",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/quotations",
+   "opened": "/quotations",
+   "ms": 904,
+   "heading": "Sales & Quotations",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/quotations/new",
+   "opened": "/quotations/new",
+   "ms": 978,
+   "heading": "New E-Quotation",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/catalog",
+   "opened": "/catalog",
+   "ms": 1271,
+   "heading": "Furniture Catalog",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/catalog/new",
+   "opened": "/catalog/new",
+   "ms": 849,
+   "heading": "Create product",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/catalog/:id/edit",
+   "opened": "/catalog/acoustic-desk-panel-48/edit",
+   "ms": 1094,
+   "heading": "Edit Acoustic Desk Panel 48\"",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/catalog/:id",
+   "opened": "/catalog/acoustic-desk-panel-48",
+   "ms": 853,
+   "heading": "Acoustic Desk Panel 48\"",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/orders",
+   "opened": "/orders",
+   "ms": 1174,
+   "heading": "Orders",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/orders/:id",
+   "opened": "/orders/1",
+   "ms": 792,
+   "heading": "WX-4210",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/invoices",
+   "opened": "/invoices",
+   "ms": 1335,
+   "heading": "Invoices & Payments",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/projects",
+   "opened": "/projects",
+   "ms": 788,
+   "heading": "Interior Projects",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/tasks",
+   "opened": "/tasks",
+   "ms": 1396,
+   "heading": "Tasks & follow-ups",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/ui-components",
+   "opened": "/ui-components",
+   "ms": 792,
+   "heading": "UI Components",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/operations",
+   "opened": "/operations",
+   "ms": 1245,
+   "heading": "Operations — Production to Installation",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/operations/:stage",
+   "opened": "/operations/production",
+   "ms": 825,
+   "heading": "Operations — Production to Installation",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/suppliers",
+   "opened": "/suppliers",
+   "ms": 1093,
+   "heading": "Suppliers",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/purchase-orders",
+   "opened": "/purchase-orders",
+   "ms": 786,
+   "heading": "Purchase Orders",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/goods-receipts",
+   "opened": "/goods-receipts",
+   "ms": 1240,
+   "heading": "Goods Receipts",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/supplier-invoices",
+   "opened": "/supplier-invoices",
+   "ms": 795,
+   "heading": "Supplier Invoices",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/production",
+   "opened": "/production",
+   "ms": 1348,
+   "heading": "Production",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/stock-ledger",
+   "opened": "/stock-ledger",
+   "ms": 853,
+   "heading": "Stock Ledger",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/warehouses",
+   "opened": "/warehouses",
+   "ms": 1327,
+   "heading": "Warehouses",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/stock-transfers",
+   "opened": "/stock-transfers",
+   "ms": 783,
+   "heading": "Stock Transfers",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/stock-reservations",
+   "opened": "/stock-reservations",
+   "ms": 1371,
+   "heading": "Stock Reservations",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/ledger",
+   "opened": "/ledger",
+   "ms": 804,
+   "heading": "Ledger",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/expenses",
+   "opened": "/expenses",
+   "ms": 1316,
+   "heading": "Expenses",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/credit-notes",
+   "opened": "/credit-notes",
+   "ms": 766,
+   "heading": "Credit Notes",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/payment-schedules",
+   "opened": "/payment-schedules",
+   "ms": 1343,
+   "heading": "Payment Schedules",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/analytics",
+   "opened": "/analytics",
+   "ms": 899,
+   "heading": "Analytics",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/settings",
+   "opened": "/settings",
+   "ms": 1603,
+   "heading": "Settings",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/ecommerce",
+   "opened": "/ecommerce",
+   "ms": 845,
+   "heading": "Ecommerce",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/website",
+   "opened": "/website",
+   "ms": 1319,
+   "heading": "Website Studio",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/website/theme",
+   "opened": "/website/theme",
+   "ms": 810,
+   "heading": "Theme Studio",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/website/edit/:id",
+   "opened": "/website/edit/1",
+   "ms": 2140,
+   "heading": "Ramadan Workspace Sale",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 4
+  },
+  {
+   "route": "/marketing",
+   "opened": "/marketing",
+   "ms": 940,
+   "heading": "Campaign analytics",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  },
+  {
+   "route": "/omnichannel",
+   "opened": "/omnichannel",
+   "ms": 1323,
+   "heading": "Shared inbox",
+   "ok": true,
+   "faults": [],
+   "notesNotCounted": 0
+  }
+ ]
+}

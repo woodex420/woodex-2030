@@ -1,0 +1,150 @@
+{
+ "commit": "9b8cdca",
+ "listedCount": 22,
+ "readSites": 56,
+ "tablesRead": 47,
+ "unresolved": 0,
+ "coveredTables": [
+  "boq_lines",
+  "clients",
+  "invoices",
+  "leads",
+  "messages",
+  "orders",
+  "pages",
+  "payments",
+  "project_files",
+  "project_milestones",
+  "projects",
+  "quotes",
+  "returns",
+  "saved_sections",
+  "site_visits",
+  "tasks",
+  "users"
+ ],
+ "missingTables": [
+  "accounts",
+  "activities",
+  "attachments",
+  "boms",
+  "companies",
+  "contacts",
+  "credit_notes",
+  "deliveries",
+  "delivery_lines",
+  "dispatch_runs",
+  "expenses",
+  "goods_receipts",
+  "installed_assets",
+  "job_cards",
+  "journal_entries",
+  "meetings",
+  "password_resets",
+  "payment_schedules",
+  "purchase_orders",
+  "service_visits",
+  "stock_levels",
+  "stock_reservations",
+  "stock_transfers",
+  "storage_locations",
+  "supplier_invoices",
+  "suppliers",
+  "ticket_messages",
+  "tickets",
+  "warehouses",
+  "warranty_claims"
+ ],
+ "missingDetail": {
+  "accounts": [
+   6258
+  ],
+  "activities": [
+   5035
+  ],
+  "attachments": [
+   5078
+  ],
+  "boms": [
+   4231
+  ],
+  "companies": [
+   4732
+  ],
+  "contacts": [
+   4826
+  ],
+  "credit_notes": [
+   6506
+  ],
+  "deliveries": [
+   5304
+  ],
+  "delivery_lines": [
+   5354
+  ],
+  "dispatch_runs": [
+   5184
+  ],
+  "expenses": [
+   6451
+  ],
+  "goods_receipts": [
+   6923
+  ],
+  "installed_assets": [
+   5538
+  ],
+  "job_cards": [
+   4304
+  ],
+  "journal_entries": [
+   6207
+  ],
+  "meetings": [
+   4931
+  ],
+  "password_resets": [
+   3215
+  ],
+  "payment_schedules": [
+   6629
+  ],
+  "purchase_orders": [
+   6765
+  ],
+  "service_visits": [
+   5888
+  ],
+  "stock_levels": [
+   1128
+  ],
+  "stock_reservations": [
+   4135
+  ],
+  "stock_transfers": [
+   3996
+  ],
+  "storage_locations": [
+   3809
+  ],
+  "supplier_invoices": [
+   7257
+  ],
+  "suppliers": [
+   6667
+  ],
+  "ticket_messages": [
+   5783
+  ],
+  "tickets": [
+   5730
+  ],
+  "warehouses": [
+   3730
+  ],
+  "warranty_claims": [
+   5992
+  ]
+ }
+}
