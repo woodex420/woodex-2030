@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 /** Application shell — §4.1: sidebar + topbar + workspace content. */
 export function AppShell() {
@@ -29,7 +30,11 @@ export function AppShell() {
           onExpand={() => setCollapsed(false)}
         />
         <main className="w-full flex-1 px-4 py-5 lg:px-6 lg:py-6">
-          <Outlet />
+          {/* Scoped to the page: a screen that throws keeps the sidebar and top
+              bar, and the card clears as soon as another screen is chosen. */}
+          <ErrorBoundary label="this screen" resetKey={pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-3 text-caption text-subtle lg:px-6">
           <span>© {new Date().getFullYear()} Woodex — Agency OS Core + Business Pack</span>

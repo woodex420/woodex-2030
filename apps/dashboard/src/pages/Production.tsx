@@ -53,10 +53,10 @@ export default function Production() {
   /* ---- data ---- */
   const jobs = useApi<{ total: number; open: number; awaitingQc: number; items: JobCard[] }>("/api/job-cards", 15000);
   const boms = useApi<{ total: number; active: number; items: Bom[] }>("/api/boms", 30000);
-  const products = useApi<Product[]>("/api/products");
+  const products = useApi<{ total: number; items: Product[] }>("/api/products");
   const materials = useApi<Mat[]>("/api/materials");
 
-  const productName = (id: string) => (products.data ?? []).find((p) => p.id === id)?.name ?? id;
+  const productName = (id: string) => (products.data?.items ?? []).find((p) => p.id === id)?.name ?? id;
 
   /* ---- create job card ---- */
   const [jobOpen, setJobOpen] = useState(false);
@@ -414,7 +414,7 @@ export default function Production() {
           <Field label="Product to build" required className="sm:col-span-2">
             <Select value={jcProduct} onChange={(e) => setJcProduct(e.target.value)}>
               <option value="">Choose a product…</option>
-              {(products.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {(products.data?.items ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           </Field>
           <Field label="Quantity" required>
@@ -451,7 +451,7 @@ export default function Production() {
           <Field label="Product" required className="sm:col-span-2">
             <Select value={bomProduct} onChange={(e) => setBomProduct(e.target.value)}>
               <option value="">Choose a product…</option>
-              {(products.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {(products.data?.items ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           </Field>
           <Field label="Yield per run">
@@ -464,7 +464,7 @@ export default function Production() {
           <div className="space-y-2">
             {bomLines.map((l, i) => {
               const opts = l.itemKind === "product"
-                ? (products.data ?? []).map((p) => ({ id: p.id, name: p.name }))
+                ? (products.data?.items ?? []).map((p) => ({ id: p.id, name: p.name }))
                 : (materials.data ?? []).map((m) => ({ id: m.id, name: m.name }));
               return (
                 <div key={i} className="grid grid-cols-12 items-end gap-2 rounded-control border border-line bg-slate-50/60 p-2">
