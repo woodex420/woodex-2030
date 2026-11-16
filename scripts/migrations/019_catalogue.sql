@@ -119,7 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_products_status ON products (status);
    change with its own migration, not a column that would sit here unused. */
 CREATE TABLE IF NOT EXISTS product_variants (
   id               BIGSERIAL PRIMARY KEY,
-  product_id       TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  product_id       TEXT NOT NULL,
   sku              TEXT NOT NULL,
   /* What a customer chooses and what the order line prints: "1800 mm · Walnut". */
   label            TEXT NOT NULL,
@@ -141,7 +141,11 @@ CREATE TABLE IF NOT EXISTS product_variants (
   CONSTRAINT product_variants_price_whole_rupees CHECK (price = trunc(price)),
   CONSTRAINT product_variants_price_or_request
     CHECK ((price_on_request = 1 AND price = 0) OR (price_on_request = 0 AND price > 0)),
-  CONSTRAINT product_variants_position_non_negative CHECK (position >= 0)
+  CONSTRAINT product_variants_position_non_negative CHECK (position >= 0),
+  /* Named, and written as a table constraint: scripts/audit-live-schema.mjs
+     finds a foreign key by its CONSTRAINT name, and a key it cannot find is a
+     key whose absence on the hosted database it would never report. */
+  CONSTRAINT product_variants_product_fkey FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_product_variants_sku ON product_variants (lower(sku));
