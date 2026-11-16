@@ -26,6 +26,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { loadShopData, ROOT } from "./shop-data.mjs";
+import { loadCatalogData, planImport } from "./catalog-import.mjs";
 import { PUBLIC_ROUTES, absoluteUrl } from "./public-routes.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -145,15 +146,65 @@ if (db.kind === "sqlite") {
     await db.exec("ALTER TABLE stock_reservations ADD COLUMN released_at TEXT");
     console.log("[woodex-api] migrated stock_reservations.released_at (012)");
   }
+  /* 019 adds four columns to products. Same trap as 011, 012 and 014: the
+     CREATE TABLE below is IF NOT EXISTS, so a database that already has the
+     table never gains them, and the unique index on sku that follows would
+     fail at boot with "no such column".
+
+     The defaults mean "as before" — published, priced, stock counted — so an
+     existing catalogue looks exactly the same after the upgrade.
+
+     What an existing SQLite file does NOT gain: the two table-level CHECKs on
+     price (whole rupees; a price or "on request", never both). SQLite cannot
+     add a table constraint to a table that exists. A new database is born with
+     them, PostgreSQL gets them from the migration, and the API validates the
+     same rules on every write whatever the engine. */
+  const productCols = await db.prepare("PRAGMA table_info(products)").all();
+  if (productCols.length) {
+    const has = (name) => productCols.some((c) => c.name === name);
+    const added = [];
+    if (!has("sku")) { await db.exec("ALTER TABLE products ADD COLUMN sku TEXT"); added.push("sku"); }
+    if (!has("status")) { await db.exec("ALTER TABLE products ADD COLUMN status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft','published','archived'))"); added.push("status"); }
+    if (!has("price_on_request")) { await db.exec("ALTER TABLE products ADD COLUMN price_on_request INTEGER NOT NULL DEFAULT 0 CHECK (price_on_request IN (0,1))"); added.push("price_on_request"); }
+    if (!has("track_stock")) { await db.exec("ALTER TABLE products ADD COLUMN track_stock INTEGER NOT NULL DEFAULT 1 CHECK (track_stock IN (0,1))"); added.push("track_stock"); }
+    if (added.length) console.log(`[woodex-api] migrated products.${added.join(", products.")} (019)`);
+  }
 }
 
 /* ---------------- schema ---------------- */
 if (db.kind === "sqlite") await db.exec(`
+/* Catalogue — the last four columns and the CHECKs mirror
+   scripts/migrations/019_catalogue.sql. See that file for why each exists. */
 CREATE TABLE IF NOT EXISTS products(
   id TEXT PRIMARY KEY, json TEXT NOT NULL, price REAL NOT NULL,
   in_stock INTEGER NOT NULL DEFAULT 1, stock_qty INTEGER NOT NULL DEFAULT 99,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  sku TEXT,
+  status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft','published','archived')),
+  price_on_request INTEGER NOT NULL DEFAULT 0 CHECK (price_on_request IN (0,1)),
+  track_stock INTEGER NOT NULL DEFAULT 1 CHECK (track_stock IN (0,1)),
+  CHECK (price = CAST(price AS INTEGER)),
+  CHECK ((price_on_request = 1 AND price = 0) OR (price_on_request = 0 AND price > 0)),
+  CHECK (sku IS NULL OR trim(sku) <> '')
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_products_sku ON products(lower(sku)) WHERE sku IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
+CREATE TABLE IF NOT EXISTS product_variants(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id TEXT NOT NULL,
+  sku TEXT NOT NULL, label TEXT NOT NULL, attributes TEXT NOT NULL DEFAULT '{}',
+  price REAL NOT NULL DEFAULT 0, price_on_request INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1, position INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  CHECK (trim(sku) <> ''), CHECK (trim(label) <> ''),
+  CHECK (price_on_request IN (0,1)), CHECK (active IN (0,1)),
+  CHECK (price = CAST(price AS INTEGER)),
+  CHECK ((price_on_request = 1 AND price = 0) OR (price_on_request = 0 AND price > 0)),
+  CHECK (position >= 0)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_product_variants_sku ON product_variants(lower(sku));
+CREATE UNIQUE INDEX IF NOT EXISTS uq_product_variants_label ON product_variants(product_id, lower(label));
+CREATE INDEX IF NOT EXISTS idx_product_variants_product ON product_variants(product_id, position);
 CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY, json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS services(id TEXT PRIMARY KEY, json TEXT NOT NULL);
 
@@ -1160,7 +1211,131 @@ const stockFromLedger = async (productId) => {
   return Number(row?.q ?? 0);
 };
 
-const rowProduct = (r) => ({ ...JSON.parse(r.json), price: r.price, inStock: !!r.in_stock, stockQty: r.stock_qty, updatedAt: r.updated_at });
+/* ---------- catalogue (migration 019) ----------
+   A product is a JSON document plus the columns the database has to be able to
+   reason about: price, stock, and — from 019 — its SKU, its state, whether the
+   price is "on request" and whether stock is counted at all. */
+const PRODUCT_STATUSES = ["draft", "published", "archived"];
+
+/* Whether this database has migration 019.
+
+   SQLite always does: the DDL above creates the columns at boot. PostgreSQL has
+   them only once somebody has run the migration, and nothing in a deployment
+   does that — the build never touches the hosted database (see the
+   migration-alignment check further down, which exists because 008 shipped
+   exactly that way). So this code can be live against a database that predates
+   it, in either order.
+
+   Until 019 is there the catalogue is served the way it always was: every
+   product published, priced and stock-counted. Reads never name the new
+   columns, so they cannot fail. Writes that need them — a SKU, a draft, a
+   variant, the import — are refused with a message that says what is missing,
+   instead of failing with "column does not exist" on a screen.
+
+   Re-checked at most every 30 seconds while absent, never again once present:
+   a warm function instance has to notice the migration without a redeploy, and
+   must not ask on every request. */
+const catalogSchema = { ready: db.kind === "sqlite", checkedAt: 0 };
+async function catalogReady() {
+  if (catalogSchema.ready) return true;
+  if (Date.now() - catalogSchema.checkedAt < 30_000) return false;
+  catalogSchema.checkedAt = Date.now();
+  try {
+    const columns = await db.prepare(
+      "SELECT COUNT(*) AS n FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'products' AND column_name IN ('sku','status','price_on_request','track_stock')"
+    ).get();
+    const table = await db.prepare(
+      "SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'product_variants'"
+    ).get();
+    catalogSchema.ready = Number(columns?.n) === 4 && Number(table?.n) === 1;
+  } catch (error) {
+    console.error("[woodex-api] could not check for catalogue migration 019:", error?.message ?? error);
+  }
+  if (catalogSchema.ready) console.log("[woodex-api] catalogue migration 019 is present; SKUs, product states and variants are on.");
+  return catalogSchema.ready;
+}
+const catalogPending = (what) => Object.assign(
+  new Error(`${what} needs catalogue migration 019, which this database has not received yet. Apply scripts/migrations/019_catalogue.sql with scripts/migrate.mjs; until then the catalogue works as it did before.`),
+  { statusCode: 409, code: "catalog_migration_pending" },
+);
+
+/* `rating` and `reviews` are dropped on the way out, whatever the stored
+   document holds. They were written by hand for the demo catalogue — 10,109
+   reviews nobody left — and the house rule is no invented data in the UI. A
+   rating belongs here again when there is a review system to produce it.
+
+   `review` and `source` are the import's working notes ("this price looks
+   wrong", what the old shop showed). Staff need them; the public must not read
+   that a price is under question. */
+const rowProduct = (r, { staff = false, variants = [] } = {}) => {
+  const { rating: _rating, reviews: _reviews, review, source, ...doc } = safeJson(r.json, {});
+  return {
+    ...doc,
+    price: Number(r.price),
+    inStock: !!Number(r.in_stock),
+    stockQty: Number(r.stock_qty),
+    updatedAt: r.updated_at,
+    sku: r.sku ?? null,
+    status: r.status ?? "published",
+    priceOnRequest: !!Number(r.price_on_request ?? 0),
+    trackStock: r.track_stock === undefined || r.track_stock === null ? true : !!Number(r.track_stock),
+    variants,
+    ...(staff ? { review: Array.isArray(review) ? review : [], ...(source ? { source } : {}) } : {}),
+  };
+};
+const rowVariant = (v) => ({
+  id: Number(v.id), productId: v.product_id, sku: v.sku, label: v.label,
+  attributes: safeJson(v.attributes, {}),
+  price: Number(v.price), priceOnRequest: !!Number(v.price_on_request),
+  active: !!Number(v.active), position: Number(v.position),
+  createdAt: iso(v.created_at), updatedAt: iso(v.updated_at),
+});
+/* Variants of every product, grouped. The public sees the ones on sale. */
+async function variantsByProduct({ staff = false, productId = null } = {}) {
+  const grouped = new Map();
+  if (!(await catalogReady())) return grouped;
+  const rows = productId === null
+    ? await db.prepare("SELECT * FROM product_variants ORDER BY product_id, position, id").all()
+    : await db.prepare("SELECT * FROM product_variants WHERE product_id = ? ORDER BY position, id").all(productId);
+  for (const row of rows) {
+    if (!staff && !Number(row.active)) continue;
+    if (!grouped.has(row.product_id)) grouped.set(row.product_id, []);
+    grouped.get(row.product_id).push(rowVariant(row));
+  }
+  return grouped;
+}
+
+/* A SKU is letters, digits and the punctuation people actually put in one.
+   Stored upper-case: the unique indexes compare without case, and one spelling
+   in the data means one spelling on a delivery note. */
+const SKU_RE = /^[A-Z0-9][A-Z0-9._/-]{0,38}[A-Z0-9]$/;
+const skuInput = (value) => String(value ?? "").trim().toUpperCase();
+
+/* One SKU, one sellable thing — across products AND variants. Each table has
+   its own unique index, which stops a duplicate inside the table. Nothing in
+   the schema spans the two, so the write takes this lock first and checks the
+   other table while holding it: two requests cannot both find the code free.
+   Transaction-scoped, so it is released by COMMIT or ROLLBACK and can never be
+   left behind. SQLite needs none: BEGIN IMMEDIATE already admits one writer. */
+const SKU_LOCK = 0x736b75; // "sku"
+async function lockSkus() {
+  if (db.kind !== "sqlite") await db.prepare("SELECT pg_advisory_xact_lock(?) AS locked").get(SKU_LOCK);
+}
+async function skuOwner(sku, { exceptProductId = null, exceptVariantId = null } = {}) {
+  const product = await db.prepare("SELECT id, json FROM products WHERE lower(sku) = lower(?)").get(sku);
+  if (product && product.id !== exceptProductId)
+    return { kind: "product", productId: product.id, name: String(safeJson(product.json, {}).name ?? product.id) };
+  const variant = await db.prepare("SELECT id, product_id, label FROM product_variants WHERE lower(sku) = lower(?)").get(sku);
+  if (variant && Number(variant.id) !== Number(exceptVariantId)) {
+    const parent = await db.prepare("SELECT json FROM products WHERE id = ?").get(variant.product_id);
+    return { kind: "variant", productId: variant.product_id, name: `${String(safeJson(parent?.json, {}).name ?? variant.product_id)} — ${variant.label}` };
+  }
+  return null;
+}
+const skuTaken = (sku, owner) => Object.assign(
+  new Error(`SKU ${sku} is already used by ${owner.name}`),
+  { statusCode: 409, code: "sku_taken", productId: owner.productId },
+);
 const safeJson = (value, fallback) => { try { return JSON.parse(value ?? ""); } catch { return fallback; } };
 const rowQuote = (r) => ({
   id: r.id, ref: r.ref, customer: r.customer, contact: r.contact, leadId: r.lead_id ?? null,
@@ -1331,6 +1506,15 @@ function normalizeQuotePayload(body = {}, previous = null) {
       if (!["mm", "cm", "in"].includes(unit)) throw quoteInputError(`item ${index + 1} dimension unit must be mm, cm or in`);
       item.dimensionUnit = unit;
     }
+    /* Which option of the product, and under which code. Without these a line
+       for a table sold in three sizes does not say which size was quoted. */
+    if (raw.variantId != null && raw.variantId !== "") {
+      const variantId = Number(raw.variantId);
+      if (!Number.isSafeInteger(variantId) || variantId < 1) throw quoteInputError(`item ${index + 1} names an option that is not valid`);
+      item.variantId = variantId;
+    }
+    if (raw.sku != null && String(raw.sku).trim()) item.sku = quoteText(raw.sku, 40);
+    if (raw.variant != null && String(raw.variant).trim()) item.variant = quoteText(raw.variant, 120);
     return item;
   });
 
@@ -1665,7 +1849,7 @@ const capsFor = (m, path) => {
      decides how much of it a chair takes, and a shared cap would make the
      separation meaningless. */
   if (path.startsWith("/api/boms") || path.startsWith("/api/job-cards")) return "production.manage";
-  if (path.startsWith("/api/products") || path.startsWith("/api/materials") || path.startsWith("/api/services") || path.startsWith("/api/categories") || path.startsWith("/api/collections")) return "catalog.manage";
+  if (path.startsWith("/api/products") || path.startsWith("/api/materials") || path.startsWith("/api/services") || path.startsWith("/api/categories") || path.startsWith("/api/collections") || path.startsWith("/api/catalog")) return "catalog.manage";
   return "owner-only";
 };
 const isPublic = (m, p) =>
@@ -1932,18 +2116,43 @@ const productImageRef = (value) => {
   return /^[\w.-]+\.(jpg|jpeg|png|webp)$/i.test(image) ? image : null;
 };
 const productText = (value, max = 4000) => String(value ?? "").trim().slice(0, max);
-function normalizeProduct(input, base = {}, id = base.id) {
+/* A price is whole rupees above zero, or the product is "on request" and
+   carries none. Never both: a row that is on request and still holds a number
+   shows that number somewhere. Shared by products and variants.
+
+   Sending a price without mentioning `priceOnRequest` ends "on request" — that
+   is what somebody typing a price into a form means. Sending both is refused,
+   because it cannot be told which one was intended. */
+function resolvePrice(input, base = {}) {
+  const sent = (key) => Object.prototype.hasOwnProperty.call(input, key) && input[key] !== undefined;
+  if (sent("priceOnRequest") && typeof input.priceOnRequest !== "boolean") return { error: "priceOnRequest must be a boolean" };
+  const settingPrice = sent("price") && input.price !== null && input.price !== "" && Number(input.price) !== 0;
+  const priceOnRequest = sent("priceOnRequest") ? input.priceOnRequest : (settingPrice ? false : base.priceOnRequest === true);
+  if (priceOnRequest) {
+    if (settingPrice) return { error: "a price on request carries no amount: clear the price, or switch off price on request" };
+    return { price: 0, priceOnRequest: true };
+  }
+  const price = Number(sent("price") ? input.price : base.price);
+  if (!Number.isFinite(price) || price <= 0) return { error: "price must be greater than 0, or mark it as price on request" };
+  if (!Number.isInteger(price)) return { error: "price must be in whole rupees" };
+  return { price, priceOnRequest: false };
+}
+
+function normalizeProduct(input, base = {}, id = base.id, { defaultStatus = "draft" } = {}) {
+  const sent = (key) => Object.prototype.hasOwnProperty.call(input, key) && input[key] !== undefined;
   const raw = { ...base, ...input, id };
   const name = productText(raw.name, 140);
   const category = productText(raw.category, 80);
   const description = productText(raw.description, 5000);
   const shortDescription = productText(raw.shortDescription || description, 240);
-  const price = Number(raw.price);
   const stockQty = Number(raw.stockQty ?? 0);
   if (!name) return { error: "name is required" };
   if (!category) return { error: "category is required" };
-  if (!Number.isFinite(price) || price <= 0) return { error: "price must be greater than 0" };
+  const priced = resolvePrice(input, base);
+  if (priced.error) return { error: priced.error };
   if (!Number.isInteger(stockQty) || stockQty < 0) return { error: "stockQty must be a non-negative whole number" };
+  if (sent("trackStock") && typeof input.trackStock !== "boolean") return { error: "trackStock must be a boolean" };
+  const trackStock = sent("trackStock") ? input.trackStock : base.trackStock !== false;
   if (raw.images !== undefined && !Array.isArray(raw.images)) return { error: "images must be an array" };
   const images = (Array.isArray(raw.images) ? raw.images : []).map(productImageRef);
   if (images.some((image) => !image)) return { error: "images must be library file names or secure https URLs" };
@@ -1962,31 +2171,62 @@ function normalizeProduct(input, base = {}, id = base.id) {
   const features = (Array.isArray(raw.features) ? raw.features : []).map((feature) => productText(feature, 180)).filter(Boolean).slice(0, 30);
   const originalPriceValue = raw.originalPrice === "" || raw.originalPrice == null ? null : Number(raw.originalPrice);
   if (originalPriceValue !== null && (!Number.isFinite(originalPriceValue) || originalPriceValue <= 0)) return { error: "originalPrice must be greater than 0 or blank" };
+  if (originalPriceValue !== null && !Number.isInteger(originalPriceValue)) return { error: "originalPrice must be in whole rupees" };
   if (typeof raw.inStock !== "boolean") return { error: "inStock must be a boolean" };
-  const rating = Number(raw.rating ?? 0);
-  const reviews = Number(raw.reviews ?? 0);
-  if (!Number.isFinite(rating) || rating < 0 || rating > 5) return { error: "rating must be between 0 and 5" };
-  if (!Number.isInteger(reviews) || reviews < 0) return { error: "reviews must be a non-negative whole number" };
-  return { value: {
-    id, name, category,
-    subcategory: productText(raw.subcategory, 80) || undefined,
-    series: productText(raw.series, 80) || undefined,
-    price,
-    originalPrice: originalPriceValue ?? undefined,
-    description,
-    shortDescription,
-    images,
-    colors,
-    specifications,
-    features,
-    inStock: raw.inStock,
-    stockQty,
-    isNew: raw.isNew === true,
-    isBestSeller: raw.isBestSeller === true,
-    rating,
-    reviews,
-  } };
+
+  const sku = sent("sku") ? skuInput(input.sku) : skuInput(base.sku);
+  if (sku && !SKU_RE.test(sku)) return { error: "sku must be 2 to 40 characters: letters and digits, with . _ / or - between them" };
+  const status = sent("status") ? String(input.status) : (base.status ?? defaultStatus);
+  if (!PRODUCT_STATUSES.includes(status)) return { error: "status must be draft, published or archived" };
+
+  /* The import's notes travel with the product until staff clear them. */
+  let review = Array.isArray(base.review) ? base.review : [];
+  if (sent("review")) {
+    if (!Array.isArray(input.review)) return { error: "review must be an array" };
+    review = input.review.slice(0, 40)
+      .map((note) => ({ code: productText(note?.code, 40), text: productText(note?.text, 600) }))
+      .filter((note) => note.code && note.text);
+  }
+
+  /* `rating` and `reviews` are accepted and discarded: an older dashboard
+     bundle still sends them, and nothing stores an invented rating any more. */
+  return {
+    value: {
+      id, name, category,
+      subcategory: productText(raw.subcategory, 80) || undefined,
+      series: productText(raw.series, 80) || undefined,
+      price: priced.price,
+      originalPrice: priced.priceOnRequest ? undefined : originalPriceValue ?? undefined,
+      description,
+      shortDescription,
+      images,
+      colors,
+      specifications,
+      features,
+      inStock: raw.inStock,
+      stockQty,
+      isNew: raw.isNew === true,
+      isBestSeller: raw.isBestSeller === true,
+      ...(review.length ? { review } : {}),
+      ...(base.source ? { source: base.source } : {}),
+    },
+    columns: { sku: sku || null, status, priceOnRequest: priced.priceOnRequest, trackStock },
+  };
 }
+
+/* On a database without 019 a product can only be what a product was before:
+   published, priced, stock counted, no SKU. Anything else has nowhere to be
+   stored, and storing part of it would be worse than refusing. */
+function assertStorableWithout019(columns) {
+  if (columns.sku) throw catalogPending("A SKU");
+  if (columns.status !== "published") throw catalogPending("A draft or archived product");
+  if (columns.priceOnRequest) throw catalogPending("Price on request");
+  if (!columns.trackStock) throw catalogPending("Made-to-order stock");
+}
+const publishBlocked = () => ({ status: 409, body: {
+  error: "a product needs a SKU, or at least one option with a SKU, before it can be published",
+  code: "publish_blocked", missing: ["sku"],
+} });
 
 app.get("/api/products", wrap(async (req, res) => {
   const q = String(req.query.q || "").toLowerCase();
@@ -1998,69 +2238,142 @@ app.get("/api/products", wrap(async (req, res) => {
   const { limit, offset, error } = parseWindow(req.query);
   if (error) return res.status(400).json({ error });
 
-  let rows = (await (db.prepare("SELECT * FROM products ORDER BY id").all()));
-  let items = rows.map(rowProduct);
+  /* Without a status the answer is the published catalogue, for everybody.
+     Staff may ask for another state or for all of them. The public may not —
+     and is told so, rather than being handed the published list under a query
+     that asked for something else. */
+  const wanted = String(req.query.status ?? "").trim().toLowerCase();
+  if (wanted && wanted !== "all" && !PRODUCT_STATUSES.includes(wanted))
+    return res.status(400).json({ error: "status must be draft, published, archived or all" });
+  const staff = !!req.user;
+  if (wanted && wanted !== "published" && !staff)
+    return res.status(401).json({ error: "sign in to list products that are not published", code: "no_token" });
+  const status = wanted || "published";
+
+  /* Filtered in JS, not in SQL: SELECT * cannot fail on a database that has
+     not received 019, and a WHERE on status would. See catalogReady(). */
+  const rows = (await (db.prepare("SELECT * FROM products ORDER BY id").all()));
+  const variants = await variantsByProduct({ staff });
+  const all = rows.map((r) => rowProduct(r, { staff, variants: variants.get(r.id) ?? [] }));
+  let items = status === "all" ? all : all.filter((p) => p.status === status);
   if (sub) items = items.filter((p) => p.subcategory === sub);
-  if (q) items = items.filter((p) => (p.name + " " + (p.series ?? "") + " " + (p.category ?? "")).toLowerCase().includes(q));
+  if (q) items = items.filter((p) => (p.name + " " + (p.series ?? "") + " " + (p.category ?? "") + " " + (p.sku ?? "") + " " + p.variants.map((v) => v.sku).join(" ")).toLowerCase().includes(q));
   /* total is the size of the filtered set, before the window: a paginated client
      needs both "how many matched" and "these are the ones I asked for". */
   const total = items.length;
   const start = Math.min(offset, total);
   const page = items.slice(start, limit === null ? undefined : start + limit);
-  res.json({ total, items: page, limit, offset });
+  const reply = { total, items: page, limit, offset };
+  /* How many products are in each state — for staff only. The count of drafts
+     is itself something the public has no business knowing. */
+  if (staff) reply.counts = Object.fromEntries(PRODUCT_STATUSES.map((s) => [s, all.filter((p) => p.status === s).length]));
+  res.json(reply);
 }));
 
 app.get("/api/products/overrides", wrap(async (req, res) => {
   const since = req.query.since ? Date.parse(req.query.since) : 0;
   const items = (await (db
-    .prepare("SELECT id, price, in_stock, updated_at FROM products WHERE datetime(updated_at) > datetime(?)")
+    .prepare("SELECT * FROM products WHERE datetime(updated_at) > datetime(?)")
     .all(new Date(since).toISOString())))
-    .map((r) => ({ id: r.id, price: r.price, inStock: !!r.in_stock, updatedAt: r.updated_at }));
+    .filter((r) => (r.status ?? "published") === "published")
+    .map((r) => ({ id: r.id, price: Number(r.price), priceOnRequest: !!Number(r.price_on_request ?? 0), inStock: !!r.in_stock, updatedAt: r.updated_at }));
   res.json({ serverTime: now(), items });
 }));
 
 app.get("/api/products/:id", wrap(async (req, res) => {
   const r = (await (db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id)));
-  if (!r) return res.status(404).json({ error: "not found" });
-  res.json(rowProduct(r));
+  const staff = !!req.user;
+  /* A draft answers exactly like a product that does not exist. A different
+     status code would tell a visitor that the address is taken. */
+  if (!r || (!staff && (r.status ?? "published") !== "published")) return res.status(404).json({ error: "not found" });
+  const variants = (await variantsByProduct({ staff, productId: r.id })).get(r.id) ?? [];
+  res.json(rowProduct(r, { staff, variants }));
 }));
 
-app.post("/api/products", wrap(async (req, res) => {
+app.post("/api/products", wrapTxJson(async (req, afterCommit) => {
   const body = req.body ?? {};
   const id = String(body.id ?? "").trim().toLowerCase();
-  if (!PRODUCT_ID_RE.test(id)) return res.status(400).json({ error: "id must be a lowercase product slug (letters, numbers and dashes; 2–80 chars)" });
-  if (await db.prepare("SELECT id FROM products WHERE id=?").get(id)) return res.status(409).json({ error: "a product with this id already exists" });
-  const parsed = normalizeProduct({ ...body, stockQty: body.stockQty ?? (body.inStock === false ? 0 : 99), inStock: body.inStock ?? true }, {}, id);
-  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  if (!PRODUCT_ID_RE.test(id)) return { status: 400, body: { error: "id must be a lowercase product slug (letters, numbers and dashes; 2–80 chars)" } };
+  if (await db.prepare("SELECT id FROM products WHERE id=?").get(id)) return { status: 409, body: { error: "a product with this id already exists" } };
+  const ready = await catalogReady();
+  /* No quantity sent means none is known: the product is made to order and
+     counts no stock. This route used to answer a missing quantity with 99 — a
+     number nobody had counted, which is the placeholder stock the audit named.
+     A database without 019 cannot store "made to order", so there the old
+     default stays until the migration arrives. */
+  const madeToOrder = ready && body.stockQty === undefined && body.trackStock !== true;
+  const parsed = normalizeProduct({
+    ...body,
+    stockQty: body.stockQty ?? (ready ? 0 : (body.inStock === false ? 0 : 99)),
+    inStock: body.inStock ?? true,
+    trackStock: body.trackStock ?? !madeToOrder,
+  }, {}, id, { defaultStatus: ready ? "draft" : "published" });
+  if (parsed.error) return { status: 400, body: { error: parsed.error } };
+  const { value: product, columns } = parsed;
   const t = now();
-  const product = parsed.value;
-  await db.prepare("INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)")
-    .run(id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, product.stockQty, t);
+  if (ready) {
+    if (columns.sku) {
+      await lockSkus();
+      const owner = await skuOwner(columns.sku);
+      if (owner) throw skuTaken(columns.sku, owner);
+    }
+    if (columns.status === "published" && !columns.sku) return publishBlocked();
+    await db.prepare("INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at,sku,status,price_on_request,track_stock) VALUES(?,?,?,?,?,?,?,?,?,?)")
+      .run(id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, product.stockQty, t,
+        columns.sku, columns.status, columns.priceOnRequest ? 1 : 0, columns.trackStock ? 1 : 0);
+  } else {
+    assertStorableWithout019(columns);
+    await db.prepare("INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)")
+      .run(id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, product.stockQty, t);
+  }
   /* Opening quantity is a receipt, so a product's ledger is complete from the
      moment it exists and reconciliation never reports a phantom discrepancy. */
   if (Number(product.stockQty) > 0) {
     await db.prepare("INSERT INTO stock_movements(product_id, delta, reason, note, created_by, created_at) VALUES(?,?,?,?,?,?)")
       .run(id, Number(product.stockQty), "receipt", "opening balance at product creation", String(req.actor ?? "Catalog").slice(0, 80), t);
   }
-  emit("products", { title: "Product created: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" });
-  res.status(201).json(rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(id)));
+  afterCommit.push(() => emit("products", { title: "Product created: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" }));
+  return { status: 201, body: rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(id), { staff: true }) };
 }));
 
 app.patch("/api/products/:id", wrapTxJson(async (req, afterCommit) => {
   const r = (await (db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id)));
   if (!r) return { status: 404, body: { error: "not found" } };
-  const base = { ...JSON.parse(r.json), stockQty: r.stock_qty };
-  const parsed = normalizeProduct(req.body ?? {}, base, r.id);
+  const ready = await catalogReady();
+  const before = rowProduct(r, { staff: true });
+  const parsed = normalizeProduct(req.body ?? {}, before, r.id);
   if (parsed.error) return { status: 400, body: { error: parsed.error } };
-  const product = parsed.value;
+  const { value: product, columns } = parsed;
 
-  /* This route deliberately does NOT write stock_qty. The edit form posts the
-     whole product, including whatever quantity it loaded when the page opened;
-     writing that back would silently undo every sale that happened in between,
-     which is a lost update no constraint would ever catch. Stock moves only
-     through the ledger, via an explicit delta below. */
-  await db.prepare("UPDATE products SET json=?, price=?, in_stock=?, updated_at=? WHERE id=?")
-    .run(JSON.stringify(product), product.price, product.inStock ? 1 : 0, now(), r.id);
+  if (ready) {
+    if (columns.sku && columns.sku !== before.sku) {
+      await lockSkus();
+      const owner = await skuOwner(columns.sku, { exceptProductId: r.id });
+      if (owner) throw skuTaken(columns.sku, owner);
+    }
+    /* The rule is enforced on the way INTO published, and when a published
+       product would lose the SKU it has. A product that was already published
+       without one predates the rule and can still be edited; the dashboard
+       lists it so it gets a code. */
+    const becomingPublished = columns.status === "published" && before.status !== "published";
+    const losingSku = columns.status === "published" && before.status === "published" && before.sku && !columns.sku;
+    if ((becomingPublished || losingSku) && !columns.sku) {
+      const options = await db.prepare("SELECT COUNT(*) AS n FROM product_variants WHERE product_id=?").get(r.id);
+      if (!Number(options?.n)) return publishBlocked();
+    }
+    /* This route deliberately does NOT write stock_qty. The edit form posts the
+       whole product, including whatever quantity it loaded when the page opened;
+       writing that back would silently undo every sale that happened in between,
+       which is a lost update no constraint would ever catch. Stock moves only
+       through the ledger, via an explicit delta below. */
+    await db.prepare("UPDATE products SET json=?, price=?, in_stock=?, updated_at=?, sku=?, status=?, price_on_request=?, track_stock=? WHERE id=?")
+      .run(JSON.stringify(product), product.price, product.inStock ? 1 : 0, now(),
+        columns.sku, columns.status, columns.priceOnRequest ? 1 : 0, columns.trackStock ? 1 : 0, r.id);
+  } else {
+    assertStorableWithout019(columns);
+    await db.prepare("UPDATE products SET json=?, price=?, in_stock=?, updated_at=? WHERE id=?")
+      .run(JSON.stringify(product), product.price, product.inStock ? 1 : 0, now(), r.id);
+  }
 
   /* An integer stockQty that differs from current stock is interpreted as an
      explicit recount and recorded as an adjustment, not as a field edit. */
@@ -2076,16 +2389,21 @@ app.patch("/api/products/:id", wrapTxJson(async (req, afterCommit) => {
     }
   }
 
-  const out = rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(r.id));
-  /* Price and stock are the two fields where a silent edit costs real money. */
-  const priceChanged = Number(r.price) !== Number(product.price);
+  const variants = (await variantsByProduct({ staff: true, productId: r.id })).get(r.id) ?? [];
+  const out = rowProduct(await db.prepare("SELECT * FROM products WHERE id=?").get(r.id), { staff: true, variants });
+  /* Price and stock are where a silent edit costs money; state and SKU are
+     where it changes what customers see and what the workshop builds. */
+  const priceChanged = Number(r.price) !== Number(product.price) || before.priceOnRequest !== columns.priceOnRequest;
   const stockMoved = req.body?.stockQty !== undefined && Number.isInteger(Number(req.body.stockQty)) && Number(out.stockQty) !== Number(r.stock_qty);
-  if (priceChanged || stockMoved) await writeAudit(req, {
+  const statusChanged = before.status !== out.status;
+  const skuChanged = (before.sku ?? null) !== (out.sku ?? null);
+  if (priceChanged || stockMoved || statusChanged || skuChanged) await writeAudit(req, {
     action: "product.updated",
     entityType: "product",
     entityId: r.id,
-    before: { price: r.price, stockQty: r.stock_qty },
-    after: { price: product.price, stockQty: out.stockQty, priceChanged, stockMoved },
+    before: { price: r.price, stockQty: r.stock_qty, status: before.status, sku: before.sku, priceOnRequest: before.priceOnRequest },
+    after: { price: product.price, stockQty: out.stockQty, status: out.status, sku: out.sku, priceOnRequest: out.priceOnRequest,
+      priceChanged, stockMoved, statusChanged, skuChanged },
   });
   afterCommit.push(() => emit("products", { title: "Product updated: " + product.name.slice(0, 60), who: req.actor ?? "Catalog" }));
   return { body: out };
@@ -2094,8 +2412,15 @@ app.patch("/api/products/:id", wrapTxJson(async (req, afterCommit) => {
 /* Stock history and reconciliation for one product.
    Read-only by design: the ledger is append-only, so there is no POST here —
    movements are created as a side effect of real events (a sale, a return, a
-   recount), never by an API caller choosing a number. */
+   recount), never by an API caller choosing a number.
+
+   Staff only. Every GET under /api/products/ is on the public allow-list,
+   because the storefront reads the catalogue from there — and that made this
+   route public too: anybody could read each product's movements, with the
+   order references in the notes and the names of the staff who recorded them.
+   The allow-list is a pattern, so the refusal lives here, next to the data. */
 app.get("/api/products/:id/stock", wrap(async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "sign in required", code: "no_token" });
   const product = (await db.prepare("SELECT id, stock_qty FROM products WHERE id=?").get(req.params.id));
   if (!product) return res.status(404).json({ error: "not found" });
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
@@ -2110,9 +2435,349 @@ app.get("/api/products/:id/stock", wrap(async (req, res) => {
 app.delete("/api/products/:id", wrap(async (req, res) => {
   const r = await db.prepare("SELECT * FROM products WHERE id=?").get(req.params.id);
   if (!r) return res.status(404).json({ error: "not found" });
-  await db.prepare("DELETE FROM products WHERE id=?").run(r.id);
-  emit("products", { title: "Product removed: " + JSON.parse(r.json).name.slice(0, 60), who: req.actor ?? "Catalog" });
+  const ready = await catalogReady();
+  /* A product that stock, production or a transfer still names is not deleted.
+     PostgreSQL enforces that with foreign keys, and this route used to let the
+     refusal surface as "internal error"; SQLite declares no foreign keys, so
+     there the same request deleted the product and left its movements pointing
+     at nothing. Both engines now give the same answer, and it says what to do
+     instead. Every product that ever had a quantity has a movement, so this is
+     the usual case, not an edge. */
+  const inUse = [];
+  for (const [table, what] of [["stock_movements", "stock history"], ["stock_reservations", "stock reservations"], ["boms", "a bill of materials"], ["job_cards", "job cards"], ["stock_transfer_lines", "stock transfers"]]) {
+    const n = Number((await db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE product_id=?`).get(r.id)).n);
+    if (n) inUse.push(what);
+  }
+  if (inUse.length)
+    return res.status(409).json({ error: `this product has ${inUse.join(", ")} and cannot be deleted; archive it instead and it disappears from the shop`, code: "product_in_use", productId: r.id });
+  await db.transaction(async () => {
+    /* PostgreSQL cascades this through the foreign key; SQLite declares none,
+       so the options are removed by hand and never outlive their product. */
+    if (ready) await db.prepare("DELETE FROM product_variants WHERE product_id=?").run(r.id);
+    await db.prepare("DELETE FROM products WHERE id=?").run(r.id);
+  });
+  emit("products", { title: "Product removed: " + String(safeJson(r.json, {}).name ?? r.id).slice(0, 60), who: req.actor ?? "Catalog" });
   res.json({ deleted: r.id });
+}));
+
+/* Publish, withdraw or archive many products at once — what makes it possible
+   to load 170 drafts and release them after they have been checked.
+
+   One product failing does not fail the others: each id gets its own answer,
+   so the caller can show "148 published, 3 need a SKU" instead of nothing. */
+app.post("/api/products/bulk-status", wrapTxJson(async (req, afterCommit) => {
+  const status = String(req.body?.status ?? "");
+  const ids = req.body?.ids;
+  if (!PRODUCT_STATUSES.includes(status)) return { status: 400, body: { error: "status must be draft, published or archived" } };
+  if (!Array.isArray(ids) || ids.length < 1 || ids.length > 500 || ids.some((id) => typeof id !== "string" || !PRODUCT_ID_RE.test(id)))
+    return { status: 400, body: { error: "ids must be 1 to 500 product ids" } };
+  if (!(await catalogReady())) throw catalogPending("Changing a product's state");
+
+  const results = [];
+  const t = now();
+  for (const id of [...new Set(ids)]) {
+    const row = await db.prepare("SELECT id, status, sku FROM products WHERE id=?").get(id);
+    if (!row) { results.push({ id, ok: false, error: "not found" }); continue; }
+    if (row.status === status) { results.push({ id, ok: true, unchanged: true, status }); continue; }
+    if (status === "published" && !row.sku) {
+      const options = await db.prepare("SELECT COUNT(*) AS n FROM product_variants WHERE product_id=?").get(id);
+      if (!Number(options?.n)) { results.push({ id, ok: false, code: "publish_blocked", error: "needs a SKU before it can be published" }); continue; }
+    }
+    await db.prepare("UPDATE products SET status=?, updated_at=? WHERE id=?").run(status, t, id);
+    results.push({ id, ok: true, from: row.status, status });
+  }
+  const changed = results.filter((r) => r.ok && !r.unchanged);
+  if (changed.length) {
+    await writeAudit(req, {
+      action: "catalog.status_changed", entityType: "catalog", entityId: status,
+      after: { status, changed: changed.length, ids: changed.slice(0, 100).map((r) => r.id) },
+    });
+    afterCommit.push(() => emit("products", { title: `${changed.length} product${changed.length === 1 ? "" : "s"} → ${status}`, who: req.actor ?? "Catalog" }));
+  }
+  return { body: {
+    status,
+    changed: changed.length,
+    unchanged: results.filter((r) => r.unchanged).length,
+    failed: results.filter((r) => !r.ok).length,
+    results,
+  } };
+}));
+
+/* ---- options of a product: a size, a finish, a material ---- */
+function normalizeVariant(input, base = {}) {
+  const sent = (key) => Object.prototype.hasOwnProperty.call(input, key) && input[key] !== undefined;
+  const sku = sent("sku") ? skuInput(input.sku) : skuInput(base.sku);
+  if (!sku) return { error: "sku is required" };
+  if (!SKU_RE.test(sku)) return { error: "sku must be 2 to 40 characters: letters and digits, with . _ / or - between them" };
+  const label = productText(sent("label") ? input.label : base.label, 120);
+  if (!label) return { error: "label is required" };
+  let attributes = base.attributes && typeof base.attributes === "object" ? base.attributes : {};
+  if (sent("attributes")) {
+    if (!input.attributes || typeof input.attributes !== "object" || Array.isArray(input.attributes)) return { error: "attributes must be an object of names and values" };
+    const entries = Object.entries(input.attributes);
+    if (entries.length > 12) return { error: "an option can carry at most 12 attributes" };
+    attributes = {};
+    for (const [key, value] of entries) {
+      const name = productText(key, 40);
+      const text = productText(value, 120);
+      if (name && text) attributes[name] = text;
+    }
+  }
+  const priced = resolvePrice(input, base);
+  if (priced.error) return { error: priced.error };
+  if (sent("active") && typeof input.active !== "boolean") return { error: "active must be a boolean" };
+  const active = sent("active") ? input.active : base.active !== false;
+  const position = Number(sent("position") ? input.position : base.position ?? 0);
+  if (!Number.isInteger(position) || position < 0 || position > 10_000) return { error: "position must be a whole number from 0" };
+  return { value: { sku, label, attributes, price: priced.price, priceOnRequest: priced.priceOnRequest, active, position } };
+}
+const sameLabel = () => Object.assign(new Error("this product already has an option with that label"), { statusCode: 409, code: "label_taken" });
+
+app.get("/api/products/:id/variants", wrap(async (req, res) => {
+  const product = await db.prepare("SELECT * FROM products WHERE id=?").get(req.params.id);
+  const staff = !!req.user;
+  if (!product || (!staff && (product.status ?? "published") !== "published")) return res.status(404).json({ error: "not found" });
+  const items = (await variantsByProduct({ staff, productId: product.id })).get(product.id) ?? [];
+  res.json({ total: items.length, items });
+}));
+
+app.post("/api/products/:id/variants", wrapTxJson(async (req, afterCommit) => {
+  if (!(await catalogReady())) throw catalogPending("Product options");
+  const product = await db.prepare("SELECT id, json FROM products WHERE id=?").get(req.params.id);
+  if (!product) return { status: 404, body: { error: "not found" } };
+  const parsed = normalizeVariant(req.body ?? {});
+  if (parsed.error) return { status: 400, body: { error: parsed.error } };
+  const v = parsed.value;
+  await lockSkus();
+  const owner = await skuOwner(v.sku);
+  if (owner) throw skuTaken(v.sku, owner);
+  if (await db.prepare("SELECT id FROM product_variants WHERE product_id=? AND lower(label)=lower(?)").get(product.id, v.label)) throw sameLabel();
+  const t = now();
+  const info = await db.prepare("INSERT INTO product_variants(product_id,sku,label,attributes,price,price_on_request,active,position,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+    .run(product.id, v.sku, v.label, JSON.stringify(v.attributes), v.price, v.priceOnRequest ? 1 : 0, v.active ? 1 : 0, v.position, t, t);
+  /* The product changed for anybody who caches it: a storefront that already
+     holds this product must learn it is now sold by option. */
+  await db.prepare("UPDATE products SET updated_at=? WHERE id=?").run(t, product.id);
+  const row = await db.prepare("SELECT * FROM product_variants WHERE id=?").get(info.lastInsertRowid);
+  await writeAudit(req, { action: "product.variant_added", entityType: "product", entityId: product.id, after: { variantId: Number(row.id), sku: v.sku, label: v.label, price: v.price, priceOnRequest: v.priceOnRequest } });
+  afterCommit.push(() => emit("products", { title: `Option added: ${String(safeJson(product.json, {}).name ?? product.id).slice(0, 40)} — ${v.label.slice(0, 40)}`, who: req.actor ?? "Catalog" }));
+  return { status: 201, body: rowVariant(row) };
+}));
+
+app.patch("/api/products/:id/variants/:variantId", wrapTxJson(async (req, afterCommit) => {
+  if (!(await catalogReady())) throw catalogPending("Product options");
+  const row = await db.prepare("SELECT * FROM product_variants WHERE id=? AND product_id=?").get(Number(req.params.variantId) || 0, req.params.id);
+  if (!row) return { status: 404, body: { error: "not found" } };
+  const before = rowVariant(row);
+  const parsed = normalizeVariant(req.body ?? {}, before);
+  if (parsed.error) return { status: 400, body: { error: parsed.error } };
+  const v = parsed.value;
+  if (v.sku !== before.sku) {
+    await lockSkus();
+    const owner = await skuOwner(v.sku, { exceptVariantId: before.id });
+    if (owner) throw skuTaken(v.sku, owner);
+  }
+  if (v.label.toLowerCase() !== before.label.toLowerCase()
+    && await db.prepare("SELECT id FROM product_variants WHERE product_id=? AND lower(label)=lower(?) AND id<>?").get(row.product_id, v.label, before.id)) throw sameLabel();
+  const t = now();
+  await db.prepare("UPDATE product_variants SET sku=?, label=?, attributes=?, price=?, price_on_request=?, active=?, position=?, updated_at=? WHERE id=?")
+    .run(v.sku, v.label, JSON.stringify(v.attributes), v.price, v.priceOnRequest ? 1 : 0, v.active ? 1 : 0, v.position, t, before.id);
+  await db.prepare("UPDATE products SET updated_at=? WHERE id=?").run(t, row.product_id);
+  if (v.price !== before.price || v.priceOnRequest !== before.priceOnRequest || v.sku !== before.sku || v.active !== before.active)
+    await writeAudit(req, { action: "product.variant_updated", entityType: "product", entityId: row.product_id,
+      before: { variantId: before.id, sku: before.sku, price: before.price, priceOnRequest: before.priceOnRequest, active: before.active },
+      after: { variantId: before.id, sku: v.sku, price: v.price, priceOnRequest: v.priceOnRequest, active: v.active } });
+  afterCommit.push(() => emit("products", { title: "Option updated: " + v.label.slice(0, 60), who: req.actor ?? "Catalog" }));
+  return { body: rowVariant(await db.prepare("SELECT * FROM product_variants WHERE id=?").get(before.id)) };
+}));
+
+app.delete("/api/products/:id/variants/:variantId", wrapTxJson(async (req, afterCommit) => {
+  if (!(await catalogReady())) throw catalogPending("Product options");
+  const row = await db.prepare("SELECT * FROM product_variants WHERE id=? AND product_id=?").get(Number(req.params.variantId) || 0, req.params.id);
+  if (!row) return { status: 404, body: { error: "not found" } };
+  const product = await db.prepare("SELECT id, status, sku FROM products WHERE id=?").get(row.product_id);
+  const others = await db.prepare("SELECT COUNT(*) AS n FROM product_variants WHERE product_id=? AND id<>?").get(row.product_id, row.id);
+  /* A published product is sold either as itself, by its own SKU, or by its
+     options. Removing the last option of one that has no SKU would leave it on
+     sale with no code at all. */
+  if (product?.status === "published" && !product.sku && !Number(others?.n))
+    return { status: 409, body: { error: "this is the last option of a published product that has no SKU of its own; give the product a SKU or withdraw it first", code: "publish_blocked" } };
+  const t = now();
+  await db.prepare("DELETE FROM product_variants WHERE id=?").run(row.id);
+  await db.prepare("UPDATE products SET updated_at=? WHERE id=?").run(t, row.product_id);
+  await writeAudit(req, { action: "product.variant_removed", entityType: "product", entityId: row.product_id, before: { variantId: Number(row.id), sku: row.sku, label: row.label } });
+  afterCommit.push(() => emit("products", { title: "Option removed: " + String(row.label).slice(0, 60), who: req.actor ?? "Catalog" }));
+  return { body: { deleted: Number(row.id) } };
+}));
+
+/* ---------- catalogue: state, import, demo ---------- */
+
+/* Every product and every SKU the database holds — what the import plan is
+   measured against. */
+async function catalogSnapshot() {
+  const rows = await db.prepare("SELECT * FROM products").all();
+  const existing = new Map();
+  const skuOwners = new Map();
+  for (const row of rows) {
+    const doc = safeJson(row.json, {});
+    const name = String(doc.name ?? row.id);
+    existing.set(row.id, { name, sourceSite: doc.source?.site ?? null, status: row.status ?? "published", sku: row.sku ?? null, review: Array.isArray(doc.review) ? doc.review.length : 0 });
+    if (row.sku) skuOwners.set(String(row.sku).toLowerCase(), { productId: row.id, name });
+  }
+  const variantCount = new Map();
+  if (await catalogReady()) {
+    for (const v of await db.prepare("SELECT product_id, sku, label FROM product_variants").all()) {
+      skuOwners.set(String(v.sku).toLowerCase(), { productId: v.product_id, name: `${existing.get(v.product_id)?.name ?? v.product_id} — ${v.label}` });
+      variantCount.set(v.product_id, (variantCount.get(v.product_id) ?? 0) + 1);
+    }
+  }
+  return { existing, skuOwners, variantCount };
+}
+/* The ids of the demo catalogue. Read from the seed file, never guessed from
+   how a product looks: a real product may share a name with a demo one. */
+let demoIdCache = null;
+async function demoProductIds() {
+  if (!demoIdCache) {
+    try { demoIdCache = new Set((await loadShopData()).products.map((p) => p.id)); }
+    catch { demoIdCache = new Set(); }
+  }
+  return demoIdCache;
+}
+
+app.get("/api/catalog/status", wrap(async (_req, res) => {
+  const ready = await catalogReady();
+  const { existing, variantCount } = await catalogSnapshot();
+  const demoIds = await demoProductIds();
+  const all = [...existing.entries()];
+  /* A demo product is one whose id is in the seed file and which no import
+     wrote. An imported product is recognised by the source it carries. */
+  const demo = all.filter(([id, p]) => demoIds.has(id) && !p.sourceSite);
+  const dataset = loadCatalogData();
+  res.json({
+    schemaReady: ready,
+    ...(ready ? {} : { schemaNote: "This database has not received catalogue migration 019. The catalogue works as before; SKUs, drafts, price on request, made-to-order stock, options and the import are waiting for it." }),
+    counts: Object.fromEntries(PRODUCT_STATUSES.map((s) => [s, all.filter(([, p]) => p.status === s).length])),
+    total: all.length,
+    demo: { total: demo.length, published: demo.filter(([, p]) => p.status === "published").length },
+    imported: { total: all.filter(([, p]) => p.sourceSite).length, published: all.filter(([, p]) => p.sourceSite && p.status === "published").length },
+    /* Published, and neither a SKU nor an option with one: the rows that
+       predate the rule. Listed so they get a code; not blocked from editing. */
+    publishedWithoutSku: all.filter(([id, p]) => p.status === "published" && !p.sku && !variantCount.get(id)).length,
+    withReviewNotes: all.filter(([, p]) => p.review > 0).length,
+    dataset: dataset ? { name: dataset.dataset, site: dataset.source?.site ?? null, capturedOn: dataset.source?.capturedOn ?? null, products: dataset.products.length } : null,
+  });
+}));
+
+app.get("/api/catalog/import", wrap(async (_req, res) => {
+  const dataset = loadCatalogData();
+  if (!dataset) return res.status(404).json({ error: "this build ships no prepared catalogue", code: "no_dataset" });
+  const { existing, skuOwners } = await catalogSnapshot();
+  res.json({ schemaReady: await catalogReady(), ...planImport(dataset, existing, skuOwners, { demoIds: await demoProductIds() }) });
+}));
+
+/* Loads the prepared catalogue as drafts.
+
+   Safe to run twice: a product that is already there from this source is left
+   exactly as it is, so staff corrections survive a second run. Nothing is
+   published, nothing is overwritten, nothing is deleted. A product whose
+   address or SKU is taken by something else is left out and named.
+
+   The caller sends the dataset's name back. That is not ceremony: it proves
+   the person is confirming the list they were shown, not a newer one a deploy
+   put under an open browser tab. */
+app.post("/api/catalog/import", wrapTxJson(async (req, afterCommit) => {
+  const dataset = loadCatalogData();
+  if (!dataset) return { status: 404, body: { error: "this build ships no prepared catalogue", code: "no_dataset" } };
+  if (!(await catalogReady())) throw catalogPending("The catalogue import");
+  if (String(req.body?.dataset ?? "") !== dataset.dataset)
+    return { status: 409, body: { error: "the prepared catalogue changed since this screen was loaded; reload and review it again", code: "dataset_changed", dataset: dataset.dataset } };
+
+  if (req.body?.replaceDemo !== undefined && typeof req.body.replaceDemo !== "boolean")
+    return { status: 400, body: { error: "replaceDemo must be a boolean" } };
+  await lockSkus();
+  const { existing, skuOwners } = await catalogSnapshot();
+  const plan = planImport(dataset, existing, skuOwners, { demoIds: await demoProductIds(), replaceDemo: req.body?.replaceDemo === true });
+  const byId = new Map(dataset.products.map((p) => [p.id, p]));
+  const t = now();
+  const refused = [];
+  const replaced = [];
+  let created = 0;
+  for (const item of plan.items) {
+    if (item.action !== "create" && item.action !== "replace") continue;
+    const p = byId.get(item.id);
+    if (!PRODUCT_ID_RE.test(p.id)) { refused.push({ id: p.id, reason: "the address is not one the catalogue accepts" }); continue; }
+    /* Through the same validation as a product typed into the dashboard. The
+       import is not a second, looser way in. */
+    const parsed = normalizeProduct({
+      name: p.name, category: p.category, subcategory: p.subcategory,
+      price: p.priceOnRequest ? 0 : p.price, priceOnRequest: !!p.priceOnRequest, originalPrice: p.originalPrice ?? null,
+      description: "", shortDescription: "",
+      images: p.images, colors: [], specifications: [], features: [],
+      /* Available to order, and no quantity: nobody counted one. */
+      inStock: true, stockQty: 0, trackStock: false,
+      sku: p.sku, status: "draft",
+      review: Array.isArray(p.review) ? p.review : [],
+    }, { source: { ...(p.source ?? {}), dataset: dataset.dataset, importedAt: t } }, p.id);
+    if (parsed.error) { refused.push({ id: p.id, reason: parsed.error }); continue; }
+    const { value: product, columns } = parsed;
+    if (item.action === "replace") {
+      /* A demo product stands on this address. It gives way in place: the row
+         keeps its id, so the stock ledger and every old order that names it
+         stay intact, and its content becomes the real product. The stock the
+         demo invented is written off through the ledger, not erased from it. */
+      const demo = await db.prepare("SELECT stock_qty FROM products WHERE id=?").get(p.id);
+      await db.prepare("UPDATE products SET json=?, price=?, in_stock=1, updated_at=?, sku=?, status='draft', price_on_request=?, track_stock=0 WHERE id=?")
+        .run(JSON.stringify(product), product.price, t, columns.sku, columns.priceOnRequest ? 1 : 0, p.id);
+      if (Number(demo?.stock_qty) > 0) {
+        await applyStockMovement({
+          productId: p.id, delta: -Number(demo.stock_qty), reason: "adjustment",
+          refType: "product", refId: null, note: "demo stock written off: the real product replaced the demo one",
+          actor: req.actor ?? "Catalog",
+        });
+      }
+      replaced.push({ id: p.id, name: p.name, replaced: item.replaces });
+      continue;
+    }
+    await db.prepare("INSERT INTO products(id,json,price,in_stock,stock_qty,updated_at,sku,status,price_on_request,track_stock) VALUES(?,?,?,?,?,?,?,?,?,?)")
+      .run(p.id, JSON.stringify(product), product.price, 1, 0, t, columns.sku, "draft", columns.priceOnRequest ? 1 : 0, 0);
+    created++;
+  }
+  const conflicts = plan.items.filter((item) => item.action === "conflict").map(({ id, name, sku, reason, heldByDemo }) => ({ id, name, sku, reason, heldByDemo }));
+  await writeAudit(req, {
+    action: "catalog.imported", entityType: "catalog", entityId: dataset.dataset,
+    after: { dataset: dataset.dataset, created, replaced: replaced.map((r) => r.id), present: plan.summary.present, conflicts: conflicts.length, refused: refused.length },
+  });
+  const loaded = created + replaced.length;
+  if (loaded) afterCommit.push(() => emit("products", { title: `${loaded} product${loaded === 1 ? "" : "s"} loaded as drafts`, who: req.actor ?? "Catalog" }));
+  return { status: loaded ? 201 : 200, body: {
+    dataset: dataset.dataset, created, replaced, present: plan.summary.present, conflicts, refused,
+    published: 0,
+    note: "Every product was loaded as a draft. Customers see none of them until it is published.",
+  } };
+}));
+
+/* Withdraws the demo catalogue: every demo product that is not archived
+   becomes archived. Not deleted — demo orders and quotations name them, and
+   an archived product can be brought back with one click. */
+app.post("/api/catalog/archive-demo", wrapTxJson(async (req, afterCommit) => {
+  if (!(await catalogReady())) throw catalogPending("Archiving the demo catalogue");
+  if (req.body?.confirm !== "archive-demo") return { status: 400, body: { error: "send { \"confirm\": \"archive-demo\" } to withdraw the demo catalogue" } };
+  const demoIds = await demoProductIds();
+  const t = now();
+  const archived = [];
+  for (const row of await db.prepare("SELECT id, json, status FROM products").all()) {
+    if (!demoIds.has(row.id) || row.status === "archived") continue;
+    if (safeJson(row.json, {}).source?.site) continue; // an imported product that happens to share a demo id
+    await db.prepare("UPDATE products SET status='archived', updated_at=? WHERE id=?").run(t, row.id);
+    archived.push(row.id);
+  }
+  if (archived.length) {
+    await writeAudit(req, { action: "catalog.demo_archived", entityType: "catalog", entityId: "demo", after: { archived: archived.length, ids: archived.slice(0, 200) } });
+    afterCommit.push(() => emit("products", { title: `${archived.length} demo product${archived.length === 1 ? "" : "s"} archived`, who: req.actor ?? "Catalog" }));
+  }
+  const publishedLeft = Number((await db.prepare("SELECT COUNT(*) AS n FROM products WHERE status='published'").get()).n);
+  return { body: { archived: archived.length, publishedLeft,
+    ...(publishedLeft === 0 ? { warning: "No product is published now. The shop shows an empty catalogue until some are published." } : {}) } };
 }));
 
 app.get("/api/materials", wrap(async (req, res) => res.json((await (db.prepare("SELECT json FROM materials").all())).map((r) => JSON.parse(r.json)))));
@@ -2169,6 +2834,46 @@ app.get("/api/quotes/:id", wrap(async (req, res) => {
    an agreed amount — they are stored as 0 so no client number ever reaches a total.
    Anonymous visitors also cannot set their own discount, tax or shipping.
    Staff building a quote in the dashboard keep full authority over custom pricing. */
+/* What a visitor may put on an order or a quotation, and at what price.
+   One function for both, so checkout and the quotation form cannot disagree
+   about what is for sale.
+
+   Returns `{ refuse }` with the reason, or the facts of the line:
+     · only a published product is for sale; a draft answers like no product;
+     · a product sold by option needs the option, and the option must be on sale;
+     · stock is checked only where it is counted — a made-to-order product is
+       available whenever it is switched on;
+     · "on request" is reported, not refused here: a quotation may carry such a
+       line, an order may not, and that difference belongs to the caller. */
+async function sellableLine(productId, qty, variantId = null) {
+  const product = await db.prepare("SELECT * FROM products WHERE id=?").get(productId);
+  if (!product || (product.status ?? "published") !== "published") return { refuse: "unknown" };
+  const data = safeJson(product.json, {});
+  const name = String(data.name ?? product.id).slice(0, 140);
+  let variant = null;
+  if (await catalogReady()) {
+    const options = await db.prepare("SELECT * FROM product_variants WHERE product_id=? AND active=1 ORDER BY position, id").all(product.id);
+    if (variantId !== null && variantId !== undefined && variantId !== "") {
+      variant = options.find((option) => Number(option.id) === Number(variantId)) ?? null;
+      if (!variant) return { refuse: "option-unavailable", name };
+    } else if (options.length) return { refuse: "option-required", name };
+  } else if (variantId !== null && variantId !== undefined && variantId !== "") return { refuse: "option-unavailable", name };
+  const tracked = product.track_stock === undefined || product.track_stock === null ? true : !!Number(product.track_stock);
+  if (!Number(product.in_stock) || (tracked && Number(product.stock_qty) < qty)) return { refuse: "unavailable", name };
+  return {
+    product, data, name, variant, tracked,
+    onRequest: variant ? !!Number(variant.price_on_request) : !!Number(product.price_on_request ?? 0),
+    price: variant ? Number(variant.price) : Number(product.price),
+    sku: variant?.sku ?? product.sku ?? null,
+  };
+}
+const SELLABLE_REFUSALS = {
+  "unknown": (n) => ({ status: 400, message: `item ${n} is not an available catalog product` }),
+  "option-required": (n, name) => ({ status: 400, message: `${name} is sold in several options; choose one (item ${n})` }),
+  "option-unavailable": (n, name) => ({ status: 400, message: `the chosen option of ${name} is not available (item ${n})` }),
+  "unavailable": (_n, name) => ({ status: 409, message: `${name ?? "A selected product"} is unavailable in the requested quantity` }),
+};
+
 async function applyCatalogPricingToPublicIntake(quote) {
   const priced = [];
   const unpriced = [];
@@ -2179,13 +2884,24 @@ async function applyCatalogPricingToPublicIntake(quote) {
        the quote for sales instead of silently storing a PKR 0 figure. */
     if (!productId) { unpriced.push(item.name || `item ${index + 1}`); priced.push({ ...item, price: 0, lineTotal: 0 }); continue; }
     if (!PRODUCT_ID_RE.test(productId)) throw quoteInputError(`item ${index + 1} is not an available catalog product`);
-    const product = await db.prepare("SELECT id,json,price,in_stock,stock_qty FROM products WHERE id=?").get(productId);
-    if (!product) throw quoteInputError(`item ${index + 1} is not an available catalog product`);
-    if (!Number(product.in_stock) || Number(product.stock_qty) < item.qty)
-      throw Object.assign(new Error(`${safeJson(product.json, {}).name ?? "A selected product"} is unavailable in the requested quantity`), { statusCode: 409 });
-    const catalogName = String(safeJson(product.json, {}).name ?? product.id).slice(0, 160);
-    const unitPrice = Number(product.price);
-    priced.push({ ...item, id: product.id, name: catalogName, price: unitPrice, lineTotal: roundMoney(unitPrice * item.qty) });
+    const line = await sellableLine(productId, item.qty, item.variantId);
+    if (line.refuse) {
+      const refusal = SELLABLE_REFUSALS[line.refuse](index + 1, line.name);
+      throw refusal.status === 400 ? quoteInputError(refusal.message) : Object.assign(new Error(refusal.message), { statusCode: refusal.status });
+    }
+    const described = {
+      ...item, id: line.product.id, name: line.name.slice(0, 160),
+      ...(line.sku ? { sku: line.sku } : {}),
+      ...(line.variant ? { variantId: Number(line.variant.id), variant: String(line.variant.label).slice(0, 120) } : {}),
+    };
+    /* A product priced on request is the same case as a bespoke line: the
+       customer may ask, nobody has agreed a figure, and sales must be told. */
+    if (line.onRequest) {
+      unpriced.push(line.variant ? `${line.name} — ${line.variant.label}` : line.name);
+      priced.push({ ...described, price: 0, lineTotal: 0 });
+      continue;
+    }
+    priced.push({ ...described, price: line.price, lineTotal: roundMoney(line.price * item.qty) });
   }
   const subtotal = roundMoney(priced.reduce((sum, item) => sum + item.lineTotal, 0));
   const details = { ...quote.details, discountPercent: 0, taxPercent: 0, shipping: 0 };
@@ -2635,20 +3351,31 @@ app.post("/api/orders", wrapTxJson(async (req, afterCommit) => {
     return { status: 400, body: { error: "customer and 1–50 catalog items are required" } };
 
   const items = [];
+  const tracked = new Map(); // product id → whether its stock is counted
   for (const [index, raw] of requestedItems.entries()) {
     const productId = String(raw?.id ?? raw?.productId ?? "").trim();
     const qty = Number(raw?.qty);
     if (!PRODUCT_ID_RE.test(productId) || !Number.isInteger(qty) || qty < 1 || qty > 100)
       return { status: 400, body: { error: `item ${index + 1} needs a valid catalog product and whole quantity from 1 to 100` } };
-    const product = await db.prepare("SELECT id,json,price,in_stock,stock_qty FROM products WHERE id=?").get(productId);
-    if (!product) return { status: 400, body: { error: `item ${index + 1} is not an available catalog product` } };
-    if (!Number(product.in_stock) || Number(product.stock_qty) < qty)
-      return { status: 409, body: { error: `${safeJson(product.json, {}).name ?? "A selected product"} is unavailable in the requested quantity` } };
+    const line = await sellableLine(productId, qty, raw?.variantId);
+    if (line.refuse) {
+      const refusal = SELLABLE_REFUSALS[line.refuse](index + 1, line.name);
+      return { status: refusal.status, body: { error: refusal.message } };
+    }
+    /* An order is a commitment to a price. A product with none yet can be
+       quoted, not ordered — the old shop sells these at PKR 0. */
+    if (line.onRequest)
+      return { status: 409, body: { error: `${line.name} is priced on request; ask for a quotation instead`, code: "price_on_request", productId: line.product.id } };
 
-    const data = safeJson(product.json, {});
     const requestedColor = String(raw?.color ?? "").trim().slice(0, 60);
-    const color = (Array.isArray(data.colors) ? data.colors : []).find((entry) => entry?.name === requestedColor)?.name;
-    items.push({ id: product.id, name: String(data.name ?? product.id).slice(0, 140), price: Number(product.price), qty, ...(color ? { color } : {}) });
+    const color = (Array.isArray(line.data.colors) ? line.data.colors : []).find((entry) => entry?.name === requestedColor)?.name;
+    items.push({
+      id: line.product.id, name: line.name, price: line.price, qty,
+      ...(line.sku ? { sku: line.sku } : {}),
+      ...(line.variant ? { variantId: Number(line.variant.id), variant: String(line.variant.label).slice(0, 120) } : {}),
+      ...(color ? { color } : {}),
+    });
+    tracked.set(line.product.id, line.tracked);
   }
 
   // Client totals/prices are display hints only. Recompute from the current catalog.
@@ -2675,6 +3402,10 @@ app.post("/api/orders", wrapTxJson(async (req, afterCommit) => {
      air. Lines are applied sequentially because two lines may name the same
      product, and a partial success must not survive. */
   for (const item of items) {
+    /* A made-to-order product has no units on a shelf to take: it is built
+       after the order. Writing a movement for it would drive a number nobody
+       counted below zero, and the ledger would refuse the sale. */
+    if (!tracked.get(item.id)) continue;
     await applyStockMovement({
       productId: item.id, delta: -item.qty, reason: "sale",
       refType: "order", refId: oLed.id, note: ref + " · " + item.name.slice(0, 80),
@@ -3432,6 +4163,7 @@ const MIGRATION_TABLES = [
   { table: "stock_levels", version: 12 },
   { table: "stock_transfers", version: 12 },
   { table: "stock_transfer_lines", version: 12 },
+  { table: "product_variants", version: 19 },
 ];
 
 async function migrationAlignment() {
@@ -7970,7 +8702,10 @@ const sitemapDocument = async (req) => {
     urls.push(`  <url><loc>${xmlEsc(absoluteUrl(base, r.path))}</loc><lastmod>${today}</lastmod><changefreq>${r.changefreq}</changefreq><priority>${r.priority}</priority></url>`);
   for (const x of await db.prepare("SELECT slug, updated_at FROM pages WHERE status='Published' ORDER BY updated_at DESC").all())
     urls.push(`  <url><loc>${xmlEsc(base + "/p/" + x.slug)}</loc><lastmod>${isoDay(x.updated_at)}</lastmod></url>`);
-  for (const x of await db.prepare("SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT 500").all())
+  /* Published products only: a draft in the sitemap is an invitation to index
+     a page that answers "not found". Filtered in JS so this keeps working on a
+     database that has not received 019 (see catalogReady). */
+  for (const x of (await db.prepare("SELECT * FROM products ORDER BY updated_at DESC").all()).filter((r) => (r.status ?? "published") === "published").slice(0, 500))
     urls.push(`  <url><loc>${xmlEsc(base + "/shop/" + x.id)}</loc><lastmod>${isoDay(x.updated_at)}</lastmod></url>`);
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
 };
@@ -8376,7 +9111,23 @@ app.get("/api/stats", wrap(async (req, res) => {
   });
   const revenue = (await (db.prepare("SELECT COALESCE(SUM(total),0) v FROM orders WHERE stage IN ('delivery','installation')").get())).v;
   res.json({
-    products: { total: (await (n("SELECT COUNT(*) n FROM products"))), inStock: (await (n("SELECT COUNT(*) n FROM products WHERE in_stock=1"))), avgPrice: (await (db.prepare("SELECT AVG(price) v FROM products").get())).v },
+    /* The catalogue as customers see it: published products, and an average
+       over the ones that carry a price. Counting drafts here made the figure
+       jump by 170 the moment a catalogue was loaded for review, and averaging
+       "on request" rows as PKR 0 pulled the average toward nothing. Computed
+       in JS so it holds on a database without 019 (see catalogReady). */
+    products: await (async () => {
+      const rows = await db.prepare("SELECT * FROM products").all();
+      const published = rows.filter((r) => (r.status ?? "published") === "published");
+      const priced = published.filter((r) => !Number(r.price_on_request ?? 0));
+      return {
+        total: published.length,
+        inStock: published.filter((r) => Number(r.in_stock)).length,
+        avgPrice: priced.length ? priced.reduce((sum, r) => sum + Number(r.price), 0) / priced.length : null,
+        draft: rows.filter((r) => r.status === "draft").length,
+        archived: rows.filter((r) => r.status === "archived").length,
+      };
+    })(),
     leads: { total: (await (n("SELECT COUNT(*) n FROM leads"))), byStatus: leadBy },
     quotes: { total: (await (n("SELECT COUNT(*) n FROM quotes"))), byStatus: (await (byStatus("quotes"))), pipelineValue: (await (db.prepare("SELECT COALESCE(SUM(total),0) v FROM quotes WHERE status NOT IN ('Rejected','Expired')").get())).v },
     orders: { total: (await (n("SELECT COUNT(*) n FROM orders"))), byStage: (await (byStatus("orders"))), revenue },
@@ -8842,14 +9593,40 @@ app.use((error, req, res, next) => {
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 
+/* The demo catalogue is a starting point for an EMPTY database. It is not a
+   list this deployment keeps restoring.
+
+   This function used to run INSERT OR IGNORE for all 148 demo products on
+   every cold start. Two consequences, neither intended:
+     · a demo product somebody deleted came back with the next cold start, so
+       the demo catalogue could never be removed from a hosted database — which
+       is exactly what replacing it with the real catalogue requires;
+     · every cold start paid for 148 round trips to the database before it
+       answered its first request.
+
+   Now the demo products are written once, to a database that has none and has
+   never had any; `meta` remembers that it happened. Materials and services are
+   page content with no dashboard screen to restore them from, so those are
+   still topped up. WOODEX_DEMO_SEED=0 starts a hosted database with an empty
+   catalogue, which is what a real shop wants. */
+const DEMO_CATALOGUE_MARK = "demo_catalogue_seeded";
 async function ensureServerlessCatalog() {
   const { products, materials, services } = await loadShopData();
+  const marked = await db.prepare("SELECT value FROM meta WHERE key=?").get(DEMO_CATALOGUE_MARK);
+  const existing = Number((await db.prepare("SELECT COUNT(*) AS n FROM products").get()).n);
+  const seedDemo = !marked && existing === 0 && process.env.WOODEX_DEMO_SEED !== "0";
   await db.transaction(async () => {
     const t = now();
-    for (const product of products) {
-      const stock = product.inStock ? 99 : 0;
-      await db.prepare("INSERT OR IGNORE INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)")
-        .run(product.id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, stock, t);
+    if (seedDemo) {
+      for (const product of products) {
+        const stock = product.inStock ? 99 : 0;
+        await db.prepare("INSERT OR IGNORE INTO products(id,json,price,in_stock,stock_qty,updated_at) VALUES(?,?,?,?,?,?)")
+          .run(product.id, JSON.stringify(product), product.price, product.inStock ? 1 : 0, stock, t);
+      }
+    }
+    if (!marked) {
+      await db.prepare("INSERT OR IGNORE INTO meta(key,value) VALUES(?,?)")
+        .run(DEMO_CATALOGUE_MARK, seedDemo ? `seeded ${t}` : `not seeded ${t}: ${existing ? "the catalogue already held products" : "WOODEX_DEMO_SEED=0"}`);
     }
     /* Opening balance for stock that already existed when the ledger arrived.
        The schema upgrade at boot runs BEFORE this seed, so a database that
