@@ -53,9 +53,13 @@ routes. It takes ~18 s and must print `76/76 routes rendered`.
    DATABASE_URL="postgres://…" npm run db:apply-schema
    ```
 
-   Then `npm run db:migrate -- --dsn "$DATABASE_URL"` if you are bringing across
-   existing data (`scripts/pg-migrate.mjs` copies every table by explicit id,
-   resets identities and verifies per-table digests).
+   If you are bringing across existing data, follow
+   [`operations/DATA-MIGRATION-RUNBOOK.md`](operations/DATA-MIGRATION-RUNBOOK.md):
+   `npm run db:migrate -- --dsn "$DATABASE_URL" --truncate --confirm-replace`
+   **replaces** the database's contents with the SQLite file's (it copies every
+   table by explicit id in one transaction, verifies row counts and content
+   after the last table, and rolls back if anything differs). Rehearse it first
+   with `--pglite`, as the runbook describes.
 
 4. Set the public site URL in the database so the sitemap and canonical links are
    absolute: **Dashboard → Settings → site URL**. It falls back to

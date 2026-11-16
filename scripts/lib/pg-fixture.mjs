@@ -90,6 +90,26 @@ export async function applyFullSchema(target) {
 }
 
 /** Open a PGlite directory as a `{ q, exec, close }` target. */
+/**
+ * A connection string that is safe to print: the password is never shown.
+ *
+ * The tool prints its target on the first line, and that line gets pasted into
+ * tickets and chats. The previous mask was a pattern that looked for ":…@" and
+ * assumed the password contains no ":" or "/": with "pa:ss" it printed the
+ * first half, and with "pa/ss" it matched nothing and printed all of it. This
+ * asks the URL parser where the password is, and when the string cannot be
+ * parsed it shows none of it rather than guess.
+ */
+export function maskConnectionString(value) {
+  try {
+    const url = new URL(String(value));
+    if (url.password) url.password = "***";
+    return url.toString();
+  } catch {
+    return "(connection string not shown)";
+  }
+}
+
 export async function openPglite(dir) {
   const { PGlite } = await import("@electric-sql/pglite");
   const db = new PGlite(dir);

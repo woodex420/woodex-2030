@@ -35,7 +35,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
-import { ROOT, openPglite, foreignKeys } from "./lib/pg-fixture.mjs";
+import { ROOT, openPglite, foreignKeys, maskConnectionString } from "./lib/pg-fixture.mjs";
 
 const MIGRATOR = path.join("scripts", "pg-migrate.mjs");
 
@@ -237,6 +237,33 @@ try {
   /* ---- 7. the source ---- */
   console.log("\n[pg-migrate] 7. the source");
   check(sha(source) === sourceSha, "the source file is byte-for-byte what it was before five runs");
+
+  /* ---- 8. what it prints about a server ---- */
+  console.log("\n[pg-migrate] 8. the connection string it prints");
+  {
+    /* The first line of a run names the target, and that line ends up in
+       tickets. None of these invented passwords may appear in it, whole or in
+       part — including the shapes the old pattern-based mask got wrong.
+
+       The strings are assembled from parts so that this file does not itself
+       contain a connection string with a password in it: `npm run secret-scan`
+       flags that shape wherever it appears, and it should keep doing so. */
+    const dsn = (password, rest = "db.example.com:5432/woodex") => ["postgres://app", `${password}@${rest}`].join(":");
+    const cases = [
+      ["an ordinary password", dsn("Tr0ub4dor"), ["Tr0ub4dor"]],
+      ["a password containing a colon", dsn("left:right", "db.example.com/woodex"), ["left", "right"]],
+      ["a percent-encoded password", dsn("p%40ss%2Fword", "db.example.com/woodex?sslmode=require"), ["p%40ss", "word"]],
+      ["a password containing a slash", dsn("before/after", "db.example.com/woodex"), ["before", "after"]],
+      ["something that is not a URL", ["host=db.example.com pass", "word=plainsight"].join(""), ["plainsight"]],
+    ];
+    for (const [label, value, secrets] of cases) {
+      const shown = maskConnectionString(value);
+      check(secrets.every((secret) => !shown.includes(secret)), `${label} is not printed`, shown);
+    }
+    const kept = maskConnectionString(dsn("Tr0ub4dor"));
+    check(kept.includes("db.example.com") && kept.includes("woodex") && kept.includes("app"), "the host, database and user still are — enough to see which server it was", kept);
+    check(maskConnectionString("postgres://app@db.example.com/woodex") === "postgres://app@db.example.com/woodex", "a string with no password is printed unchanged");
+  }
 } catch (error) {
   problems.push(`test crashed: ${error instanceof Error ? error.message : String(error)}`);
   console.error(`\n✗ ${error instanceof Error ? error.stack : error}`);

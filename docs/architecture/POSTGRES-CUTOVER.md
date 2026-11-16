@@ -1,5 +1,17 @@
 # Postgres cut-over runbook (Supabase-compatible)
 
+> **Corrected 2026-11-16.** The data-copy commands on this page were wrong in a
+> way that mattered: run as written, `pg-migrate.mjs` failed on a duplicate key,
+> and with `--truncate` it reported `ALL GREEN` while leaving nine tables empty
+> (Furniture 2030 finding F-04). The tool is fixed and the commands below are
+> updated. The procedure for the copy itself — backups, how to read the output,
+> what each failure means — now lives in
+> [`../operations/DATA-MIGRATION-RUNBOOK.md`](../operations/DATA-MIGRATION-RUNBOOK.md).
+>
+> The counts quoted further down (22 tables, 77 checks) are from when this page
+> was written and are kept as history. Current figures:
+> [`../agency-os/00-CURRENT-STATE.md`](../agency-os/00-CURRENT-STATE.md).
+
 Status: **dual-driver flip implemented and rehearsed** — schema/migrator verification is green and the API's full 77-check battery passes on both SQLite and PGlite (embedded PostgreSQL). The only remaining cutover step is provisioning/migrating a real hosted PostgreSQL instance and running the same canary against it.
 
 ## Files
@@ -10,12 +22,14 @@ Status: **dual-driver flip implemented and rehearsed** — schema/migrator verif
   compatibility shims: `datetime(text)` and a `group_concat(text)` aggregate, so the API's
   current SQL runs unchanged. Tenancy/RLS is stubbed as a comment block for P2's tenant work.
 - `scripts/pg-migrate.mjs` — copier + verifier:
-  - `node scripts/pg-migrate.mjs --pglite <dir>` → verify locally (embedded Postgres/WASM)
-  - `node scripts/pg-migrate.mjs --dsn postgres://… [--truncate]` → real server; idempotent with `--truncate`
-  - copies all 22 tables with explicit ids, `setval`s every identity past `MAX(id)`
-    (post-cutover inserts can't collide), then asserts per-table **row count + content digest**
+  - `node scripts/pg-migrate.mjs --pglite <dir> --truncate` → rehearse locally (embedded Postgres/WASM)
+  - `node scripts/pg-migrate.mjs --dsn postgres://… --truncate --confirm-replace` → real server.
+    It **replaces** the target's contents with the source; it does not merge. Repeatable.
+  - copies every table with explicit ids in the order the foreign keys require, inside one
+    transaction; after the last table it asserts per-table **row count + content digest**
     and runs a battery of the app's trickiest queries (shims, ISO substr grouping, session
-    continuity, finance sums, RETURNING write path).
+    continuity, finance sums, RETURNING write path); only then commits and `setval`s every
+    identity past `MAX(id)` (post-cutover inserts can't collide). Any failure rolls back.
 
 ## Step 1 — provision (Supabase example)
 1. New project; note DB connection string (Session pooler or direct).
@@ -24,8 +38,12 @@ Status: **dual-driver flip implemented and rehearsed** — schema/migrator verif
 
 ## Step 2 — migrate + verify (maintenance window, ~seconds at current scale)
 1. Pause writers (stop API dev/procs).
-2. `node scripts/pg-migrate.mjs --dsn "$DATABASE_URL"` → require **ALL GREEN**.
-3. Re-run once with `--truncate` to prove idempotency if desired.
+2. Back up the target (`pg_dump`, or `node scripts/backup.mjs --pg "$DATABASE_URL"`), then
+   `node scripts/pg-migrate.mjs --dsn "$DATABASE_URL" --truncate --confirm-replace`
+   → require **ALL GREEN**, `0 table(s) differ` and exit code 0.
+   (A plain run without `--truncate` is refused: a new database already holds the
+   rows the migrations seed.)
+3. Re-running the same command is safe and gives the same result.
 4. Sessions copy too — logged-in users notice nothing.
 
 ## Step 3 — driver flip (implemented; live PG canary still required)
@@ -57,7 +75,10 @@ is deleted afterward. Latest rehearsal: **22/22 table digests + migrator query b
 ### Real hosted cutover (remaining operational step)
 
 1. Provision Postgres and store `DATABASE_URL` in the runtime secret manager (never commit it).
-2. Pause writers; run `node scripts/pg-migrate.mjs --dsn "$DATABASE_URL"`; require `ALL GREEN`.
+2. Pause writers; back up the target; run
+   `node scripts/pg-migrate.mjs --dsn "$DATABASE_URL" --truncate --confirm-replace`;
+   require `ALL GREEN` and exit code 0. See the
+   [data migration runbook](../operations/DATA-MIGRATION-RUNBOOK.md).
 3. Run an in-process canary against that same target:
    `DATABASE_URL="$DATABASE_URL" PORT=0 node scripts/qa-full.mjs --pg-rehearsal`
    (the flag starts the API on an ephemeral port and shares its DB handle with test assertions).
@@ -70,4 +91,5 @@ is deleted afterward. Latest rehearsal: **22/22 table digests + migrator query b
 - `PRAGMA`/`sqlite_sequence` assumptions were removed when `pages.theme` used a guarded ALTER;
   the PG path creates it directly.
 - Never hand-edit digests: if the migrator FAILs on a table, diff rows with
-  `SELECT * FROM <t> ORDER BY <key>` on both engines.
+  `SELECT * FROM <t> ORDER BY <key>` on both engines. A failed run has already
+  rolled back, so the target is as it was before the run.

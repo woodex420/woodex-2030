@@ -3,10 +3,15 @@
  * SQLite → PostgreSQL copy, with proof.
  *
  *   node scripts/pg-migrate.mjs --pglite /tmp/wxpg --truncate          # rehearsal, embedded PostgreSQL
- *   node scripts/pg-migrate.mjs --dsn postgres://user:pw@host:5432/db   # a real server, empty target
- *   node scripts/pg-migrate.mjs --dsn … --truncate --confirm-replace   # REPLACE what the server holds
+ *   node scripts/pg-migrate.mjs --dsn postgres://user:pw@host:5432/db \
+ *        --truncate --confirm-replace                                  # a real server: REPLACE what it holds
  *
  *   WOODEX_SQLITE_SOURCE=/path/to/woodex.db   the SQLite file to copy (default: data/woodex.db)
+ *
+ * Without --truncate, a target that holds any row is refused — and a brand-new
+ * database always holds some, because the migrations seed reference rows (the
+ * chart of accounts, one procurement setting). So in practice every run names
+ * --truncate; the refusal exists so that nobody replaces a database by accident.
  *
  * What it does, in order:
  *   1. brings the target to the complete schema (base file + pending migrations);
@@ -48,7 +53,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { ROOT, applyFullSchema, openPglite, foreignKeys, parentsFirst, referencedRowsFirst } from "./lib/pg-fixture.mjs";
+import { ROOT, applyFullSchema, openPglite, foreignKeys, parentsFirst, referencedRowsFirst, maskConnectionString } from "./lib/pg-fixture.mjs";
 
 const args = process.argv.slice(2);
 const arg = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : undefined; };
@@ -86,7 +91,7 @@ async function makeBackend() {
   const pg = (await import("pg")).default;
   const client = new pg.Client({ connectionString: dsn, ssl: /localhost|127\.0\.0\.1/.test(dsn) ? undefined : { rejectUnauthorized: false } });
   await client.connect();
-  return { name: "PostgreSQL " + dsn.replace(/:[^:@/]*@/, ":***@"), q: (s, p = []) => client.query(s, p).then((r) => r.rows), exec: (s) => client.query(s), close: () => client.end() };
+  return { name: "PostgreSQL " + maskConnectionString(dsn), q: (s, p = []) => client.query(s, p).then((r) => r.rows), exec: (s) => client.query(s), close: () => client.end() };
 }
 
 /* ---- source: read-only, and never written to ---- */
@@ -158,13 +163,13 @@ try {
   const rowsThere = occupied.reduce((n, [, c]) => n + c, 0);
   if (occupied.length && !truncate) {
     fail(`the target already holds ${rowsThere} row(s) in ${occupied.length} table(s): ${occupied.map(([t, n]) => `${t} ${n}`).join(", ")}`);
-    fail("a brand-new database is not empty either: the migrations seed reference rows (the chart of accounts, the default warehouse).");
+    fail("a brand-new database is not empty either: the migrations seed reference rows (the chart of accounts, one procurement setting).");
     fail("re-run with --truncate to REPLACE the target's contents with the source. Nothing was changed.");
     throw new Error("target is not empty");
   }
   if (occupied.length && truncate && dsn && !confirmReplace) {
     fail(`--truncate would DELETE ${rowsThere} row(s) from ${occupied.length} table(s) on ${tgt.name} and replace them with the source.`);
-    fail("take a backup first (npm run db:backup), then add --confirm-replace to proceed. Nothing was changed.");
+    fail("back up the TARGET first (pg_dump, or: node scripts/backup.mjs --pg <url>), then add --confirm-replace to proceed. Nothing was changed.");
     throw new Error("replacing a server's contents needs --confirm-replace");
   }
 

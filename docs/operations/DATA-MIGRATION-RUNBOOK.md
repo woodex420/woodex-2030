@@ -15,7 +15,7 @@ test is right and this page needs correcting.
 | Rehearsing that move on your own machine | Yes — section 2 |
 | A new PostgreSQL site with no existing data | No. Start the application; it creates the schema. |
 | Adding a table or column to a database already on PostgreSQL | No. That is a schema migration: `scripts/migrations/` and `npm run db:migrate:status`. |
-| Restoring a backup | No. See `npm run test:restore` and `scripts/backup.mjs`. |
+| Restoring a backup | No. See `scripts/backup.mjs` (`--verify`, `--restore`); `npm run test:restore` rehearses it. |
 
 ## 1. What the tool does
 
@@ -57,18 +57,30 @@ the source (or report the defect) before going further.
 1. **Stop the application.** The copy locks every table until it finishes, and
    anything written to the source after the copy starts is not copied.
 2. **Back up both sides.**
-   - Source: copy the `.db` file somewhere safe. (Copy `-wal` and `-shm` too if
-     they exist beside it — or stop the application first, which folds them in.)
-   - Target: `npm run db:backup`, then `npm run db:verify-backup`.
-3. Have the connection string for the target. Use the **direct** connection
-   (port 5432), not a pooled one.
+   - Source (the SQLite file): `npm run db:backup` writes a consistent, compressed
+     snapshot to `backups/`; `npm run db:verify-backup -- backups/<file>.db.gz`
+     proves it opens and counts its rows. Set `WOODEX_DATA_DIR` first if the
+     file is not in `data/`.
+   - Target (the PostgreSQL database):
+     `mkdir -p backups && pg_dump "$DATABASE_URL" -Fc -f backups/before-copy.dump`
+     where `pg_dump` is available. Where it is not,
+     `node scripts/backup.mjs --pg "$DATABASE_URL" --out backups/before-copy`
+     exports every table as JSON, and
+     `node scripts/backup.mjs --restore backups/before-copy --to "$DATABASE_URL" --truncate`
+     puts it back (`npm run test:restore` rehearses that pair).
+   - Keep backups in `backups/`: Git ignores that folder. A dump holds customer
+     data and must never be committed.
+3. Have the connection string for the target. One long transaction does the
+   whole copy, so use the direct connection or a session pooler (port 5432 on
+   Supabase) rather than a transaction pooler.
 
 ### Run
 
 An empty, brand-new database still holds a few rows: the migrations create the
-chart of accounts and a default warehouse. So the tool will refuse a plain run
-and tell you so. The source carries its own copy of those rows, and that copy is
-the one its journal entries point at — replacing is the correct thing to do.
+chart of accounts (16 rows in `accounts`) and one procurement setting (1 row in
+`meta`). So the tool will refuse a plain run and tell you so. The source carries
+its own copy of those rows, and that copy is the one its journal entries point
+at — replacing is the correct thing to do.
 
 ```bash
 WOODEX_SQLITE_SOURCE=/path/to/woodex.db \
@@ -85,6 +97,8 @@ WOODEX_SQLITE_SOURCE=/path/to/woodex.db \
 
 Do not put the connection string in a file that is committed, in a chat
 message, or in a ticket. Type it, or read it from an environment variable.
+The tool prints the target with the password replaced by `***`, so its output
+is safe to share.
 
 ### After
 
@@ -101,17 +115,23 @@ message, or in a ticket. Type it, or read it from an environment variable.
 A good run ends like this:
 
 ```text
+[migrate] source: data/woodex.db (read-only) · target: PostgreSQL postgres://USER:***@HOST:5432/DATABASE
 [migrate] schema ready — 0 migration(s) applied now, 18 already recorded
 [migrate] copy order follows 86 foreign keys (54 table(s) sit in a different position than in the list)
+[migrate] copy order: products, materials, services, quote_templates, orders, …
 [migrate] target emptied once, before the copy (17 row(s) in 2 table(s))
-┌─────────┬────────────┬────────┬────────┬─────────┬────────┐
-│ (index) │ table      │ source │ target │ content │ result │
-…
+┌─────────┬──────────────────────────┬────────┬────────┬─────────┬────────┐
+│ (index) │ table                    │ source │ target │ content │ result │
+│ 0       │ 'products'               │ 148    │ 148    │ 'same'  │ 'PASS' │
+│ 1       │ 'materials'              │ 16     │ 16     │ 'same'  │ 'PASS' │
+  …one line for each of the 71 tables…
 [migrate] final check, after the last table: 416 row(s) in the source, 416 in the target, 0 table(s) differ
   PASS · public landing blocks (8 rows, source 8)
   …
 [migrate] ✅ ALL GREEN — 416 row(s) in 71 tables, verified after the last table was copied; committed.
 ```
+
+The figures above are from the demonstration data (416 rows); yours will differ.
 
 What to check, in this order:
 
@@ -133,7 +153,7 @@ this run.` Nothing needs cleaning up; fix the cause and run again.
 |---|---|---|
 | `source SQLite file not found` | Wrong path in `WOODEX_SQLITE_SOURCE`. | Correct the path. |
 | `the target already holds N row(s)` | No `--truncate`, and the target is not empty (a new database never is). | Add `--truncate` if replacing is what you intend. |
-| `--truncate would DELETE N row(s)` | A server target holds rows and `--confirm-replace` was not given. | Take the backup, then add `--confirm-replace`. |
+| `--truncate would DELETE N row(s)` | A server target holds rows and `--confirm-replace` was not given. | Back up the target (section 3), then add `--confirm-replace`. |
 | `<table>: the target has no column …` | The source has a column the PostgreSQL schema lacks. | A schema defect. Do not work around it; the column needs a migration. |
 | `<table>: rows a–b were rejected by the target — …` | A row breaks a rule PostgreSQL enforces and SQLite does not: a reference to a row that does not exist, a duplicate, a value out of range. | The message names the constraint. Correct the row in a **copy** of the source, rehearse, then repeat. |
 | `<table>: source N row(s), target M; content …` | The table does not match after the whole copy. | Do not use the target. Report it with the full output — this is the check that exists because a past version lost rows silently. |
