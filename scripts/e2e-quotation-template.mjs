@@ -75,7 +75,7 @@ try {
   await page.goto(`${BASE}/quotations/new`, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Client name").fill(customerName);
   await page.getByLabel("Company").fill(`${marker} Company`);
-  await page.getByText(/items · from the \d+-SKU catalog/).waitFor();
+  await page.getByText(/\d+ items · from the catalogue or custom lines/).waitFor();
   await page.getByRole("button", { name: /Add a catalog suggestion/ }).click();
   await page.getByLabel("Item name").waitFor();
   await page.getByText(/\d+ reusable template/).waitFor();
