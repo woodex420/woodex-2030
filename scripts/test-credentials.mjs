@@ -32,12 +32,11 @@
  *   7. EMAIL IS REFUSED HONESTLY. There is no mail infrastructure; asking for
  *      email delivery answers 501 rather than pretending to send.
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
+import { spawnApi, rawDb } from "./lib/api-under-test.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-cred-${process.pid}`);
@@ -50,12 +49,7 @@ function check(ok, label, detail = "") {
 let child;
 try {
   fs.mkdirSync(tempRoot, { recursive: true });
-  child = spawn(process.execPath, ["apps/api/server.mjs"], {
-    cwd: ROOT,
-    env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  child = await spawnApi({ tempRoot });
 
   let log = "";
   const base = await new Promise((resolve, reject) => {
@@ -173,9 +167,10 @@ try {
   check(/shown once/i.test(issued.json?.notice ?? ""), "the response says it is shown once", issued.json?.notice);
 
   console.log("\n[credentials] the token is stored only as a hash");
-  const db = new DatabaseSync(path.join(tempRoot, "woodex.db"));
-  try {
-    const rows = db.prepare("SELECT * FROM password_resets").all();
+  /* Raw SQL on the server's own connection, on whichever engine this run uses. */
+  const db = rawDb(child);
+  {
+    const rows = await db.all("SELECT * FROM password_resets");
     check(rows.length >= 1, "the reset row exists", `${rows.length}`);
     const blob = JSON.stringify(rows);
     check(!blob.includes(token), "the raw token is nowhere in the table");
@@ -183,7 +178,7 @@ try {
     const stored = rows.find((r) => r.used_at === null);
     check(typeof stored?.token_hash === "string" && stored.token_hash.length === 64,
       "a sha256 hash is stored instead", `${stored?.token_hash?.length}`);
-  } finally { db.close(); }
+  }
 
   const listed = await api(`/api/users/${staffId}/password-resets`, { token: ownerToken });
   check(listed.json?.live === 1, "the administrator can see one is outstanding", `${listed.json?.live}`);
@@ -283,12 +278,10 @@ try {
   const victim = await login("nadeem@woodex.pk", "recovered1");
   check(victim.status === 200, "a live session works to begin with", `got ${victim.status}`);
   {
-    const db = new DatabaseSync(path.join(tempRoot, "woodex.db"));
-    try {
-      /* Back-date the session one day. */
-      db.prepare("UPDATE sessions SET expires_at = ? WHERE token = ?")
-        .run(new Date(Date.now() - 864e5).toISOString(), victim.json.token);
-    } finally { db.close(); }
+    /* Back-date the session one day. */
+    const moved = await db.run("UPDATE sessions SET expires_at = ? WHERE token = ?",
+      new Date(Date.now() - 864e5).toISOString(), victim.json.token);
+    check(moved.changes === 1, "the session row was found and back-dated", `${moved.changes}`);
   }
   const afterExpiry = await api("/api/auth/me", { token: victim.json.token });
   check(afterExpiry.status === 401, "a session back-dated by one day is refused", `got ${afterExpiry.status}`);
@@ -301,11 +294,9 @@ try {
   const staleToken = reissue.json?.reset?.token;
   check(typeof staleToken === "string", "a fresh reset token is minted", `${reissue.status}`);
   {
-    const db = new DatabaseSync(path.join(tempRoot, "woodex.db"));
-    try {
-      db.prepare("UPDATE password_resets SET created_at = ?, expires_at = ? WHERE used_at IS NULL")
-        .run(new Date(Date.now() - 2 * 864e5).toISOString(), new Date(Date.now() - 864e5).toISOString());
-    } finally { db.close(); }
+    const moved = await db.run("UPDATE password_resets SET created_at = ?, expires_at = ? WHERE used_at IS NULL",
+      new Date(Date.now() - 2 * 864e5).toISOString(), new Date(Date.now() - 864e5).toISOString());
+    check(moved.changes >= 1, "the unspent reset row was found and back-dated", `${moved.changes}`);
   }
   const spendStale = await api("/api/auth/reset-password", { method: "POST", body: { token: staleToken, newPassword: "tooSix1x" } });
   check(spendStale.status >= 400, "a reset token back-dated by a day is refused", `got ${spendStale.status}`);

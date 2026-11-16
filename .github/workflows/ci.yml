@@ -40,6 +40,12 @@ jobs:
         run: npm run smoke:render
       - name: Typecheck both apps
         run: npm run typecheck:all
+      # Uses dist/ from the build step above. One process serves the storefront,
+      # the dashboard and the API (the Hostinger shape). This fetches every
+      # script and stylesheet the two HTML shells name: the dashboard was a
+      # blank page in this shape while a shell-only check passed.
+      - name: Single-process shape serves both apps and their bundles
+        run: npm run smoke:hostinger
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: PostgreSQL rehearsal, API security QA, and browser acceptance

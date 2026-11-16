@@ -67,14 +67,30 @@ for (const t of blockTypes) {
   if (!previewCases.has(t)) problems.push(`"${t}" is in the editor registry but has no case in BlockPreview (apps/dashboard/src/pages/Website.tsx) — the editor falls back to a generic box`);
 }
 
+/* 4. Every photograph a seeded page or a page template names must exist.
+      Block content names an image by file name and the API serves it from
+      apps/api/public/img. Two names pointed at files that were never there:
+      the demo landing page's hero and the "collection intro" template's hero
+      both published a broken image. Found by the browser gate that opens every
+      dashboard screen (scripts/e2e-dashboard-routes.mjs); checked here as well
+      because a template is only rendered once somebody uses it. */
+const imageDir = path.join(ROOT, "apps/api/public/img");
+const namedImages = [...new Set([...serverSrc.matchAll(/\bimage:\s*"([^"]+)"/g)].map((m) => m[1]))]
+  .filter((value) => !/^(https?:|data:)/.test(value));
+const missingImages = namedImages.filter((value) => !fs.existsSync(path.join(imageDir, value.replace(/^\/img\//, ""))));
+for (const value of missingImages) {
+  problems.push(`a seeded page or template names the image "${value}", which is not in ${rel(imageDir)} — it publishes a broken image`);
+}
+
 console.log(`\n[blocks] registry   ${blockTypes.length} type(s): ${blockTypes.join(", ")}`);
 console.log(`[blocks] storefront ${storefrontCases.size} case(s)`);
 console.log(`[blocks] preview    ${previewCases.size} case(s)`);
+console.log(`[blocks] images     ${namedImages.length} named in seeded pages and templates, ${missingImages.length} missing`);
 
 if (problems.length) {
   console.error(`\n✗ ${problems.length} block coverage problem(s):\n`);
   for (const p of problems) console.error(`  • ${p}`);
-  console.error("\nAdd the missing case, or remove the type from the registry.");
+  console.error("\nAdd the missing case or remove the type from the registry; point a seeded image at a file that exists.");
   process.exit(1);
 }
-console.log("\n✓ every registered block type renders in both the storefront and the editor preview.\n");
+console.log("\n✓ every registered block type renders in both the storefront and the editor preview, and every seeded image exists.\n");

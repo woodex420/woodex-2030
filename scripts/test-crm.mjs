@@ -38,12 +38,11 @@
  *      both the meeting's history and the company's, so a company timeline does
  *      not omit the things nobody filed by hand.
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
+import { spawnApi, rawDb } from "./lib/api-under-test.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-crm-${process.pid}`);
@@ -56,12 +55,7 @@ function check(ok, label, detail = "") {
 let child;
 try {
   fs.mkdirSync(tempRoot, { recursive: true });
-  child = spawn(process.execPath, ["apps/api/server.mjs"], {
-    cwd: ROOT,
-    env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  child = await spawnApi({ tempRoot });
 
   let log = "";
   const base = await new Promise((resolve, reject) => {
@@ -253,24 +247,29 @@ try {
 
   /* ───────────── append-only, proven at the database ───────────── */
   console.log("\n[crm] the history cannot be rewritten");
-  const dbFile = path.join(tempRoot, "woodex.db");
-  check(fs.existsSync(dbFile), "the rehearsal database exists", dbFile);
-  const db = new DatabaseSync(dbFile);
-  try {
-    const before = db.prepare("SELECT COUNT(*) AS n FROM activities").get().n;
-    let updateBlocked = false;
-    try { db.prepare("UPDATE activities SET summary = 'rewritten' WHERE id = 1").run(); }
-    catch (e) { updateBlocked = /append-only/i.test(String(e.message)); }
-    check(updateBlocked, "the database itself refuses an UPDATE on the timeline");
-    let deleteBlocked = false;
-    try { db.prepare("DELETE FROM activities WHERE id = 1").run(); }
-    catch (e) { deleteBlocked = /append-only/i.test(String(e.message)); }
-    check(deleteBlocked, "and refuses a DELETE");
-    check(db.prepare("SELECT COUNT(*) AS n FROM activities").get().n === before,
-      "so no event was lost to either attempt");
-    db.prepare("INSERT INTO activities(entity_type,entity_id,kind,summary,occurred_at,created_at) VALUES('company',1,'note','appended','2026-11-09T21:00:00Z','2026-11-09T21:00:00Z')").run();
-    check(true, "appending a new event still works — history is added to, never edited");
-  } finally { db.close(); }
+  /* Raw SQL on the server's own connection — past every rule the API enforces
+     in JavaScript, on whichever engine this run is exercising. */
+  const db = rawDb(child);
+  {
+    const count = async () => Number((await db.get("SELECT COUNT(*) AS n FROM activities")).n);
+    const before = await count();
+    check(before > 0, "the timeline has events to protect", `${before}`);
+    let updateBlocked = false, updateError = "";
+    try { await db.run("UPDATE activities SET summary = 'rewritten' WHERE id = 1"); }
+    catch (e) { updateError = String(e.message); updateBlocked = /append-only/i.test(updateError); }
+    check(updateBlocked, "the database itself refuses an UPDATE on the timeline", updateError.slice(0, 90));
+    let deleteBlocked = false, deleteError = "";
+    try { await db.run("DELETE FROM activities WHERE id = 1"); }
+    catch (e) { deleteError = String(e.message); deleteBlocked = /append-only/i.test(deleteError); }
+    check(deleteBlocked, "and refuses a DELETE", deleteError.slice(0, 90));
+    check((await count()) === before, "so no event was lost to either attempt");
+    let appended = false, appendError = "";
+    try {
+      await db.run("INSERT INTO activities(entity_type,entity_id,kind,summary,occurred_at,created_at) VALUES('company',1,'note','appended','2026-11-09T21:00:00Z','2026-11-09T21:00:00Z')");
+      appended = (await count()) === before + 1;
+    } catch (e) { appendError = String(e.message); }
+    check(appended, "appending a new event still works — history is added to, never edited", appendError.slice(0, 90));
+  }
 
   /* ───────────── leads and clients point at real companies ───────────── */
   console.log("\n[crm] leads and clients point at real companies");

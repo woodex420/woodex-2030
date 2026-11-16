@@ -100,28 +100,64 @@ work is done.
 A change is not finished until this passes, in this order:
 
 ```bash
-npm run secret-scan          # no credentials committed
+npm run secret-scan          # no credentials in the working tree: tokens, and passwords written as prose
 npm run typecheck:all        # both apps, 0 errors
 npm run smoke:render         # both apps actually mount
-npm run qa                   # 107/107 against the running API (needs one on :3001)
-npm run qa:pg                # 107/107 on PGlite — catches every Postgres-only bug
+npm run qa                   # every check passes against the running API (needs one on :3001)
+npm run qa:pg                # the same battery on PGlite
+npm run test:modules         # every module suite, on SQLite AND on PGlite
+npm run test:return-id       # every insert reports its new id on PostgreSQL
+npm run test:migrate         # the SQLite → PostgreSQL copy moves every row, or changes nothing
 npm run vercel:build         # production shape; must print "76/76 routes rendered"
 npm run smoke:hostinger      # all-in-one shape: real HTML, not the Loading shell
 ```
 
-Two of these exist because the same class of bug shipped twice:
+Several of these exist because the same class of bug shipped more than once:
 
 - **`qa:pg` is not optional.** SQLite is the dev database and it tolerates things
   Postgres does not: `GROUP_CONCAT` does not exist, and `MAX(a, b)` is a scalar in
   SQLite but an aggregate in Postgres. Both were caught here and nowhere else.
+- **`qa:pg` is not enough either — that is what `test:modules` is for.** `qa:pg`
+  runs the core battery; it does not call the module endpoints (procurement,
+  production, inventory, finance, CRM, delivery, support). Every module suite
+  used to pin SQLite, and with this whole list green, ten of eleven failed on
+  PostgreSQL: inserts into 41 tables reported id 0, and four statements were
+  valid on SQLite only. A new module suite starts its server through
+  `scripts/lib/api-under-test.mjs` — never `DATABASE_URL: ""`, never
+  `new DatabaseSync` — and is added to `SUITES` in `scripts/test-modules.mjs`.
+- **A new table with an integer id goes in `RETURN_ID_TABLES`**
+  (`apps/api/db-adapters.mjs`). `test:return-id` compares that list with the
+  database catalogue and fails in both directions, so it cannot be forgotten.
+- **`test:migrate` counts rows itself.** The copy tool once printed `ALL GREEN`
+  after emptying nine tables, because it verified each table as it went and
+  never looked again. Do not trust a tool's own report of its success; count.
 - **`smoke:hostinger`** boots the single-process deployment on a throwaway port
   and database and asserts the prerendered routes serve real HTML. A static server
-  will happily serve a build whose prerender silently failed.
+  will happily serve a build whose prerender silently failed. It also fetches
+  every script and stylesheet the two HTML shells name: for a long time it
+  checked the dashboard's shell only, and passed while the server answered the
+  dashboard's own bundle with HTML — a blank page in that deployment shape.
+  **A check that fetches a page must also fetch what the page loads.**
 
-`npm run e2e` (browser journeys) additionally requires Chromium:
-`npx playwright install chromium`. **Chromium cannot be installed in the Arena
-sandbox** — the download is blocked. The script skips cleanly; do not treat a skip
-as a pass, and do not plan work that depends on it locally.
+`npm run e2e` (browser journeys) and `npm run e2e:routes` additionally require
+Chromium: `npx playwright install chromium`. CI runs both, after the gates above,
+through `node scripts/ci-test.mjs` — which opens every screen twice: on the dev
+server, and in the built bundle served from `dist/` (so run `vercel:build` first).
+
+- **`e2e:routes` signs in and opens every dashboard screen** declared in
+  `apps/dashboard/src/App.tsx`. It fails on an error card, an uncaught error, an
+  API error, a missing file, a console error or an empty page. It exists because
+  two screens crashed on open with everything else green: nothing opened them.
+  It opens screens; it does not press their buttons.
+- **Playwright's Chromium cannot be installed in the Arena sandbox** — the
+  download host is blocked. Without a browser the scripts print `SKIP` and exit
+  0 (or `ERROR` and exit 1 with `E2E_REQUIRED=1`, as in CI). Do not treat a skip
+  as a pass.
+- A Chromium that is already on disk can be used instead: set
+  `E2E_CHROMIUM_PATH` (and `E2E_CHROMIUM_ARGS`), which every browser script
+  reads through `scripts/lib/browser.mjs`. See
+  [`docs/furniture-2030/evidence/README.md`](docs/furniture-2030/evidence/README.md)
+  for the way that worked in the sandbox on 2026-11-16.
 
 ---
 

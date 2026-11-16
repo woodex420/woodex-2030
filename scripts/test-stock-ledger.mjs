@@ -24,11 +24,11 @@
  *   4. APPEND-ONLY. There is no update or delete path; the code should not
  *      contain one, and corrections should appear as compensating rows.
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnApi, rawDb } from "./lib/api-under-test.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-stock-${process.pid}`);
@@ -41,12 +41,7 @@ const check = (ok, label, detail = "") => {
 let child;
 try {
   fs.mkdirSync(tempRoot, { recursive: true });
-  child = spawn(process.execPath, ["apps/api/server.mjs"], {
-    cwd: ROOT,
-    env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  child = await spawnApi({ tempRoot });
 
   let log = "";
   const base = await new Promise((resolve, reject) => {
@@ -73,8 +68,6 @@ try {
   };
 
   /* Operator login for the admin-only surfaces. */
-  const { DatabaseSync } = await import("node:sqlite");
-  const dbPath = path.join(tempRoot, "woodex.db");
 
   /* The local demo seed creates admin@woodex.pk with password "admin". It is
      explicitly a local-only account (the production credentials are different
@@ -170,11 +163,10 @@ try {
 
   console.log("\n[stock] reconciliation: stock_qty must equal SUM(delta)");
   {
-    const db = new DatabaseSync(dbPath);
-    const rows = db.prepare(`
+    const rows = await rawDb(child).all(`
       SELECT p.id, p.stock_qty AS cache, COALESCE((SELECT SUM(delta) FROM stock_movements m WHERE m.product_id = p.id), 0) AS ledger
-        FROM products p`).all();
-    db.close();
+        FROM products p`);
+    check(rows.length > 0, "there are products to reconcile", String(rows.length));
     const drifted = rows.filter((r) => Number(r.cache) !== Number(r.ledger));
     check(drifted.length === 0, `every product reconciles (${rows.length} checked)`,
       drifted.slice(0, 4).map((r) => `${r.id}: cache ${r.cache} vs ledger ${r.ledger}`).join("; "));

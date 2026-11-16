@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { DataTable } from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/ui/States";
-import { useApi, useRealtime, fmtPKR, type ApiOrder, type ApiProduct } from "@/lib/api";
+import { useApi, useProducts, useRealtime, fmtPKR, type ApiOrder } from "@/lib/api";
 import { ArrowRight, Building, Package, Receipt, ShoppingBag, Store, Truck } from "@/icons";
 
 const columns: Column<ApiOrder>[] = [
@@ -17,7 +17,7 @@ const columns: Column<ApiOrder>[] = [
 ];
 
 export default function Ecommerce() {
-  const products = useApi<{ total: number; items: ApiProduct[] }>("/api/products", 30000);
+  const products = useProducts(30000);
   const orders = useApi<{ total: number; items: ApiOrder[] }>("/api/orders", 15000);
   const invoices = useApi<{ total: number; collected: number; outstanding: number; items: unknown[] }>("/api/invoices", 30000);
   useRealtime(/products|orders|invoices|payments/, () => { products.reload(); orders.reload(); invoices.reload(); });

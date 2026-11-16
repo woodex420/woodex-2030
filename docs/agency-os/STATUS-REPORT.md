@@ -210,7 +210,9 @@ I would have shipped a guard that defended nothing and reported it as covered.
 
 ## 6. Credentials
 
-- **Production:** `admin@woodex.pk` / `WoodexAdmin2030`
+- **Production:** not recorded in this repository, and it must never be. The owner keeps the production sign-in in a
+  password manager and changes it from Settings → Your password. `npm run secret-scan` fails on any sign-in written
+  in a document.
 - **Local seed:** `admin@woodex.pk` / `admin` — never in production
 
 ## 7. How to reproduce the local preview

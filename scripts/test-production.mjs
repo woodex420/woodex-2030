@@ -31,11 +31,11 @@
  *      stock_qty must equal the sum of its movements. A quantity that moved
  *      without a row is the failure this whole module is built to prevent.
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnApi, rawDb } from "./lib/api-under-test.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(os.tmpdir(), `woodex-production-${process.pid}`);
@@ -48,12 +48,7 @@ const check = (ok, label, detail = "") => {
 let child;
 try {
   fs.mkdirSync(tempRoot, { recursive: true });
-  child = spawn(process.execPath, ["apps/api/server.mjs"], {
-    cwd: ROOT,
-    env: { ...process.env, NODE_ENV: "test", PORT: "0", WOODEX_DATA_DIR: tempRoot,
-      DATABASE_URL: "", VERCEL: "", VERCEL_ENV: "", WOODEX_DEMO_SEED: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  child = await spawnApi({ tempRoot });
 
   let log = "";
   const base = await new Promise((resolve, reject) => {
@@ -274,27 +269,27 @@ try {
   /* Read the ledger itself rather than a route that summarises it: the claim
      being made is about the database, and going through the API would only
      prove the API agrees with itself. */
-  const { DatabaseSync } = await import("node:sqlite");
-  const raw = new DatabaseSync(path.join(tempRoot, "woodex.db"));
-  const q = (sql, ...params) => raw.prepare(sql).all(...params);
-  const probe = q("SELECT id, stock_qty FROM products WHERE id IN ('prod-bracket','prod-frame')");
+  /* Raw SQL on the server's own connection, on whichever engine this run uses. */
+  const raw = rawDb(child);
+  const q = (sql, ...params) => raw.all(sql, ...params);
+  const probe = await q("SELECT id, stock_qty FROM products WHERE id IN ('prod-bracket','prod-frame')");
   check(probe.length === 2, "both probe products exist in the database");
   for (const p of probe) {
-    const sum = Number(q("SELECT COALESCE(SUM(delta),0) AS s FROM stock_movements WHERE product_id=?", p.id)[0].s);
+    const sum = Number((await q("SELECT COALESCE(SUM(delta),0) AS s FROM stock_movements WHERE product_id=?", p.id))[0].s);
     check(Number(p.stock_qty) === sum, `${p.id}: stock_qty (${p.stock_qty}) equals its ledger sum (${sum})`);
   }
 
   /* Nothing in the ledger came from nowhere: every movement the production
      routes wrote points at a real job card material or a real job card. */
-  const orphaned = q(`SELECT COUNT(*) AS n FROM stock_movements sm
+  const orphaned = (await q(`SELECT COUNT(*) AS n FROM stock_movements sm
                        WHERE sm.reason = 'production'
                          AND ((sm.ref_type = 'job_card_material' AND NOT EXISTS
                                 (SELECT 1 FROM job_card_materials m WHERE m.id = sm.ref_id))
                            OR (sm.ref_type = 'job_card_output' AND NOT EXISTS
-                                (SELECT 1 FROM job_cards j WHERE j.id = sm.ref_id)))`)[0].n;
+                                (SELECT 1 FROM job_cards j WHERE j.id = sm.ref_id)))`))[0].n;
   check(Number(orphaned) === 0, "every production movement points at the job it belongs to");
 
-  const zero = q("SELECT COUNT(*) AS n FROM stock_movements WHERE delta = 0")[0].n;
+  const zero = (await q("SELECT COUNT(*) AS n FROM stock_movements WHERE delta = 0"))[0].n;
   check(Number(zero) === 0, "no zero-delta movement was written");
 
   /* THE IDEMPOTENCY INDEX, PROVEN AT THE STORAGE LAYER.
@@ -304,33 +299,26 @@ try {
      that luxury — each reads qty_issued before either writes, both conclude
      the same target, and only the index stops the second decrement. Asserted
      here directly, because a guard that is never exercised is not a guard. */
-  let idemEnforced = false;
+  const insertProbe = `INSERT INTO stock_movements(product_id,delta,reason,ref_type,ref_id,note,created_by,created_at,idem_key)
+                       VALUES('prod-bracket',-1,'production','job_card_material',1,'probe','test',?,?)`;
+  let idemEnforced = false, idemWhy = "";
   try {
-    const ins = raw.prepare(`INSERT INTO stock_movements(product_id,delta,reason,ref_type,ref_id,note,created_by,created_at,idem_key)
-                             VALUES('prod-bracket',-1,'production','job_card_material',1,'probe','test',?,?)`);
-    ins.run("2026-01-01T00:00:00.000Z", "probe:concurrent:to5");
-    try { ins.run("2026-01-01T00:00:00.000Z", "probe:concurrent:to5"); }
-    catch { idemEnforced = true; }
+    await raw.run(insertProbe, "2026-01-01T00:00:00.000Z", "probe:concurrent:to5");
+    try { await raw.run(insertProbe, "2026-01-01T00:00:00.000Z", "probe:concurrent:to5"); }
+    catch (error) { idemEnforced = true; idemWhy = String(error?.message ?? ""); }
   } catch (error) {
     check(false, "the idempotency probe could be set up", error?.message ?? "");
   }
-  check(idemEnforced, "the same idempotency key cannot be recorded twice (concurrency backstop)");
+  check(idemEnforced, "the same idempotency key cannot be recorded twice (concurrency backstop)", idemWhy.slice(0, 90));
 
-  const distinctOk = (() => {
-    try {
-      raw.prepare(`INSERT INTO stock_movements(product_id,delta,reason,ref_type,ref_id,note,created_by,created_at,idem_key)
-                   VALUES('prod-bracket',-1,'production','job_card_material',1,'probe','test',?,?)`)
-        .run("2026-01-01T00:00:00.000Z", "probe:concurrent:to9");
-      return true;
-    } catch { return false; }
-  })();
-  check(distinctOk, "a different target for the same line is still allowed (top-ups work)");
+  let distinctOk = false, distinctWhy = "";
+  try { await raw.run(insertProbe, "2026-01-01T00:00:00.000Z", "probe:concurrent:to9"); distinctOk = true; }
+  catch (error) { distinctWhy = String(error?.message ?? ""); }
+  check(distinctOk, "a different target for the same line is still allowed (top-ups work)", distinctWhy.slice(0, 90));
 
   /* The finish codes must appear in the ledger nowhere at all. */
-  const finishRows = q("SELECT COUNT(*) AS n FROM stock_movements WHERE product_id IN (SELECT id FROM materials)")[0].n;
+  const finishRows = (await q("SELECT COUNT(*) AS n FROM stock_movements WHERE product_id IN (SELECT id FROM materials)"))[0].n;
   check(Number(finishRows) === 0, "no movement was ever posted against a finish code");
-
-  raw.close();
 
   console.log(`\n${problems.length ? `✗ ${problems.length} production check(s) failed` : "✓ all production checks passed"}`);
   for (const p of problems) console.log(`  · ${p}`);

@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { useApi, mutate } from "@/lib/api";
+import { useApi, useProducts, mutate } from "@/lib/api";
 import { Plus, RefreshCw, Lock, ShieldCheck, Package } from "@/icons";
 
 /* Stock reservations — what is promised but not yet gone.
@@ -30,7 +30,6 @@ type Reservation = {
   refType: string; refId: number | null; status: string;
   expiresAt: string | null; releasedAt: string | null; createdAt: string;
 };
-type Product = { id: string; name: string; stockQty: number };
 
 const STATUS_TONE: Record<string, "info" | "success" | "neutral"> = {
   held: "info", consumed: "success", released: "neutral",
@@ -46,7 +45,7 @@ export default function StockReservations() {
 
   const res = useApi<{ total: number; held: number; items: Reservation[] }>(
     `/api/stock-reservations${statusFilter ? `?status=${statusFilter}` : ""}`, 20000);
-  const products = useApi<{ items: Product[] }>("/api/products", 120000);
+  const products = useProducts(120000);
 
   const items = res.data?.items ?? [];
   const totalHeld = items.filter((i) => i.status === "held").reduce((a, i) => a + i.qty, 0);
@@ -54,7 +53,7 @@ export default function StockReservations() {
   /* Availability for the selected product, so the form can show "you can hold
      at most N" while the number is being typed rather than after a 409. */
   const avail = useApi<{ onHand: number; held: number; available: number }>(
-    form.productId ? `/api/stock-reservations/availability?product_id=${encodeURIComponent(form.productId)}` : "/api/stock-reservations/availability?product_id=",
+    form.productId ? `/api/stock-reservations/availability?product_id=${encodeURIComponent(form.productId)}` : null,
     10000);
 
   const hold = async () => {

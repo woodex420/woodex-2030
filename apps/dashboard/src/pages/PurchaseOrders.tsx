@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { useApi, mutate, fmtPKR } from "@/lib/api";
+import { useApi, useProducts, mutate, fmtPKR } from "@/lib/api";
 import { Plus, RefreshCw, ClipboardList, Trash2, Package } from "@/icons";
 
 /* Purchase orders — the second screen the procurement API never had.
@@ -64,18 +64,18 @@ export default function PurchaseOrders() {
 
   const pos = useApi<{ total: number; open: number; items: PO[] }>("/api/purchase-orders", 20000);
   const suppliers = useApi<{ items: Supplier[] }>("/api/suppliers?active=true");
-  const products = useApi<Option[]>("/api/products");
+  const products = useProducts();
   const materials = useApi<Option[]>("/api/materials");
 
   /* One price source. A product line defaults to its list price but the buyer
      may overwrite it — that is a negotiation, and is exactly what unitCost is
      for. The default exists so a PO is not raised at zero by accident. */
   const priceOf = (kind: "product" | "material", id: string) =>
-    kind === "product" ? Number((products.data ?? []).find((p) => p.id === id)?.price ?? 0) : 0;
+    kind === "product" ? Number((products.data?.items ?? []).find((p) => p.id === id)?.price ?? 0) : 0;
 
   const options = (kind: "product" | "material") =>
     kind === "product"
-      ? (products.data ?? []).map((p) => ({ id: p.id, name: p.name }))
+      ? (products.data?.items ?? []).map((p) => ({ id: p.id, name: p.name }))
       : (materials.data ?? []).map((m) => ({ id: m.id, name: m.name }));
 
   const draftTotal = useMemo(

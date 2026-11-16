@@ -1,0 +1,147 @@
+{
+ "root": "scratch copy of 9b8cdca with the 30 missing tables added to RETURN_ID_TABLES",
+ "commit": "not a git checkout",
+ "node": "v22.22.3",
+ "ranAt": "2026-11-16T08:52:02.355Z",
+ "driver": "PGlite (PostgreSQL semantics)",
+ "results": [
+  {
+   "test": "public-surface",
+   "exit": 0,
+   "seconds": 1,
+   "pass": 20,
+   "fail": 0,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": []
+  },
+  {
+   "test": "procurement",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 47,
+   "fail": 1,
+   "sqliteOnlyArtefacts": 1,
+   "firstFailures": [
+    "Error: no such table: products"
+   ]
+  },
+  {
+   "test": "supplier-invoices",
+   "exit": 0,
+   "seconds": 1,
+   "pass": 51,
+   "fail": 0,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": []
+  },
+  {
+   "test": "production",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 57,
+   "fail": 1,
+   "sqliteOnlyArtefacts": 1,
+   "firstFailures": [
+    "harness failed: no such table: products"
+   ]
+  },
+  {
+   "test": "ops-api",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 50,
+   "fail": 3,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "every product reconciles with the ledger (Phase 7 acceptance) — [{\"productId\":\"ballmer-executive-desk\",\"name\":\"BALLMER Executive Desk\",\"stockQty\":99,\"ledgerQty\":0,\"difference\":99},{\"productId\":\"titan-executive-desk\",\"nam",
+    "zero drifted products",
+    "2 ops check(s) failed"
+   ]
+  },
+  {
+   "test": "inventory",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 30,
+   "fail": 37,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "baseline: no drift — cacheDrift=148 levelDrift=0 [{\"productId\":\"ballmer-executive-desk\",\"name\":\"BALLMER Executive Desk\",\"stockQty\":99,\"ledgerQty\":0,\"difference\":99,\"kind\":\"stock_qty\"},{\"productId\":\"titan-executive-desk\",",
+    "stock can be raised to 40 — got 500",
+    "an unattributed INCREMENT lands in the default location — []",
+    "the default location holds all 40 — undefined",
+    "after increment: no drift — cacheDrift=148 levelDrift=0 [{\"productId\":\"ballmer-executive-desk\",\"name\":\"BALLMER Executive Desk\",\"stockQty\":99,\"ledgerQty\":0,\"difference\":99,\"kind\":\"stock_qty\"},{\"productId\":\"titan-executive",
+    "a decrement larger than the default location's balance still succeeds — got 500"
+   ]
+  },
+  {
+   "test": "finance",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 60,
+   "fail": 7,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "a memo typo CAN be corrected — prose is not a financial fact, and forbidding it would push people to delete and repost",
+    "an expense can be recorded — got 500 {\"error\":\"internal error\"}",
+    "the expense posted a journal entry in the same transaction",
+    "the expense is listed",
+    "the expense total is summed — 0",
+    "expenses roll up by category"
+   ]
+  },
+  {
+   "test": "crm",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 47,
+   "fail": 12,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "a meeting is scheduled — got 500 {\"error\":\"internal error\"}",
+    "it gets a human reference",
+    "marking it held with no outcome is refused — got 500",
+    "with a code the UI can act on",
+    "and a refusal that says what is missing — internal error",
+    "an unknown status is refused — got 500"
+   ]
+  },
+  {
+   "test": "delivery",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 44,
+   "fail": 5,
+   "sqliteOnlyArtefacts": 1,
+   "firstFailures": [
+    "24 months from the install date, not from the order — 2028-11-20T00:00:00.000Z",
+    "naming the date already promised — the warranty on this asset already runs to Mon Nov 20 2028 00:00:00 GMT+0000 (Coordinated Universal Time); a promised end date is not renegotiated by editing it",
+    "re-sending the same date is not a change — got 409",
+    "and the room can still be corrected",
+    "the database refuses to rewrite a departure time — no such table: dispatch_runs"
+   ]
+  },
+  {
+   "test": "support",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 2,
+   "fail": 3,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": [
+    "a ticket is opened — got 500 {\"error\":\"internal error\"}",
+    "with a reference",
+    "and both deadlines set"
+   ]
+  },
+  {
+   "test": "credentials",
+   "exit": 1,
+   "seconds": 1,
+   "pass": 30,
+   "fail": 0,
+   "sqliteOnlyArtefacts": 0,
+   "firstFailures": []
+  }
+ ]
+}

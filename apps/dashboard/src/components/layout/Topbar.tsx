@@ -29,6 +29,18 @@ import {
 
 type Note = { id: string; title: string; desc: string; time: string; tone: keyof typeof chipTone };
 
+/* One entry per realtime state. This used to be three nested ternaries that
+   knew about "polling" and "down" and sent everything else to "connect…" — so a
+   workspace whose live stream WAS connected said "connect…" for as long as it
+   stayed open. Keyed by the status type, so a state added in lib/api.ts without
+   a pill here is a compile error instead of a wrong label. */
+const RT_PILL: Record<ReturnType<typeof useRealtimeStatus>, { label: string; title: string; pill: string; dot: string }> = {
+  live: { label: "live", title: "Dashboard data updates as soon as it changes", pill: "bg-success-soft text-success-strong", dot: "bg-success" },
+  polling: { label: "15s refresh", title: "Dashboard data refreshes every 15 seconds", pill: "bg-success-soft text-success-strong", dot: "bg-success" },
+  down: { label: "offline", title: "Dashboard refresh is unavailable", pill: "bg-danger-soft text-danger-strong", dot: "bg-danger" },
+  connecting: { label: "connect…", title: "Connecting…", pill: "bg-slate-100 text-slate-500", dot: "bg-slate-400" },
+};
+
 const TONE_BY_TYPE: Record<string, Note["tone"]> = {
   leads: "info", quotes: "primary", orders: "warning", invoices: "success", payments: "success", returns: "danger", products: "muted", clients: "primary", tasks: "neutral",
 };
@@ -133,14 +145,15 @@ export function Topbar({
 
         {/* Realtime status */}
         <span
-          title={rt === "polling" ? "Dashboard data refreshes every 15 seconds" : rt === "down" ? "Dashboard refresh is unavailable" : "Connecting…"}
+          title={RT_PILL[rt].title}
+          data-rt-status={rt}
           className={cn(
             "hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide sm:inline-flex",
-            rt === "polling" ? "bg-success-soft text-success-strong" : rt === "down" ? "bg-danger-soft text-danger-strong" : "bg-slate-100 text-slate-500"
+            RT_PILL[rt].pill
           )}
         >
-          <span className={cn("h-1.5 w-1.5 rounded-full", rt === "polling" ? "bg-success" : rt === "down" ? "bg-danger" : "bg-slate-400")} />
-          {rt === "polling" ? "15s refresh" : rt === "down" ? "offline" : "connect…"}
+          <span className={cn("h-1.5 w-1.5 rounded-full", RT_PILL[rt].dot)} />
+          {RT_PILL[rt].label}
         </span>
 
         {/* Notifications — live events on top */}

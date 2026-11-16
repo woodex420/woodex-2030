@@ -10,7 +10,7 @@ import { ErrorState } from "@/components/ui/States";
 import { Select, SearchInput, Field, Input } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { useApi, useRealtime, mutate, img, fmtPKR, type ApiProduct, type ApiMaterial } from "@/lib/api";
+import { useApi, useProducts, useRealtime, mutate, img, fmtPKR, type ApiProduct, type ApiMaterial } from "@/lib/api";
 import { ArrowRight, Check, Package, Plus, Settings2 } from "@/icons";
 
 type SortKey = "featured" | "price-asc" | "price-desc" | "rating";
@@ -29,7 +29,7 @@ export default function Catalog() {
   const { push } = useToast();
 
   // Live data from the shared backend (same SQLite both apps read/write)
-  const products = useApi<{ total: number; items: ApiProduct[] }>("/api/products", 30000);
+  const products = useProducts(30000);
   const mats = useApi<ApiMaterial[]>("/api/materials");
   useRealtime(/products/, () => products.reload());
 

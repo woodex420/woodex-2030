@@ -1,0 +1,293 @@
+{
+ "ranAt": "2026-11-16T10:50:19.528Z",
+ "node": "v22.22.3",
+ "engines": [
+  "sqlite",
+  "pglite"
+ ],
+ "suites": [
+  "public-surface",
+  "stock-ledger",
+  "procurement",
+  "supplier-invoices",
+  "production",
+  "ops-api",
+  "inventory",
+  "finance",
+  "crm",
+  "delivery",
+  "support",
+  "credentials"
+ ],
+ "ok": true,
+ "results": [
+  {
+   "suite": "public-surface",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 20,
+   "fail": 0,
+   "seconds": 0.7,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "stock-ledger",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 30,
+   "fail": 0,
+   "seconds": 0.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "procurement",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 54,
+   "fail": 0,
+   "seconds": 0.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "supplier-invoices",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 51,
+   "fail": 0,
+   "seconds": 0.9,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "production",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 66,
+   "fail": 0,
+   "seconds": 0.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "ops-api",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 53,
+   "fail": 0,
+   "seconds": 0.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "inventory",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 68,
+   "fail": 0,
+   "seconds": 0.9,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "finance",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 69,
+   "fail": 0,
+   "seconds": 0.9,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "crm",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 67,
+   "fail": 0,
+   "seconds": 0.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "delivery",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 53,
+   "fail": 0,
+   "seconds": 0.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "support",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 62,
+   "fail": 0,
+   "seconds": 0.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "credentials",
+   "engine": "sqlite",
+   "ok": true,
+   "exit": 0,
+   "pass": 69,
+   "fail": 0,
+   "seconds": 1.4,
+   "failures": [],
+   "serverErrors": [
+    "⚠ server: [woodex-api] POST /api/users/6/password-reset → 500 · Error: this system has no mail infrastructure yet, so it cannot deliver a reset by email. The token is returned here for you to pass on directly (or set SMTP credentials and D-5 is answered)."
+   ]
+  },
+  {
+   "suite": "public-surface",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 20,
+   "fail": 0,
+   "seconds": 1.4,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "stock-ledger",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 30,
+   "fail": 0,
+   "seconds": 1.6,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "procurement",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 54,
+   "fail": 0,
+   "seconds": 1.6,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "supplier-invoices",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 51,
+   "fail": 0,
+   "seconds": 1.7,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "production",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 66,
+   "fail": 0,
+   "seconds": 1.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "ops-api",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 53,
+   "fail": 0,
+   "seconds": 1.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "inventory",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 68,
+   "fail": 0,
+   "seconds": 2,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "finance",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 69,
+   "fail": 0,
+   "seconds": 1.8,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "crm",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 67,
+   "fail": 0,
+   "seconds": 1.9,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "delivery",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 53,
+   "fail": 0,
+   "seconds": 1.7,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "support",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 62,
+   "fail": 0,
+   "seconds": 1.7,
+   "failures": [],
+   "serverErrors": []
+  },
+  {
+   "suite": "credentials",
+   "engine": "pglite",
+   "ok": true,
+   "exit": 0,
+   "pass": 69,
+   "fail": 0,
+   "seconds": 2.2,
+   "failures": [],
+   "serverErrors": [
+    "⚠ server: [woodex-api] POST /api/users/6/password-reset → 500 · Error: this system has no mail infrastructure yet, so it cannot deliver a reset by email. The token is returned here for you to pass on directly (or set SMTP credentials and D-5 is answered)."
+   ]
+  }
+ ]
+}

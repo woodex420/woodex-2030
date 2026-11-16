@@ -137,12 +137,16 @@ Every gate below runs in CI and/or inside `vercel:build`.
 |---|---|
 | `npm run qa` | 108 API checks against SQLite |
 | `npm run qa:pg` | 108 checks against a PostgreSQL rehearsal |
+| `npm run test:modules` | Twelve module suites, each on SQLite and on PostgreSQL (PGlite) |
+| `npm run test:return-id` | Every table with an integer id reports the new id on PostgreSQL; the list is compared with the catalogue |
+| `npm run test:migrate` | The SQLite → PostgreSQL copy: every row arrives, a failure rolls back, a lossy copy is never reported as success |
+| `npm run e2e:routes` | A browser signs in and opens every dashboard screen; CI only (needs Chromium) |
 | `npm run typecheck:all` | Both apps |
-| `npm run secret-scan` | Tracked files |
+| `npm run secret-scan` | The working tree: token patterns, and credentials written as prose. Not Git history |
 | `npm run smoke:render` | Both apps mount in jsdom |
 | `npm run check:deploy` | Routing, seed snapshot, no bracket catch-all |
 | `npm run test:router` | 21 router-basename cases |
-| `npm run check:migration` | Migrator covers every table, in dependency order |
+| `npm run check:migration` | Migrator covers every table; copy order comes from the foreign keys at run time (`npm run test:migrate`) |
 | `npm run seed:data:check` | Seed snapshot matches storefront sources |
 | `npm run vercel:build` | Full production assembly, 76 routes prerendered |
 | `npm run docs:verify` | The counts in §2 of this file are still true |

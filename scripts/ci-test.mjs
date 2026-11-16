@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /** Isolated CI acceptance run: fresh SQLite fixture, PGlite rehearsal, API QA,
- * and browser journeys. Never reads or writes the workspace's data/woodex.db or a hosted DB. */
+ * and browser journeys. Never reads or writes the workspace's data/woodex.db or a hosted DB.
+ *
+ * Needs `npm run vercel:build` to have run first: the last step opens every
+ * dashboard screen in the built bundle (dist/). The CI workflow builds before
+ * calling this. */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -122,7 +126,8 @@ async function stop(child) {
    preflight turns "e2e:login exited 1" into the actual reason. */
 async function browserPreflight() {
   const { chromium } = await import("playwright");
-  const browser = await chromium.launch();
+  const { launchOptions } = await import("./lib/browser.mjs");
+  const browser = await chromium.launch(launchOptions());
   await browser.close();
 }
 
@@ -142,25 +147,37 @@ try {
   console.log("[ci] Running disposable PostgreSQL-semantic QA rehearsal.");
   await runChecked(process.execPath, ["scripts/qa-pg.mjs"], baseEnv, "qa:pg", 600_000);
 
-  /* Procurement owns its own throwaway database and asserts the contract that
-     matters — a product receipt moves stock exactly once, a material receipt
-     moves it never. It is here rather than in a job of its own so a module
-     cannot regress without failing the same run that gates the merge. */
-  console.log("[ci] Rehearsing procurement: suppliers, purchase orders, goods receiving.");
-  await runChecked(process.execPath, ["scripts/test-procurement.mjs"], baseEnv, "procurement", 300_000);
+  /* An insert must report the id it created, on PostgreSQL too. The list of
+     tables that do so is compared with the catalogue, so a table added by a
+     migration cannot be forgotten — which is how 41 of 63 were (F-02). */
+  console.log("[ci] Checking that every insert reports its id on PostgreSQL.");
+  await runChecked(process.execPath, ["--experimental-sqlite", "scripts/test-return-id.mjs"], baseEnv, "return-id", 300_000);
 
-  /* Payables and three-way matching. Money leaves the business here, so this
-     runs in the same gated job: a variance that stops blocking payment is a
-     financial regression, not a missing feature. */
-  console.log("[ci] Rehearsing supplier invoices and three-way matching.");
-  await runChecked(process.execPath, ["scripts/test-supplier-invoices.mjs"], baseEnv, "bills", 300_000);
+  /* The SQLite → PostgreSQL copy. qa:pg above depends on it, and it once
+     reported success while leaving nine tables empty (F-04). This counts the
+     rows itself instead of reading the tool's report. */
+  console.log("[ci] Rehearsing the SQLite → PostgreSQL copy: every row, rollback on failure.");
+  await runChecked(process.execPath, ["--experimental-sqlite", "scripts/test-pg-migrate.mjs"], baseEnv, "migrate", 600_000);
 
-  /* Production. This is the only module that can create stock without a
-     purchase and destroy it without a sale, so the QC gate and the consumption
-     gate are rehearsed here: a job card that completes un-inspected, or one
-     that consumes twice, is an inventory-integrity regression. */
-  console.log("[ci] Rehearsing production: BOMs, job cards, consumption, QC.");
-  await runChecked(process.execPath, ["scripts/test-production.mjs"], baseEnv, "production", 300_000);
+  /* Every module suite, on BOTH engines. Each owns a throwaway database and
+     asserts the contract that matters for its module:
+
+       procurement        a product receipt moves stock exactly once, a material receipt never
+       supplier-invoices  three-way matching — a variance that stops blocking payment is a
+                          financial regression, not a missing feature
+       production         the only module that can create stock without a purchase and destroy
+                          it without a sale: the QC gate and the consumption gate
+       ops-api            the read side the Operations screens depend on, including the fields
+                          whose absence renders an empty table rather than an error
+       stock-ledger, inventory, finance, crm, delivery, support, credentials, public-surface
+
+     They used to run here one by one, on SQLite only, while production runs
+     PostgreSQL; pointed at PostgreSQL, ten of eleven failed (F-02, F-03). They
+     are in this job rather than one of their own so a module cannot regress on
+     either engine without failing the same run that gates the merge. The list
+     lives in scripts/test-modules.mjs. */
+  console.log("[ci] Rehearsing every module on SQLite and on PostgreSQL.");
+  await runChecked(process.execPath, ["--experimental-sqlite", "scripts/test-modules.mjs"], baseEnv, "modules", 900_000);
 
   /* The upgrade path. Every other test builds its database from scratch, which
      is not the situation a deployment is ever in. 011 adds a column to a table
@@ -169,18 +186,8 @@ try {
   console.log("[ci] Rehearsing a schema upgrade from a pre-011 database.");
   await runChecked(process.execPath, ["--experimental-sqlite", "scripts/test-schema-upgrade.mjs"], baseEnv, "upgrade", 300_000);
 
-  /* The Operations screens' contract. These modules shipped backend-first and
-     stayed invisible for three increments; this suite asserts the read side the
-     screens depend on, including the fields whose absence renders an empty
-     table rather than an error. */
-  console.log("[ci] Rehearsing the Operations screens' API contract.");
-  await runChecked(process.execPath, ["scripts/test-ops-api.mjs"], baseEnv, "ops", 300_000);
-  await runChecked(process.execPath, ["scripts/test-inventory.mjs"], baseEnv, "inventory", 300_000);
-  await runChecked(process.execPath, ["scripts/test-finance.mjs"], baseEnv, "finance", 300_000);
-  await runChecked(process.execPath, ["scripts/test-crm.mjs"], baseEnv, "crm", 300_000);
-  await runChecked(process.execPath, ["scripts/test-delivery.mjs"], baseEnv, "delivery", 300_000);
-  await runChecked(process.execPath, ["scripts/test-support.mjs"], baseEnv, "support", 300_000);
-  await runChecked(process.execPath, ["scripts/test-credentials.mjs"], baseEnv, "credentials", 300_000);
+  /* Two servers on one database — which the embedded PostgreSQL cannot share,
+     so this one stays on its own; it carries its own PostgreSQL section. */
   await runChecked(process.execPath, ["scripts/test-throttle.mjs"], baseEnv, "throttle", 300_000);
 
   console.log("[ci] Starting isolated SQLite API for full API/security QA.");
@@ -225,6 +232,10 @@ try {
     ["e2e:storefront-crm", "scripts/e2e-storefront-crm.mjs"],
     ["e2e:quotation-template", "scripts/e2e-quotation-template.mjs"],
     ["e2e:page-builder", "scripts/e2e-page-builder.mjs"],
+    /* Last, because it only reads: sign in and open every screen declared in
+       the dashboard's router. The four journeys above walk four paths; two
+       screens outside them crashed on open with the whole gate green (F-05). */
+    ["e2e:dashboard-routes", "scripts/e2e-dashboard-routes.mjs"],
   ];
   for (const [label, script] of browserJourneys) {
     try {
@@ -235,7 +246,42 @@ try {
       throw error;
     }
   }
-  console.log("[ci] PASS: PostgreSQL rehearsal, SQLite security/API QA, and all browser journeys.");
+  /* The same screen check, against what actually ships. Everything above ran
+     on the dev servers; a deployment serves the BUILT dashboard, minified, under
+     /dashboard/. Pointed at that build for the first time, this check found the
+     dashboard blank in the single-process shape: the server answered the
+     dashboard's own script with the HTML shell, and the smoke test for that
+     shape only ever fetched the shell. So the build is opened too. */
+  console.log("[ci] Opening every dashboard screen in the production build, served by one process.");
+  const distRoot = path.join(ROOT, "dist");
+  if (!fs.existsSync(path.join(distRoot, "dashboard", "index.html"))) {
+    throw new Error("dist/dashboard/index.html is missing — run `npm run vercel:build` before `node scripts/ci-test.mjs` (the CI workflow does)");
+  }
+  const builtPort = Number(process.env.CI_BUILT_PORT || 4181);
+  const builtBase = `http://127.0.0.1:${builtPort}`;
+  const builtDataDir = path.join(tempRoot, "built-data");
+  fs.mkdirSync(builtDataDir, { recursive: true });
+  const built = start(process.execPath, ["--experimental-sqlite", "apps/api/server.mjs"], {
+    ...baseEnv,
+    WOODEX_DATA_DIR: builtDataDir,
+    WOODEX_SERVE_STATIC: distRoot,
+    PORT: String(builtPort),
+  }, "built");
+  await waitFor(`${builtBase}/api/health`, built, "Production build");
+  try {
+    await runJourney("scripts/e2e-dashboard-routes.mjs", {
+      ...baseEnv,
+      E2E_REQUIRED: "1",
+      BASE: `${builtBase}/dashboard`,
+      DASHBOARD_BASE: `${builtBase}/dashboard`,
+    }, "e2e:built-routes");
+  } catch (error) {
+    console.error("[ci] e2e:built-routes failed — see the [e2e:built-routes] lines above for the cause.");
+    console.error(`[ci] production build served at ${builtBase}/dashboard`);
+    throw error;
+  }
+
+  console.log("[ci] PASS: PostgreSQL rehearsal, every module on both engines, SQLite security/API QA, all browser journeys, and every dashboard screen opened — on the dev server and in the production build.");
 } catch (error) {
   failed = true;
   console.error("[ci] FAIL:", error instanceof Error ? error.message : String(error));

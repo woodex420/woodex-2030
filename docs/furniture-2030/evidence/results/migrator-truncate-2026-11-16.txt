@@ -1,0 +1,19 @@
+tables in copy order: 71 | distinct foreign keys parsed from the PostgreSQL schema: 59
+children copied BEFORE a parent they reference (emptied by the parent's TRUNCATE ... CASCADE): 3
+  stock_movements (copied #30)  ->  storage_locations (truncated #46)
+  leads (copied #4)  ->  companies (truncated #57)
+  clients (copied #12)  ->  companies (truncated #57)
+
+migrator exit code: 0 | it reported: PASS · write path (RETURNING) → __probe__ / [migrate] ✅ ALL GREEN — schema + data + query battery verified on Postgres
+tables compared: 71 | rows in SQLite source: 416 | rows in PostgreSQL target: 213
+tables whose row count differs after a migration the tool reported as successful: 9
+  client_links           sqlite    21  ->  postgres     0
+  clients                sqlite    13  ->  postgres     0
+  invoices               sqlite     2  ->  postgres     0
+  leads                  sqlite     6  ->  postgres     0
+  payments               sqlite     1  ->  postgres     0
+  quote_versions         sqlite     5  ->  postgres     0
+  quotes                 sqlite     5  ->  postgres     0
+  stock_movements        sqlite   148  ->  postgres     0
+  tasks                  sqlite     2  ->  postgres     0
+stock ledger units in source: 14652

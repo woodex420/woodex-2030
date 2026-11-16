@@ -1,0 +1,393 @@
+{
+ "dashboardAddress": "https://3001-<sandbox>.e2b.app",
+ "browser": "HeadlessChrome/153.0.8010.0",
+ "A": {
+  "frameFound": true,
+  "storageBlocked": true,
+  "before": {
+   "path": "/",
+   "title": "Woodex Agency OS",
+   "secure": true,
+   "signInScreen": true,
+   "errorScreen": false,
+   "errorText": "",
+   "mainLen": 277,
+   "head": "Woodex Workspace Sign in \u2014 the storefront stays public, this doesn\u2019t. Username* Password* Sign in Demo access "
+  },
+  "signIn": {
+   "demoLoginPrefilled": true,
+   "loginHttp": 200
+  },
+  "after": {
+   "path": "/",
+   "title": "Woodex Agency OS",
+   "secure": true,
+   "signInScreen": false,
+   "errorScreen": false,
+   "errorText": "",
+   "mainLen": 2970,
+   "head": "W Woodex AGENCY OS \u00ab WI Woodex Interiors 1 workspace \u00b7 Live WORKSPACE Overview CAPTURE & RELATIONSHIPS Shared "
+  },
+  "menuLinks": 73,
+  "liveReloadConnected": true,
+  "consoleErrors": [],
+  "http4xx5xx": [],
+  "failedRequests": []
+ },
+ "B": {
+  "http": 200,
+  "signIn": {
+   "demoLoginPrefilled": true,
+   "loginHttp": 200
+  },
+  "overview": {
+   "path": "/",
+   "title": "Woodex Agency OS",
+   "secure": true,
+   "signInScreen": false,
+   "errorScreen": false,
+   "errorText": "",
+   "mainLen": 2970,
+   "head": "W Woodex AGENCY OS \u00ab WI Woodex Interiors 1 workspace \u00b7 Live WORKSPACE Overview CAPTURE & RELATIONSHIPS Shared "
+  },
+  "rows": [
+   {
+    "route": "/",
+    "label": "Overview",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/omnichannel",
+    "label": "Shared Inbox",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/crm",
+    "label": "Add Lead",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/companies",
+    "label": "Companies",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/clients",
+    "label": "Clients",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/meetings",
+    "label": "Meetings",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/tasks",
+    "label": "Tasks & Follow-ups",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/quotations",
+    "label": "View all",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/invoices",
+    "label": "All invoices",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/ecommerce",
+    "label": "3",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/catalog",
+    "label": "Product Catalog",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/orders",
+    "label": "Orders",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/deliveries",
+    "label": "Delivery & Installation",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/support",
+    "label": "Support & Warranty",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/login-locks",
+    "label": "Login locks",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/operations",
+    "label": "Operations",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/projects",
+    "label": "Projects",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/suppliers",
+    "label": "Suppliers",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/purchase-orders",
+    "label": "Purchase Orders",
+    "status": "ERROR-SCREEN",
+    "note": "(products.data ?? []).map is not a function",
+    "consoleErr": "%o %s %s TypeError: (products.data ?? []).map is not a function The above error occurred in the <PurchaseOrders> component. React ",
+    "http": []
+   },
+   {
+    "route": "/goods-receipts",
+    "label": "Goods Receipts",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/supplier-invoices",
+    "label": "Supplier Invoices",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/production",
+    "label": "Production",
+    "status": "ERROR-SCREEN",
+    "note": "(products.data ?? []).map is not a function",
+    "consoleErr": "%o %s %s TypeError: (products.data ?? []).map is not a function The above error occurred in the <Production> component. React will",
+    "http": []
+   },
+   {
+    "route": "/stock-ledger",
+    "label": "Stock Ledger",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/warehouses",
+    "label": "Warehouses",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/stock-transfers",
+    "label": "Stock Transfers",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/stock-reservations",
+    "label": "Reservations",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": [
+     "400 GET /api/stock-reservations/availability?product_id=",
+     "400 GET /api/stock-reservations/availability?product_id="
+    ]
+   },
+   {
+    "route": "/ledger",
+    "label": "Ledger",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/expenses",
+    "label": "Expenses",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/credit-notes",
+    "label": "Credit Notes",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/payment-schedules",
+    "label": "Payment Schedules",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/website",
+    "label": "Website / CMS",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/website/theme",
+    "label": "Theme Studio",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/marketing",
+    "label": "Landing Analytics",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/analytics",
+    "label": "Full analytics",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/settings",
+    "label": "Workspace Settings",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/ui-components",
+    "label": "UI Components (Dev)",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/quotations/new",
+    "label": "New E-Quotation",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   },
+   {
+    "route": "/operations/production",
+    "label": "Open operations board",
+    "status": "ok",
+    "note": "",
+    "consoleErr": "",
+    "http": []
+   }
+  ],
+  "stillSignedInAfterReload": true
+ },
+ "C": {
+  "http": 200,
+  "home": {
+   "path": "/",
+   "title": "WOODEX \u2014 Pakistan's Premium Office & Home Furniture Manufacturer",
+   "secure": true,
+   "signInScreen": false,
+   "errorScreen": false,
+   "errorText": "",
+   "mainLen": 3810,
+   "head": "Quote Basket 0 items added Your quote basket is empty Browse our products and add items to request a quote Bro"
+  },
+  "shop": {
+   "path": "/shop",
+   "title": "Shop Office & Home Furniture in Pakistan \u2014 WOODEX",
+   "secure": true,
+   "signInScreen": false,
+   "errorScreen": false,
+   "errorText": "",
+   "mainLen": 21418,
+   "head": "Quote Basket 0 items added Your quote basket is empty Browse our products and add items to request a quote Bro"
+  },
+  "productLinks": 148,
+  "liveReloadConnected": true,
+  "consoleErrors": [],
+  "failedNonFont": [],
+  "failedFontRequests": 4,
+  "http4xx5xx": []
+ }
+}
