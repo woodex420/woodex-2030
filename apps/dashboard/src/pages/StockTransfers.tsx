@@ -288,7 +288,7 @@ export default function StockTransfers() {
                           }}
                         >
                           <option value="">Choose a product…</option>
-                          {(products.data?.items ?? []).map((p) => (
+                          {(products.data?.items ?? []).filter((p) => p.status !== "archived" && p.trackStock !== false).map((p) => (
                             <option key={p.id} value={p.id}>{p.name}</option>
                           ))}
                         </Select>

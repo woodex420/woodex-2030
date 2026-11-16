@@ -84,6 +84,15 @@ node scripts/ci-test.mjs                           # the whole CI script; needs 
 
 Install the package outside the repository so that it never reaches `package.json`. CI does not need any of this: it installs Playwright's Chromium.
 
+## Results after Phase 2, 2026-11-16
+
+| File | Content |
+|---|---|
+| `results/phase2-gate-2026-11-16.tsv` | The full gate at `f826e6e`, with the browser step: 39 steps, all exit 0 |
+| `results/phase2-mutations-2026-11-16.md` | The catalogue checks tried against code broken on purpose: 22 server faults and 9 storefront faults, each noticed; which two were missed at first, and which attempts do not count |
+
+**Running the browser step beside other servers.** `ci-test.mjs` takes its ports from `CI_API_PORT`, `CI_DASHBOARD_PORT`, `CI_STOREFRONT_PORT`, `CI_BUILT_PORT` and `CI_CATALOG_PORT`. The storefront port must stay **5174**: the dashboard's page preview opens the storefront there in development (`apps/dashboard/src/lib/preview.ts`). With another storefront already on 5174 the page-builder journey reads that one and fails; stop it first. The gate above ran with `CI_API_PORT=3117 CI_DASHBOARD_PORT=5183` and the storefront on its default port.
+
 ## Results after Phase 1, 2026-11-16
 
 | File | Content |

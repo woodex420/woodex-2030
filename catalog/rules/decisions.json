@@ -1,0 +1,4 @@
+{
+  "_about": "The owner's decisions on single products, applied after the automatic rules. Keyed by the product's address on the live shop. Empty until the owner decides something: the build then proposes, flags and imports as draft. Fields: \"skip\": true with a \"reason\" (do not import); \"name\"; \"sku\"; \"price\" (whole rupees) or \"price\": \"on-request\"; \"compareAt\" (whole rupees, or null to drop it); \"category\" (a key of categories.json); \"id\" (a different address for the new shop); \"decidedBy\" and \"decidedOn\" for the record.",
+  "decisions": {}
+}

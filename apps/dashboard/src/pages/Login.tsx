@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { login } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
@@ -29,6 +29,22 @@ export default function Login() {
   const [tok, setTok] = useState("");
   const [npw, setNpw] = useState("");
   const pwRef = useRef<HTMLInputElement>(null);
+  /* What somebody has typed is theirs. The demo account is filled in when the
+     API answers, and on a slow connection that is after a person has begun to
+     type: the answer used to replace their e-mail with "admin" and their
+     password with the demo one, under their hands. (Found by measurement: one
+     scripted sign-in in 120 was refused with "wrong email or password" — the
+     password field held "adminadmin".) Once either field has been touched,
+     the answer no longer fills anything. */
+  const typed = useRef(false);
+  const userRef = useRef<HTMLInputElement>(null);
+  /* …and when the answer does fill the form, the demo username arrives
+     selected: whoever starts to type their own replaces it, instead of adding
+     to it. A layout effect, so that the text and its selection appear in the
+     same turn — there is no moment at which a keystroke lands after "admin". */
+  useLayoutEffect(() => {
+    if (demo === true && !typed.current && document.activeElement === userRef.current) userRef.current?.select();
+  }, [demo, user]);
 
   useEffect(() => {
     let alive = true;
@@ -38,7 +54,7 @@ export default function Login() {
         if (!alive) return;
         const on = j?.demo === true;
         setDemo(on);
-        if (on) { setUser("admin"); setPw("admin"); }
+        if (on && !typed.current) { setUser("admin"); setPw("admin"); }
       })
       .catch(() => { if (alive) setDemo(false); });
     return () => { alive = false; };
@@ -142,14 +158,14 @@ export default function Login() {
               </p>
             </form>
           ) : (
-          <form onSubmit={(e) => { e.preventDefault(); void go(); }} noValidate>
+          <form onSubmit={(e) => { e.preventDefault(); void go(); }} noValidate aria-busy={demo === null}>
             <Field label="Username" required>
-              <Input autoFocus value={user} onChange={(e) => { setUser(e.target.value); setErr(null); }} placeholder="admin" autoComplete="username" spellCheck={false} disabled={busy} />
+              <Input ref={userRef} autoFocus value={user} onChange={(e) => { typed.current = true; setUser(e.target.value); setErr(null); }} placeholder="admin" autoComplete="username" spellCheck={false} disabled={busy} />
             </Field>
             <div className="mt-3">
               <Field label="Password" required>
                 <span className="relative block">
-                  <Input ref={pwRef} type={show ? "text" : "password"} value={pw} onChange={(e) => { setPw(e.target.value); setErr(null); }} onKeyUp={(e) => setCaps(e.getModifierState?.("CapsLock") ?? false)} autoComplete="current-password" className="pr-10" disabled={busy} />
+                  <Input ref={pwRef} type={show ? "text" : "password"} value={pw} onChange={(e) => { typed.current = true; setPw(e.target.value); setErr(null); }} onKeyUp={(e) => setCaps(e.getModifierState?.("CapsLock") ?? false)} autoComplete="current-password" className="pr-10" disabled={busy} />
                   <button type="button" tabIndex={-1} onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"}
                     className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-subtle transition-colors hover:bg-surface-secondary hover:text-ink">
                     {show ? <EyeOff size={15} /> : <Eye size={15} />}

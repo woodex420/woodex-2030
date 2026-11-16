@@ -1,0 +1,175 @@
+# Source: https://woodexfurniture.pk/e-quotation  ("Step 1 – Select Products" table)
+# Captured: 2026-11-16, through the public page, by fetch (rendered to text).
+# One row per product, exactly as the page shows it: SKU | Product | Unit Price (PKR)
+# "—" is what the page prints when a product has no SKU. Nothing here is corrected.
+HOF-10004 | Aero Home office Desk | 16,500.00
+MT-10001 | Alon Meeting Table | 0.00
+SKU: MT-10001 | Alon Meeting Table | 0.00
+SKU: EC-10001 | Ambassador chairs Executive | 82,000.00
+SKU: WST-10001 | Ambassador Executive Table | 15,000.00
+MC-10001 | Apex Flow Manager Chair | 29,000.00
+SKU: MT-10001 | Apex Manager Table | 65,000.00
+SKU: CT-10001 | Aspire-Conference-Table | 0.00
+MC-10002 | Atlas Manager Chair | 35,000.00
+SKU: VC-10001 | Back Support Visitor Chair | 15,500.00
+SKU: VC-10006 | Back Support Visitor Chair | 15,500.00
+SKU: VC-10002 | Balance Visitor Chair | 10,500.00
+SKU: CT-10002 | Black Pearl Executive Chair | 35,000.00
+SKU: ST-10008 | Brio Staff Table | 30,500.00
+— | Brook Display Cabinet | 78,000.00
+RD-10001 | CareLine Reception Desk | 95,000.00
+SKU: VC-10003 | Clarity Manager Visitor Chair | 14,500.00
+— | Classic Executive Desk | 130,000.00
+SKU: VC-100013 | Comfort Conference Visitor Chair | 85,000.00
+ET-10001 | Command Executive Desk | 155,000.00
+SKU: MT-10002 | Connect Meeting Table | 0.00
+SKU: EC-10001 | Crown Executive Chair | 48,000.00
+SKU: VC-100015 | Crown Executive Visitor Chair | 38,500.00
+RT-10002 | Crown Point Reception Desk | 45,000.00
+SKU: VC-10004 | Curve Visitor Chair | 11,500.00
+RD-10003 | Deep Max Reception Desk | 65,000.00
+SKU: CT-10002 | Diamond-Conference-Table | 85,000.00
+— | Divanex Sofa Chair | 35,000.00
+SKU: CT-10003 | Division-Conference-Table | 0.00
+SKU: DT-10001 | Echo Round Meeting Table | 0.00
+SKU: ST-10007 | Echo Staff Table | 22,000.00
+SKU: VC-10008 | Edge Executive Visitor Chair | 25,000.00
+SKU: SKU: MT-10002 | Edge Manager Table | 72,000.00
+SKU: CT-10002 | Elegance Executive Office Table | 155,000.00
+MC-10003 | Elite Command Manager Chair | 24,499.99
+SKU: EC-10004 | Elite Executive Chair | 75,000.00
+— | Elite Executive Desk | 145,000.00
+RT-10002 | Elite Executive Desk | 180,000.00
+MT-10003 | Elite Manager Table | 61,999.99
+RD-10004 | EliteWave Reception Desk | 120,000.00
+SKU: MT-10003 | Emerald-Meeting-Table | 0.00
+SKU: CT-10004 | Eminence Conference Table | 0.00
+WS-10001 | Evolution Workstation | 0.00
+RD-10005 | ExecLine Reception Desk | 97,999.99
+— | Executive Pro Smart Sofa | 120,000.00
+— | Executive-Smart-Sofa | 99,000.00
+— | f | 0.00
+SKU: DT-10002 | Facet Meeting Table | 0.00
+SKU: ST-10005 | Flex Staff Table | 17,500.00
+WS-10002 | Flow Workstation | 125,000.00
+MT-10004 | Flux Manager Table | 54,999.99
+— | Focus Smart Lounge Seating | 95,000.00
+RD-10006 | FocusLine Reception Desk | 145,000.00
+MC-10004 | Forma ErgoFit Manager Chair | 35,000.00
+RD-10007 | GlamEdge Reception Desk | 90,000.00
+RD-10008 | GrandHost Reception Desk | 65,000.00
+SKU: VC-10009 | Grid Conference Visitor Chair | 28,500.00
+SKU: SC-10001 | Grid Staff Chair | 0.00
+MC-10005 | Grip Back Manager Chair | 38,000.00
+SKU: HF-10001 | Home Office Desk Pro | 25,500.00
+RT-10008 | HorizonHost Reception Desk | 65,000.00
+ET-10003 | Impact Executive Desk | 118,000.00
+SKU: EC-10005 | Imperial Executive Chair | 52,000.00
+SKU: CT-10005 | Imperial Executive Conference Table | 0.00
+SKU: CT-10004 | Imperial Executive Desk | 130,000.00
+SKU: EC-10005 | Infinity Executive Chair | 45,000.00
+SKU: CT-10006 | Infinity Executive Conference Table | 0.00
+ET-10004 | Infinity Executive Desk | 95,000.00
+MT-10005 | Infinity Manager Table | 75,000.00
+— | Infinity Workstation | 75,000.00
+MC-10006 | Keystone Manager Chair | 48,000.00
+ET-10005 | Legacy Executive Desk | 185,000.00
+SKU: MT-10004 | Levander Meeting Table | 60,000.00
+SKU: VC-10009 | Line Visitor Chair | 11,500.00
+SKU: SC-10002 | Lite Compact Staff Chair | 0.00
+SKU: DT-10003 | Loop Meeting Table | 20,000.00
+HOF-10003 | Lumu Home office Desk | 26,500.00
+RD-100010 | LuxeFront Reception Desk | 65,000.00
+— | Magic Full Height Cabinet | 48,000.00
+SKU: DT-10004 | Manila Meeting Table | 25,000.00
+MC-10007 | Matrix Flow Manager Chair | 36,000.00
+SKU: SC-1000 | Max Staff Chair | 0.00
+RD-100011 | MedFront Reception Desk | 65,000.00
+SKU: MT-10005 | Meeting Table (8-person) | 85,000.00
+MT-10006 | Metro Manager Table | 51,999.99
+SKU: EC-10006 | Milano luxury Executive Chair | 42,000.00
+RT-100012 | MirrorLin Reception Desk | 65,000.00
+WS-10004 | Momentum Workstation | 0.00
+SKU: EC-10007 | Nexa Executive Chair | 52,000.00
+SKU: DT-10005 | Next Meeting Table | 35,000.00
+MC-10008 | Nexus Command-Manager Chair | 32,000.00
+ET-10006 | Nexus Executive Table | 110,000.00
+SKU: MT-10006 | Nexus meeting Table | 75,000.00
+SKU: MT-10007 | Nexus Meeting Table 2 | 75,000.00
+— | Nexus Workstation | 0.00
+— | Nola Executive Chair | 45,000.00
+ET-10007 | Nova Executive Desk | 115,000.00
+— | Nova executive sofa | 90,000.00
+MT-10007 | Nova Manager Table | 55,000.00
+SKU: CT-10008 | Nova Prime Conference Table | 95,000.00
+SKU: DT-10006 | Nova Round Meeting Table | 85,000.00
+— | Nova singe workstation | 1,950.00
+WS-10005 | Nova Workstation | 0.00
+RT-100013 | Omega Reception Counter | 115,000.00
+SKU: MT-10008 | Onyx Meeting Table | 0.00
+MC-10009 | Onyx Prestige Manager Chair | 65,000.00
+WS-10006 | Onyx Workstation | 0.00
+MT-10008 | Orion Manager Table | 80,000.00
+— | Orlin Executive Visitor chair | 32,000.00
+SKU: SC-10004 | Pace Staff Chair | 0.00
+SKU: EC-10008 | phoenix Executive Chair | 42,000.00
+— | Phoenix Executive Sofa | 95,500.00
+RD-100014 | Pinnacle Office Reception Desk | 65,000.00
+— | Polo Pedestal | 15,000.00
+SKU: SC-10008 | Premium Staff Chair | 0.00
+SKU: MT-10009 | Prime Manager Table | 70,000.00
+SKU: VC-100012 | Prime Manager Visitor Chair | 28,500.00
+MC-100010 | Prime Performance Manager Chair | 55,000.00
+RD-100015 | ProDesk Reception Desk | 65,000.00
+SKU: MT-10010 | Pulse Manager Table | 69,999.99
+RD-100016 | PulseCounter Reception Desk | 65,000.00
+RD-100016 | PureEntry Office Reception Desk | 65,000.00
+SKU: VC-10005 | QUAD Conference Visitor Chair | 10,500.00
+WS-10007 | Quantum Workstation | 0.00
+SKU: DT-10007 | Raison-Meeting-Table | 20,000.00
+SKU: EC-10009 | Regal Executive Chair | 50,000.00
+MC-100011 | Relief Pro Manager Chair | 27,000.00
+SKU: SC-10007 | Rock Solid Staff Chair | 0.00
+— | Royal Chesterfield Sofa | 95,000.00
+— | Royal Prestige Executive Table | 130,000.00
+SKU: CT-10009 | Sapphire Executive Conference Table | 85,000.00
+RD-100018 | SharpLine Reception Desk | 65,000.00
+SKU: MT-10011 | Shift Ergonomic Manager Table | 75,000.00
+SKU: SC-10006 | Signal Staff Chair | 0.00
+ET-10008 | Signature Executive Desk | 120,000.00
+SKU: EC-10009 | Silverstone Executive chairs | 65,000.00
+SKU: DT-10008 | Solo Meeting Table | 22,000.00
+— | Space Executive Desk | 110,000.00
+SKU: MT-100010 | Spark Meeting Table | 70,000.00
+MC-100012 | Spot Work Manger Chair | 38,000.00
+SKU: ST-10006 | Staff Table Pro | 1,650.00
+SKU: VC-10007 | Star Visitor Chair | 16,500.00
+— | Step Staff Table | 27,000.00
+RD-100018 | Strato Reception Desk | 65,000.00
+SKU: HOF-10002 | Studio Pro Table | 1,950.00
+RD-100020 | Style Touch Reception Desk | 65,000.00
+SKU: SC-10005 | Support Staff Chair | 0.00
+SKU: VC-100014 | SWAN Executive Visitor Chair | 38,000.00
+WS-10008 | Synergy Workstation | 0.00
+SKU: ST-10003 | Tango Single Workstation | 25,500.00
+SKU: SC-10009 | Task Master Staff Chair | 0.00
+SKU: SC-100010 | Team Staff Chair | 0.00
+MC-100013 | Titan Pro Manager Chair | 75,000.00
+SKU: SC-100011 | Unit Staff Chair | 0.00
+— | Venus Executive Sofa.jpg | 125,000.00
+MC-100014 | Vertex Active Back Manager Chair | 35,000.00
+SKU: MT-10012 | Vertex Manager Table | 71,999.99
+WS-10009 | Vertex Workstation | 0.00
+SKU: MT-10013 | Vibe Manager Table | 55,000.00
+ST-10009 | Vibe Staff Table | 32,500.00
+WS-100010 | Vibe Workstation | 0.00
+— | Vision Executive Desk | 100,000.00
+RD-100021 | VitaDesk Reception Desk | 65,000.00
+SKU: SC-100012 | Wave Comfort Staff Chair | 0.00
+— | Weave Center Table | 22,000.00
+SKU: VC-100010 | Welcome Visitor Chair | 14,500.00
+SKU: VC-100011 | WING Conference Visitor Chair | 15,000.00
+— | Woodex Smart Series L Shape Manager | 75,000.00
+ST-100010 | X Max Staff Table | 25,500.00
+— | X-Pro Staff Table | 32,000.00
+SKU: ST-10002 | Zone Staff Table | 30,000.00

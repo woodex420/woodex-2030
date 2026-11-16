@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { products } from "@/data/products";
+import { products, fromPrice, hasOptions, categoryLabel, priceText } from "@/data/products";
+import type { Product } from "@/data/products";
 import { materials } from "@/data/materials";
 import { submitLead, useRuntimeRevision } from "@/lib/runtime";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ArrowRight, CheckCircle2, Star, Send, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { ProductImage } from "@/components/shop/ProductImage";
 import { Link2, MessageCircle } from "lucide-react";
 import { attachTrackers, trackPage } from "@/lib/track";
 
@@ -21,6 +23,15 @@ const S = (b: Block, k: string) => String(b.props[k] ?? "");
 const L = (b: Block, k: string) => S(b, k).split("\n").map((x) => x.trim()).filter(Boolean);
 const imgSrc = (v: string) => (v.startsWith("http") || v.startsWith("/img/") ? v : "/img/" + v);
 const pkr = (n: number) => "Rs " + Math.round(n).toLocaleString("en-PK");
+/* The price of a product as these blocks print it: the shop's own rule, in
+   this page's "Rs" style. A product without a price reads "Price on request"
+   — never "Rs 0". */
+const priceOf = (p: Product) => priceText(p, pkr);
+/* A "was" price is shown only against a real, lower price of the product itself. */
+const wasPriceOf = (p: Product) => {
+  const price = fromPrice(p);
+  return price !== null && !hasOptions(p) && typeof p.originalPrice === "number" && p.originalPrice > price ? p.originalPrice : null;
+};
 const hexA = (h: string, a: number) => { const m = /^#?([0-9a-f]{6})$/i.exec(h.trim()); if (!m) return h; const v = parseInt(m[1], 16); return `rgba(${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}, ${a})`; };
 
 function LeadForm({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
@@ -66,8 +77,14 @@ function ProductGrid({ b, th }: { b: Block; th?: Theme }) {
     const sort = S(b, "sort") || "featured";
     const order = (list: typeof products) => {
       const copy = [...list]; /* never sort the module-level `products` in place */
-      if (sort === "price-asc") return copy.sort((x, y) => x.price - y.price);
-      if (sort === "price-desc") return copy.sort((x, y) => y.price - x.price);
+      /* A product with no price goes last in either price order. */
+      const byPrice = (direction: 1 | -1) => (x: Product, y: Product) => {
+        const px = fromPrice(x), py = fromPrice(y);
+        if (px === null || py === null) return px === py ? 0 : px === null ? 1 : -1;
+        return direction * (px - py);
+      };
+      if (sort === "price-asc") return copy.sort(byPrice(1));
+      if (sort === "price-desc") return copy.sort(byPrice(-1));
       if (sort === "name") return copy.sort((x, y) => x.name.localeCompare(y.name));
       return copy.sort((x, y) => Number(!!y.isBestSeller) - Number(!!x.isBestSeller));
     };
@@ -81,15 +98,16 @@ function ProductGrid({ b, th }: { b: Block; th?: Theme }) {
       {list.map((p) => (
         <Link key={p.id} to={"/shop/" + p.id} data-wx-cta={"product:" + p.id} className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md">
           <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-            {p.images[0] && <img src={p.images[0]} alt={p.name} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />}
-            {!p.inStock && <Badge className="absolute top-2 left-2 bg-destructive text-destructive-foreground">Out of stock</Badge>}
-            {typeof p.originalPrice === "number" && p.originalPrice > p.price && (
-              <Badge className="absolute top-2 right-2 bg-accent text-accent-foreground">−{Math.round((1 - p.price / p.originalPrice) * 100)}%</Badge>)}
+            <ProductImage src={p.images[0]} name={p.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            {!p.inStock && <Badge className="absolute top-2 left-2 bg-destructive text-destructive-foreground">Not available</Badge>}
+            {wasPriceOf(p) !== null && (
+              <Badge className="absolute top-2 right-2 bg-accent text-accent-foreground">−{Math.round((1 - (fromPrice(p) ?? 0) / (wasPriceOf(p) ?? 1)) * 100)}%</Badge>)}
           </div>
           <div className="p-3.5">
             <p className="line-clamp-1 text-sm font-bold">{p.name}</p>
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{p.rating.toFixed(1)} · {p.category}</p>
-            <p className="mt-1.5 font-black text-primary" style={th?.primary ? { color: th.primary } : undefined}>{pkr(p.price)}{typeof p.originalPrice === "number" && p.originalPrice > p.price && <s className="ml-1.5 text-xs font-normal text-muted-foreground">{pkr(p.originalPrice)}</s>}</p>
+            {/* The category only. A rating used to stand here; the shop has no review system to produce one. */}
+            <p className="mt-0.5 text-xs text-muted-foreground">{categoryLabel(p.subcategory || p.category)}</p>
+            <p className="mt-1.5 font-black text-primary" style={th?.primary ? { color: th.primary } : undefined}>{priceOf(p)}{wasPriceOf(p) !== null && <s className="ml-1.5 text-xs font-normal text-muted-foreground">{pkr(wasPriceOf(p) ?? 0)}</s>}</p>
           </div>
         </Link>
       ))}
@@ -177,11 +195,11 @@ function BlockView({ b, slug, th }: { b: Block; slug: string; th?: Theme }) {
       if (!p) return null;
       return (
         <section className="grid items-center gap-6 rounded-3xl border bg-card p-6 py-8 sm:p-10 lg:grid-cols-2">
-          <img src={p.images[0]} alt={p.name} className="aspect-[4/3] w-full rounded-2xl object-cover" />
+          <ProductImage src={p.images[0]} name={p.name} className="aspect-[4/3] w-full rounded-2xl object-cover" initialClassName="text-6xl" />
           <div>
             <h2 className="text-2xl font-black">{S(b, "heading") || p.name}</h2>
             <p className="mt-2 text-muted-foreground">{S(b, "body") || p.shortDescription}</p>
-            <p className="mt-4 text-2xl font-black text-primary" style={th?.primary ? { color: th.primary } : undefined}>{pkr(p.price)}</p>
+            <p className="mt-4 text-2xl font-black text-primary" style={th?.primary ? { color: th.primary } : undefined}>{priceOf(p)}</p>
             <Button asChild data-wx-cta={"product-feature:" + p.id} className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90" style={th?.primary ? { background: th.primary, borderColor: th.primary } : undefined}><Link to={"/shop/" + p.id}>View product <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>
           </div>
         </section>

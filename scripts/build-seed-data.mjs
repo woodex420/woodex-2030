@@ -17,9 +17,13 @@
  *
  * Resolving the same data at BUILD time and committing the result removes the
  * runtime esbuild, the dev-only dependency and the hidden file dependency from
- * the serverless path. The storefront's .ts files stay the single source of
- * truth; this file is a derivative. `npm run seed:data:check` fails the build
- * if the snapshot drifts from the sources.
+ * the serverless path. The .ts files stay the single source of truth; this
+ * file is a derivative. `npm run seed:data:check` fails the build if the
+ * snapshot drifts from the sources.
+ *
+ * The products are the DEMO catalogue (apps/storefront/src/data/demo-products.ts).
+ * They seed an empty demo or development database and are not part of the
+ * storefront: customers see what the database holds.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -57,8 +61,10 @@ export function serialise(data) {
 
 /** Bundles the storefront modules and returns the seed payload. */
 export async function buildSeedData() {
-  const { loadShopData } = await import("../apps/api/shop-data.mjs");
-  const { products, materials, services, categoryGroups } = await loadShopData();
+  /* From the sources, never through loadShopData(): that one prefers the
+     snapshot, which made `--check` compare the file with itself. */
+  const { loadShopDataFromSources } = await import("../apps/api/shop-data.mjs");
+  const { products, materials, services, categoryGroups } = await loadShopDataFromSources();
   return { products, materials, services, categoryGroups };
 }
 

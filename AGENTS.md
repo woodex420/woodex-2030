@@ -71,8 +71,8 @@ refuses to boot on Vercel without `DATABASE_URL`; respect that split.
 
 ### Trap 6 — Prerender can "succeed" while shipping an empty shell
 
-`scripts/prerender.mjs` renders the public routes in jsdom and writes
-`dist/<route>/index.html`. Three failure modes all report **76/76 routes
+`scripts/prerender.mjs` renders the static public routes in jsdom and writes
+`dist/<route>/index.html`. Three failure modes all report **16/16 routes
 written** while the HTML contains nothing:
 
 - **`React.lazy` never settles.** Every route is lazy-loaded, and inside a single
@@ -88,6 +88,16 @@ written** while the HTML contains nothing:
   `<div id="root"></div>` no-ops when the shell is a previous prerender. The
   swap is anchored on `</body>` instead, and re-running strips old JSON-LD so
   structured data does not double.
+
+**Product pages are not prerendered.** The catalogue lives in the database and a
+build has no database, so the 16 routes are the static pages of
+`apps/api/public-routes.mjs` and nothing else. (It used to be 76: the extra 60
+were demo products from a list compiled into the storefront.) The prerender
+window sets `__WOODEX_PRERENDER__ = true`; the storefront reads it and leaves
+the catalogue "loading", so a static page carries the loading placeholder.
+Remove that flag and every static page that lists products says the catalogue
+is unavailable — the stubbed `fetch` answers 503, which is what "unavailable"
+means in a real browser.
 
 Guard when you touch it: `PRERENDER_ONLY=/about node scripts/prerender.mjs`
 renders one route in under a second. Assert the root is **> 5 kB** and does not
@@ -108,7 +118,7 @@ npm run qa:pg                # the same battery on PGlite
 npm run test:modules         # every module suite, on SQLite AND on PGlite
 npm run test:return-id       # every insert reports its new id on PostgreSQL
 npm run test:migrate         # the SQLite → PostgreSQL copy moves every row, or changes nothing
-npm run vercel:build         # production shape; must print "76/76 routes rendered"
+npm run vercel:build         # production shape; must print "16/16 routes rendered"
 npm run smoke:hostinger      # all-in-one shape: real HTML, not the Loading shell
 ```
 
@@ -149,6 +159,33 @@ server, and in the built bundle served from `dist/` (so run `vercel:build` first
   API error, a missing file, a console error or an empty page. It exists because
   two screens crashed on open with everything else green: nothing opened them.
   It opens screens; it does not press their buttons.
+- **`e2e:catalog` is the catalogue journey**, shop and admin together, in a
+  browser: the catalogue arrives from the API, a product without a price never
+  reads "PKR 0", an option is carried from the product page to the order, an
+  old cart is reconciled with what the catalogue says today, a refused order
+  says why, and the real catalogue is loaded as drafts and released in the
+  admin. By default it serves `dist/` itself (port `E2E_CATALOG_PORT`, 4183) on
+  a database of its own. `ci-test.mjs` runs it after the built-routes step
+  (port `CI_CATALOG_PORT`). It was checked by breaking the storefront on
+  purpose, nine ways; each made it fail.
+- **The storefront shows what the database holds, and nothing else.** No
+  product is compiled into it. `apps/storefront/src/data/demo-products.ts` is
+  read by the seed build only, and `smoke:render` fails if a demo product is
+  found in the storefront bundle. When the API cannot be reached the shop says
+  so; it never falls back to a list of its own.
+- **`test:catalog`** (one of the module suites, both engines) is the server
+  side of the same rules: drafts are invisible, one SKU names one thing, no
+  price is not a price of zero, an order and a quotation are priced by the
+  catalogue whatever the page sent, and a database that has not received
+  migration 019 keeps working as before. A price check must **send** a price:
+  the suite once passed against a server that priced lines from the request,
+  because it never sent one.
+- **A browser script signs in through `signInToDashboard()`**
+  (`scripts/lib/browser.mjs`), never by typing straight after `goto`. The
+  sign-in form fills in the demo account when the API answers; typing in the
+  same instant lost one sign-in in 120. The form now keeps what was typed and
+  marks itself `aria-busy` until it has heard from the API; the helper waits
+  for that.
 - **Playwright's Chromium cannot be installed in the Arena sandbox** — the
   download host is blocked. Without a browser the scripts print `SKIP` and exit
   0 (or `ERROR` and exit 1 with `E2E_REQUIRED=1`, as in CI). Do not treat a skip

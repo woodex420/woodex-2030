@@ -1,0 +1,13 @@
+# Source: https://woodexfurniture.pk/categories/workstation   label: Workstation   page says: 11 of 11 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+evolution-workstation | Evolution Workstation | 0 |  | 1772730954_Evolution%20Workstation.jpg
+flow-workstation | Flow Workstation | 125,000 | 155,000 | 1772731031_Flow%20Workstation.jpg
+momentum-workstation | Momentum Workstation | 0 |  | 1772731209_White-workstation-2.jpg
+nexus-workstation | Nexus Workstation | 0 |  | 1772731279_1764329211927-019aca36-be9a-7493-a781-690ba3bfd4f0.png
+nova-workstation | Nova Workstation | 0 |  | 1772731417_White-workstation.jpg
+onyx-workstation | Onyx Workstation | 0 |  | 1772731497_White-workstation-16.jpg
+quantum-workstation | Quantum Workstation | 0 |  | 1772731564_White-workstation-10.jpg
+synergy-workstation | Synergy Workstation | 0 |  | 1772731644_White-workstation-3.jpg
+vertex-workstation | Vertex Workstation | 0 |  | 1772731715_White-workstation-9.jpg
+vibe-workstation | Vibe Workstation | 0 |  | 1772731784_White-workstation-13.jpg
+infinity-workstation | Infinity Workstation | 75,000 |  | 1781692130_0_infinity-workstation.jpg

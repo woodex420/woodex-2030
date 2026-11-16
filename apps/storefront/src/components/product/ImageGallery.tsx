@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ZoomIn, RotateCcw, ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProductImage } from "@/components/shop/ProductImage";
 
 interface ImageGalleryProps {
   images: string[];
@@ -45,6 +46,14 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
     setRotation(0);
   };
 
+  /* A product can arrive with no photograph at all: the catalogue is the
+     business's data, and a row without a picture is still a product. Show its
+     initial rather than a broken image and controls that have nothing to turn. */
+  if (images.length === 0) {
+    return <ProductImage src={null} name={productName} className="aspect-square w-full rounded-lg" initialClassName="text-7xl" />;
+  }
+  const several = images.length > 1;
+
   return (
     <div className="space-y-4">
       {/* Main Image */}
@@ -60,10 +69,13 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
           onMouseLeave={() => setIsZoomed(false)}
           onClick={() => setIsZoomed(!isZoomed)}
         >
-          <img
+          <ProductImage
             src={images[selectedIndex]}
+            name={productName}
             alt={`${productName} - View ${selectedIndex + 1}`}
+            loading="eager"
             className="w-full h-full object-cover transition-transform duration-300"
+            initialClassName="text-7xl"
             style={{
               transform: isZoomed
                 ? `scale(2) translate(${50 - zoomPosition.x}%, ${50 - zoomPosition.y}%)`
@@ -89,35 +101,43 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
           )}
         </div>
 
-        {/* Navigation Arrows */}
-        <Button
-          variant="secondary"
-          size="icon"
-          className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
-          onClick={handlePrev}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
-          onClick={handleNext}
-        >
-          <ChevronRight className="h-5 w-5" />
-        </Button>
+        {/* Navigation Arrows — only when there is another photograph to go to */}
+        {several && (
+          <>
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label="Previous photograph"
+              className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity rounded-full shadow-lg"
+              onClick={handlePrev}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label="Next photograph"
+              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity rounded-full shadow-lg"
+              onClick={handleNext}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </>
+        )}
 
         {/* Action Buttons */}
         <div className="absolute bottom-4 right-4 flex gap-2">
-          <Button
-            variant={is360Mode ? "default" : "secondary"}
-            size="sm"
-            onClick={toggle360Mode}
-            className="rounded-full shadow-lg"
-          >
-            <RotateCcw className="h-4 w-4 mr-1" />
-            360°
-          </Button>
+          {several && (
+            <Button
+              variant={is360Mode ? "default" : "secondary"}
+              size="sm"
+              onClick={toggle360Mode}
+              className="rounded-full shadow-lg"
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              360°
+            </Button>
+          )}
 
           <Dialog>
             <DialogTrigger asChild>
@@ -128,10 +148,12 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
             </DialogTrigger>
             <DialogContent className="max-w-5xl">
               <div className="aspect-square relative">
-                <img
+                <ProductImage
                   src={images[selectedIndex]}
-                  alt={productName}
+                  name={productName}
+                  loading="eager"
                   className="w-full h-full object-contain"
+                  initialClassName="text-7xl"
                 />
               </div>
             </DialogContent>
@@ -139,8 +161,8 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
         </div>
       </div>
 
-      {/* Thumbnails */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      {/* Thumbnails — a single photograph needs no strip to choose from */}
+      <div className={cn("flex gap-2 overflow-x-auto pb-2", !several && "hidden")}>
         {images.map((image, index) => (
           <button
             key={index}
@@ -152,10 +174,12 @@ const ImageGallery = ({ images, productName }: ImageGalleryProps) => {
                 : "border-border hover:border-accent/50"
             )}
           >
-            <img
+            <ProductImage
               src={image}
+              name={productName}
               alt={`${productName} thumbnail ${index + 1}`}
               className="w-full h-full object-cover"
+              initialClassName="text-xl"
             />
           </button>
         ))}

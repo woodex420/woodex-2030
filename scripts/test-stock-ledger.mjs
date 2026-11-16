@@ -76,15 +76,22 @@ try {
   const token = login.json?.token;
   check(Boolean(token), "operator signed in", login.json?.error ?? "");
 
-  /* A dedicated product with a small, exact quantity. */
+  /* A dedicated product with a small, exact quantity.
+
+     Published, with a SKU: since migration 019 a new product is a draft, and a
+     draft cannot be ordered or read by the public — which is what this suite
+     does to it. Sending a quantity is what makes its stock counted. */
   const created = await api("/api/products", {
     method: "POST", token,
     body: { id: "ledger-probe", name: "Ledger Probe Desk", price: 1000, category: "office-tables",
+      sku: "LEDGER-PROBE", status: "published",
       stockQty: 3, inStock: true, description: "probe", features: [], images: ["/img/desk-product.jpg"] },
   });
   check(created.status === 201, "probe product created with stock 3", `got ${created.status} ${JSON.stringify(created.json)?.slice(0, 120)}`);
 
-  const stockOf = async () => (await api("/api/products/ledger-probe")).json?.stockQty;
+  /* Read as staff: the quantity on hand is not part of the public product
+     (Furniture 2030 Phase 2 — a visitor learns "available", not "how many"). */
+  const stockOf = async () => (await api("/api/products/ledger-probe", { token })).json?.stockQty;
   const movementsOf = async () => {
     const rows = await api("/api/products/ledger-probe/stock", { token });
     return rows.json;

@@ -56,6 +56,10 @@ export default function Production() {
   const materials = useApi<Mat[]>("/api/materials");
 
   const productName = (id: string) => (products.data?.items ?? []).find((p) => p.id === id)?.name ?? id;
+  /* Names are looked up in the whole catalogue, so an old job card still reads
+     its product; a NEW bill of materials or job card is not offered an
+     archived one. */
+  const buildable = (products.data?.items ?? []).filter((p) => p.status !== "archived");
 
   /* ---- create job card ---- */
   const [jobOpen, setJobOpen] = useState(false);
@@ -413,7 +417,7 @@ export default function Production() {
           <Field label="Product to build" required className="sm:col-span-2">
             <Select value={jcProduct} onChange={(e) => setJcProduct(e.target.value)}>
               <option value="">Choose a product…</option>
-              {(products.data?.items ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {buildable.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           </Field>
           <Field label="Quantity" required>
@@ -450,7 +454,7 @@ export default function Production() {
           <Field label="Product" required className="sm:col-span-2">
             <Select value={bomProduct} onChange={(e) => setBomProduct(e.target.value)}>
               <option value="">Choose a product…</option>
-              {(products.data?.items ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {buildable.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           </Field>
           <Field label="Yield per run">
@@ -463,7 +467,7 @@ export default function Production() {
           <div className="space-y-2">
             {bomLines.map((l, i) => {
               const opts = l.itemKind === "product"
-                ? (products.data?.items ?? []).map((p) => ({ id: p.id, name: p.name }))
+                ? buildable.map((p) => ({ id: p.id, name: p.name }))
                 : (materials.data ?? []).map((m) => ({ id: m.id, name: m.name }));
               return (
                 <div key={i} className="grid grid-cols-12 items-end gap-2 rounded-control border border-line bg-slate-50/60 p-2">

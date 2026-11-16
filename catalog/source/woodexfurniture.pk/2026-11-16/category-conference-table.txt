@@ -1,0 +1,10 @@
+# Source: https://woodexfurniture.pk/categories/conference-table   label: Conference Table   page says: 8 of 8 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+aspire-conference-table | Aspire-Conference-Table | 0 |  | 1772819839_Aspire-Conference-Table.jpg
+diamond-conference-table | Diamond-Conference-Table | 85,000 |  | 1772819968_Diamond-Conference-Table.jpg
+division-conference-table | Division-Conference-Table | 0 |  | 1772820085_Division-Conference-Table.jpg
+eminence-conference-table | Eminence Conference Table | 0 |  | 1772820175_Eminence-Conference-Table.jpg
+imperial-executive-conference-table | Imperial Executive Conference Table | 0 |  | 1772820260_Imperial-Executive-Conference-Table.jpg
+infinity-executive-conference-table | Infinity Executive Conference Table | 0 |  | 1772820354_Infinity-Executive-Conference-Table.jpg
+nova-prime-conference-table | Nova Prime Conference Table | 95,000 |  | 1772820453_Nova-Prime-Conference-Table.jpg
+sapphire-executive-conference-table | Sapphire Executive Conference Table | 85,000 |  | 1772820540_Sapphire-Executive-Conference-Table.jpg

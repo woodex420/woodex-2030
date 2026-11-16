@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PUBLIC_ROUTES } from "../apps/api/public-routes.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
@@ -78,6 +79,10 @@ const facts = {
   sqliteTables: sqliteTableSet.size,
   dashboardRoutes: count(/<Route[\s>]/g, dashApp),
   storefrontRoutes: count(/<Route[\s>]/g, shopApp),
+  /* The build renders the static public pages to HTML, and only those: the
+     list the sitemap is built from. Product pages are not among them — the
+     catalogue lives in the database, which a build never reads. */
+  prerenderedRoutes: PUBLIC_ROUTES.length,
   products: seed.products.length,
   materials: seed.materials.length,
   services: seed.services.length,
@@ -96,7 +101,10 @@ function docNumber(pattern, label) {
 }
 
 const documented = {
-  migrations: docNumber(/\|\s*Migrations applied\s*\|\s*\*{0,2}(\d+)/, "Migrations applied"),
+  /* "in the repository", not "applied": this script counts files. Which of
+     them a given database has received is in that database's ledger. */
+  migrations: docNumber(/\|\s*Migrations in the repository\s*\|\s*\*{0,2}(\d+)/, "Migrations in the repository"),
+  prerenderedRoutes: docNumber(/\|\s*Prerendered storefront routes\s*\|\s*\*{0,2}(\d+)/, "Prerendered storefront routes"),
   checkConstraints: docNumber(/\|\s*CHECK constraints\s*\|\s*\*{0,2}(\d+)/, "CHECK constraints"),
   apiRoutes: docNumber(/\|\s*API route handlers\s*\|\s*\*{0,2}(\d+)/, "API route handlers"),
   dashboardRoutes: docNumber(/\|\s*Dashboard routes\s*\|\s*\*{0,2}(\d+)/, "Dashboard routes"),
@@ -118,6 +126,23 @@ else {
   if (p !== facts.products) problems.push(`${STATE}: seed products documented as ${p}, actual ${facts.products}`);
   if (m !== facts.materials) problems.push(`${STATE}: seed materials documented as ${m}, actual ${facts.materials}`);
   if (s !== facts.services) problems.push(`${STATE}: seed services documented as ${s}, actual ${facts.services}`);
+}
+
+/* The prerender count is quoted as a thing to look for in a build log ("must
+   print N/N routes rendered"). A stale N there sends somebody hunting for a
+   failure that is not one — it said 76 for as long as the build rendered 60
+   demo products; it renders none now. */
+for (const file of ["AGENTS.md", "docs/DEPLOYMENT.md", STATE]) {
+  const body = read(file);
+  const quoted = [
+    ...[...body.matchAll(/\b(\d+)\/(\d+) routes\s+(?:rendered|written)/g)].flatMap((m) => [Number(m[1]), Number(m[2])]),
+    ...[...body.matchAll(/\b(\d+) routes prerendered/g)].map((m) => Number(m[1])),
+    ...[...body.matchAll(/prerendering \((\d+) routes\b/g)].map((m) => Number(m[1])),
+    ...[...body.matchAll(/prerenders (?:all |the )?(\d+) (?:static )?public\s+routes/g)].map((m) => Number(m[1])),
+  ];
+  for (const n of new Set(quoted)) {
+    if (n !== facts.prerenderedRoutes) problems.push(`${file}: quotes ${n} prerendered routes, actual ${facts.prerenderedRoutes}`);
+  }
 }
 
 /* ---------- the specific drift the review found ---------- */

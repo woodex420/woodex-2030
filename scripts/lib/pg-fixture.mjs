@@ -48,13 +48,19 @@ export function readMigrations() {
  * Throws if the ledger disagrees with the files (an applied migration that has
  * since been edited, or a ledger row with no file).
  */
-export async function applyFullSchema(target) {
+export async function applyFullSchema(target, { upTo = Infinity } = {}) {
   await target.exec(fs.readFileSync(path.join(ROOT, "scripts", "schema.postgres.sql"), "utf8"));
   await target.exec(`CREATE TABLE IF NOT EXISTS schema_migrations(
     version INTEGER PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL,
     applied_at TEXT NOT NULL, duration_ms INTEGER NOT NULL);`);
 
-  const migrations = readMigrations();
+  /* `upTo` stops before a later migration. It exists for one purpose: to build
+     the database a deployment actually meets when the code arrives before the
+     migration does, so that case can be tested instead of assumed. The ledger
+     check below still sees every file — a database that claims a migration
+     this run was told to stop before is inconsistent either way. */
+  const every = readMigrations();
+  const migrations = every.filter((m) => m.version <= upTo);
   const ledger = new Map((await target.q("SELECT version, name, checksum FROM schema_migrations ORDER BY version"))
     .map((row) => [Number(row.version), row]));
 
@@ -66,7 +72,7 @@ export async function applyFullSchema(target) {
     }
   }
   for (const [version, row] of ledger) {
-    if (!migrations.some((m) => m.version === version)) problems.push(`the ledger records migration ${version} (${row.name}) but no such file exists`);
+    if (!every.some((m) => m.version === version)) problems.push(`the ledger records migration ${version} (${row.name}) but no such file exists`);
   }
   if (problems.length) throw new Error("schema ledger is inconsistent:\n  " + problems.join("\n  "));
 
@@ -123,10 +129,10 @@ export async function openPglite(dir) {
 }
 
 /** Create a new, empty PGlite database carrying the complete schema. */
-export async function createPgliteDatabase(dir) {
+export async function createPgliteDatabase(dir, options = {}) {
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   const target = await openPglite(dir);
-  try { return await applyFullSchema(target); }
+  try { return await applyFullSchema(target, options); }
   finally { await target.close(); }
 }
 

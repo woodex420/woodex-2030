@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/shop/ProductCard";
 import { seriesList, getProductsBySeries } from "@/data/products";
+import { useCatalogStatus } from "@/lib/runtime";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getSeriesSeo } from "@/data/seoContent";
 import { img } from "@/assets/img";
@@ -22,6 +23,12 @@ const seriesImages: Record<string, string> = {
 const Series = () => {
   const [activeTab, setActiveTab] = useState("woodex-series");
   const tabProducts = getProductsBySeries(activeTab).slice(0, 4);
+  /* How many products a series has is counted from the catalogue. The figures
+     that used to be printed here (18, 26, 34…) were typed into the series
+     list and matched nothing. Nothing is printed until the catalogue is in. */
+  const catalogReady = useCatalogStatus() === "ready";
+  const countIn = (seriesId: string) => (catalogReady ? getProductsBySeries(seriesId).length : 0);
+  const countText = (n: number) => `${n} product${n === 1 ? "" : "s"}`;
   const activeSeo = getSeriesSeo(activeTab);
 
   useEffect(() => {
@@ -78,9 +85,11 @@ const Series = () => {
                   <div className="absolute top-4 left-4">
                     <Badge className="bg-accent text-accent-foreground">{s.badge}</Badge>
                   </div>
-                  <div className="absolute bottom-4 left-4">
-                    <span className="text-xs text-white/80 bg-primary/60 px-2 py-1 rounded">{s.products} products in this series</span>
-                  </div>
+                  {countIn(s.id) > 0 && (
+                    <div className="absolute bottom-4 left-4">
+                      <span className="text-xs text-white/80 bg-primary/60 px-2 py-1 rounded">{countText(countIn(s.id))} in this series</span>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="w-12 h-1 bg-accent mb-5" />
@@ -151,7 +160,7 @@ const Series = () => {
                   <Badge className="bg-hon-green-pale text-accent text-xs mb-3">{s.badge}</Badge>
                   <h3 className="font-bold text-lg mb-1 group-hover:text-accent transition-colors">{s.name}</h3>
                   <p className="text-sm text-muted-foreground mb-3">{s.tagline}</p>
-                  <p className="text-xs text-accent font-semibold">{s.products} products</p>
+                  {countIn(s.id) > 0 && <p className="text-xs text-accent font-semibold">{countText(countIn(s.id))}</p>}
                 </Link>
               ))}
             </div>

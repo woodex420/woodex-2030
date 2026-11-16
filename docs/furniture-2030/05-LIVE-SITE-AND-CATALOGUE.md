@@ -4,6 +4,8 @@ The shop at woodexfurniture.pk is a custom PHP website. It was not built from th
 
 **Dates.** The site was read on 2026-11-11 through public pages only. `robots.txt` was re-read on 2026-11-16. The raw product list captured on 2026-11-11 was lost with the audit sandbox, so the figures in §2 must be reproduced by a fresh crawl before any migration.
 
+**Since Phase 2 (2026-11-16).** The fresh capture was made and is kept in `catalog/source/woodexfurniture.pk/2026-11-16/`: 171 products on the live quotation page, 170 prepared for import, 1 left out. The figures the owner should now read are in [`catalogue/IMPORT-REPORT.md`](catalogue/IMPORT-REPORT.md); the product model of §3 exists as migration 019. See [07](07-PHASE-2-REPORT.md).
+
 ## 1. State of the live site
 
 | Topic | Finding |

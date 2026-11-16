@@ -1,0 +1,29 @@
+{
+  "_about": "How a category on woodexfurniture.pk maps to the storefront taxonomy, and which SKU prefix the category uses. Read by scripts/catalog-build.mjs. `skuPrefix` is the prefix the live SKUs of that category mostly carry; `alsoPrefix` lists other spellings found for the same family of codes. A prefix marked `new: true` did not exist on the live shop: it is proposed because the category either has no SKUs at all or shares its prefix with another category. `family` groups categories a product could reasonably sit in; a product whose name points to another family is flagged. `nameKeywords` are the words that point to the category.",
+  "categories": {
+    "ceo-table":             { "label": "CEO Table",             "category": "office-tables", "subcategory": "ceo-tables",        "skuPrefix": "ET",  "family": "desks",        "nameKeywords": [] },
+    "executive-table":       { "label": "Executive Table",       "category": "office-tables", "subcategory": "executive-tables",  "skuPrefix": "ET",  "family": "desks",        "nameKeywords": ["executive desk", "executive table", "executive office table"] },
+    "manager-table":         { "label": "Manager Table",         "category": "office-tables", "subcategory": "manager-tables",    "skuPrefix": "MT",  "family": "desks",        "nameKeywords": ["manager table"] },
+    "staff-table":           { "label": "Staff Table",           "category": "office-tables", "subcategory": "staff-tables",      "skuPrefix": "ST",  "family": "desks",        "nameKeywords": ["staff table"] },
+    "meeting-table":         { "label": "Meeting Table",         "category": "office-tables", "subcategory": "meeting-tables",    "skuPrefix": "MTG", "family": "meeting",      "nameKeywords": ["meeting table"], "new": true, "why": "The live meeting tables carry MT, which the manager tables also carry, so their codes collide." },
+    "conference-table":      { "label": "Conference Table",      "category": "office-tables", "subcategory": "conference-tables", "skuPrefix": "CT",  "family": "meeting",      "nameKeywords": ["conference table"] },
+    "discussion-table":      { "label": "Discussion Table",      "category": "office-tables", "subcategory": "discussion-tables", "skuPrefix": "DT",  "family": "meeting",      "nameKeywords": [] },
+    "reception-desk":        { "label": "Reception Desk",        "category": "office-tables", "subcategory": "reception-tables",  "skuPrefix": "RD",  "alsoPrefix": ["RT"], "family": "reception", "nameKeywords": ["reception"] },
+    "center-table":          { "label": "Center Table",          "category": "office-tables", "subcategory": "center-tables",     "skuPrefix": "CTB", "family": "occasional",   "nameKeywords": ["center table"], "new": true, "why": "No product in this category has a SKU." },
+    "executive-chairs":      { "label": "Executive Chairs",      "category": "chairs",        "subcategory": "executive-chairs",  "skuPrefix": "EC",  "family": "chairs",       "nameKeywords": ["executive chair"] },
+    "manager-chair":         { "label": "Manager Chair",         "category": "chairs",        "subcategory": "manager-chairs",    "skuPrefix": "MC",  "family": "chairs",       "nameKeywords": ["manager chair", "manger chair"] },
+    "staff-chairs":          { "label": "Staff Chairs",          "category": "chairs",        "subcategory": "staff-chairs",      "skuPrefix": "SC",  "family": "chairs",       "nameKeywords": ["staff chair"] },
+    "visitor-chair":         { "label": "Visitor Chair",         "category": "chairs",        "subcategory": "visitor-chairs",    "skuPrefix": "VC",  "family": "chairs",       "nameKeywords": ["visitor chair"] },
+    "workstation":           { "label": "Workstation",           "category": "workstations",  "subcategory": null,                "skuPrefix": "WS",  "family": "workstations", "nameKeywords": ["workstation"] },
+    "cubicle-workstation":   { "label": "Cubicle Workstation",   "category": "cubicle-workstations", "subcategory": null,         "skuPrefix": "CW",  "family": "workstations", "nameKeywords": ["cubicle"], "new": true, "why": "The category has no products on the live shop." },
+    "office-sofas":          { "label": "Office Sofas",          "category": "office-sofas",  "subcategory": null,                "skuPrefix": "SF",  "family": "sofas",        "nameKeywords": ["sofa", "lounge"], "new": true, "why": "No product in this category has a SKU." },
+    "office-storages":       { "label": "Office Storages",       "category": "storage",       "subcategory": null,                "skuPrefix": "OS",  "family": "storage",      "nameKeywords": ["cabinet", "pedestal"], "new": true, "why": "No product in this category has a SKU." },
+    "home-office-furniture": { "label": "Home Office Furniture", "category": "home-office",   "subcategory": null,                "skuPrefix": "HOF", "alsoPrefix": ["HF"], "family": "desks", "nameKeywords": ["home office"] },
+    "series":                { "label": "Series",                "notAProductCategory": true, "why": "\"Series\" is a collection page on the live shop, not a kind of furniture. A product found only there is placed by its SKU prefix." }
+  },
+  "specificity": [
+    "ceo-table", "executive-table", "manager-table", "staff-table", "conference-table", "discussion-table", "meeting-table",
+    "reception-desk", "center-table", "executive-chairs", "manager-chair", "staff-chairs", "visitor-chair",
+    "workstation", "cubicle-workstation", "office-sofas", "office-storages", "home-office-furniture", "series"
+  ]
+}

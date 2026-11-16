@@ -1,0 +1,6 @@
+# Source: https://woodexfurniture.pk/categories/office-storages   label: Office Storages   page says: 4 of 4 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+f | f | 0 |  | 1781871672_0_c.jpg
+brook-display-cabinet | Brook Display Cabinet | 78,000 |  | 1781871796_0_06.jpg
+magic-full-height-cabinet | Magic Full Height Cabinet | 48,000 |  | 1781871916_0_Magic-Full-Height-Cabinet.jpg
+polo-pedestal | Polo Pedestal | 15,000 |  | 1781872054_0_Polo-Pedestal.jpg

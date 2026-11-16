@@ -14,13 +14,39 @@
  *   node scripts/smoke-render.mjs dashboard
  *
  * Exits non-zero when an app mounts nothing or logs an error, so it can gate CI.
+ *
+ * It also reads the storefront bundle it has just built and fails if a demo
+ * product is in it — see demoProductsIn() below.
  */
 import { JSDOM, VirtualConsole } from "jsdom";
 import { build } from "esbuild";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * Which demo products are compiled into this bundle. The answer must be none.
+ *
+ * The storefront shows what the database holds. Until Furniture 2030 Phase 2
+ * it also carried 148 sample products in its own code, showed them before the
+ * API answered, and showed them INSTEAD of the API when it did not — sample
+ * names and sample prices, to a customer, with nothing to say so. The list now
+ * lives in apps/storefront/src/data/demo-products.ts, which only the seed
+ * snapshot reads. One careless import would bring all of it back and nothing
+ * would look wrong. This looks.
+ *
+ * A demo product is recognised by its id or its name as a string literal. No
+ * other storefront source contains either (checked when this was written), so
+ * a hit means the list itself was bundled.
+ */
+function demoProductsIn(bundleText) {
+  const demo = JSON.parse(fs.readFileSync(path.join(ROOT, "apps/api/seed-data.json"), "utf8")).products;
+  if (!Array.isArray(demo) || demo.length === 0) throw new Error("apps/api/seed-data.json lists no demo products; the bundle cannot be checked against it");
+  const found = demo.filter((p) => bundleText.includes(JSON.stringify(p.id)) || bundleText.includes(JSON.stringify(p.name))).map((p) => p.id);
+  return { known: demo.length, found };
+}
 
 const APPS = {
   storefront: { dir: "apps/storefront", mount: "root", url: "http://127.0.0.1:5174/" },
@@ -114,10 +140,20 @@ async function render(name, app) {
   const el = w.document.getElementById(app.mount);
   const children = el ? el.children.length : 0;
   const length = el ? el.innerHTML.length : 0;
+  let demoNote = "";
+  if (name === "storefront") {
+    const demo = demoProductsIn(result.outputFiles[0].text);
+    demoNote = ` demo-products-in-bundle=${demo.found.length}/${demo.known}`;
+    if (demo.found.length) {
+      errs.push(`[demo catalogue] ${demo.found.length} of ${demo.known} demo products are compiled into the storefront ` +
+        `(${demo.found.slice(0, 3).join(", ")}${demo.found.length > 3 ? ", …" : ""}). ` +
+        "Nothing the site loads may import apps/storefront/src/data/demo-products.ts.");
+    }
+  }
   const ok = children > 0 && errs.length === 0;
 
   console.log(
-    `${ok ? "PASS" : "FAIL"}  ${name.padEnd(10)} children=${children} html=${length}B errors=${errs.length}`,
+    `${ok ? "PASS" : "FAIL"}  ${name.padEnd(10)} children=${children} html=${length}B errors=${errs.length}${demoNote}`,
   );
   if (errs.length) console.log("      " + errs.slice(0, 6).join("\n      "));
   return ok;
@@ -134,5 +170,5 @@ let failed = 0;
 for (const [name, app] of targets) {
   if (!(await render(name, app))) failed++;
 }
-console.log(failed ? `\n${failed} app(s) failed to mount` : "\nAll apps mounted");
+console.log(failed ? `\n${failed} app(s) failed — see the lines above` : "\nAll apps mounted");
 process.exit(failed ? 1 : 0);

@@ -1,0 +1,2 @@
+# Source: https://woodexfurniture.pk/categories/cubicle-workstation   label: Cubicle Workstation   page says: 0 Products ("No products found")
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/

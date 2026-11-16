@@ -6,6 +6,7 @@
    STOREFRONT_BASE, E2E_SQLITE_DB. */
 import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { signInToDashboard } from "./lib/browser.mjs";
 
 const DASHBOARD_BASE = process.env.DASHBOARD_BASE ?? process.env.BASE ?? "http://127.0.0.1:5173";
 const STOREFRONT_BASE = process.env.STOREFRONT_BASE ?? "http://127.0.0.1:5174";
@@ -112,9 +113,7 @@ try {
   const dashboard = await context.newPage();
   dashboard.on("pageerror", (error) => failures.push(`dashboard page error: ${error.message}`));
   await dashboard.goto(`${DASHBOARD_BASE}/dashboard`, { waitUntil: "domcontentloaded" });
-  await dashboard.getByPlaceholder("admin").first().fill("admin");
-  await dashboard.locator('input[type="password"]').fill("admin");
-  await dashboard.getByRole("button", { name: /sign in/i }).click();
+  await signInToDashboard(dashboard);
   await dashboard.getByRole("link", { name: "Overview", exact: true }).waitFor();
   await dashboard.goto(`${DASHBOARD_BASE}/crm`, { waitUntil: "domcontentloaded" });
   await dashboard.getByRole("heading", { name: "CRM — Lead Pipeline" }).waitFor();

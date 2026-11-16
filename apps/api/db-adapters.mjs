@@ -50,6 +50,8 @@ export const RETURN_ID_TABLES = new Set([
   "service_visits", "ticket_messages", "tickets", "warranty_claims",
   // 017 credentials · 018 throttle
   "password_resets", "throttle_buckets",
+  // 019 catalogue
+  "product_variants",
 ]);
 
 /** Convert SQLite '?' placeholders to PostgreSQL '$n', respecting SQL quoting/comments. */

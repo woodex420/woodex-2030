@@ -18,6 +18,9 @@ Recorded from the owner's answers on 2026-11-16, in two rounds: before the analy
 | OD-10 | "The admin" means the React dashboard in this repository, served at `/admin` on woodex-2030.vercel.app. It is the one to fix and deploy. | The Laravel "WOODEX OS" on branch `arena/69363bda-woodex-2030` stays unmerged and undeployed. See §4. |
 | OD-11 | Ship through `main`. Vercel deploys `main` to woodex-2030.vercel.app. | Phase 1 reaches the demo site by a pull request into `main`, after CI passes. |
 | OD-12 | The repository should be private. | Not done yet: see Q-2. |
+| OD-13 | Phase 2 in [03](03-LAUNCH-PLAN.md), the real catalogue, is approved ("start complate next", 2026-11-16). | Delivered: see [07](07-PHASE-2-REPORT.md). It does not authorise applying migration 019 to the hosted database, nor publishing any product. |
+| OD-14 | **The Laravel WOODEX OS is the base. The whole Agency OS is migrated into it, by a master plan** (2026-11-16, later the same day). | **Changes the target** set by OD-1, OD-2 and OD-10: the destination is one Laravel admin, not the React dashboard. Those three remain true of the *live* system until each module is cut over. The plan is [`../woodex-os/00-MASTER-PLAN.md`](../woodex-os/00-MASTER-PLAN.md); later decisions are logged in [`../woodex-os/12-DECISION-LOG.md`](../woodex-os/12-DECISION-LOG.md). |
+| OD-15 | Four answers to the plan's opening questions (2026-11-16): the admin's screens are Laravel Livewire; **Phase 2 is finished and merged first**; the look is the Agency OS look; the plan's order of work. | The Laravel branch is brought into the working branch after the Phase 2 merge (plan, Wave 0). |
 
 ## 2. Defaults assumed, not yet confirmed
 
@@ -54,5 +57,7 @@ Ordered by how soon each one blocks work.
 The Laravel system in `woodexinterior` was audited on 2026-11-11 at commit `603428c`, by reading the code only; its tests could not be run in the audit environment. It has a sound sales and finance core and no shop, inventory or production modules. By OD-2 it is on hold and nothing in this plan depends on it.
 
 A second Laravel effort exists in this repository: branch `arena/69363bda-woodex-2030` adds a `platform/` directory (a Laravel application called "WOODEX OS", about 1,600 files) with its own deployment files for Vercel and Hostinger. Its own readiness document says no deployment was performed and lists seven blockers. It was found on 2026-11-16, read, and left untouched: by OD-10 the admin to fix and deploy is the React dashboard. It needs PHP, Composer and a MySQL database, none of which exist in the environment this work is done in, so nothing in it could be run or tested here.
+
+**Since OD-14 (2026-11-16) that branch is no longer on hold:** it is the base of the WOODEX OS programme, described in [`../woodex-os/00-MASTER-PLAN.md`](../woodex-os/00-MASTER-PLAN.md). The paragraph above is kept as the record of what was decided before.
 
 The repository's own guidance on mixing stacks stays in force: do not run two back ends against the same business tables.

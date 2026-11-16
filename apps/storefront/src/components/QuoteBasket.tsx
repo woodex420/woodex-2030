@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useQuote } from "@/contexts/QuoteContext";
 import { formatPKR } from "@/data/products";
+import { keyOf } from "@/contexts/lineKey";
+import { ProductImage } from "@/components/shop/ProductImage";
 import { Link } from "react-router-dom";
 
 const QuoteBasket = () => {
-  const { items, removeItem, updateQuantity, clearQuote, totalItems, totalPrice, isOpen, setIsOpen } = useQuote();
+  const { items, removeItem, updateQuantity, clearQuote, totalItems, estimateText, onRequestCount, isOpen, setIsOpen } = useQuote();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,23 +63,24 @@ const QuoteBasket = () => {
             </div>
           ) : (
             items.map((item) => (
-              <div key={item.id} className="flex gap-4 p-4 border border-border rounded-sm hover:border-accent transition-colors">
+              <div key={keyOf(item)} className="flex gap-4 p-4 border border-border rounded-sm hover:border-accent transition-colors">
                 <div className="w-16 h-16 bg-section-light rounded-sm flex-shrink-0 overflow-hidden">
-                  {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
-                  {!item.image && <div className="w-full h-full flex items-center justify-center text-accent font-bold text-xl">{item.name[0]}</div>}
+                  <ProductImage src={item.image} name={item.name} className="w-full h-full object-cover" initialClassName="text-xl" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link to={`/shop/${item.id}`} onClick={() => setIsOpen(false)}>
                     <h4 className="font-semibold text-sm leading-tight mb-0.5 hover:text-accent transition-colors line-clamp-2">{item.name}</h4>
                   </Link>
-                  {item.color && <p className="text-xs text-muted-foreground mb-2">{item.color}</p>}
-                  <p className="text-sm font-bold text-accent">{formatPKR(item.price)}</p>
+                  {(item.variant || item.color) && <p className="text-xs text-muted-foreground mb-2">{[item.variant, item.color].filter(Boolean).join(" · ")}</p>}
+                  {item.issue
+                    ? <p className="text-xs text-destructive">{item.issue}</p>
+                    : <p className="text-sm font-bold text-accent">{item.priceOnRequest ? "Price on request" : formatPKR(item.price)}</p>}
                   <div className="flex items-center gap-2 mt-2">
                     <Button
                       variant="outline"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      onClick={() => updateQuantity(keyOf(item), item.quantity - 1)}
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
@@ -86,7 +89,7 @@ const QuoteBasket = () => {
                       variant="outline"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      onClick={() => updateQuantity(keyOf(item), item.quantity + 1)}
                     >
                       <Plus className="h-3 w-3" />
                     </Button>
@@ -94,7 +97,8 @@ const QuoteBasket = () => {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 ml-auto text-muted-foreground hover:text-destructive"
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => removeItem(keyOf(item))}
+                      aria-label={`Remove ${item.name}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -110,15 +114,20 @@ const QuoteBasket = () => {
           <div className="border-t p-5 space-y-4 bg-section-light">
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{totalItems} items</span>
-                <span>{formatPKR(totalPrice)}</span>
+                <span>{totalItems} item{totalItems === 1 ? "" : "s"}</span>
               </div>
               <Separator />
-              <div className="flex justify-between font-bold text-lg">
+              {/* The estimate as words: "PKR 84,000", "PKR 84,000 + 1 on request"
+                  or "On request" — never "PKR 0" for a basket that has no price yet. */}
+              <div className="flex justify-between gap-3 font-bold text-lg">
                 <span>Estimated Total</span>
-                <span className="text-accent">{formatPKR(totalPrice)}</span>
+                <span className="text-accent text-right">{estimateText}</span>
               </div>
-              <p className="text-xs text-muted-foreground">Final pricing confirmed in your quotation</p>
+              <p className="text-xs text-muted-foreground">
+                {onRequestCount > 0
+                  ? `We will send the price of the ${onRequestCount === 1 ? "item" : `${onRequestCount} items`} priced on request in your quotation.`
+                  : "Final pricing confirmed in your quotation"}
+              </p>
             </div>
             <div className="space-y-2">
               <Button

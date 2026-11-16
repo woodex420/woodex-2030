@@ -1,0 +1,23 @@
+# Source: https://woodexfurniture.pk/categories/reception-desk   label: Reception Desk   page says: 21 of 21 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+careline-reception-desk | CareLine Reception Desk | 95,000 |  | 1772732189_CareLine%20Reception%20Desk.jpg
+deep-max-reception-desk | Deep Max Reception Desk | 65,000 |  | 1772732560_Deep%20Max%20Reception%20Desk.jpg
+elitewave-reception-desk | EliteWave Reception Desk | 120,000 |  | 1772732736_EliteWave-300x300.jpg
+execline-reception-desk | ExecLine Reception Desk | 98,000 |  | 1772732881_ExecLine%20Reception%20Desk.jpg
+focusline-reception-desk | FocusLine Reception Desk | 145,000 |  | 1772733012_FocusLine-300x300.jpg
+glamedge-reception-desk | GlamEdge Reception Desk | 90,000 |  | 1772733180_GlamEdge%20Reception%20Desk.jpg
+grandhost-reception-desk | GrandHost Reception Desk | 65,000 |  | 1772733272_GrandHost%20Reception%20Desk.jpg
+horizonhost-reception-desk | HorizonHost Reception Desk | 65,000 |  | 1772733388_HorizonHost%20Reception%20Desk.jpg
+luxefront-reception-desk | LuxeFront Reception Desk | 65,000 |  | 1772733562_LuxeFront%20Reception%20Desk.jpg
+medfront-reception-desk | MedFront Reception Desk | 65,000 |  | 1772733698_MedFront%20Reception%20Desk.jpg
+mirrorlin-reception-desk | MirrorLin Reception Desk | 65,000 |  | 69a9ca40d66f8.jpg
+omega-reception-counter | Omega Reception Counter | 115,000 |  | 1772733937_RECE-1-300x300.jpg
+pinnacle-office-reception-desk | Pinnacle Office Reception Desk | 65,000 |  | 1772734030_Pinnacle-Office-Reception-Desk-300x300.jpg
+prodesk-reception-desk | ProDesk Reception Desk | 65,000 |  | 1772734146_ProDesk-300x300.jpg
+pulsecounter-reception-desk | PulseCounter Reception Desk | 65,000 |  | 1772734259_PulseCounter%20Reception%20Desk.jpg
+pureentry-office-reception-desk | PureEntry Office Reception Desk | 65,000 |  | 1772734376_PureEntry%20Office%20Reception%20Desk.jpg
+sharpline-reception-desk | SharpLine Reception Desk | 65,000 |  | 1772734488_SharpLine-Reception-300x300.jpg
+strato-reception-desk | Strato Reception Desk | 65,000 |  | 1772734637_StratoDesk-Reception-300x300.jpg
+style-touch-reception-desk | Style Touch Reception Desk | 65,000 |  | 1772734785_Style-Touch-Reception-300x300.jpg
+vitadesk-reception-desk | VitaDesk Reception Desk | 65,000 |  | 1772734917_VitaDesk%20Reception%20Desk.jpg
+crown-point-reception-desk | Crown Point Reception Desk | 45,000 |  | 1780567578_CrownPoint.jpg

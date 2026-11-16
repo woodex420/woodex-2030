@@ -42,6 +42,28 @@ Found during Phase 1, not in this audit:
 | The copy tool masked the password in the connection string it prints with a pattern that showed half of a password containing `:` and all of one containing `/`. | Medium | Fixed and tested. |
 | Chart grid labels round to thousands, so a chart of small numbers shows `0` on every grid line. | Low | Open |
 
+## 0b. Status after Phase 2 (2026-11-16)
+
+Phase 2 is reported in [07](07-PHASE-2-REPORT.md). What it changes in the table above:
+
+| Finding | Status | Note |
+|---|---|---|
+| F-07 demo catalogue, no SKU or variants | **Fixed in the code; two owner steps open** | The product model has SKUs, options, states and "price on request" (migration 019). The real catalogue — 170 products — is prepared and loads as drafts. Open: the owner signs the import report; migration 019 is applied to the hosted database. |
+| F-06 owner-only routes | Open, **with new detail** | Every role other than the owner is refused on `/api/stats` (14 requests on the Overview screen), `/api/stats/revenue`, `/api/leads` and `/api/events`; the view-only role also on `/api/quotes`. Phase 3. |
+| F-11 search engines | Open, **with a follow-up** | Product pages are no longer pre-built as HTML: the catalogue lives in the database. They need server rendering before the shop is opened to search engines. |
+
+Defects found during Phase 2 and fixed in it (each is described in the report, B.5): cart and quotation lines identified by product alone; an invented quotation number on the printed estimate; "PKR 0" totals; a free-delivery promise the checkout did not keep; links to pages that do not exist; buttons that did nothing; refusals that all read "please try again"; a seed check that compared a file with itself; 10,109 invented reviews; the quantity on hand published to anyone; a sign-in form that could overwrite what was being typed.
+
+Found and **left open**:
+
+| | |
+|---|---|
+| The header, the footer, the category row and the home page link to categories of the demo catalogue | Hard-coded. To be driven by the catalogue. |
+| Company claims on the storefront | Testimonial ratings, room-package prices, price answers in the FAQ, "Free Assembly", "24/7", the delivery rule. Waiting for Q-4. |
+| Product photographs are loaded from woodexfurniture.pk | To be copied in the Hostinger phase. |
+| The dashboard's top-right chip reads "Ayesha Rehman · Admin · Woodex" while signed in as Admin | Not investigated. |
+| The dashboard's page preview assumes the storefront is on port 5174 in development | Affects local runs only. |
+
 ## 1. What passes
 
 The repository's own definition of done was run in full on the untouched checkout. All 31 steps exit 0 ([results](evidence/results/gate-2026-11-16.tsv)).

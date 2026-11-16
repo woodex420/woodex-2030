@@ -1,28 +1,43 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, FileText, Settings, Shield, Truck } from "lucide-react";
-import { Product } from "@/data/products";
+import { Product, formatPKR } from "@/data/products";
+import { brand } from "@/config/brand";
 
 interface SpecificationTabsProps {
   product: Product;
 }
 
 const SpecificationTabs = ({ product }: SpecificationTabsProps) => {
+  /* A tab is offered only when the product has something to put in it. The
+     catalogue taken from the old shop has names, prices and photographs and,
+     for most products, no description or specification yet; an empty tab
+     would be a page that promises text and shows a blank card. */
+  const hasDescription = product.description.trim().length > 0;
+  const hasSpecifications = product.specifications.length > 0;
+  const hasFeatures = product.features.length > 0;
+  const first = hasDescription ? "description" : hasSpecifications ? "specifications" : hasFeatures ? "features" : "shipping";
   return (
-    <Tabs defaultValue="description" className="w-full">
+    <Tabs key={product.id + first} defaultValue={first} className="w-full">
       <TabsList className="w-full justify-start h-auto flex-wrap gap-1 bg-muted/50 p-1">
-        <TabsTrigger value="description" className="flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          Description
-        </TabsTrigger>
-        <TabsTrigger value="specifications" className="flex items-center gap-2">
-          <Settings className="h-4 w-4" />
-          Specifications
-        </TabsTrigger>
-        <TabsTrigger value="features" className="flex items-center gap-2">
-          <Check className="h-4 w-4" />
-          Features
-        </TabsTrigger>
+        {hasDescription && (
+          <TabsTrigger value="description" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Description
+          </TabsTrigger>
+        )}
+        {hasSpecifications && (
+          <TabsTrigger value="specifications" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Specifications
+          </TabsTrigger>
+        )}
+        {hasFeatures && (
+          <TabsTrigger value="features" className="flex items-center gap-2">
+            <Check className="h-4 w-4" />
+            Features
+          </TabsTrigger>
+        )}
         <TabsTrigger value="shipping" className="flex items-center gap-2">
           <Truck className="h-4 w-4" />
           Shipping
@@ -89,9 +104,12 @@ const SpecificationTabs = ({ product }: SpecificationTabsProps) => {
                 <Truck className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <h4 className="font-medium mb-1">Free Delivery</h4>
+                {/* The rule checkout applies (brand.delivery). This text used to
+                    promise free delivery "within UAE for orders above AED 2,000". */}
+                <h4 className="font-medium mb-1">Delivery across Pakistan</h4>
                 <p className="text-sm text-muted-foreground">
-                  Free delivery within UAE for orders above AED 2,000. Standard delivery takes 5-7 business days.
+                  Delivery is {formatPKR(brand.delivery.fee)} per order and free on orders of {formatPKR(brand.delivery.freeFrom)} or more.
+                  Our team confirms the delivery date with you after your order.
                 </p>
               </div>
             </div>

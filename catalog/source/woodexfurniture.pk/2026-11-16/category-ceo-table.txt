@@ -1,0 +1,8 @@
+# Source: https://woodexfurniture.pk/categories/ceo-table   label: CEO Table   page says: 6 of 6 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+ambassador-executive-table | Ambassador Executive Table | 15,000 | 185,000 | 1772727338_Ambassador%20Executive%20Table.jpg
+elegance-executive-office-table | Elegance Executive Office Table | 155,000 | 185,000 | 1772727754_Elegance%20Executive%20Office%20Table.jpg
+elite-executive-desk | Elite Executive Desk | 145,000 | 150,000 | 1772727836_Elite%20Executive%20Desk.jpg
+imperial-executive-desk | Classic Executive Desk | 130,000 | 150,000 | 69a9afb3344da.png
+imperial-executive-desk-1772727978 | Royal Prestige Executive Table | 130,000 | 150,000 | 69a9af6e83a4a.jpg
+imperial-executive-desk-1772728039 | Imperial Executive Desk | 130,000 | 150,000 | 1772728039_Imperial%20Executive%20Desk.jpg

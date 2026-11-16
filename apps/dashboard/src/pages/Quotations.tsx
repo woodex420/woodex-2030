@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SkeletonRows, EmptyState } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { QuoteTemplateDesigner, DEFAULT_QUOTE_TEMPLATE, PAYMENT_TERMS_NOTE } from "@/components/quotation/QuoteTemplateDesigner";
-import { useApi, useProducts, mutate, fmtPKR, timeAgo, type ApiLead, type ApiQuote, type ApiQuoteVersion, type ApiProduct, type ApiQuoteTemplate, type ApiQuoteTemplateBlock } from "@/lib/api";
+import { useApi, useProducts, mutate, fmtPKR, img, stockLabel, timeAgo, type ApiLead, type ApiQuote, type ApiQuoteVersion, type ApiProduct, type ApiVariant, type ApiQuoteTemplate, type ApiQuoteTemplateBlock } from "@/lib/api";
 import { ArrowRight, Check, FileText, Plus, Save, Search, Send, Sparkles } from "@/icons";
 
 const IconTrash = ({ size = 14 }: { size?: number }) => (
@@ -131,6 +131,11 @@ type Line = {
   customNotes: string;
   qty: number;
   price: number;
+  /* Which code the line is quoted under and, for a product sold in several
+     options, which one. Empty for a custom line. */
+  sku: string;
+  variantId: number | null;
+  variant: string;
 };
 type Stage = "Draft" | "Review" | "Approval" | "Sent" | "Revised";
 
@@ -144,6 +149,7 @@ const todayInPakistan = () => {
 const blankLine = (): Line => ({
   id: `${Date.now()}-${Math.random()}`, productId: "", category: "", series: "", name: "",
   material: "", finish: "", width: "", height: "", depth: "", dimensionUnit: "", customNotes: "", qty: 1, price: 0,
+  sku: "", variantId: null, variant: "",
 });
 const quoteLine = (item: ApiQuote["items"][number], index: number): Line => ({
   id: String(item.id ?? `${Date.now()}-${index}`), productId: item.productId ?? "",
@@ -152,6 +158,7 @@ const quoteLine = (item: ApiQuote["items"][number], index: number): Line => ({
   width: item.width == null ? "" : String(item.width), height: item.height == null ? "" : String(item.height),
   depth: item.depth == null ? "" : String(item.depth), dimensionUnit: item.dimensionUnit ?? "",
   customNotes: item.customNotes ?? "", qty: Number(item.qty) || 1, price: Number(item.price) || 0,
+  sku: item.sku ?? "", variantId: item.variantId ?? null, variant: item.variant ?? "",
 });
 const lineDimensions = (line: Line) => {
   const values = [["W", line.width], ["H", line.height], ["D", line.depth]]
@@ -302,16 +309,39 @@ export function QuotationBuilder() {
   const updateLine = (id: string, patch: Partial<Line>) =>
     setLines((current) => current.map((line) => line.id === id ? { ...line, ...patch } : line));
 
-  const addProduct = (product: ApiProduct) => {
+  /* What the picker offers: every product that is not archived, and for a
+     product sold in options one row per option that is on sale. */
+  const pickable = useMemo(() => (catalog.data?.items ?? [])
+    .filter((p) => p.status !== "archived")
+    .flatMap((p) => {
+      const options = p.variants.filter((v) => v.active);
+      return options.length ? options.map((variant) => ({ product: p, variant: variant as ApiVariant | null })) : [{ product: p, variant: null as ApiVariant | null }];
+    }), [catalog.data]);
+  const pickedRows = useMemo(() => {
+    const q = catalogQuery.trim().toLowerCase();
+    if (!q) return pickable;
+    return pickable.filter(({ product: p, variant: v }) =>
+      [p.name, p.subcategory ?? "", p.sku ?? "", v?.sku ?? "", v?.label ?? ""].join(" ").toLowerCase().includes(q));
+  }, [pickable, catalogQuery]);
+
+  /* A product sold in several options is added by option: the line says which
+     size or finish was quoted and carries that option's code and price. A
+     product or option priced on request arrives at 0 for staff to price — the
+     summary shows it, and the quotation cannot be mistaken for a priced one. */
+  const addProduct = (product: ApiProduct, variant: ApiVariant | null = null) => {
+    const onRequest = variant ? variant.priceOnRequest : product.priceOnRequest;
+    const price = onRequest ? 0 : variant ? variant.price : product.price;
+    const name = variant ? `${product.name} — ${variant.label}` : product.name;
     setLines((current) => {
-      const existing = current.find((line) => line.productId === product.id);
+      const existing = current.find((line) => line.productId === product.id && (line.variantId ?? null) === (variant?.id ?? null));
       if (existing) return current.map((line) => line.id === existing.id ? { ...line, qty: line.qty + 1 } : line);
       return [...current, {
         ...blankLine(), productId: product.id, category: product.category ?? "", series: product.series ?? "",
-        name: product.name, price: product.price,
+        name, price,
+        sku: variant?.sku ?? product.sku ?? "", variantId: variant?.id ?? null, variant: variant?.label ?? "",
       }];
     });
-    push({ tone: "success", title: "Added to quotation", desc: `${product.name} · ${fmt(product.price)}` });
+    push({ tone: onRequest ? "warning" : "success", title: "Added to quotation", desc: onRequest ? `${name} has no list price. Enter the price for this quotation on the line.` : `${name} · ${fmt(price)}` });
   };
 
   const saveQuote = async (nextStatus: string) => {
@@ -345,6 +375,8 @@ export function QuotationBuilder() {
           ...(line.depth !== "" ? { depth: Number(line.depth) } : {}),
           ...(line.dimensionUnit ? { dimensionUnit: line.dimensionUnit } : {}),
           customNotes: line.customNotes, price: line.price, qty: line.qty,
+          ...(line.sku ? { sku: line.sku } : {}),
+          ...(line.variantId ? { variantId: line.variantId, variant: line.variant } : {}),
         })),
         details: {
           company: customer.company, email: customer.email, phone: customer.phone, siteAddress: customer.address,
@@ -536,12 +568,12 @@ export function QuotationBuilder() {
             <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-5 lg:px-6 lg:pt-6">
               <div>
                 <h3 className="text-h3">Product / Service Lines</h3>
-                <p className="mt-1 text-small text-muted">{lines.length} items · from the {catalog.data?.items?.length ?? "live"}-SKU catalog or custom lines</p>
+                <p className="mt-1 text-small text-muted">{lines.length} items · from the catalogue or custom lines</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="subtle" size="sm" disabled={locked} onClick={() => {
-                  const product = (catalog.data?.items ?? []).find((item) => item.isBestSeller) ?? catalog.data?.items[0];
-                  if (product) addProduct(product);
+                  const product = pickable.find((entry) => entry.product.isBestSeller) ?? pickable[0];
+                  if (product) addProduct(product.product, product.variant);
                 }}><Sparkles size={14} /> Add a catalog suggestion</Button>
                 <Button variant="secondary" size="sm" disabled={locked} onClick={() => setCatalogOpen(true)}>From Catalog</Button>
               </div>
@@ -736,33 +768,39 @@ export function QuotationBuilder() {
         </div>
       </Modal>
 
-      {/* Live catalog picker — searches the same 205-SKU dataset the storefront sells */}
-      <Modal open={catalogOpen} onClose={() => setCatalogOpen(false)} title="Add from Catalog" description="Live from the shared backend" className="max-w-2xl" footer={null}>
+      {/* Catalogue picker. Staff see drafts as well as what is on sale — a
+          quotation is often how a product is sold before it is published — and
+          never an archived product. */}
+      <Modal open={catalogOpen} onClose={() => setCatalogOpen(false)} title="Add from Catalog" description="Products on sale and drafts. A product with options is added by option." className="max-w-2xl" footer={null}>
         <div onClick={(e) => e.stopPropagation()}>
           <div className="relative">
             <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-subtle" />
-            <input value={catalogQuery} onChange={(e) => setCatalogQuery(e.target.value)} placeholder="Search products…" className="h-10 w-full rounded-control border border-line-strong pl-9 text-small focus:border-primary-500 focus:outline-none" autoFocus />
+            <input value={catalogQuery} onChange={(e) => setCatalogQuery(e.target.value)} placeholder="Search by name or SKU…" className="h-10 w-full rounded-control border border-line-strong pl-9 text-small focus:border-primary-500 focus:outline-none" autoFocus />
           </div>
           <ul className="scrollbar-slim mt-3 max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-card border border-line">
-            {(catalog.data?.items ?? [])
-              .filter((p) => catalogQuery.trim() === "" || (p.name + " " + (p.subcategory ?? "")).toLowerCase().includes(catalogQuery.toLowerCase()))
-              .slice(0, 40)
-              .map((p) => (
-                <li key={p.id} className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-primary-50/50">
-                  <img src={"/img/" + p.images[0]} alt="" loading="lazy" className="h-11 w-14 shrink-0 rounded border border-line object-cover" />
+            {pickedRows.slice(0, 60).map(({ product: p, variant: v }) => {
+              const onRequest = v ? v.priceOnRequest : p.priceOnRequest;
+              return (
+                <li key={p.id + (v ? ":" + v.id : "")} className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-primary-50/50">
+                  {p.images[0]
+                    ? <img src={img(p.images[0])} alt="" loading="lazy" className="h-11 w-14 shrink-0 rounded border border-line object-cover" />
+                    : <span className="h-11 w-14 shrink-0 rounded border border-line bg-slate-100" />}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-small font-semibold text-ink">{p.name}</span>
-                    <span className="block truncate text-caption text-muted capitalize">{p.subcategory?.replace(/-/g, " ")} · {p.inStock ? "in stock" : "made to order"}</span>
+                    <span className="block truncate text-small font-semibold text-ink">{p.name}{v ? ` — ${v.label}` : ""}</span>
+                    <span className="block truncate text-caption text-muted">
+                      <span className="font-mono">{v?.sku ?? p.sku ?? "no SKU"}</span> · {stockLabel(p).toLowerCase()}{p.status === "draft" ? " · draft, not on sale" : ""}
+                    </span>
                   </span>
-                  <span className="text-small font-semibold text-ink">{fmt(p.price)}</span>
-                  <Button size="sm" onClick={() => addProduct(p)}><Plus size={13} /> Add</Button>
+                  <span className="text-small font-semibold whitespace-nowrap text-ink">{onRequest ? "On request" : fmt(v ? v.price : p.price)}</span>
+                  <Button size="sm" onClick={() => addProduct(p, v)}><Plus size={13} /> Add</Button>
                 </li>
-              ))}
+              );
+            })}
             {!catalog.data && (
               <li className="px-3 py-8"><SkeletonRows rows={3} /></li>
             )}
-            {catalog.data && (catalog.data.items ?? []).filter((p) => catalogQuery.trim() === "" || p.name.toLowerCase().includes(catalogQuery.toLowerCase())).length === 0 && (
-              <li className="px-3 py-8 text-center text-caption text-subtle">No products match “{catalogQuery}”.</li>
+            {catalog.data && pickedRows.length === 0 && (
+              <li className="px-3 py-8 text-center text-caption text-subtle">{catalogQuery.trim() ? `No products match “${catalogQuery}”.` : "The catalogue holds no product that can be quoted yet."}</li>
             )}
           </ul>
         </div>

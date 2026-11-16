@@ -37,3 +37,22 @@ export async function launchBrowser() {
       + String(error.message).split("\n")[0] + ")");
   }
 }
+
+/**
+ * Sign in to the dashboard through its own form, as a person does.
+ *
+ * The form asks the API whether the demo account exists, and fills it in when
+ * the answer arrives. A script types within milliseconds of the page loading —
+ * while that answer is still on its way — and its typing then raced the fill:
+ * measured, one sign-in in 120 was refused with "wrong email or password", the
+ * password field holding "adminadmin". The form now keeps whatever has been
+ * typed, and it says when it has heard from the API (aria-busy="false").
+ * Every journey waits for that and then types, so that none of them depends on
+ * which side of a race wins.
+ */
+export async function signInToDashboard(page, { user = "admin", password = "admin" } = {}) {
+  await page.locator('form[aria-busy="false"]').first().waitFor();
+  await page.getByPlaceholder("admin").first().fill(user);
+  await page.locator('input[type="password"]').first().fill(password);
+  await page.getByRole("button", { name: /^sign in$/i }).click();
+}

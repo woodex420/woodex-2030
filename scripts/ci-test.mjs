@@ -281,7 +281,26 @@ try {
     throw error;
   }
 
-  console.log("[ci] PASS: PostgreSQL rehearsal, every module on both engines, SQLite security/API QA, all browser journeys, and every dashboard screen opened — on the dev server and in the production build.");
+  /* The catalogue as a customer and as staff are shown it, in the same build:
+     the shop while the catalogue loads and when it cannot be read, the import
+     as drafts, publishing, price on request, options, the order, and the demo
+     catalogue withdrawn. The API suites prove what the server does; what went
+     wrong before was on the screen — sample products shown as if for sale.
+     The journey owns its server and its database: it loads the catalogue and
+     withdraws the demo products, which no other check should inherit. */
+  console.log("[ci] Walking the catalogue from the import to the checkout, in the production build.");
+  try {
+    await runJourney("scripts/e2e-catalog.mjs", {
+      ...baseEnv,
+      E2E_REQUIRED: "1",
+      E2E_CATALOG_PORT: String(Number(process.env.CI_CATALOG_PORT || 4183)),
+    }, "e2e:catalog");
+  } catch (error) {
+    console.error("[ci] e2e:catalog failed — see the [e2e:catalog] lines above for the cause.");
+    throw error;
+  }
+
+  console.log("[ci] PASS: PostgreSQL rehearsal, every module on both engines, SQLite security/API QA, all browser journeys, every dashboard screen opened — on the dev server and in the production build — and the catalogue walked from the import to the checkout.");
 } catch (error) {
   failed = true;
   console.error("[ci] FAIL:", error instanceof Error ? error.message : String(error));

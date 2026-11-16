@@ -83,7 +83,8 @@ const TABLES = ["products","materials","services","leads","quotes","quote_versio
   "companies","contacts","meetings","attachments","activities",
   "dispatch_runs","deliveries","delivery_lines","installed_assets",
   "tickets","ticket_messages","service_visits","warranty_claims",
-  "password_resets","throttle_buckets"];
+  "password_resets","throttle_buckets",
+  "product_variants"];
 
 /* ---- target ---- */
 async function makeBackend() {

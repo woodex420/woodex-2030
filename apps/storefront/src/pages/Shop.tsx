@@ -1,78 +1,24 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/shop/ProductCard";
 import ProductListItem from "@/components/shop/ProductListItem";
-import { products, getProductsByCategory, sortProducts, getCategoryImages } from "@/data/products";
+import { products, getProductsByCategory, sortProducts, categoryTree, categoryLabel } from "@/data/products";
+import type { CategoryNode } from "@/data/products";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Grid3X3, LayoutList, SlidersHorizontal, ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getCategorySeo } from "@/data/seoContent";
-import { useRuntimeRevision } from "@/lib/runtime";
+import { useRuntimeRevision, useCatalogStatus } from "@/lib/runtime";
+import { CatalogLoading, CatalogUnavailable } from "@/components/shop/CatalogNotice";
 
-interface CategoryNode {
-  label: string;
-  id: string;
-  children: { label: string; id: string }[];
-}
-
-const officeCategoryTree: CategoryNode[] = [
-  {
-    label: "Office Tables", id: "office-tables",
-    children: [
-      { label: "Executive Tables", id: "executive-tables" },
-      { label: "Manager Tables", id: "manager-tables" },
-      { label: "Staff Tables", id: "staff-tables" },
-      { label: "Meeting Tables", id: "meeting-tables" },
-      { label: "Reception Tables", id: "reception-tables" },
-    ],
-  },
-  { label: "Office Chairs", id: "chairs", children: [] },
-  { label: "Workstations", id: "workstations", children: [] },
-  { label: "Cubicle Workstations", id: "cubicle-workstations", children: [] },
-  { label: "Office Storage", id: "storage", children: [] },
-  { label: "Lounge / Office Sofas", id: "office-sofas", children: [] },
-  { label: "Acoustic Furniture", id: "acoustic", children: [] },
-  { label: "Collaborative Furniture", id: "collaborative", children: [] },
-  { label: "Cafe Furniture", id: "cafe", children: [] },
-  { label: "Public Sitting", id: "public", children: [] },
-];
-
-const homeCategoryTree: CategoryNode[] = [
-  {
-    label: "Bedroom Furniture", id: "bedroom",
-    children: [
-      { label: "Bed Sets", id: "bed-sets" },
-      { label: "Bedside Tables", id: "bedside-tables" },
-      { label: "Dressing Tables", id: "dressing-tables" },
-      { label: "Mirrors", id: "mirrors" },
-      { label: "Bench & Settee", id: "bench-settee" },
-    ],
-  },
-  {
-    label: "Living Room", id: "living",
-    children: [
-      { label: "Home Sofa", id: "home-sofa" },
-      { label: "Center & Side Tables", id: "center-side-tables" },
-      { label: "Coffee Tables", id: "coffee-tables" },
-      { label: "Console", id: "console" },
-      { label: "TV Units", id: "tv-units" },
-    ],
-  },
-  {
-    label: "Dining", id: "dining",
-    children: [
-      { label: "Dining Sets", id: "dining-sets" },
-      { label: "Dining Chairs", id: "dining-chairs" },
-      { label: "Dining Tables", id: "dining-tables" },
-    ],
-  },
-];
-
-const allCategoryTree = [...officeCategoryTree, ...homeCategoryTree];
+/* The category list is built from the catalogue (categoryTree()), not typed
+   in here. The list that used to be here named categories the shop does not
+   sell and left out ones it does; a category now appears when a published
+   product is in it and disappears when the last one leaves. */
 
 const categoryDescriptions: Record<string, string> = {
   "all": "Browse our complete collection of premium office and home furniture — all made in Pakistan with nationwide delivery.",
@@ -108,6 +54,10 @@ const Shop = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["office-tables", "bedroom"]);
   const catalogRevision = useRuntimeRevision();
+  const catalogStatus = useCatalogStatus();
+  const tree = useMemo(() => categoryTree(), [catalogRevision]);
+  const officeCategoryTree = tree.filter((node) => !node.home);
+  const homeCategoryTree = tree.filter((node) => node.home);
 
   const seo = getCategorySeo(selectedCategory);
 
@@ -129,12 +79,13 @@ const Shop = () => {
   const filteredProducts = useMemo(() => {
     let result = getProductsByCategory(selectedCategory);
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.trim().toLowerCase();
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(query) ||
           p.shortDescription.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query)
+          p.category.toLowerCase().includes(query) ||
+          (p.sku ?? "").toLowerCase().includes(query)
       );
     }
     return sortProducts(result, sortBy);
@@ -146,20 +97,14 @@ const Shop = () => {
     );
   };
 
-  const getCategoryLabel = () => {
-    if (selectedCategory === "all") return "All Products";
-    for (const cat of allCategoryTree) {
-      if (cat.id === selectedCategory) return cat.label;
-      for (const child of cat.children) {
-        if (child.id === selectedCategory) return child.label;
-      }
-    }
-    return "All Products";
-  };
+  const getCategoryLabel = () => (selectedCategory === "all" ? "All Products" : categoryLabel(selectedCategory));
 
-  const getCategoryCount = (catId: string): number => {
-    return getProductsByCategory(catId).length;
-  };
+  /* A subcategory opened from a link (the header menu, a home-page tile)
+     shows its parent expanded, so the customer sees where they are. */
+  useEffect(() => {
+    const parent = tree.find((node) => node.children.some((child) => child.id === selectedCategory));
+    if (parent) setExpandedCategories((prev) => (prev.includes(parent.id) ? prev : [...prev, parent.id]));
+  }, [selectedCategory, tree]);
 
   const renderCategoryNode = (cat: CategoryNode) => (
     <div key={cat.id}>
@@ -174,12 +119,14 @@ const Shop = () => {
         >
           <span>{cat.label}</span>
           <span className={`text-xs font-normal ${selectedCategory === cat.id ? "text-accent-foreground/70" : "text-muted-foreground"}`}>
-            {getCategoryCount(cat.id)}
+            {cat.count}
           </span>
         </button>
         {cat.children.length > 0 && (
           <button
             onClick={() => toggleExpand(cat.id)}
+            aria-expanded={expandedCategories.includes(cat.id)}
+            aria-label={`${expandedCategories.includes(cat.id) ? "Hide" : "Show"} ${cat.label} types`}
             className="p-2 text-muted-foreground hover:text-accent"
           >
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expandedCategories.includes(cat.id) ? "rotate-180" : ""}`} />
@@ -202,7 +149,7 @@ const Shop = () => {
                 <ChevronRight className="h-3 w-3 flex-shrink-0" />
                 {child.label}
               </span>
-              <span className="text-xs text-muted-foreground">{getCategoryCount(child.id)}</span>
+              <span className="text-xs text-muted-foreground">{child.count}</span>
             </button>
           ))}
         </div>
@@ -221,7 +168,7 @@ const Shop = () => {
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Shop Office & Home Furniture</h1>
             <p className="text-primary-foreground/75 max-w-2xl">
               Discover premium ergonomic chairs, executive desks, workstations, home furniture and more —
-              all priced in PKR with nationwide delivery included.
+              with prices in PKR and delivery across Pakistan.
             </p>
           </div>
         </section>
@@ -253,26 +200,32 @@ const Shop = () => {
                     }`}
                   >
                     All Products
-                    <span className={`ml-2 text-xs font-normal ${selectedCategory === "all" ? "text-accent-foreground/70" : "text-muted-foreground"}`}>
-                      {products.length}
-                    </span>
+                    {catalogStatus === "ready" && (
+                      <span className={`ml-2 text-xs font-normal ${selectedCategory === "all" ? "text-accent-foreground/70" : "text-muted-foreground"}`}>
+                        {products.length}
+                      </span>
+                    )}
                   </button>
 
                   {/* Office Furniture Group */}
-                  <div className="mb-4">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-accent px-3 mb-2">Office Furniture</h3>
-                    <nav className="space-y-0.5">
-                      {officeCategoryTree.map(renderCategoryNode)}
-                    </nav>
-                  </div>
+                  {officeCategoryTree.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-accent px-3 mb-2">Office Furniture</h3>
+                      <nav className="space-y-0.5" aria-label="Office furniture categories">
+                        {officeCategoryTree.map(renderCategoryNode)}
+                      </nav>
+                    </div>
+                  )}
 
                   {/* Home Furniture Group */}
-                  <div className="border-t border-border pt-4">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-accent px-3 mb-2">Home Furniture</h3>
-                    <nav className="space-y-0.5">
-                      {homeCategoryTree.map(renderCategoryNode)}
-                    </nav>
-                  </div>
+                  {homeCategoryTree.length > 0 && (
+                    <div className="border-t border-border pt-4">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-accent px-3 mb-2">Home Furniture</h3>
+                      <nav className="space-y-0.5" aria-label="Home furniture categories">
+                        {homeCategoryTree.map(renderCategoryNode)}
+                      </nav>
+                    </div>
+                  )}
                 </div>
               </aside>
 
@@ -284,6 +237,7 @@ const Shop = () => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search products..."
+                      aria-label="Search products by name or SKU"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10 bg-background"
@@ -297,10 +251,12 @@ const Shop = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="featured">Featured</SelectItem>
-                        <SelectItem value="newest">Newest</SelectItem>
+                        {/* Offered only when the owner has marked something New:
+                            a sort order that changes nothing is a dead control. */}
+                        {(sortBy === "newest" || products.some((p) => p.isNew)) && <SelectItem value="newest">New arrivals first</SelectItem>}
                         <SelectItem value="price-low">Price: Low to High</SelectItem>
                         <SelectItem value="price-high">Price: High to Low</SelectItem>
-                        <SelectItem value="rating">Highest Rated</SelectItem>
+                        <SelectItem value="name">Name: A to Z</SelectItem>
                       </SelectContent>
                     </Select>
                     <div className="flex border rounded-sm">
@@ -318,13 +274,35 @@ const Shop = () => {
                 <div className="mb-6">
                   <h2 className="font-bold text-lg mb-1">{getCategoryLabel()}</h2>
                   <p className="text-sm text-muted-foreground">{seo.intro}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{filteredProducts.length} products</p>
+                  {catalogStatus === "ready" && (
+                    <p className="text-xs text-muted-foreground mt-1" aria-live="polite">
+                      {filteredProducts.length} product{filteredProducts.length === 1 ? "" : "s"}
+                    </p>
+                  )}
                 </div>
 
-                {filteredProducts.length === 0 ? (
+                {catalogStatus === "loading" ? (
+                  <CatalogLoading />
+                ) : catalogStatus === "unavailable" ? (
+                  <CatalogUnavailable />
+                ) : products.length === 0 ? (
+                  /* The shop is reachable and has nothing published. That is a
+                     fact about the catalogue, not about the customer's search. */
+                  <div className="text-center py-20 border border-dashed border-border rounded-sm">
+                    <p className="text-xl font-bold mb-2">Our catalogue is being updated</p>
+                    <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                      No products are listed at the moment. Send us your requirement and we will reply with a quotation.
+                    </p>
+                    <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                      <Link to="/quotation">Request a quotation</Link>
+                    </Button>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
                   <div className="text-center py-20 border border-dashed border-border rounded-sm">
                     <p className="text-xl font-bold mb-2">No products found</p>
-                    <p className="text-muted-foreground mb-4">Try adjusting your search or filters</p>
+                    <p className="text-muted-foreground mb-4">
+                      {searchQuery.trim() ? "Try another search, or look through all products." : "Nothing is listed in this category yet."}
+                    </p>
                     <Button onClick={() => { setSelectedCategory("all"); setSearchQuery(""); }} className="bg-accent hover:bg-accent/90 text-accent-foreground">
                       View All Products
                     </Button>

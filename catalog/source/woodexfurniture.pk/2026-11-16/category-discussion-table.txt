@@ -1,0 +1,10 @@
+# Source: https://woodexfurniture.pk/categories/discussion-table   label: Discussion Table   page says: 8 of 8 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+echo-round-meeting-table | Echo Round Meeting Table | 0 |  | 1772818507_Echo%20Round%20Meeting%20Table.jpg
+facet-meeting-table | Facet Meeting Table | 0 |  | 1772818678_Facet-Meeting-Table.jpg
+loop-meeting-table | Loop Meeting Table | 20,000 |  | 1772818905_Loop%20meeting%20table.jpg
+manila-meeting-table | Manila Meeting Table | 25,000 |  | 1772819059_Manila-Meeting-Table.jpg
+next-meeting-table | Next Meeting Table | 35,000 |  | 1772819238_Next%20Meeting%20Table.jpg
+nova-round-meeting-table | Nova Round Meeting Table | 85,000 |  | 1772819370_Novo%20Round%20Meeting%20Table.jpg
+raison-meeting-table | Raison-Meeting-Table | 20,000 |  | 1772819459_Raison-Meeting-Table.jpg
+solo-meeting-table | Solo Meeting Table | 22,000 |  | 1772819561_Solo-Meeting-Table.jpg

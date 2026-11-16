@@ -4,12 +4,55 @@ import { getToken } from "@/lib/auth";
 /* Runtime API layer — the dashboard reads/writes the same SQLite-backed
    service as the storefront (apps/api). No bundled copies of the data. */
 
+/* A product as the API returns it to signed-in staff (migration 019).
+
+   `rating` and `reviews` are gone on purpose. They were typed in by hand for
+   the demo catalogue, and the API no longer stores or returns them. */
+export type ProductStatus = "draft" | "published" | "archived";
+
+/** One sellable form of a product: a size, a finish, a material. */
+export type ApiVariant = {
+  id: number;
+  productId: string;
+  sku: string;
+  label: string;
+  attributes: Record<string, string>;
+  /** Whole rupees. 0 when `priceOnRequest` is true; never show it then. */
+  price: number;
+  priceOnRequest: boolean;
+  /** false withdraws the option from sale without deleting it. */
+  active: boolean;
+  position: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** A point the catalogue import could not settle; a person checks it. */
+export type ApiReviewNote = { code: string; text: string };
+
+/** What the old shop showed for an imported product, kept for the record. */
+export type ApiProductSource = {
+  site?: string;
+  capturedOn?: string;
+  /** The product's address on the old shop: /shop/<address>. */
+  address?: string;
+  name?: string;
+  /** The SKU exactly as the old shop printed it, before any rule touched it. */
+  sku?: string | null;
+  price?: number;
+  compareAt?: number | null;
+  categories?: string[];
+  dataset?: string;
+  importedAt?: string;
+};
+
 export type ApiProduct = {
   id: string;
   name: string;
   category: string;
   subcategory?: string;
   series?: string;
+  /** Whole rupees. 0 when `priceOnRequest` is true; use `priceLabel()`. */
   price: number;
   originalPrice?: number;
   description: string;
@@ -18,14 +61,29 @@ export type ApiProduct = {
   colors: { name: string; hex: string }[];
   specifications: { label: string; value: string }[];
   features: string[];
+  /** Whether the product can be ordered at all — a switch, not a count. */
   inStock: boolean;
   stockQty?: number;
   isNew?: boolean;
   isBestSeller?: boolean;
-  rating: number;
-  reviews: number;
   updatedAt?: string;
+  sku: string | null;
+  status: ProductStatus;
+  priceOnRequest: boolean;
+  /** false = made to order: no quantity is counted and none is shown. */
+  trackStock: boolean;
+  variants: ApiVariant[];
+  review?: ApiReviewNote[];
+  source?: ApiProductSource;
 };
+
+export const PRODUCT_STATUS_LABEL: Record<ProductStatus, string> = {
+  draft: "Draft",
+  published: "Published",
+  archived: "Archived",
+};
+export const productStatusTone = (status: ProductStatus) =>
+  status === "published" ? "success" as const : status === "draft" ? "warning" as const : "muted" as const;
 
 /* GET /api/products answers with a windowed list — never a bare array.
    Each screen used to write this shape down for itself. Two wrote it as an
@@ -33,7 +91,14 @@ export type ApiProduct = {
    opened (Furniture 2030 F-05). The shape is now written once, here, and
    screens read the catalogue through `useProducts()` below, which leaves
    nothing to declare and so nothing to get wrong. */
-export type ApiProductList = { total: number; items: ApiProduct[]; limit: number | null; offset: number };
+export type ApiProductList = {
+  total: number;
+  items: ApiProduct[];
+  limit: number | null;
+  offset: number;
+  /** How many products are in each state. Present for signed-in staff. */
+  counts?: Record<ProductStatus, number>;
+};
 
 export type ApiMaterial = { id: string; name: string; category: string; image: string };
 
@@ -105,6 +170,10 @@ export type ApiQuoteItem = {
   depth?: number;
   dimensionUnit?: "mm" | "cm" | "in" | string;
   customNotes?: string;
+  /** The code the line was quoted under, and which option of the product. */
+  sku?: string;
+  variantId?: number;
+  variant?: string;
 };
 export type ApiQuoteTemplateBlockType = "brand" | "title" | "meta" | "customer" | "terms" | "payment-note" | "contact" | "custom";
 export type ApiQuoteTemplateBlock = {
@@ -189,7 +258,7 @@ export type ApiOrder = {
 };
 
 export type ApiStats = {
-  products: { total: number; inStock: number; avgPrice: number };
+  products: { total: number; inStock: number; avgPrice: number | null; draft?: number; archived?: number };
   leads: { total: number; byStatus: Record<string, number> };
   quotes: { total: number; pipelineValue: number; byStatus: Record<string, { count: number; value: number }> };
   orders: { total: number; revenue: number; byStage: Record<string, { count: number; value: number }> };
@@ -213,6 +282,17 @@ export const img = (file?: string) => {
 
 export const fmtPKR = (n: number) => "PKR " + Math.round(n).toLocaleString("en-PK");
 
+/* A product "on request" stores a price of 0. Printing that as "PKR 0" is the
+   mistake the old shop makes, so every screen that shows a product's price
+   goes through here. */
+export const priceLabel = (p: { price: number; priceOnRequest?: boolean }) =>
+  p.priceOnRequest ? "Price on request" : fmtPKR(p.price);
+
+/* Three states, not two: available and counted, available and made to order,
+   or switched off. A quantity is shown only where somebody counts one. */
+export const stockLabel = (p: { inStock: boolean; trackStock?: boolean; stockQty?: number }) =>
+  !p.inStock ? "Not available" : p.trackStock === false ? "Made to order" : `${p.stockQty ?? 0} in stock`;
+
 export function timeAgo(iso: string) {
   const s = Math.max(1, Math.floor((Date.now() - Date.parse(iso)) / 1000));
   if (s < 60) return s + "s ago";
@@ -221,9 +301,14 @@ export function timeAgo(iso: string) {
   return Math.floor(s / 86400) + "d ago";
 }
 
-/** The product catalogue, typed once. `intervalMs` re-reads it on a timer, as for `useApi`. */
-export function useProducts(intervalMs = 0) {
-  return useApi<ApiProductList>("/api/products", intervalMs);
+/** The product catalogue, typed once. `intervalMs` re-reads it on a timer, as for `useApi`.
+ *
+ * Staff screens read every state by default: a draft can be bought for, built
+ * and quoted before it is on sale. A screen that stands for the shop itself
+ * asks for "published". Without a `status` the API answers with the published
+ * list only, which is what the public gets. */
+export function useProducts(intervalMs = 0, status: ProductStatus | "all" = "all") {
+  return useApi<ApiProductList>(`/api/products?status=${status}`, intervalMs);
 }
 
 export function useApi<T>(path: string | null, intervalMs = 0) {

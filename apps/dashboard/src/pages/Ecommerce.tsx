@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { DataTable } from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/ui/States";
-import { useApi, useProducts, useRealtime, fmtPKR, type ApiOrder } from "@/lib/api";
+import { useApi, useProducts, useRealtime, fmtPKR, priceLabel, type ApiOrder } from "@/lib/api";
 import { ArrowRight, Building, Package, Receipt, ShoppingBag, Store, Truck } from "@/icons";
 
 const columns: Column<ApiOrder>[] = [
@@ -17,7 +17,8 @@ const columns: Column<ApiOrder>[] = [
 ];
 
 export default function Ecommerce() {
-  const products = useProducts(30000);
+  /* What the shop sells: published products only. Drafts are counted on the catalogue screen. */
+  const products = useProducts(30000, "published");
   const orders = useApi<{ total: number; items: ApiOrder[] }>("/api/orders", 15000);
   const invoices = useApi<{ total: number; collected: number; outstanding: number; items: unknown[] }>("/api/invoices", 30000);
   useRealtime(/products|orders|invoices|payments/, () => { products.reload(); orders.reload(); invoices.reload(); });
@@ -39,7 +40,7 @@ export default function Ecommerce() {
       {readError && <div className="mb-4"><ErrorState title="Some commerce metrics are unavailable" description="Catalog data can still be used, but protected order or invoice totals could not be refreshed." debug={readError} onRetry={() => { orders.reload(); invoices.reload(); }} className="py-5" /></div>}
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="flex items-center gap-3 p-4"><span className="grid h-10 w-10 place-items-center rounded-control bg-primary-50 text-primary-700"><Package size={18} /></span><span><span className="block text-caption text-muted">Products</span><span className="block text-h2 text-ink">{products.data?.total ?? "—"}</span></span></Card>
+        <Card className="flex items-center gap-3 p-4"><span className="grid h-10 w-10 place-items-center rounded-control bg-primary-50 text-primary-700"><Package size={18} /></span><span><span className="block text-caption text-muted">Products on sale</span><span className="block text-h2 text-ink">{products.data?.total ?? "—"}</span></span></Card>
         <Card className="flex items-center gap-3 p-4"><span className="grid h-10 w-10 place-items-center rounded-control bg-info-soft text-info-strong"><ShoppingBag size={18} /></span><span><span className="block text-caption text-muted">Active orders</span><span className="block text-h2 text-ink">{orders.data ? activeOrders.length : "—"}</span></span></Card>
         <Card className="flex items-center gap-3 p-4"><span className="grid h-10 w-10 place-items-center rounded-control bg-warning-soft text-warning-strong"><Truck size={18} /></span><span><span className="block text-caption text-muted">Needs attention</span><span className="block text-h2 text-ink">{orders.data ? attention.length : "—"}</span></span></Card>
         <Card className="flex items-center gap-3 p-4"><span className="grid h-10 w-10 place-items-center rounded-control bg-success-soft text-success-strong"><Receipt size={18} /></span><span><span className="block text-caption text-muted">Outstanding invoices</span><span className="block text-bodylg font-bold text-ink">{invoices.data ? fmtPKR(invoices.data.outstanding) : "—"}</span></span></Card>
@@ -47,9 +48,9 @@ export default function Ecommerce() {
 
       <div className="mb-4 grid gap-4 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Product catalog" description={products.error ? "Catalog sync is unavailable." : `${products.data?.total ?? "—"} products in the live shared catalog.`} action={<Link to="/catalog" className={buttonCls("secondary", "sm")}>Manage catalog <ArrowRight size={13} /></Link>} />
+          <CardHeader title="Product catalog" description={products.error ? "Catalog sync is unavailable." : `${products.data?.total ?? "—"} products on sale${products.data?.counts?.draft ? ` · ${products.data.counts.draft} draft${products.data.counts.draft === 1 ? "" : "s"} waiting` : ""}.`} action={<Link to="/catalog" className={buttonCls("secondary", "sm")}>Manage catalog <ArrowRight size={13} /></Link>} />
           {products.loading && !products.data ? <SkeletonRows rows={3} cols={2} /> : products.error ? <p className="text-small text-muted">The product list is available from the Catalog module when the API is back online.</p> : (
-            <div className="grid gap-2 sm:grid-cols-2">{(products.data?.items ?? []).slice(0, 4).map((product) => <Link key={product.id} to={`/catalog/${encodeURIComponent(product.id)}`} className="flex items-center gap-3 rounded-control border border-line p-3 transition-colors hover:border-primary-300 hover:bg-primary-50/40"><span className="grid h-9 w-9 place-items-center rounded-control bg-slate-100 text-slate-600"><Package size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-small font-semibold text-ink">{product.name}</span><span className="block truncate text-caption text-muted">{product.category} · {fmtPKR(product.price)}</span></span><Badge tone={product.inStock ? "success" : "muted"} dot={false}>{product.inStock ? "In stock" : "Made to order"}</Badge></Link>)}</div>
+            <div className="grid gap-2 sm:grid-cols-2">{(products.data?.items ?? []).slice(0, 4).map((product) => <Link key={product.id} to={`/catalog/${encodeURIComponent(product.id)}`} className="flex items-center gap-3 rounded-control border border-line p-3 transition-colors hover:border-primary-300 hover:bg-primary-50/40"><span className="grid h-9 w-9 place-items-center rounded-control bg-slate-100 text-slate-600"><Package size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-small font-semibold text-ink">{product.name}</span><span className="block truncate text-caption text-muted">{product.category} · {priceLabel(product)}</span></span><Badge tone={product.inStock ? "success" : "muted"} dot={false}>{product.inStock ? (product.trackStock ? "In stock" : "Made to order") : "Not available"}</Badge></Link>)}</div>
           )}
         </Card>
 

@@ -1,0 +1,12 @@
+# Source: https://woodexfurniture.pk/categories/home-office-furniture   label: Home Office Furniture   page says: 10 of 10 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+flex-staff-table | Flex Staff Table | 17,500 |  | 1780563602_Flex%20Staff%20Table.jpg
+staff-table-pro | Staff Table Pro | 1,650 |  | 1780563786_Staff%20Table%20pro.jpg
+echo-staff-table | Echo Staff Table | 22,000 |  | 1780564048_Echo%20Staff%20Table.jpg
+brio-staff-table | Brio Staff Table | 30,500 | 32,000 | 1780564173_Brio%20Staff%20Table.jpg
+home-office-desk-pro | Home Office Desk Pro | 25,500 |  | 1780564983_home%20office%20Desk%20Pro.jpg
+studio-pro-table | Studio Pro Table | 1,950 |  | 6a329625c7cc48.79713627_Studio-Pro-Table.jpg
+lumu-home-office-desk | Lumu Home office Desk | 26,500 |  | 1780565437_Lumu%20Home%20office%20Desk.jpg
+aero-home-office-desk | Aero Home office Desk | 16,500 | 18,000 | 1780565593_Aero%20Home%20office%20Desk.jpg
+x-max-staff-table | X Max Staff Table | 25,500 |  | 1781691904_0_X-Max-Staff-Tab-e.jpg
+x-pro-staff-table | X-Pro Staff Table | 32,000 |  | 6a3294efba6ae6.24440004_X-Pro--Staff-Tabe.jpg

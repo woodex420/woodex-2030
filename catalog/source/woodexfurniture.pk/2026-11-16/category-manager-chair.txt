@@ -1,0 +1,15 @@
+# Source: https://woodexfurniture.pk/categories/manager-chair   label: Manager Chair   page says: 13 of 13 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+atlas-manager-chair | Atlas Manager Chair | 35,000 |  | 1772737154_Atlas-Manager-Chair.jpg
+elite-command-manager-chair | Elite Command Manager Chair | 24,500 |  | 1772737536_Elite%20Command%20Manager%20Chair.jpg
+forma-ergofit-manager-chair | Forma ErgoFit Manager Chair | 35,000 |  | 1772737780_Forma%20ErgoFit%20Manager%20Chair.png
+grip-back-manager-chair | Grip Back Manager Chair | 38,000 |  | 1772737954_05.jpg
+keystone-manager-chair | Keystone Manager Chair | 48,000 |  | 69a9d6bd09596.jpg
+matrix-flow-manager-chair | Matrix Flow Manager Chair | 36,000 |  | 1772738363_Matrix-Flow-Manager-Chair.jpg
+nexus-command-manager-chair | Nexus Command-Manager Chair | 32,000 |  | 1772738463_Nexus-Command-Manager-Chair.jpg
+onyx-prestige-manager-chair | Onyx Prestige Manager Chair | 65,000 |  | 1772738644_Onyx-Prestige-Manager-Chair.jpg
+prime-performance-manager-chair | Prime Performance Manager Chair | 55,000 |  | 1772738821_Prime-Performance-Manager-Chair.jpg
+relief-pro-manager-chair | Relief Pro Manager Chair | 27,000 |  | 1772738988_03.jpg
+spot-work-manger-chair | Spot Work Manger Chair | 38,000 |  | 1772739148_Spot%20Work%20Manger%20Chair.jpg
+titan-pro-manager-chair | Titan Pro Manager Chair | 75,000 |  | 1772739238_Titan-Pro-Manager-Chair.jpg
+vertex-active-back-manager-chair | Vertex Active Back Manager Chair | 35,000 |  | 1772739316_Vertex-ActiveBack-Manager-Chair.jpg

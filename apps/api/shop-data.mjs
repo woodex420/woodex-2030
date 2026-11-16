@@ -91,14 +91,31 @@ export async function loadShopData() {
      a TypeScript build step. Fall through to the sources only for dev. */
   const snapshot = readSeedSnapshot();
   if (snapshot) return snapshot;
+  return loadShopDataFromSources();
+}
 
-  const [prod, mats, serv] = await Promise.all([
+/**
+ * The same payload, always built from the .ts sources and never from the
+ * snapshot.
+ *
+ * `npm run seed:data` and `seed:data:check` must use THIS. They used to call
+ * loadShopData(), which returns the snapshot whenever it exists — so the check
+ * compared seed-data.json with itself and passed whatever the sources said. A
+ * product renamed in the sources left the check green (verified 2026-11-16).
+ *
+ * The demo products come from data/demo-products.ts. The storefront does not
+ * import that file: the site shows what the database holds, not a compiled
+ * list. The taxonomy still comes from data/products.ts.
+ */
+export async function loadShopDataFromSources() {
+  const [demo, prod, mats, serv] = await Promise.all([
+    bundleModule(path.join(SHOP_SRC, "data/demo-products.ts"), "demo-products.mjs"),
     bundleModule(path.join(SHOP_SRC, "data/products.ts"), "products.mjs"),
     bundleModule(path.join(SHOP_SRC, "data/materials.ts"), "materials.mjs"),
     bundleModule(path.join(SHOP_SRC, "data/services.ts"), "services.mjs"),
   ]);
   return {
-    products: prod.products,
+    products: demo.demoProducts,
     categoryGroups: prod.categoryGroups,
     materials: mats.materials,
     services: serv.services,
