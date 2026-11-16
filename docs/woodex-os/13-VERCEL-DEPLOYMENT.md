@@ -134,7 +134,9 @@ entry are identical, no secret and no demo switch is in the repository, and ever
 a route.
 
 **What this cannot show:** Vercel's own network and build machines. After a deployment, read the build log for
-the `[demo] workspace ready` line and open the address.
+the `[demo] workspace ready` line, and run the workflow "Vercel live check (WOODEX OS)"
+(`vercel-live-check.yml`): from outside, without any secret, it opens the sign-in page of the deployed address,
+tries a wrong password and asks for files that must stay closed. Its findings are one notice on the run.
 
 ## 6. Deploying
 

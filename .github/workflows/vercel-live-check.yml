@@ -1,0 +1,58 @@
+name: Vercel live check (WOODEX OS)
+# What a visitor gets from the deployed admin, asked from outside. It needs no secret: it opens the sign-in page,
+# tries a wrong password and looks for files that must not be handed out. The findings are written as one notice
+# on the run, so they can be read without the log.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/vercel-live-check.yml"]
+permissions:
+  contents: read
+jobs:
+  live:
+    name: What a visitor gets from woodex-os.vercel.app
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Open the address, try a wrong password, look for leaks
+        env:
+          SITE: https://woodex-os.vercel.app
+        run: |
+          set -u
+          out="$(mktemp -d)"; jar="$out/jar"; fails=0; report=""
+          note() { report="$report | $1"; }
+          must() { if [ "$2" = "$3" ]; then note "ok $1"; else note "FAIL $1 (expected $3, got $2)"; fails=$((fails + 1)); fi; }
+          code() { curl -s -o "$out/body" -D "$out/head" -w '%{http_code}' -b "$jar" -c "$jar" --max-time 40 "$@"; }
+          header() { tr -d '\r' < "$out/head" | grep -i "^$1:" | head -1 | sed 's/^[^:]*: *//'; }
+
+          must "health /up" "$(code "$SITE/up")" 200
+          must "sign-in page" "$(code "$SITE/admin/login")" 200
+          cp "$out/body" "$out/login.html"
+          must "page starts as a page" "$(head -c 15 "$out/login.html")" "<!DOCTYPE html>"
+          must "says NOT PRODUCTION" "$(grep -c 'NOT PRODUCTION' "$out/login.html" | head -1)" 1
+          must "demo email filled in" "$(grep -c 'value="owner@woodex.test"' "$out/login.html")" 1
+          must "password not shown" "$(grep -c 'Test credentials are pre-filled' "$out/login.html")" 0
+          must "session cookie set" "$(tr -d '\r' < "$out/head" | grep -ci '^set-cookie: woodex_livewire_session=')" 1
+          must "form-token cookie set" "$(tr -d '\r' < "$out/head" | grep -ci '^set-cookie: XSRF-TOKEN=')" 1
+          token="$(grep -o 'name="_token" value="[^"]*"' "$out/login.html" | head -1 | sed 's/.*value="//;s/"$//')"
+          style="$(grep -o 'https://[^"]*/build/assets/admin-[A-Za-z0-9_-]*\.css' "$out/login.html" | head -1)"
+          note "stylesheet ${style:-none}"
+          must "stylesheet served" "$(code "${style:-$SITE/missing}")" 200
+          note "stylesheet type $(header content-type)"
+          must "icon /favicon.svg" "$(code "$SITE/favicon.svg")" 200
+          note "icon type $(header content-type)"
+          must "icon /favicon.ico" "$(code "$SITE/favicon.ico")" 200
+
+          must "wrong password refused" "$(code -X POST --data-urlencode "_token=$token" --data-urlencode "email=owner@woodex.test" --data-urlencode "password=not-the-password" "$SITE/admin/login")" 302
+          note "then sent to $(header location)"
+          must "form reopens" "$(code "$SITE/admin/login")" 200
+          must "form says the password is wrong" "$(grep -c 'do not match\|These credentials' "$out/body" | head -1)" 1
+          must "admin still asks for sign-in" "$(code "$SITE/admin")" 302
+
+          for file in /install /composer.json /.env /index.php /api/index.php /vendor/autoload.php /database/woodex-synthetic-vercel-demo.sqlite /database/woodex-synthetic-vercel-demo.sqlite.key; do
+            status="$(code "$SITE$file")"
+            if { [ "$status" = 404 ] || [ "$status" = 403 ]; } && ! grep -q 'SQLite format\|<?php\|base64:' "$out/body"; then note "ok closed $file ($status)"; else note "FAIL $file answered $status"; fails=$((fails + 1)); fi
+          done
+
+          if [ "$fails" = 0 ]; then echo "::notice title=woodex-os.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-os.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
