@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /** Isolated CI acceptance run: fresh SQLite fixture, PGlite rehearsal, API QA,
- * and browser journeys. Never reads or writes the workspace's data/woodex.db or a hosted DB. */
+ * and browser journeys. Never reads or writes the workspace's data/woodex.db or a hosted DB.
+ *
+ * Needs `npm run vercel:build` to have run first: the last step opens every
+ * dashboard screen in the built bundle (dist/). The CI workflow builds before
+ * calling this. */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -242,7 +246,42 @@ try {
       throw error;
     }
   }
-  console.log("[ci] PASS: PostgreSQL rehearsal, every module on both engines, SQLite security/API QA, all browser journeys, and every dashboard screen opened.");
+  /* The same screen check, against what actually ships. Everything above ran
+     on the dev servers; a deployment serves the BUILT dashboard, minified, under
+     /dashboard/. Pointed at that build for the first time, this check found the
+     dashboard blank in the single-process shape: the server answered the
+     dashboard's own script with the HTML shell, and the smoke test for that
+     shape only ever fetched the shell. So the build is opened too. */
+  console.log("[ci] Opening every dashboard screen in the production build, served by one process.");
+  const distRoot = path.join(ROOT, "dist");
+  if (!fs.existsSync(path.join(distRoot, "dashboard", "index.html"))) {
+    throw new Error("dist/dashboard/index.html is missing — run `npm run vercel:build` before `node scripts/ci-test.mjs` (the CI workflow does)");
+  }
+  const builtPort = Number(process.env.CI_BUILT_PORT || 4181);
+  const builtBase = `http://127.0.0.1:${builtPort}`;
+  const builtDataDir = path.join(tempRoot, "built-data");
+  fs.mkdirSync(builtDataDir, { recursive: true });
+  const built = start(process.execPath, ["--experimental-sqlite", "apps/api/server.mjs"], {
+    ...baseEnv,
+    WOODEX_DATA_DIR: builtDataDir,
+    WOODEX_SERVE_STATIC: distRoot,
+    PORT: String(builtPort),
+  }, "built");
+  await waitFor(`${builtBase}/api/health`, built, "Production build");
+  try {
+    await runJourney("scripts/e2e-dashboard-routes.mjs", {
+      ...baseEnv,
+      E2E_REQUIRED: "1",
+      BASE: `${builtBase}/dashboard`,
+      DASHBOARD_BASE: `${builtBase}/dashboard`,
+    }, "e2e:built-routes");
+  } catch (error) {
+    console.error("[ci] e2e:built-routes failed — see the [e2e:built-routes] lines above for the cause.");
+    console.error(`[ci] production build served at ${builtBase}/dashboard`);
+    throw error;
+  }
+
+  console.log("[ci] PASS: PostgreSQL rehearsal, every module on both engines, SQLite security/API QA, all browser journeys, and every dashboard screen opened — on the dev server and in the production build.");
 } catch (error) {
   failed = true;
   console.error("[ci] FAIL:", error instanceof Error ? error.message : String(error));

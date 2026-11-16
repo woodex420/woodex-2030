@@ -15,8 +15,9 @@
  * paths; the dashboard has more than forty.
  *
  * So this check takes the route list from the source (apps/dashboard/src/App.tsx)
- * — a screen added tomorrow is covered tomorrow, with no list to remember — and
- * for each one requires:
+ * — a screen added tomorrow is covered tomorrow, with no list to remember; and
+ * if a route is ever declared in a shape this file cannot read, it stops with
+ * an error instead of skipping it. For each screen it requires:
  *
  *   - no uncaught error in the page;
  *   - no error card ([data-error-boundary]) and no "Screen not found";
@@ -24,6 +25,12 @@
  *   - no request to /api that the server answered with an error;
  *   - no error written to the browser console;
  *   - something actually rendered, and the page finished loading.
+ *
+ * WHAT IT DOES NOT DO: it opens screens; it does not press their buttons. A
+ * screen that opens cleanly and fails when a form is saved passes this check.
+ * The four journeys in scripts/e2e-*.mjs and the module suites cover actions.
+ * Messages from an embedded frame (the page editor shows the storefront) or
+ * from another host are printed as notes and do not fail a screen.
  *
  * It then proves its own detectors — a check that cannot fail proves nothing:
  * an unknown address must be reported as "Screen not found", and a screen
@@ -48,9 +55,25 @@ const SIGN_IN_TEXT = "Sign in — the storefront stays public";
 
 /* ---- the route list, from the source ---- */
 const appSource = fs.readFileSync(path.join(ROOT, "apps/dashboard/src/App.tsx"), "utf8");
+const count = (re) => (appSource.match(re) ?? []).length;
 const declared = [...new Set([...appSource.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]))].filter((p) => p !== "*");
-if (!/<Route\s+index\s/.test(appSource) || declared.length < 30) {
-  console.error(`ERROR: could not read the route list from apps/dashboard/src/App.tsx (found ${declared.length}). This check must be updated with the router.`);
+/* Old addresses that redirect to Overview: one <Route> rendered from a list. */
+const legacyBlock = appSource.match(/\{\[([^\]]+)\]\.map\(\(p\)\s*=>\s*\(\s*<Route\s+key=\{p\}\s+path=\{p\}\s+element=\{<Navigate to="\/" replace \/>\}/);
+const REDIRECTS = legacyBlock ? [...legacyBlock[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]) : [];
+/* Every <Route> in the file must be one of the four shapes this check can
+   read. A route declared some other way would otherwise be skipped in
+   silence, and "every screen" would quietly stop being true. */
+const shapes = {
+  total: count(/<Route(?![A-Za-z])/g),
+  layout: count(/<Route\s+element=/g),
+  index: count(/<Route\s+index\b/g),
+  literal: count(/<Route\s+path="/g),
+  fromList: count(/<Route\s+key=\{p\}\s+path=\{p\}/g),
+};
+const readable = shapes.layout + shapes.index + shapes.literal + shapes.fromList;
+if (shapes.index !== 1 || declared.length < 30 || readable !== shapes.total || (shapes.fromList > 0 && REDIRECTS.length === 0)) {
+  console.error("ERROR: apps/dashboard/src/App.tsx declares a route in a way this check cannot read "
+    + `(${JSON.stringify(shapes)}; ${declared.length} paths, ${REDIRECTS.length} redirects). Update scripts/e2e-dashboard-routes.mjs with the router.`);
   process.exit(1);
 }
 const ROUTES = ["/", ...declared];
@@ -204,7 +227,7 @@ try {
     if (route.includes(":")) {
       const resolver = RESOLVERS[route];
       if (!resolver) { problems.push(`${route}: no way to choose a value for its parameter — add a resolver in scripts/e2e-dashboard-routes.mjs`); console.log(`  ✗ ${route} — no resolver for its parameter`); continue; }
-      target = await resolver().catch((error) => { problems.push(`${route}: ${error.message}`); return null; });
+      target = await resolver().catch((error) => { problems.push(`${route}: ${error.message}${error.cause ? ` (${error.cause.message ?? error.cause})` : ""}`); return null; });
       if (!target) { problems.push(`${route}: there is no record to open it with`); console.log(`  ✗ ${route} — no record to open it with`); continue; }
     }
     const record = await open(route, target);
@@ -218,6 +241,20 @@ try {
         fs.mkdirSync(process.env.E2E_ARTIFACTS, { recursive: true });
         await page.screenshot({ path: path.join(process.env.E2E_ARTIFACTS, `route${route.replace(/[^a-z0-9]+/gi, "-")}.png`) }).catch(() => {});
       }
+    }
+  }
+
+  /* ---- old addresses ---- */
+  if (!only?.length && REDIRECTS.length) {
+    console.log(`\n[routes] ${REDIRECTS.length} old addresses still lead to Overview`);
+    const homePath = new URL(BASE + "/").pathname.replace(/\/+$/, "");
+    for (const route of REDIRECTS) {
+      const record = await open(route, route);
+      const landed = new URL(page.url()).pathname.replace(/\/+$/, "");
+      const ok = judge(record) && landed === homePath;
+      console.log(`  ${ok ? "✓" : "✗"} ${route.padEnd(24)} → ${landed || "/"}`);
+      if (landed !== homePath) problems.push(`${route}: expected a redirect to Overview, landed on ${page.url()}`);
+      for (const fault of record.faults) { console.log(`        ${fault}`); problems.push(`${route}: ${fault}`); }
     }
   }
 
@@ -291,9 +328,9 @@ if (jsonOut) {
   fs.writeFileSync(jsonOut, JSON.stringify({ ranAt: new Date().toISOString(), base: BASE, declared: ROUTES.length, opened, clean, ok: exitCode === 0, problems, results }, null, 1) + "\n");
 }
 if (exitCode === 0) {
-  console.log(`\nE2E PASS: ${clean}/${opened} dashboard routes open without an error (${ROUTES.length} declared), and the error card can be left.\n`);
+  console.log(`\nE2E PASS: ${clean}/${opened} dashboard screens open without an error (${ROUTES.length} declared, plus ${REDIRECTS.length} redirects), and the error card can be left.\n`);
 } else {
-  console.error(`\nE2E FAIL: ${problems.length} problem(s) — ${clean}/${opened} routes clean:\n`);
+  console.error(`\nE2E FAIL: ${problems.length} problem(s) — ${clean}/${opened} screens clean:\n`);
   for (const p of problems) console.error(`  • ${p}`);
 }
 process.exit(exitCode);

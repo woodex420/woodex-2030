@@ -19,13 +19,22 @@
  * once and runs unchanged on each engine; scripts/lib/api-under-test.mjs gives
  * it a server and raw database access for whichever engine the run names.
  *
- * NOT IN THIS LIST, DELIBERATELY — each is specific to one engine and already
- * says so: test-schema-upgrade (an old SQLite file must still boot),
- * test-restore-drill (SQLite backup and restore), test-integrity and
- * test-audit-schema (PostgreSQL constraints and drift, on PGlite already),
- * test-audit-log (runs both engines itself), and test-throttle (starts two
- * servers on one database, which PGlite cannot share, and carries its own
- * PostgreSQL section).
+ * NOT IN THIS LIST — read before assuming "both engines" covers everything:
+ *
+ *   One engine by nature, and each says so:
+ *     test-schema-upgrade   SQLite    an old SQLite file must still boot
+ *     test-integrity        PGlite    the PostgreSQL constraints reject bad data
+ *     test-audit-schema     PGlite    the drift audit detects a missing constraint
+ *     test-restore-drill    PGlite    a PostgreSQL backup restores row for row
+ *
+ *   Mixed, and NOT converted to this runner:
+ *     test-throttle         two servers on one database, which PGlite cannot
+ *                           share (one process per directory), so the cross-
+ *                           process part is SQLite; four assertions run on PGlite
+ *     test-audit-log        imports the server in-process on SQLite for the
+ *                           audit-trail assertions; only its migration-ledger
+ *                           part runs on PGlite. The audit trail itself is
+ *                           therefore still proven on SQLite only.
  *
  * ADDING A MODULE: write scripts/test-<name>.mjs with `spawnApi` and `rawDb`
  * from ./lib/api-under-test.mjs (never `DATABASE_URL: ""`, never
