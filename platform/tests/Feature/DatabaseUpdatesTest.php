@@ -156,7 +156,6 @@ it('reports pending migrations on the Health page', function () {
 it('says plainly on the Health page that a host without a disk keeps no files', function () {
     // Vercel: the settings are server variables and the disk is read-only. The Hostinger advice about moving
     // .env and storage/ would be wrong there, and a green tick would hide that uploads do not last.
-    $this->app->instance(SiteState::class, new SiteState(base_path(), null));
     $_SERVER[SiteState::SERVER_CONFIG] = '1';
 
     try {
@@ -164,13 +163,16 @@ it('says plainly on the Health page that a host without a disk keeps no files', 
             ->assertOk()
             ->assertSee('this host keeps no files')
             ->assertSee('fine for a demo, not for the business system')
+            ->assertDontSee('survives every Git deploy')
             ->assertDontSee('Hostinger Git deploys');
     } finally {
         unset($_SERVER[SiteState::SERVER_CONFIG]);
     }
 
-    // Everywhere else the advice is unchanged.
-    $this->get(route('admin.system.health'))->assertOk()->assertDontSee('this host keeps no files');
+    // Everywhere else the advice is unchanged (the test site keeps its settings outside the site folder).
+    $this->get(route('admin.system.health'))->assertOk()
+        ->assertDontSee('this host keeps no files')
+        ->assertSee('survives every Git deploy');
 });
 
 it('never undoes owner edits when reference data is seeded again', function () {

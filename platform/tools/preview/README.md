@@ -71,6 +71,10 @@ WOODEX_PHP=<php> python3 tools/preview/sandbox/suite-summary.py <out-dir> # tota
 Read a run **by cause, not by name**. The summary excuses a failure only when its own output shows one of the two missing extensions, and only while the PHP binary really lacks it. Anything else is printed as `UNEXPLAINED` and the exit code is 1.
 The reason: on 2026-11-11 a test that already failed here for the missing `xmlwriter` kept failing after a change on this branch, for a new reason. The list of failing names did not change, and only the MySQL run in CI caught it.
 
+CI has no `platform/.env`; a sandbox with a running preview has one. A test that replaces the site fixture can
+pass here and fail there (it happened on 2026-11-16: 200 here, a redirect to the installer in CI). To run a
+changed test as CI does: `cp -al <runtime> /tmp/ci-like && rm /tmp/ci-like/.env`, then run it in that copy.
+
 Remember what this cannot show: the nine excused tests are not tested here at all. Only CI tests them.
 
 ### A complete PHP, from npm
