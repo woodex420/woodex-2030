@@ -11,6 +11,7 @@ touching code.
 ## Furniture 2030 launch — owner decisions and plan
 | Document | Status |
 |---|---|
+| [woodex-os/README.md](woodex-os/README.md) | **Current (2026-11-16).** WOODEX OS programme: the master plan to migrate the whole Agency OS into one Laravel admin, the decision log, and the owner's specification set |
 | [furniture-2030/README.md](furniture-2030/README.md) | **Current (2026-11-16).** Owner decisions, independent audit with evidence, launch plan, Hostinger Business preflight |
 
 ## Engineering specifications — start here
