@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | **Plan.** Four decisions (§12) were put to the owner on 2026-11-16; their answers are in [`12-DECISION-LOG.md`](12-DECISION-LOG.md). |
+| Status | **Plan, with its four opening decisions answered** on 2026-11-16 (§12; recorded in [`12-DECISION-LOG.md`](12-DECISION-LOG.md)): Livewire admin, Phase 2 first, the Agency OS look, the plan's order. |
 | Authority | The owner's specification set in [`spec/`](spec/README.md), then this plan. Where they disagree, the decision log wins (spec 08 §2). |
 | What this plan authorises | Work in this repository and in a sandbox. **Nothing here authorises a change to production, to a hosted database, to DNS or to Hostinger.** Each of those needs its own written approval. |
 | Written | 2026-11-16, at `aff7f2e` on `arena/1830554a-woodex-2030`; Laravel code read at `063fc7c` on `arena/69363bda-woodex-2030`. |
@@ -53,10 +53,10 @@ The sources do not fully agree. Spec 08 §2 forbids settling such a difference s
 
 | # | Difference | Settled how |
 |---|---|---|
-| C-1 | **Admin screens.** The umbrella plan says Blade + Livewire. Spec 02 and 09 say the existing React dashboard, redesigned, on a Laravel API. The Laravel branch built 130 Livewire components and records "native Laravel/Livewire first". | **Owner decision D-01** (§12). This plan recommends Livewire, and is written for it; §4 says what changes otherwise. |
+| C-1 | **Admin screens.** The umbrella plan says Blade + Livewire. Spec 02 and 09 say the existing React dashboard, redesigned, on a Laravel API. The Laravel branch built 130 Livewire components and records "native Laravel/Livewire first". | **Decided: Livewire** (D-01, DL-005). §4 keeps the comparison for the record. |
 | C-2 | **Repository.** The umbrella plan says a new repository. Spec 08 §1 says "using the existing repository", and the Laravel code already lives in `platform/` here. | This repository (spec 08 is the later, more specific text). Recorded as DL-002. |
 | C-3 | **Shop.** The umbrella plan migrates the shop to Blade. Spec 02 and 06 keep the React shop and add Puck. | React shop (spec 02/06; also decision D-4 on the Laravel branch). Recorded as DL-003. |
-| C-4 | **Look.** The umbrella plan says navy/charcoal with a wood accent. Spec 05 §5 gives charcoal + WOODEX green — the very values of today's React dashboard (`apps/dashboard/src/index.css`: `#4f9d21`, `#43851c`, `#171b1e`, Inter). | **Owner decision D-03.** Recommended: spec 05. |
+| C-4 | **Look.** The umbrella plan says navy/charcoal with a wood accent. Spec 05 §5 gives charcoal + WOODEX green — the very values of today's React dashboard (`apps/dashboard/src/index.css`: `#4f9d21`, `#43851c`, `#171b1e`, Inter). | **Decided: spec 05, the Agency OS look** (D-03, DL-007). |
 | C-5 | **Which products.** The Laravel preview held the 148 sample products (18 shared photographs). The real catalogue — 170 products captured from woodexfurniture.pk — is prepared on this branch. | The real catalogue is the import source (Wave 5). The 148 are test fixtures only. |
 | C-6 | **Which admin.** On 2026-11-16 the owner first answered "the admin is the React dashboard at `/admin`", then asked for this plan with Laravel as the base. | The later instruction is the target (DL-001). The earlier answer stays true of the **live** system until each module is cut over. |
 
@@ -103,9 +103,9 @@ Fixed points — from the specification, not open:
 | Time | Stored in UTC, shown in Pakistan time. The audit was done on the Laravel branch; the change was not made (Wave 2) | spec 03 |
 | Separation | Furniture only. Never a connection to the Interior database; no Interior data | umbrella §2 |
 
-**Open — D-01: what the admin's screens are made of.**
+**D-01: what the admin's screens are made of — decided on 2026-11-16: option A, Livewire.** The comparison that was put to the owner:
 
-| | A — Livewire (recommended) | B — React on a Laravel API | C — mixed |
+| | **A — Livewire (chosen)** | B — React on a Laravel API | C — mixed |
 |---|---|---|---|
 | What it is | One admin rendered by Laravel. React only for the shop and the Puck island. | The React dashboard is kept and redesigned; Laravel serves JSON only. | Livewire where Laravel has screens; the React screens for commerce, stock and production until each is rebuilt. |
 | Existing work kept | The 130 Laravel screens | The 47 React screens | Both |
@@ -113,7 +113,7 @@ Fixed points — from the specification, not open:
 | On Hostinger | One application to deploy | Two builds plus cross-origin sign-in rules | Two builds, two sign-ins |
 | Why recommended / not | Fewest moving parts; the business rules must be rebuilt in PHP in every option, and here each is built once | Throws away the half of the admin that already works in Laravel | It is where we are today — acceptable as a transition, not as a destination |
 
-Under **B**, Wave 1 happens in `apps/dashboard` instead of `platform/resources/views`, and every later wave gains an API-contract step. Sections 5, 8, 9, 10 and 11 are unchanged.
+Option C describes the transition, not the destination: until a module's wave is accepted, its React screen stays in use, reached from the Feature status screen (§7.2, slice 1.2).
 
 ---
 
@@ -194,8 +194,8 @@ No wave authorises the next. Each ends with the report format of spec 08 §11 an
 
 | Wave | Scope | Node routes | Done when | Needs from the owner |
 |---|---|---:|---|---|
-| **0 — one code line** | Bring the Laravel branch into the working branch: 11 files conflict (`server.mjs`, six storefront files, two dashboard pages, `build-seed-data.mjs`, the state document). Both CI workflows green. Sandbox PHP and Composer documented. Phase 2 according to D-02. | — | One branch holds both applications; the React gate and the Laravel tests both pass on it | D-02 |
-| **1 — UI/UX foundation** | §7 | — | Spec 05 §10 acceptance, on every existing screen | D-01, D-03, D-04 |
+| **0 — one code line** | Phase 2 is finished and merged first (D-02). Then the Laravel branch is brought into the working branch: 11 files conflict (`server.mjs`, six storefront files, two dashboard pages, `build-seed-data.mjs`, the state document). Both CI workflows green. Sandbox PHP and Composer documented. | — | One branch holds both applications; the React gate and the Laravel tests both pass on it | — |
+| **1 — UI/UX foundation** | §7 | — | Spec 05 §10 acceptance, on every existing screen | — (D-01, D-03, D-04 answered) |
 | **2 — identity, access, audit** | One role and permission matrix from the two models. Audit. Login locks. How the shop and any API client authenticate. Money representation verified. UTC storage. | 15 | A matrix test proves each role's access; no route without a permission | — |
 | **3 — CRM** | Leads, contacts, companies, tasks, visits/meetings. **First switch of write authority:** the shop's enquiry and quote-request forms write to Laravel. | 28 | An enquiry from the shop is in the Laravel CRM; the Node write path is closed; duplicates reconciled | Which customer records may move (D-9) |
 | **4 — sales documents** | Estimations, quotations with revisions and approval, invoices, payments, documents | 17 | A quotation becomes an invoice and a receipt, with correct totals computed on the server | Prices, terms, wording, signers (D-8) |
@@ -214,7 +214,7 @@ The order of waves 3–10 is spec 09 §5 with one change: stock and purchasing c
 
 ## 7. Wave 1 — the UI/UX upgrade
 
-Written for D-01 = Livewire. The upgrade changes how the admin looks and how it is navigated. **It changes no route, no permission, no business rule and no table.**
+The upgrade changes how the admin looks and how it is navigated. **It changes no route, no permission, no business rule and no table.**
 
 ### 7.1 Tokens (spec 05 §5) — with the contrast validation the spec asks for
 
@@ -308,14 +308,14 @@ The rules are spec 09 §4, §6 and §7. In short:
 
 ---
 
-## 12. Decisions asked of the owner on 2026-11-16
+## 12. Decisions asked of the owner on 2026-11-16 — and the answers
 
-| # | Question | Recommended |
+| # | Question | Answer |
 |---|---|---|
-| D-01 | What the admin's screens are made of: Livewire, React on a Laravel API, or mixed | Livewire |
-| D-02 | Phase 2 (the real catalogue on the live React shop), which is nearly finished: finish and merge it first, or pause it | Finish first |
-| D-03 | The look: Agency OS (charcoal, white, WOODEX green), navy with a wood accent, or the present Laravel look | Agency OS — spec 05 |
-| D-04 | After the menu and layout, which area first | Dashboard, then commerce, then CRM and sales |
+| D-01 | What the admin's screens are made of: Livewire, React on a Laravel API, or mixed | **Livewire** |
+| D-02 | Phase 2 (the real catalogue on the live React shop), which is nearly finished: finish and merge it first, or pause it | **Finish and merge it first** |
+| D-03 | The look: Agency OS (charcoal, white, WOODEX green), navy with a wood accent, or the present Laravel look | **Agency OS** — spec 05 |
+| D-04 | After the menu and layout, which area first | **The plan's order:** Dashboard, then E-commerce, then CRM and sales |
 
 Still open from earlier, not needed to start Wave 1: D-8 prices, terms, wording and signers; D-9 which records move; D-10 the Hostinger plan; the checkout methods; the providers for WhatsApp, e-mail and SMS.
 
