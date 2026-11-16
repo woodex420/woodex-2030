@@ -1,0 +1,9 @@
+# Not needed to serve the admin on Vercel. Keeps the upload and the function small.
+/tests
+/node_modules
+/tools
+/storage/logs
+/storage/framework
+/database/*.sqlite
+/.env
+/.env.*
