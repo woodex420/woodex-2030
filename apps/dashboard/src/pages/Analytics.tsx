@@ -16,7 +16,7 @@ import { Download } from "@/icons";
 type RevenuePoint = { label: string; revenue: number; orders: number; collected: number };
 type RevenueStats = { months: number; series: RevenuePoint[]; summary: { totalRevenue: number; totalOrders: number; collected: number; revenueChange: number; ordersChange: number } };
 type Stats = {
-  products: { total: number; inStock: number; avgPrice: number };
+  products: { total: number; inStock: number; avgPrice: number | null; draft?: number; archived?: number };
   leads: { total: number; byStatus: Record<string, number> };
   quotes: { total: number; byStatus: Record<string, { count: number; value: number }>; pipelineValue: number };
   orders: { total: number; byStage: Record<string, { count: number; value: number }> };

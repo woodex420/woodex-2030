@@ -75,7 +75,7 @@ export default function PurchaseOrders() {
 
   const options = (kind: "product" | "material") =>
     kind === "product"
-      ? (products.data?.items ?? []).map((p) => ({ id: p.id, name: p.name }))
+      ? (products.data?.items ?? []).filter((p) => p.status !== "archived").map((p) => ({ id: p.id, name: p.name }))
       : (materials.data ?? []).map((m) => ({ id: m.id, name: m.name }));
 
   const draftTotal = useMemo(

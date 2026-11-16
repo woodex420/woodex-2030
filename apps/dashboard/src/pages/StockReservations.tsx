@@ -213,7 +213,7 @@ export default function StockReservations() {
           <Field label="Product" required>
             <Select value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
               <option value="">Choose a product…</option>
-              {(products.data?.items ?? []).map((p) => (
+              {(products.data?.items ?? []).filter((p) => p.status !== "archived" && p.trackStock !== false).map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </Select>

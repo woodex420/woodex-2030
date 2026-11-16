@@ -10,6 +10,7 @@ import { QuotationsList, QuotationBuilder } from "@/pages/Quotations";
 import Catalog from "@/pages/Catalog";
 import ProductEditor from "@/pages/ProductEditor";
 import ProductDetail from "@/pages/ProductDetail";
+import CatalogImport from "@/pages/CatalogImport";
 import Ecommerce from "@/pages/Ecommerce";
 import Orders from "@/pages/Orders";
 import OrderDetail from "@/pages/OrderDetail";
@@ -124,6 +125,7 @@ export default function App() {
             <Route path="/quotations/new" element={<QuotationBuilder />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/catalog/new" element={<ProductEditor />} />
+            <Route path="/catalog/import" element={<CatalogImport />} />
             <Route path="/catalog/:id/edit" element={<ProductEditor />} />
             <Route path="/catalog/:id" element={<ProductDetail />} />
             <Route path="/orders" element={<Orders />} />

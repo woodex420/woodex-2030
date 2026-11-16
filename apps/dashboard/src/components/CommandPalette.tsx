@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { cn } from "@/lib/cn";
-import { fmtPKR, timeAgo, type ApiInvoice, type ApiLead, type ApiOrder, type ApiProduct, type ApiQuote } from "@/lib/api";
+import { fmtPKR, priceLabel, timeAgo, type ApiInvoice, type ApiLead, type ApiOrder, type ApiProduct, type ApiQuote } from "@/lib/api";
 import { Banknote, ClipboardList, FileText, Kanban, Package, Receipt, Search, Settings2, ShoppingBag, Store, Users } from "@/icons";
 
 type Item = { id: string; group: string; label: string; hint?: string; icon: ReactNode; to: string; kw?: string };
@@ -48,14 +48,17 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     void (async () => {
       const [leads, quotes, orders, invoices, products] = await Promise.all([
         j<ApiLead>("/api/leads"), j<ApiQuote>("/api/quotes"), j<ApiOrder>("/api/orders"),
-        j<ApiInvoice>("/api/invoices"), j<ApiProduct>("/api/products"),
+        j<ApiInvoice>("/api/invoices"), j<ApiProduct>("/api/products?status=all"),
       ]);
       setRecords([
         ...leads.slice(0, 12).map((l) => ({ id: "l" + l.id, group: "Leads", label: `${l.name} · ${l.ref}`, hint: l.status + " · " + timeAgo(l.createdAt), icon: <Users size={14} />, to: "/crm", kw: (l.name + l.ref + (l.interest ?? "")).toLowerCase() })),
         ...quotes.slice(0, 12).map((x) => ({ id: "q" + x.id, group: "Quotations", label: `${x.ref} · ${x.customer}`, hint: x.status + " · " + fmtPKR(x.total), icon: <FileText size={14} />, to: "/quotations", kw: (x.ref + x.customer + x.status).toLowerCase() })),
         ...orders.slice(0, 12).map((o) => ({ id: "o" + o.id, group: "Orders", label: `${o.ref} · ${o.customer}`, hint: o.stage + " · " + fmtPKR(o.total), icon: <ClipboardList size={14} />, to: "/orders/" + o.id, kw: (o.ref + o.customer + o.stage).toLowerCase() })),
         ...invoices.slice(0, 12).map((i) => ({ id: "i" + i.id, group: "Invoices", label: `${i.ref} · ${i.customer}`, hint: i.status + " · balance " + fmtPKR(i.balance), icon: <Receipt size={14} />, to: "/invoices", kw: (i.ref + i.customer + i.status).toLowerCase() })),
-        ...products.slice(0, 40).map((p) => ({ id: "p" + p.id, group: "Products", label: p.name, hint: fmtPKR(p.price) + (p.inStock ? "" : " · out of stock"), icon: <Search size={14} />, to: "/catalog?q=" + encodeURIComponent(p.name), kw: (p.name + p.category + (p.series ?? "")).toLowerCase() })),
+        /* Every product that is not archived, found by name or by SKU, opening
+           the product itself. This used to keep the first 40 of the list and
+           link to a search the catalogue screen never read. */
+        ...products.filter((p) => p.status !== "archived").map((p) => ({ id: "p" + p.id, group: "Products", label: p.name, hint: [p.sku, priceLabel(p), p.status === "draft" ? "draft" : "", p.inStock ? "" : "not available"].filter(Boolean).join(" · "), icon: <Search size={14} />, to: "/catalog/" + encodeURIComponent(p.id), kw: (p.name + p.category + (p.series ?? "") + (p.sku ?? "") + (p.variants ?? []).map((v) => v.sku).join("")).toLowerCase() })),
       ]);
     })();
   }, [open]);
