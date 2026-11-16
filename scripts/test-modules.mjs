@@ -49,7 +49,7 @@ import { ROOT, createPgliteDatabase } from "./lib/pg-fixture.mjs";
 
 export const SUITES = [
   "public-surface", "stock-ledger", "procurement", "supplier-invoices", "production", "ops-api",
-  "inventory", "finance", "crm", "delivery", "support", "credentials",
+  "inventory", "finance", "crm", "delivery", "support", "credentials", "catalog",
 ];
 export const ENGINES = ["sqlite", "pglite"];
 

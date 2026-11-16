@@ -71,7 +71,8 @@
     "e2e:routes": "node scripts/e2e-dashboard-routes.mjs",
     "catalog:build": "node scripts/catalog-build.mjs",
     "catalog:check": "node scripts/catalog-build.mjs --check",
-    "test:catalog-build": "node scripts/test-catalog-build.mjs"
+    "test:catalog-build": "node scripts/test-catalog-build.mjs",
+    "test:catalog": "node --experimental-sqlite scripts/test-catalog.mjs"
   },
   "engines": {
     "node": ">=22.5"

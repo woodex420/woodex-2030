@@ -84,7 +84,10 @@ try {
     id, name: id, price: 1000, category: "office-tables", stockQty: qty, inStock: true,
     description: "probe", features: [], images: ["/img/desk-product.jpg"] } });
   check((await mkProduct("proc-chair", 5)).status === 201, "probe product created with stock 5");
-  const stockOf = async (id) => (await api(`/api/products/${id}`)).json?.stockQty;
+  /* Read as staff. The probe is a draft, as every new product is since
+     migration 019, and the public is told a draft does not exist. Buying stock
+     for a product that is not on sale yet is ordinary purchasing. */
+  const stockOf = async (id) => (await api(`/api/products/${id}`, { token })).json?.stockQty;
 
   const materialId = (await api("/api/materials")).json?.[0]?.id;
   check(Boolean(materialId), "a material (finish code) is available to order", String(materialId));
