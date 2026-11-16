@@ -9,7 +9,8 @@ Read in this order:
 | 1 | [`12-DECISION-LOG.md`](12-DECISION-LOG.md) | The owner's decisions. The first source of truth. |
 | 2 | [`00-MASTER-PLAN.md`](00-MASTER-PLAN.md) | Where both systems stand, the target, every admin destination and its migration wave, the UI/UX upgrade, the risks |
 | 3 | [`01-WAVE-0-1-REPORT.md`](01-WAVE-0-1-REPORT.md) | What has been done so far: the two code lines joined, and the first slices of the UI/UX upgrade, with the evidence |
-| 4 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
+| 4 | [`13-VERCEL-DEPLOYMENT.md`](13-VERCEL-DEPLOYMENT.md) | The admin on Vercel: the demo that runs today, what a real deployment still needs, how it is checked |
+| 5 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
 
 Related, elsewhere in this repository:
 

@@ -147,6 +147,17 @@ final class SystemHealthReport
      */
     private function stateFolder(): array
     {
+        // A host that supplies the settings itself and keeps no files (Vercel): there is no folder to judge, and
+        // the true thing to say is that nothing written here lasts.
+        if ($this->site->configuredByServer()) {
+            return [
+                'label' => 'Settings and uploads folder',
+                'ok' => false,
+                'value' => 'this host keeps no files',
+                'hint' => 'The settings come from the hosting platform. Uploads, generated documents and logs are lost whenever the host restarts the application: fine for a demo, not for the business system.',
+            ];
+        }
+
         return [
             'label' => 'Settings and uploads folder',
             // Classic is right for the SSH install (code outside public_html); a Git deploy may replace it.

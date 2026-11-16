@@ -14,6 +14,7 @@ use App\Domain\Sales\Models\Payment;
 use App\Domain\Sales\Models\Quote;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Support\AdminNavigation;
+use App\Support\Modules;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -165,7 +166,8 @@ class GlobalSearch extends Component
             if ($route === 'admin.reports.index' && ! $user->can('reports.view')) {
                 continue;
             }
-            if (Route::has($route) && $user->can($permission) && ($route !== 'admin.leads.import' || $user->hasRole('owner'))) {
+            // A screen of a switched-off module answers 404: it is not offered (the registry above checks the same).
+            if (Route::has($route) && Modules::routeIsOpen($route) && $user->can($permission) && ($route !== 'admin.leads.import' || $user->hasRole('owner'))) {
                 $pages->push(['label' => $label, 'icon' => $icon, 'url' => route($route, $parameters), 'fullDocument' => false]);
             }
         }

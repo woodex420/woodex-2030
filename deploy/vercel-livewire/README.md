@@ -21,3 +21,14 @@ Current evidence: package extraction/config assertions and no-overwrite guard pa
 A cached PHP8.4.21 executable was discovered at /home/user/.cache/woodex-os/php/php; the earlier statement that PHP was unavailable was incorrect. Entry syntax and missing-configuration response were exercised successfully. Locked production dependency check exposed missing ext-exif in that local binary; PHP version itself passed. This is not evidence that the Vercel runtime lacks exif. No ignore-platform-reqs workaround is used.
 
 The Vercel Livewire runtime validation workflow installs PHP8.5 with explicit required extensions, packages the committed source, installs locked production dependencies with scripts disabled, and asserts the entry returns503 without credentials. This tests dependency installability and fail-closed behavior, not actual Vercel runtime parity or authenticated Livewire acceptance. It never connects to a hosted DB or deploys a partially configured application.
+
+## 2026-11-16: deployed from Git, as a demo
+
+The admin is now deployed straight from Git by a Vercel project whose Root Directory is `platform/`
+(`platform/api/index.php` and `platform/vercel.json`, byte-identical copies of the two files here). The record,
+the two modes (demo with sample data; real with MySQL), what was wrong with this entry before and how the
+deployment is rehearsed with Vercel's own PHP runtime: `docs/woodex-os/13-VERCEL-DEPLOYMENT.md`.
+
+The package built by `scripts/package-vercel-livewire.mjs` switches Composer scripts off, so it cannot build the
+demo's workspace; with `WOODEX_DEMO=1` it answers "The demo workspace was not built with this deployment."
+

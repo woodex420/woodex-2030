@@ -11,7 +11,8 @@ it('keeps the website tools under one Website Studio heading without changing th
     $studio = array_values(array_filter(AdminNavigation::groups(), fn (array $group): bool => $group['title'] === 'Website Studio'));
     expect($studio)->toHaveCount(1);
 
-    $permissions = array_column($studio[0]['items'], 'permission', 'route');
+    // Entries without a screen of their own have no route; a null array key is deprecated from PHP 8.5.
+    $permissions = array_column(array_filter($studio[0]['items'], fn (array $item): bool => $item['route'] !== null), 'permission', 'route');
     foreach ([
         'admin.website.media' => 'website.edit', 'admin.website.seo.overview' => 'website.edit', 'admin.website.seo' => 'website.edit',
         'admin.website.speed' => 'website.edit', 'admin.website.health' => 'website.edit', 'admin.website.theme' => 'theme.manage',

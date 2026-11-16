@@ -62,6 +62,9 @@
         ],
         "lint": "pint --test",
         "analyse": "phpstan analyse --memory-limit=1G",
+        "vercel": [
+            "@php tools/vercel/build-demo.php"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

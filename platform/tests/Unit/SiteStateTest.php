@@ -116,3 +116,30 @@ it('creates the storage folders Laravel needs', function () {
         removeTree($root);
     }
 });
+
+it('counts a site as configured when the hosting platform supplies the settings (Vercel), without any .env', function () {
+    $root = siteStateSandbox();
+    $site = new SiteState($root.'/home/u123/domains/interior.woodex.com.pk/public_html/platform', $root.'/home/u123');
+
+    try {
+        expect($site->configuredByServer())->toBeFalse()
+            ->and($site->isConfigured())->toBeFalse();
+
+        // Only the exact value the Vercel entry writes counts; "true", "yes" or an empty value do not.
+        foreach (['', '0', 'true', 'yes'] as $value) {
+            $_SERVER[SiteState::SERVER_CONFIG] = $value;
+            expect($site->isConfigured())->toBeFalse("the value '{$value}' must not mark a site as configured");
+        }
+
+        $_SERVER[SiteState::SERVER_CONFIG] = '1';
+        expect($site->configuredByServer())->toBeTrue()
+            ->and($site->isConfigured())->toBeTrue()
+            // Nothing else changes: there is still no .env, so no folder holds one and nothing is "external".
+            ->and($site->environmentDirectory())->toBeNull()
+            ->and($site->usesExternalState())->toBeFalse()
+            ->and($site->usesClassicLayout())->toBeFalse();
+    } finally {
+        unset($_SERVER[SiteState::SERVER_CONFIG]);
+        removeTree($root);
+    }
+});

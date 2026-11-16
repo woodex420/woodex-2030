@@ -257,6 +257,14 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
 - **A changed requirement changes a test; it does not delete one.** When the roadmap left the sidebar, the
   tests that expected "Soon" entries were rewritten to expect them on Feature status.
 - The root `index.php` and `.htaccess` are the Hostinger entry of this application. Vercel does not use them.
+- **Vercel** (`docs/woodex-os/13-VERCEL-DEPLOYMENT.md`): the entry is `platform/api/index.php`, and
+  `deploy/vercel-livewire/` holds byte-identical copies of it and of `vercel.json`. Today it serves a demo
+  with sample data (`WOODEX_DEMO=1` in the Vercel project, never in the repository). Before changing the
+  entry, `vercel.json`, the fixtures or anything in `platform/public`, run
+  `platform/tools/vercel/check-entry.sh`: it rehearses the deployment with Vercel's own PHP runtime and
+  launcher from npm. A new folder in `platform/public` needs a route in `vercel.json`, or its files answer 404
+  there. That same PHP (8.5, with `pdo_mysql`, `exif` and `xmlwriter`) also runs the nine tests the static
+  sandbox PHP cannot: `platform/tools/preview/README.md`.
 
 ---
 

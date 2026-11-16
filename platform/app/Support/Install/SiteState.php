@@ -22,6 +22,9 @@ final class SiteState
 {
     public const string FOLDER = 'woodex-os';
 
+    /** Server variable that marks a site whose settings come from the hosting platform (see configuredByServer()). */
+    public const string SERVER_CONFIG = 'WOODEX_CONFIG_FROM_SERVER';
+
     /** Folders Laravel expects inside storage/. Created when missing (platform/storage is not fully in Git). */
     public const array STORAGE_TREE = [
         'app/private',
@@ -103,9 +106,23 @@ final class SiteState
         return $external !== null && is_file($external.'/.env') ? $external : null;
     }
 
+    /**
+     * A site is configured when its .env exists, or when the hosting platform supplies the settings itself.
+     */
     public function isConfigured(): bool
     {
-        return $this->environmentDirectory() !== null;
+        return $this->environmentDirectory() !== null || $this->configuredByServer();
+    }
+
+    /**
+     * True on a platform that supplies the settings as server variables and has no writable disk (Vercel: project
+     * settings become server variables, the file system is read-only). No .env exists there and the installer,
+     * which writes one, can never run. Only the platform's own entry point (api/index.php) sets the variable, after
+     * it has checked that the settings it needs are present.
+     */
+    public function configuredByServer(): bool
+    {
+        return ($_SERVER[self::SERVER_CONFIG] ?? getenv(self::SERVER_CONFIG)) === '1';
     }
 
     public function usesExternalState(): bool

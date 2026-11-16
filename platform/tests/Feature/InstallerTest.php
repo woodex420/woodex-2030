@@ -62,6 +62,28 @@ it('sends every page of a freshly deployed site to the installer', function () {
     $this->get('/up')->assertOk();
 });
 
+it('leaves a site alone whose settings come from the hosting platform: no redirect, and the installer is closed', function () {
+    // Vercel: the project settings are server variables and the disk is read-only, so the installer (which writes
+    // .env, the setup code and the owner details as files) could never finish there. The entry marks the site.
+    $_SERVER[SiteState::SERVER_CONFIG] = '1';
+
+    try {
+        $this->get('/admin/login')->assertOk()->assertSee('Sign in');
+        $this->get('/install')->assertNotFound();
+        $this->post('/install', installerForm())->assertNotFound();
+        $this->post('/install/finish', ['setup_code' => 'AAAA-AAAA-AAAA-AAAA-AAAA-AAAA'])->assertNotFound();
+    } finally {
+        unset($_SERVER[SiteState::SERVER_CONFIG]);
+    }
+
+    // Nothing was written for it: no setup code (neither copy), no .env.
+    expect(is_file($this->data.'/setup-code.txt'))->toBeFalse()
+        ->and(is_file($this->data.'/.env'))->toBeFalse()
+        ->and(is_file($this->home.'/domains/site.test/public_html/WOODEX-SETUP-CODE.txt'))->toBeFalse();
+    // And without the mark the same site opens the installer again.
+    $this->get('/admin/login')->assertRedirect('http://localhost/install');
+});
+
 it('shows the installer and writes a setup code into the private data folder', function () {
     $this->get('/install')
         ->assertOk()

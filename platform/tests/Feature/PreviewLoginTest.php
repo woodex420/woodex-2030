@@ -85,3 +85,22 @@ it('does not let preview guidance reactivate an inactive staff account', functio
         ->assertRedirect(route('login'))->assertSessionHasErrors('email');
     $this->assertGuest();
 });
+
+it('says on every admin screen that a demo is a demo, and says nothing on a real system', function () {
+    $owner = $this->userWithRole('owner');
+    $isSqlite = config('database.default') === 'sqlite';
+
+    config(['preview.synthetic' => true]);
+    $demo = $this->actingAs($owner)->get(route('admin.dashboard'))->assertOk();
+    if ($isSqlite) {
+        $demo->assertSee('data-demo-notice', false)->assertSee('Demo workspace — sample data.')
+            ->assertSee('Do not enter real customer details or passwords.');
+        $this->get(route('admin.system.features'))->assertOk()->assertSee('data-demo-notice', false);
+    } else {
+        // MySQL is never a demo, whatever the switch says.
+        $demo->assertDontSee('data-demo-notice', false);
+    }
+
+    config(['preview.synthetic' => false]);
+    $this->get(route('admin.dashboard'))->assertOk()->assertDontSee('data-demo-notice', false)->assertDontSee('Demo workspace');
+});

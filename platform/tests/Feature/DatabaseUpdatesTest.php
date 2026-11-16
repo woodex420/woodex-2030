@@ -5,6 +5,7 @@ use App\Domain\Sales\Models\CatalogItem;
 use App\Domain\Sales\Models\QuoteTemplate;
 use App\Models\User;
 use App\Support\Install\DatabaseUpdates;
+use App\Support\Install\SiteState;
 use Database\Seeders\ProductionSeeder;
 use Database\Seeders\QuoteTemplateSeeder;
 use Database\Seeders\RateBookSeeder;
@@ -150,6 +151,26 @@ it('reports pending migrations on the Health page', function () {
         ->assertSee('Database up to date')
         ->assertSee('Settings and uploads folder')
         ->assertSee('Front-end build');
+});
+
+it('says plainly on the Health page that a host without a disk keeps no files', function () {
+    // Vercel: the settings are server variables and the disk is read-only. The Hostinger advice about moving
+    // .env and storage/ would be wrong there, and a green tick would hide that uploads do not last.
+    $this->app->instance(SiteState::class, new SiteState(base_path(), null));
+    $_SERVER[SiteState::SERVER_CONFIG] = '1';
+
+    try {
+        $this->actingAs($this->userWithRole('owner'))->get(route('admin.system.health'))
+            ->assertOk()
+            ->assertSee('this host keeps no files')
+            ->assertSee('fine for a demo, not for the business system')
+            ->assertDontSee('Hostinger Git deploys');
+    } finally {
+        unset($_SERVER[SiteState::SERVER_CONFIG]);
+    }
+
+    // Everywhere else the advice is unchanged.
+    $this->get(route('admin.system.health'))->assertOk()->assertDontSee('this host keeps no files');
 });
 
 it('never undoes owner edits when reference data is seeded again', function () {

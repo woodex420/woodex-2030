@@ -54,6 +54,13 @@
                         <a href="{{ route('login', [], false) }}" class="mt-2 inline-block font-medium underline">View transparent welcome page</a>
                     </aside>
                 @endif
+                @if (\App\Support\SyntheticPreview::enabled())
+                    {{-- A demo (the Vercel demo, a sandbox preview): said on every screen, so nobody takes it for the real system. --}}
+                    <aside data-demo-notice role="note" class="mb-5 flex items-start gap-3 rounded-xl border border-warning-500/40 bg-warning-50 px-4 py-3 text-theme-sm text-warning-700 dark:bg-warning-500/10">
+                        <x-icon name="alert" class="mt-0.5 size-5 shrink-0" />
+                        <p><strong>Demo workspace — sample data.</strong> Everything here is fictional and can be erased at any time. Do not enter real customer details or passwords.</p>
+                    </aside>
+                @endif
                 @if (session('warning'))
                     <div class="mb-5 flex items-start gap-3 rounded-xl border border-warning-500/30 bg-warning-50 px-4 py-3 text-warning-700 dark:bg-warning-500/10">
                         <x-icon name="alert" class="mt-0.5 size-5 shrink-0" />

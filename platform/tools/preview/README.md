@@ -73,4 +73,22 @@ The reason: on 2026-11-11 a test that already failed here for the missing `xmlwr
 
 Remember what this cannot show: the nine excused tests are not tested here at all. Only CI tests them.
 
+### A complete PHP, from npm
+
+The nine excused tests do run in such a sandbox with the PHP that Vercel's builder ships. It is PHP 8.5 with
+`pdo_mysql`, `exif`, `xmlwriter` and `gd`, built for AlmaLinux 9, and it runs on Debian and Ubuntu:
+
+```
+npm install --prefix <dir> vercel-php@0.9.0
+N=<dir>/node_modules/@libphp/almalinux-9-v85/native
+LD_LIBRARY_PATH="$N/lib:/usr/lib64:/lib64" PHP_INI_SCAN_DIR=":<dir>/node_modules/vercel-php/conf" \
+  PHP_INI_EXTENSION_DIR="$N/php/modules" "$N/php/php" -d opcache.enable=0 -d opcache.enable_cli=0 -d memory_limit=1024M ...
+```
+
+Put that in a small script and pass it as `WOODEX_PHP`. Keep the two `opcache` switches: this PHP's own
+`php.ini` stores compiled scripts in `/tmp` and never reads a changed file again, so an edited test would keep
+running in its old form. Measured on 2026-11-16: the whole suite passes with it (2198 passed, 34 skipped,
+none failed), with nothing excused.
+MySQL itself is still only in CI: the two installer tests need the driver, not a server.
+
 A real browser is available too: `npm install @sparticuz/chromium puppeteer-core` ships a headless Chromium inside the npm package, and it runs with `AWS_EXECUTION_ENV=AWS_Lambda_nodejs22.x` set so that its bundled libraries are unpacked.

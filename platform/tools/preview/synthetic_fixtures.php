@@ -94,29 +94,52 @@ if ($mode === 'data') {
     $plan = ['new' => 3, 'contacted' => 2, 'quotation' => 2, 'negotiation' => 1, 'won' => 1, 'lost' => 1];
     $n = 0;
     DB::transaction(function () use ($plan, $stages, $owner, &$n): void {
+        // Written out in full, not through the model factories: those need fakerphp/faker, a development package
+        // that a production build (the Vercel demo, "composer install --no-dev") does not have. Every value is
+        // fixed, so two builds give the same records.
         foreach ($plan as $stage => $count) {
             for ($i = 0; $i < $count; $i++) {
                 $n++;
-                $contact = Contact::factory()->create([
+                $created = now()->subHours(6 + $n * 31);
+                $contact = Contact::query()->create([
                     'name' => sprintf('SYNTHETIC Contact %02d', $n),
                     'phone' => sprintf('+9230000000%02d', $n),
                     'whatsapp' => sprintf('+9230000000%02d', $n),
                     'email' => sprintf('contact%02d@woodex.test', $n),
                     'city' => 'Lahore',
                     'area' => 'Synthetic area',
+                    'client_type' => 'individual',
+                    'preferred_language' => 'en',
+                    'source' => 'website_form',
+                    'last_activity_at' => $created,
                 ]);
-                Lead::factory()->for($contact)->create([
+                Lead::query()->create([
+                    'ref' => sprintf('L-%s-SYN%03d', now()->format('Y'), $n),
+                    'contact_id' => $contact->id,
                     'business_line' => 'furniture',
                     'service' => 'furniture',
                     'property_type' => 'office',
+                    'city' => 'Lahore',
                     'area' => 'Synthetic area',
+                    'area_sqft' => [900, 1350, 2250, 4500, 10000][$n % 5],
+                    'lead_type' => 'new',
+                    'priority' => ['normal', 'high', 'low', 'normal'][$n % 4],
+                    'stage_id' => $stages[$stage],
+                    'stage_changed_at' => $created,
+                    'score' => 30 + $n * 6,
+                    'expected_value_minor' => [800_000, 1_500_000, 3_500_000, 7_500_000][$n % 4] * 100,
+                    'next_action_type' => ['call', 'whatsapp', 'visit'][$n % 3],
+                    'next_action_at' => now()->addHours($n * 14 - 48),
+                    'sla_due_at' => $created->copy()->addMinutes(15),
+                    'first_response_at' => $n % 5 === 0 ? null : $created->copy()->addMinutes(5 + $n * 3),
                     'source' => 'website_form',
                     'message' => sprintf('SYNTHETIC enquiry %02d — office furniture for a fictional workspace.', $n),
-                    'stage_id' => $stages[$stage],
                     'owner_id' => $owner->id,
                     'won_at' => $stage === 'won' ? now()->subDays(2) : null,
                     'lost_at' => $stage === 'lost' ? now()->subDays(2) : null,
                     'lost_reason' => $stage === 'lost' ? 'Other' : null,
+                    'created_at' => $created,
+                    'updated_at' => $created,
                 ]);
             }
         }

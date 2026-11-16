@@ -2,8 +2,10 @@ name: Vercel Livewire runtime validation
 on:
   workflow_dispatch:
   push:
-    branches: ["arena/**"]
-    paths: ["deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", ".github/workflows/vercel-livewire.yml"]
+    branches: [main, "arena/**"]
+    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", ".github/workflows/vercel-livewire.yml"]
+  pull_request:
+    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", ".github/workflows/vercel-livewire.yml"]
 permissions:
   contents: read
 jobs:
@@ -35,3 +37,33 @@ jobs:
         run: |
           php -r 'register_shutdown_function(function () { if (http_response_code() !== 503) { exit(1); } }); require "api/index.php";' > "$RUNNER_TEMP/entry-output"
           test "$(cat "$RUNNER_TEMP/entry-output")" = 'Admin service is not configured.'
+
+  # The deployment that Vercel builds from Git (Root Directory platform/), rehearsed with Vercel's own parts:
+  # the PHP runtime and the launcher of the builder named in vercel.json, its php.ini, the function folder
+  # /var/task, a read-only file system, and the packages installed exactly as the builder installs them.
+  # Only Vercel's network is replaced (platform/tools/vercel/launcher-stand-in.cjs).
+  demo-on-vercel-runtime:
+    name: "Vercel's PHP runtime: build the demo, sign in, open every screen"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Both copies of the entry match, and every public file has a route
+        run: node scripts/test-vercel-livewire-root.mjs
+      - name: Fetch the builder that vercel.json names (PHP runtime and launcher)
+        run: |
+          builder="$(node -p "require('./platform/vercel.json').builds.find((build) => build.src === 'api/index.php').use")"
+          echo "Builder: $builder"
+          npm install --prefix "$RUNNER_TEMP/vercel-php" --no-audit --no-fund "$builder"
+      - name: Make /var/task writable (the function's folder on Vercel)
+        run: sudo mkdir -p /var/task && sudo chown "$(id -u):$(id -g)" /var/task
+      - name: Build as the builder does, serve read-only, and check what a visitor gets
+        working-directory: platform
+        env:
+          VERCEL_PHP: ${{ runner.temp }}/vercel-php/node_modules
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: bash tools/vercel/check-entry.sh --build --read-only
+

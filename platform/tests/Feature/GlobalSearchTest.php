@@ -51,3 +51,37 @@ it('is available in the admin header', function () {
         ->get(route('admin.leads.index'))
         ->assertSeeLivewire(GlobalSearch::class);
 });
+
+it('offers only screens that open: nothing from a switched-off module, for any role', function (string $role) {
+    // The palette lists the registry's screens plus its own shortcuts (tabs and sub-screens). The shortcuts were
+    // checked for permission only, so "Canned replies" and "WhatsApp templates" were offered while their modules
+    // were off, and opened a "not found" page.
+    config(['modules.enabled' => 'lead_api']);
+    $user = $this->userWithRole($role);
+    $this->actingAs($user);
+
+    $pages = Livewire::test(GlobalSearch::class)->viewData('pages');
+    expect($pages)->not->toBeEmpty();
+
+    $refused = [];
+    foreach ($pages as $page) {
+        $status = $this->followingRedirects()->get($page['url'])->getStatusCode();
+        if ($status !== 200) {
+            $refused[] = $page['label'].' → '.$status;
+        }
+    }
+    expect($refused)->toBe([]);
+
+    $urls = $pages->pluck('url')->all();
+    expect($urls)->not->toContain(route('admin.canned-replies'))->not->toContain(route('admin.whatsapp.templates'));
+
+    // Switched on, both are offered again to those who may use them.
+    config(['modules.enabled' => '*']);
+    $urls = Livewire::test(GlobalSearch::class)->viewData('pages')->pluck('url')->all();
+    if ($user->can('settings.manage')) {
+        expect($urls)->toContain(route('admin.canned-replies'));
+    }
+    if ($user->can('integrations.manage')) {
+        expect($urls)->toContain(route('admin.whatsapp.templates'));
+    }
+})->with(['owner', 'sales_manager', 'sales', 'accountant', 'support']);
