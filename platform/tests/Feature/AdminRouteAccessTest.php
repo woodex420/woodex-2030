@@ -24,6 +24,9 @@ it('gives the support role exactly the screens its permissions allow, and 403 ev
         'admin.tasks.index',
         'admin.inbox',
         'admin.profile.security',
+        // Feature status is open to anyone who may use the admin (dashboard.view). It lists only the
+        // destinations the person's own permissions cover — see tests/Feature/FeatureStatusTest.php.
+        'admin.system.features',
     ];
 
     // Slice J: /clients, /customers and /visitors are 301s into the Contacts hub, which support may open

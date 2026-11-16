@@ -48,13 +48,14 @@ function captureLead(int $sequence = 1): Lead
 it('consolidates the sidebar to the confirmed P10.1 map', function () {
     $groups = collect(AdminNavigation::for($this->owner))->keyBy('title');
 
-    expect($groups->keys())->toContain('Overview', 'CRM', 'Sales', 'Accounts', 'System')
+    // Group names follow the owner's navigation of 2026-11-16 (spec 05 §2): Overview is Workspace, CRM
+    // and Inbox are Customers, Projects is Operations. The hubs inside are the P10.1 ones, unchanged.
+    expect($groups->keys())->toContain('Workspace', 'Customers', 'Sales', 'Accounts', 'System')
         ->and($groups->keys())->not->toContain('Reports');
 
-    expect($groups['Overview']['items'])->toHaveCount(3)
-        ->and(collect($groups['Overview']['items'])->pluck('label')->all())->toBe(['Dashboard', 'Approvals', 'Reports'])
-        ->and($groups['CRM']['items'])->toHaveCount(3)
-        ->and(collect($groups['CRM']['items'])->pluck('label')->all())->toBe(['Leads', 'Contacts', 'Tasks & Visits'])
+    expect($groups['Workspace']['items'])->toHaveCount(3)
+        ->and(collect($groups['Workspace']['items'])->pluck('label')->all())->toBe(['Dashboard', 'Approvals', 'Reports'])
+        ->and(collect($groups['Customers']['items'])->pluck('label')->all())->toBe(['Leads', 'Contacts', 'Tasks & Visits', 'Conversations', 'Chat Bot'])
         ->and($groups['Sales']['items'])->toHaveCount(5)
         ->and(collect($groups['Sales']['items'])->pluck('label')->all())->toBe(['Estimations', 'Quotations', 'Invoices', 'Payments', 'Documents']);
 
@@ -68,8 +69,9 @@ it('consolidates the sidebar to the confirmed P10.1 map', function () {
     // without a test.
     // Six ledger tools now share one front door; every original URL remains available.
     // Owner restored Commerce Overview and added native Products plus explicit Shop/Series Soon pages (+4 destinations).
-    expect($live)->toHaveCount(48);
-    expect(collect($groups['Projects']['items'])->pluck('route')->all())->toBe(['admin.projects.index', 'admin.projects.board', 'admin.projects.costs', 'admin.projects.portal', 'admin.projects.handovers']);
+    // 50 since 2026-11-16: the audit log is named beside the Platform hub, and Feature status joined (+2).
+    expect($live)->toHaveCount(50);
+    expect(collect($groups['Operations']['items'])->pluck('route')->all())->toBe(['admin.projects.index', 'admin.projects.board', 'admin.projects.costs', 'admin.projects.portal', 'admin.projects.handovers']);
 });
 
 it('renders every hub tab for the owner', function (string $path, string $marker) {
@@ -158,8 +160,8 @@ it('shows live sidebar badges for unread conversations and pending approvals', f
     $body = $this->actingAs($this->owner)->get('/admin/settings')->assertOk()->getContent();
 
     // Two conversations with unread messages, one quotation waiting for approval.
-    expect(preg_match('/bg-brand-600[^>]*>\s*2\s*</u', $body))->toBe(1)
-        ->and(preg_match('/bg-brand-600[^>]*>\s*1\s*</u', $body))->toBe(1);
+    expect(preg_match('/wx-sidebar-badge[^>]*>\s*2\s*</u', $body))->toBe(1)
+        ->and(preg_match('/wx-sidebar-badge[^>]*>\s*1\s*</u', $body))->toBe(1);
 });
 
 it('classifies the lead tracking board without inventing states', function () {

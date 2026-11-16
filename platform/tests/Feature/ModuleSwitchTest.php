@@ -139,13 +139,15 @@ it('answers an unknown address with a plain 404 while the website module is off'
         ->and((string) $response->headers->get('Location'))->toEndWith('/no-such-page/');
 });
 
-it('shows switched-off modules as non-clickable roadmap entries', function () {
+it('leaves switched-off modules out of the sidebar', function () {
     $owner = $this->userWithRole('owner');
     $routes = fn () => collect(AdminNavigation::for($owner))->flatMap(fn (array $group): array => $group['items'])->pluck('route');
     $titles = fn () => collect(AdminNavigation::for($owner))->pluck('title')->all();
 
     useShippedModules();
-    expect($titles())->toBe(['Overview', 'CRM', 'Sales', 'Commerce', 'Procurement & Production', 'Accounts', 'Projects', 'Inbox', 'Automation', 'Marketing', 'Pages & builder', 'Content', 'Website', 'System', 'Workspace'])
+    // With only the shipped modules on, a group whose screens are all closed is not there at all
+    // (Growth), and Procurement & Production has no screen in this application yet.
+    expect($titles())->toBe(['Workspace', 'Customers', 'Sales', 'Commerce', 'Operations', 'Accounts', 'Website Studio', 'System'])
         ->and($routes()->all())->toContain('admin.leads.index', 'admin.quotes.index', 'admin.invoices.index', 'admin.accounts.workspace', 'admin.projects.index', 'admin.settings')
         ->and($routes()->intersect([
             'admin.inbox', 'admin.chat-bot', 'admin.estimations.index', 'admin.marketing.index', 'admin.automation.index',
@@ -153,8 +155,9 @@ it('shows switched-off modules as non-clickable roadmap entries', function () {
         ])->all())->toBe([]);
 
     config(['modules.enabled' => '*']);
-    expect($titles())->toContain('Inbox', 'Automation', 'Marketing', 'Pages & builder', 'Content', 'Website')
-        ->and($routes()->all())->toContain('admin.inbox', 'admin.estimations.index', 'admin.projects.portal');
+    expect($titles())->toContain('Customers', 'Growth', 'Website Studio')
+        ->and($routes()->all())->toContain('admin.inbox', 'admin.chat-bot', 'admin.estimations.index', 'admin.projects.portal',
+            'admin.marketing.index', 'admin.automation.index', 'admin.whatsapp.templates', 'admin.website.pages', 'admin.website.theme');
 });
 
 it('leaves the chat bell out of the admin header while the inbox is off', function () {

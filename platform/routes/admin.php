@@ -78,6 +78,7 @@ use App\Livewire\Admin\System\AuditLog;
 use App\Livewire\Admin\System\AutomationsIndex;
 use App\Livewire\Admin\System\ChangeRequests;
 use App\Livewire\Admin\System\DataImport;
+use App\Livewire\Admin\System\FeatureStatus;
 use App\Livewire\Admin\System\Health;
 use App\Livewire\Admin\System\Integrations;
 use App\Livewire\Admin\System\RecycleBin;
@@ -252,6 +253,8 @@ Route::livewire('/automation/sequences', SequencesIndex::class)->name('automatio
 Route::livewire('/system/change-requests', ChangeRequests::class)->name('system.change-requests')->middleware('can:system.change_requests');
 Route::livewire('/system/alert-rules', AlertRulesIndex::class)->name('system.alert-rules')->middleware('can:settings.manage');
 Route::livewire('/system/audit', AuditLog::class)->name('system.audit')->middleware('can:audit.view');
+// Every destination and where it stands today; the sidebar shows only what can be opened here.
+Route::livewire('/system/features', FeatureStatus::class)->name('system.features')->middleware('can:dashboard.view');
 // Database update after a deploy (D-58): reachable while migrations are pending and before 2FA setup.
 Route::get('/system/updates', [SystemUpdateController::class, 'show'])->name('system.updates')
     ->middleware('can:system.health')->withoutMiddleware(['db-current', 'two-factor']);

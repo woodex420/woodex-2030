@@ -29,23 +29,25 @@ it('shows shipped screens as live destinations instead of future phases', functi
         ->and($items['Chat Bot']['phase'] ?? null)->toBeNull();
 });
 
-it('folds the eleven System entries into four live pages with their buttons inside', function () {
+it('folds the eleven System entries into four hubs, beside the audit log and Feature status', function () {
     $system = collect(AdminNavigation::for($this->owner))->firstWhere('title', 'System');
 
+    // The four hubs keep their buttons inside. The audit log is named on its own because the owner's
+    // navigation lists it (spec 05 §2); Feature status is where everything not in the sidebar is told.
     expect(collect($system['items'])->pluck('label')->all())
-        ->toBe(['Settings', 'Access & team', 'Connections', 'Platform'])
+        ->toBe(['Settings', 'Access & team', 'Connections', 'Platform', 'Audit & activity', 'Feature status'])
         ->and(collect($system['items'])->whereNull('route'))->toBeEmpty();
 });
 
-it('does not advertise any unimplemented planned entry — no shipped module wears a phase badge', function () {
-    $planned = collect(AdminNavigation::for($this->owner))
+it('puts nothing in the sidebar that cannot be opened — no planned entry, no phase badge', function () {
+    $dead = collect(AdminNavigation::for($this->owner))
         ->flatMap(fn (array $group): array => $group['items'])
-        ->filter(fn (array $item): bool => $item['route'] === null && ! in_array($item['phase'], ['2030', 'Legacy', 'soon'], true))
+        ->filter(fn (array $item): bool => $item['route'] === null || $item['phase'] !== null || ! Route::has($item['route']))
         ->pluck('label')
         ->values()
         ->all();
 
-    expect($planned)->toBe([]);
+    expect($dead)->toBe([]);
 });
 
 it('opens the four System pages for the owner', function (string $path, string $marker) {

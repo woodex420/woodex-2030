@@ -2,25 +2,62 @@
 
 use App\Support\AdminNavigation;
 
-it('groups the seven existing tools under one Website heading without changing their permissions', function () {
-    $website = array_values(array_filter(AdminNavigation::groups(), fn (array $group): bool => $group['title'] === 'Website'));
+/*
+| The navigation registry, read as data (docs/woodex-os/spec/05-ADMIN-IA-AND-UX.md §2–3). What a person
+| actually sees — by role, and by which modules are on — is tested in tests/Feature/FeatureStatusTest.php.
+*/
 
-    expect($website)->toHaveCount(1)
-        ->and(array_column($website[0]['items'], 'label'))->toBe(['Media', 'SEO', 'SEO agent', 'Speed', 'Site health', 'Theme', 'Website Settings'])
-        ->and(array_column($website[0]['items'], 'route'))->toBe(['admin.website.media', 'admin.website.seo.overview', 'admin.website.seo', 'admin.website.speed', 'admin.website.health', 'admin.website.theme', 'admin.website.settings'])
-        ->and(array_column($website[0]['items'], 'permission'))->toBe(['website.edit', 'website.edit', 'website.edit', 'website.edit', 'website.edit', 'theme.manage', 'settings.manage']);
+it('keeps the website tools under one Website Studio heading without changing their permissions', function () {
+    $studio = array_values(array_filter(AdminNavigation::groups(), fn (array $group): bool => $group['title'] === 'Website Studio'));
+    expect($studio)->toHaveCount(1);
+
+    $permissions = array_column($studio[0]['items'], 'permission', 'route');
+    foreach ([
+        'admin.website.media' => 'website.edit', 'admin.website.seo.overview' => 'website.edit', 'admin.website.seo' => 'website.edit',
+        'admin.website.speed' => 'website.edit', 'admin.website.health' => 'website.edit', 'admin.website.theme' => 'theme.manage',
+        'admin.website.settings' => 'settings.manage', 'admin.website.pages' => 'website.edit', 'admin.website.builder' => 'website.edit',
+        'admin.website.find-replace' => 'website.edit', 'admin.website.redirects' => 'website.edit', 'admin.website.blog' => 'website.edit',
+        'admin.website.portfolio' => 'website.edit', 'admin.website.forms' => 'website.edit',
+    ] as $route => $permission) {
+        expect($permissions[$route] ?? null)->toBe($permission, $route);
+    }
 });
 
-it('keeps the linked project-cost hub while consolidating accounting into three front doors', function () {
-    $groups = AdminNavigation::groups();
+it('follows the order of groups the owner specified', function () {
+    expect(array_column(AdminNavigation::groups(), 'title'))->toBe([
+        'Workspace', 'Customers', 'Sales', 'Commerce', 'Operations', 'Procurement & Production',
+        'Accounts', 'Growth', 'Website Studio', 'System',
+    ]);
+});
 
+it('lists every destination exactly once', function () {
+    $groups = AdminNavigation::groups();
     $items = array_merge(...array_column($groups, 'items'));
-    $existing = array_filter($items, fn (array $item): bool => $item['route'] !== 'admin.projects.costs');
-    $added = array_values(array_filter($items, fn (array $item): bool => $item['route'] === 'admin.projects.costs'));
-    expect($items)->toHaveCount(43)
-        ->and($existing)->toHaveCount(42)
-        ->and($added)->toHaveCount(1)
-        ->and($added[0]['label'])->toBe('Vendors & costs')
-        ->and($added[0]['permission'])->toBe('accounts.view')
+    $routes = array_values(array_filter(array_column($items, 'route')));
+
+    // The exact numbers are asserted on purpose: a destination cannot join or leave the registry without a test.
+    expect($items)->toHaveCount(68)
+        ->and($routes)->toHaveCount(50)
+        ->and(array_unique($routes))->toHaveCount(50, 'a screen is listed twice')
+        ->and(array_unique(array_column($items, 'id')))->toHaveCount(68, 'two destinations share an id')
+        ->and(array_unique(array_column($groups, 'id')))->toHaveCount(count($groups))
         ->and(array_column($groups, 'title'))->not->toContain(null);
+
+    foreach ($items as $item) {
+        // Nothing in the registry is a dead end: a destination has a screen here, or a screen in the
+        // Agency OS dashboard, or a wave in which it arrives — except the two preferences screens, which
+        // are not scheduled.
+        $scheduled = $item['route'] !== null || $item['legacy'] !== null || $item['wave'] !== null;
+        expect($scheduled || in_array($item['id'], ['workspace-preferences', 'team-onboarding'], true))->toBeTrue($item['id']);
+        expect($item['wave'] === null || isset(AdminNavigation::WAVES[$item['wave']]))->toBeTrue($item['id'].' names a wave the plan does not have');
+    }
+});
+
+it('keeps the linked project-cost hub beside Projects', function () {
+    $items = array_merge(...array_column(AdminNavigation::groups(), 'items'));
+    $costs = array_values(array_filter($items, fn (array $item): bool => $item['route'] === 'admin.projects.costs'));
+
+    expect($costs)->toHaveCount(1)
+        ->and($costs[0]['label'])->toBe('Vendors & costs')
+        ->and($costs[0]['permission'])->toBe('accounts.view');
 });

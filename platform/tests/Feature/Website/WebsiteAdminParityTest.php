@@ -44,17 +44,16 @@ it('groups the Website section the way it is worked on', function () {
     // Build a page, fill it with content, then tune the whole site — the owner's three bands.
     // Section library and Page templates left the sidebar with the block editor (step 6): they fed a
     // screen that wrote rows, and the files never read them.
-    expect($labels('Pages & builder'))->toBe([
-        'All pages', 'Page builder', 'Find & replace', 'Redirects',
-    ])->and($labels('Content'))->toBe([
-        'Blog', 'Portfolio', 'Forms',
-    ])->and($labels('Website'))->toBe([
-        'Media', 'SEO', 'SEO agent', 'Speed', 'Site health', 'Theme', 'Website Settings',
+    // One Website Studio group since 2026-11-16, in the order of the owner's navigation (spec 05 §2).
+    // This account has no catalogue permission, so Shop customization is not in its list.
+    expect($labels('Website Studio'))->toBe([
+        'All pages', 'Page builder', 'Blog', 'Portfolio', 'Forms', 'Media', 'Theme',
+        'SEO', 'SEO agent', 'Speed', 'Site health', 'Website Settings', 'Redirects', 'Find & replace',
     ]);
 
-    // Every Content item has a route, so nothing is listed disabled. The four database-only screens
+    // Every item has a route, so nothing is listed disabled. The four database-only screens
     // (Service pages, City pages, FAQs, Testimonials) were retired with the database-page model (§16.19).
-    $planned = collect($groups->firstWhere('title', 'Content')['items'])
+    $planned = collect($groups->firstWhere('title', 'Website Studio')['items'])
         ->whereNull('route')
         ->pluck('label')
         ->all();

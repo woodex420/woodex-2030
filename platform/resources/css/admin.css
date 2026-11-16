@@ -1,6 +1,15 @@
 /*
  * Woodex OS admin: Tailwind v4 + TailAdmin layout utilities + Preline v5 plugin variants.
- * TailAdmin Laravel (MIT) tokens are kept for UI legibility; its admin brand scale is neutral charcoal; public/PDF brand tokens stay separate.
+ *
+ * The look is the Agency OS look (docs/woodex-os/spec/05-ADMIN-IA-AND-UX.md §5, decision DL-007):
+ * a charcoal sidebar, white surfaces on a light canvas, WOODEX green for primary actions, Inter.
+ * The values are the ones the React dashboard uses (apps/dashboard/src/index.css), so the two admins
+ * look alike while both are in use.
+ *
+ * Colours are set in two places only, both in this file: the scales in @theme below, and the --wx-*
+ * roles under ":root". Blade names a role or a scale step, never a hex value.
+ * tests/Unit/AdminDesignTokensTest.php reads this file and fails if a text pair drops below WCAG AA.
+ * Public pages, document iframes and PDFs keep their own palette in tokens.css.
  */
 @import "tailwindcss";
 @import "./tokens.css";
@@ -32,76 +41,80 @@
   --text-title-md: 36px;
   --text-title-md--line-height: 44px;
 
-  /* Admin-only charcoal aliases. tokens.css stays unchanged for the website/PDFs. */
-  --color-navy-50: #fafafa;
-  --color-navy-100: #f5f5f5;
-  --color-navy-200: #e5e5e5;
-  --color-navy-300: #d4d4d4;
-  --color-navy-400: #a3a3a3;
-  --color-navy-500: #737373;
-  --color-navy-600: #595959;
-  --color-navy-700: #404040;
-  --color-navy-800: #303030;
-  --color-navy-900: #242424;
-  --color-navy-950: #171717;
+  /* Admin neutrals: the charcoal/slate scale of the Agency OS look. tokens.css stays unchanged for the website/PDFs. */
+  --color-navy-50: #f8f9f9;
+  --color-navy-100: #f1f3f4;
+  --color-navy-200: #e5e8ea;
+  --color-navy-300: #d2d7da;
+  --color-navy-400: #a2aab0;
+  --color-navy-500: #66717a;
+  --color-navy-600: #47515a;
+  --color-navy-700: #353c42;
+  --color-navy-800: #252b30;
+  --color-navy-900: #1d2226;
+  --color-navy-950: #171b1e;
 
   /* Legacy brand utility names remain valid in the admin bundle. */
-  --color-brand-25: #fafafa;
-  --color-brand-50: var(--color-navy-50);
-  --color-brand-100: var(--color-navy-100);
-  --color-brand-200: var(--color-navy-200);
-  --color-brand-300: var(--color-navy-300);
-  --color-brand-400: var(--color-navy-400);
-  --color-brand-500: var(--color-navy-600);
-  --color-brand-600: var(--color-navy-700);
-  --color-brand-700: var(--color-navy-800);
-  --color-brand-800: var(--color-navy-900);
-  --color-brand-900: var(--color-navy-900);
-  --color-brand-950: var(--color-navy-950);
+  /* WOODEX green. brand-400 is the logo green (#4f9d21): for accents that carry no text — white on it is
+     only 3.4:1. brand-500 is the fill that carries white text (4.55:1); every "bg-brand-500 text-white"
+     in the views is therefore readable. */
+  --color-brand-25: #fafdf8;
+  --color-brand-50: #f5faf1;
+  --color-brand-100: #eaf5e3;
+  --color-brand-200: #cfe8c0;
+  --color-brand-300: #a9d68f;
+  --color-brand-400: #4f9d21;
+  --color-brand-500: #43851c;
+  --color-brand-600: #376f18;
+  --color-brand-700: #2c5913;
+  --color-brand-800: #23470f;
+  --color-brand-900: #1b370c;
+  --color-brand-950: #102207;
 
   /* TailAdmin neutrals and status colours */
-  --color-gray-25: #fdfdfd;
-  --color-gray-50: #fafafa;
-  --color-gray-100: #f5f5f5;
-  --color-gray-200: #e5e5e5;
-  --color-gray-300: #d4d4d4;
-  --color-gray-400: #737373;
-  --color-gray-500: #737373;
-  --color-gray-600: #595959;
-  --color-gray-700: #404040;
-  --color-gray-800: #303030;
-  --color-gray-900: #242424;
-  --color-gray-950: #171717;
+  --color-gray-25: #fcfcfd;
+  --color-gray-50: #f8f9f9;
+  --color-gray-100: #f1f3f4;
+  --color-gray-200: #e5e8ea;
+  --color-gray-300: #d2d7da;
+  /* 400 and 500 are the same on purpose: both are used for text, and #7b858d is only 3.8:1 on white. */
+  --color-gray-400: #66717a;
+  --color-gray-500: #66717a;
+  --color-gray-600: #47515a;
+  --color-gray-700: #353c42;
+  --color-gray-800: #252b30;
+  --color-gray-900: #1d2226;
+  --color-gray-950: #171b1e;
 
-  --color-success-50: #ecfdf3;
-  --color-success-100: #d1fadf;
-  --color-success-500: #12b76a;
-  --color-success-600: #039855;
-  --color-success-700: #027a48;
+  --color-success-50: #e9f4ee;
+  --color-success-100: #d3eadd;
+  --color-success-500: #2e8b57;
+  --color-success-600: #256f46;
+  --color-success-700: #1d5a38;
 
-  --color-error-50: #fef3f2;
-  --color-error-100: #fee4e2;
-  --color-error-500: #f04438;
-  --color-error-600: #d92d20;
-  --color-error-700: #b42318;
+  --color-error-50: #faecea;
+  --color-error-100: #f5d8d6;
+  --color-error-500: #d9534f;
+  --color-error-600: #b23b37;
+  --color-error-700: #8f2f2c;
 
-  --color-warning-50: #fffaeb;
-  --color-warning-100: #fef0c7;
-  --color-warning-500: #f79009;
-  --color-warning-600: #dc6803;
-  --color-warning-700: #b54708;
+  --color-warning-50: #faf1de;
+  --color-warning-100: #f4e2ba;
+  --color-warning-500: #d99a24;
+  --color-warning-600: #8a6112;
+  --color-warning-700: #6e4d0e;
 
-  --color-info-50: #f0f9ff;
-  --color-info-100: #e0f2fe;
-  --color-info-500: #0ba5ec;
-  --color-info-600: #0086c9;
-  --color-info-700: #026aa2;
+  --color-info-50: #e9f1f8;
+  --color-info-100: #d2e2f1;
+  --color-info-500: #3578b8;
+  --color-info-600: #2a629b;
+  --color-info-700: #214e7c;
 
   --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
   --shadow-theme-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.1), 0px 1px 2px 0px rgba(16, 24, 40, 0.06);
   --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
   --shadow-theme-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
-  --shadow-focus-ring: 0px 0px 0px 4px rgba(64, 64, 64, 0.18);
+  --shadow-focus-ring: 0px 0px 0px 4px rgba(79, 157, 33, 0.22);
 }
 
 @layer base {
@@ -146,12 +159,18 @@
   @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-theme-sm font-medium;
 }
 
+/* The sidebar is charcoal in both themes; its colours are the --wx-sidebar-* roles below. */
 @utility menu-item-active {
-  @apply bg-navy-50 text-navy-800 dark:bg-white/[0.06] dark:text-white;
+  background: var(--wx-sidebar-active);
+  color: var(--wx-sidebar-strong);
 }
 
 @utility menu-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white;
+  color: var(--wx-sidebar-text);
+  &:hover {
+    background: var(--wx-sidebar-hover);
+    color: var(--wx-sidebar-strong);
+  }
 }
 
 @utility menu-item-disabled {
@@ -190,7 +209,7 @@
 }
 
 @utility wx-input {
-  @apply h-10 w-full rounded-lg border border-gray-300 bg-white px-3.5 text-theme-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-navy-300 focus:shadow-focus-ring focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30;
+  @apply h-10 w-full rounded-lg border border-gray-300 bg-white px-3.5 text-theme-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-400 focus:shadow-focus-ring focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30;
 }
 
 @utility wx-label {
@@ -265,41 +284,67 @@ button.wx-summary-card:hover { border-color:var(--color-navy-300); background:va
 /* Current79: neutral charcoal Light / Dark / System surfaces. Admin bundle only;
    public v1, document iframe styles and frozen PDF renderers retain their own paper palette. */
 :root {
-  --wx-page: #f6f6f6;
+  --wx-page: #f6f7f8;
   --wx-surface: #ffffff;
-  --wx-elevated: #eeeeee;
-  --wx-text: #242424;
-  --wx-muted: #595959;
-  --wx-border: #d1d1d1;
-  --wx-control-border: #737373;
-  --wx-primary: #303030;
-  --wx-primary-hover: #171717;
+  /* A shade lighter than slate-100 (#f1f3f4): the secondary text is 4.48:1 on that, 4.56:1 on this. */
+  --wx-elevated: #f3f5f6;
+  --wx-text: #1d2226;
+  --wx-muted: #66717a;
+  --wx-border: #e5e8ea;
+  --wx-control-border: #7b858d;
+  --wx-primary: #43851c;
+  --wx-primary-hover: #376f18;
   --wx-on-primary: #ffffff;
-  --wx-focus: #8e5f35;
-  --wx-chat-canvas: #eeeeee;
+  --wx-accent: #4f9d21;
+  --wx-focus: #43851c;
+  --wx-chat-canvas: #f3f5f6;
+
+  /* The sidebar: charcoal, in the light theme and in the dark one. */
+  --wx-sidebar-bg: #171b1e;
+  --wx-sidebar-border: #252b30;
+  --wx-sidebar-text: #d2d7da;
+  --wx-sidebar-strong: #ffffff;
+  --wx-sidebar-muted: #a2aab0;
+  --wx-sidebar-hover: #252b30;
+  --wx-sidebar-active: #2d343a;
+  --wx-sidebar-accent: #4f9d21;
+  --wx-sidebar-focus: #7fc457;
 }
 :root.dark {
-  --wx-page: #171717;
-  --wx-surface: #212121;
-  --wx-elevated: #2b2b2b;
-  --wx-text: #f3f3f3;
-  --wx-muted: #b8b8b8;
-  --wx-border: #454545;
-  --wx-control-border: #858585;
-  --wx-primary: #e5e5e5;
-  --wx-primary-hover: #ffffff;
-  --wx-on-primary: #171717;
-  --wx-focus: #e6b98b;
-  --wx-chat-canvas: #1b1b1b;
-  --color-gray-400: #b8b8b8;
-  --color-gray-500: #a3a3a3;
-  --color-gray-900: #212121;
-  --color-gray-950: #171717;
+  --wx-page: #171b1e;
+  --wx-surface: #1d2226;
+  --wx-elevated: #252b30;
+  --wx-text: #f1f3f4;
+  --wx-muted: #a2aab0;
+  --wx-border: #353c42;
+  --wx-control-border: #7b858d;
+  --wx-primary: #4f9d21;
+  --wx-primary-hover: #5fb32a;
+  --wx-on-primary: #0d1110;
+  --wx-accent: #4f9d21;
+  --wx-focus: #7fc457;
+  --wx-chat-canvas: #171b1e;
+  --wx-sidebar-bg: #121518;
+  --wx-sidebar-border: #252b30;
+  --color-gray-400: #a2aab0;
+  --color-gray-500: #a2aab0;
+  --color-gray-900: #1d2226;
+  --color-gray-950: #171b1e;
 }
 body.wx-admin { background:var(--wx-page); color:var(--wx-text); }
 .wx-admin :is(.text-gray-400,.text-gray-500):not([class*="dark:text-"]) { color:var(--wx-muted); }
 .wx-admin :focus-visible { outline:2px solid var(--wx-focus); outline-offset:3px; }
-.wx-admin-header,.wx-admin-sidebar,.wx-surface,.wx-web-lead,.wx-theme-picker { background:var(--wx-surface); border-color:var(--wx-border); color:var(--wx-text); }
+.wx-admin-header,.wx-surface,.wx-web-lead,.wx-theme-picker { background:var(--wx-surface); border-color:var(--wx-border); color:var(--wx-text); }
+.wx-admin-sidebar { background:var(--wx-sidebar-bg); border-color:var(--wx-sidebar-border); color:var(--wx-sidebar-text); }
+.wx-sidebar-brand { color:var(--wx-sidebar-strong); }
+.wx-sidebar-heading { color:var(--wx-sidebar-muted); }
+button.wx-sidebar-heading:hover { color:var(--wx-sidebar-strong); }
+.wx-sidebar-search { background:var(--wx-sidebar-hover); border:1px solid var(--wx-sidebar-border); color:var(--wx-sidebar-strong); }
+.wx-sidebar-search::placeholder { color:var(--wx-sidebar-muted); opacity:1; }
+.wx-sidebar-search:focus { border-color:var(--wx-sidebar-accent); outline:none; }
+.wx-sidebar-search-icon { color:var(--wx-sidebar-muted); }
+.wx-sidebar-badge { background:var(--wx-sidebar-accent); color:var(--wx-sidebar-bg); }
+.wx-admin .wx-admin-sidebar :focus-visible { outline:2px solid var(--wx-sidebar-focus); outline-offset:2px; }
 .wx-theme-picker select { color:var(--wx-text); }
 .wx-theme-picker option { background:var(--wx-surface); color:var(--wx-text); }
 .wx-admin .wx-input { background:var(--wx-surface); border-color:var(--wx-control-border); color:var(--wx-text); }
@@ -327,7 +372,7 @@ button.wx-summary-card:hover { background:var(--wx-elevated); border-color:var(-
 /* Compact Preline-style operational surfaces; existing tokens/routes/plugins remain authoritative. */
 .wx-stat { box-shadow:0 1px 2px rgb(0 0 0 / .025); }
 a.wx-stat:hover { border-color:var(--wx-control-border); transform:translateY(-1px); }
-.wx-admin .menu-item-active::before { content:""; position:absolute; left:0; top:25%; bottom:25%; width:3px; border-radius:3px; background:var(--wx-primary); }
+.wx-admin .menu-item-active::before { content:""; position:absolute; left:0; top:25%; bottom:25%; width:3px; border-radius:3px; background:var(--wx-sidebar-accent); }
 @media (prefers-reduced-motion: reduce) {
   .wx-admin-sidebar,.wx-stat,.wx-admin .menu-item { transition:none !important; }
   a.wx-stat:hover { transform:none; }
