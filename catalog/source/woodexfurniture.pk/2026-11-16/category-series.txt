@@ -1,0 +1,5 @@
+# Source: https://woodexfurniture.pk/shop/team-staff-chair (a product page)   label: Series   page says: not a listing
+# The product page names "Series" (/categories/series) as this product's category. The category page was not fetched;
+# this product appears in no other listing, so it is recorded here from its own page.
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+team-staff-chair | Team Staff Chair | 0 |  | 1772823546_Team-Staff-Chair.jpg

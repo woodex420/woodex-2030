@@ -1,0 +1,3 @@
+# Source: https://woodexfurniture.pk/categories/center-table   label: Center Table   page says: 1 of 1 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+weave-center-table | Weave Center Table | 22,000 |  | 1781871490_0_office-center-table.jpg
