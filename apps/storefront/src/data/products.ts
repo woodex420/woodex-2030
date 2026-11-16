@@ -102,31 +102,6 @@ export const categoryGroups = [
   },
 ];
 
-export const categories = [
-  { id: "all", name: "All Products" },
-  // Office
-  { id: "office-tables", name: "Office Tables" },
-  { id: "executive-tables", name: "↳ Executive Tables" },
-  { id: "manager-tables", name: "↳ Manager Tables" },
-  { id: "staff-tables", name: "↳ Staff Tables" },
-  { id: "meeting-tables", name: "↳ Meeting Tables" },
-  { id: "reception-tables", name: "↳ Reception Tables" },
-  { id: "chairs", name: "Office Chairs" },
-  { id: "workstations", name: "Workstations" },
-  { id: "cubicle-workstations", name: "Cubicle Workstations" },
-  { id: "office-sofas", name: "Office Sofas" },
-  { id: "storage", name: "Office Storage" },
-  { id: "cafe", name: "Cafe Furniture" },
-  { id: "public", name: "Public Sitting" },
-  { id: "home-office", name: "Home Office" },
-  { id: "acoustic", name: "Acoustic Furniture" },
-  { id: "collaborative", name: "Collaborative Furniture" },
-  // Home
-  { id: "bedroom", name: "Bedroom Furniture" },
-  { id: "living", name: "Living Room" },
-  { id: "dining", name: "Dining Furniture" },
-];
-
 // ─── SERIES ─────────────────────────────────────────────────────────────
 export const seriesList = [
   {
@@ -299,12 +274,16 @@ export const fromPrice = (p: Product): number | null => {
   return p.priceOnRequest ? null : p.price;
 };
 
-/** What to print as the price of a product on a card or a list. */
-export const priceText = (p: Product): string => {
+/**
+ * What to print as the price of a product on a card or a list: its price,
+ * "From …" when its options differ in price, or "Price on request".
+ * `format` is for a page that writes amounts its own way.
+ */
+export const priceText = (p: Product, format: (amount: number) => string = formatPKR): string => {
   const price = fromPrice(p);
   if (price === null) return "Price on request";
   const several = hasOptions(p) && new Set((p.variants ?? []).map((v) => (v.priceOnRequest ? "request" : v.price))).size > 1;
-  return (several ? "From " : "") + formatPKR(price);
+  return (several ? "From " : "") + format(price);
 };
 
 /** The price of one chosen option, or of the product itself. */
@@ -338,16 +317,24 @@ export const sortProducts = (prods: Product[], sortBy: string): Product[] => {
     if (pa === null || pb === null) return pa === pb ? 0 : pa === null ? 1 : -1;
     return direction * (pa - pb);
   };
+  const byName = (a: Product, b: Product) => a.name.localeCompare(b.name);
   switch (sortBy) {
     case "price-low":
-      return sorted.sort(byPrice(1));
+      return sorted.sort((a, b) => byPrice(1)(a, b) || byName(a, b));
     case "price-high":
-      return sorted.sort(byPrice(-1));
+      return sorted.sort((a, b) => byPrice(-1)(a, b) || byName(a, b));
     case "name":
-      return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      return sorted.sort(byName);
     case "newest":
-      return sorted.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0));
-    default:
-      return sorted;
+      /* The products the owner has marked New, first. There is no "date
+         added" to sort by, and the date of the last edit is not it. */
+      return sorted.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0) || byName(a, b));
+    default: {
+      /* "Featured" is the owner's choice: a product marked Best Seller or New
+         in the dashboard comes first. Among equals the order is by name, so
+         the shop reads the same on every visit. */
+      const rank = (p: Product) => (p.isBestSeller ? 0 : p.isNew ? 1 : 2);
+      return sorted.sort((a, b) => rank(a) - rank(b) || byName(a, b));
+    }
   }
 };

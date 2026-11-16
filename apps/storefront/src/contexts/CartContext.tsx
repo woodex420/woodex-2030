@@ -38,6 +38,11 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+/** The most of one item an order can carry. The API refuses more (POST
+ *  /api/orders: "whole quantity from 1 to 100"); a larger quantity is a
+ *  quotation, which has no such limit. */
+export const MAX_ORDER_QTY = 100;
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
     /* What is in the browser was written by an earlier version of this site,
@@ -47,7 +52,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!Array.isArray(saved)) return [];
       return saved.filter((line): line is CartItem =>
         !!line && typeof line === "object" && typeof line.id === "string" && typeof line.name === "string"
-        && Number.isFinite(line.price) && Number.isInteger(line.quantity) && line.quantity > 0);
+        && Number.isFinite(line.price) && Number.isInteger(line.quantity) && line.quantity > 0)
+        .map((line) => (line.quantity > MAX_ORDER_QTY ? { ...line, quantity: MAX_ORDER_QTY } : line));
     } catch {
       return [];
     }
@@ -74,10 +80,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const existing = prev.find((i) => keyOf(i) === key);
       if (existing) {
         return prev.map((i) =>
-          keyOf(i) === key ? { ...i, quantity: i.quantity + (item.quantity || 1) } : i
+          keyOf(i) === key ? { ...i, quantity: Math.min(MAX_ORDER_QTY, i.quantity + (item.quantity || 1)) } : i
         );
       }
-      return [...prev, { ...item, key, quantity: item.quantity || 1 }];
+      return [...prev, { ...item, key, quantity: Math.min(MAX_ORDER_QTY, item.quantity || 1) }];
     });
     setIsOpen(true);
   }, []);
@@ -91,7 +97,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setItems((prev) => prev.filter((i) => keyOf(i) !== key));
     } else {
       setItems((prev) =>
-        prev.map((i) => (keyOf(i) === key ? { ...i, quantity } : i))
+        prev.map((i) => (keyOf(i) === key ? { ...i, quantity: Math.min(MAX_ORDER_QTY, quantity) } : i))
       );
     }
   }, []);

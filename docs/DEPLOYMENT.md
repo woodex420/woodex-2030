@@ -19,8 +19,8 @@ on the commit being deployed — see `AGENTS.md` §3.
 
 ```bash
 npm ci --legacy-peer-deps
-npm run qa            # 107/107 on SQLite
-npm run qa:pg         # 107/107 on Postgres (PGlite)
+npm run qa            # 108/108 on SQLite
+npm run qa:pg         # 108/108 on Postgres (PGlite)
 npm run typecheck:all
 npm run smoke:render
 npm run smoke:hostinger   # needs `npm run build` first
@@ -28,8 +28,10 @@ npm run secret-scan
 ```
 
 `npm run vercel:build` is the production build for both targets: it builds the
-dashboard, builds the storefront, assembles `dist/`, and prerenders all 76 public
-routes. It takes ~18 s and must print `76/76 routes rendered`.
+dashboard, builds the storefront, assembles `dist/`, and prerenders the 16 static public
+routes. It takes ~18 s and must print `16/16 routes rendered`. Product pages are
+not among them: the catalogue lives in the database, which a build never reads,
+so a product page is rendered in the browser from the API.
 
 ---
 

@@ -34,15 +34,16 @@ be standardised until it is resolved.
 
 | Thing | Count | Evidence |
 |---|---|---|
-| API route handlers | **214** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
+| API route handlers | **223** | `grep -cE '^app\.(get|post\|patch\|put\|delete)\(' apps/api/server.mjs` |
 | Storefront routes | **25** | `<Route` in `apps/storefront/src/App.tsx` |
-| Dashboard routes | **47** | `<Route` in `apps/dashboard/src/App.tsx` |
-| PostgreSQL tables | **71** | base schema + `scripts/migrations/*.sql` (distinct names) |
-| SQLite tables | **71** | `apps/api/server.mjs` (distinct names; two are created twice) |
-| Migrations applied | **18** | `scripts/migrations/*.sql`, all recorded in `schema_migrations` |
-| CHECK constraints | **142** | distinct `<table>_<rule>` names declared across the migrations |
-| Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json` |
-| Prerendered storefront routes | **76** | `npm run vercel:build` |
+| Dashboard routes | **48** | `<Route` in `apps/dashboard/src/App.tsx` |
+| PostgreSQL tables | **72** | base schema + `scripts/migrations/*.sql` (distinct names) |
+| SQLite tables | **72** | `apps/api/server.mjs` (distinct names; two are created twice) |
+| Migrations in the repository | **19** | `scripts/migrations/*.sql`. Whether a given database has received all of them is read from its `schema_migrations` table, not from this file: `019_catalogue.sql` is in the repository and had not been applied to the hosted database when this line was written (2026-11-16) |
+| CHECK constraints | **155** | distinct `<table>_<rule>` names declared across the migrations |
+| Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json`. These are demo products for an empty demo or development database. The storefront compiles none of them: it shows what `GET /api/products` returns |
+| Prepared real catalogue | 170 products | `apps/api/catalog-data.json`, built by `npm run catalog:build` from the capture in `catalog/source/`. Loaded as drafts from the dashboard (Catalogue → Import) |
+| Prerendered storefront routes | **16** | `npm run vercel:build`: the static public pages listed in `apps/api/public-routes.mjs`. Product pages are rendered in the browser from the API |
 | QA checks | **108** (sqlite) and **108** (postgres rehearsal) | `npm run qa`, `npm run qa:pg` |
 
 Counts rot. `npm run docs:verify` re-checks them and fails when this file drifts.
@@ -52,7 +53,7 @@ Counts rot. `npm run docs:verify` re-checks them and fails when this file drifts
 - **Authentication.** Bearer sessions, scrypt password hashing, capability
   checks, role→capability mapping. Live login confirmed against production on
   2026-11-08 (`POST /api/auth/login` → 200 + session).
-- **Catalogue.** 148 products seeded in production; `/api/products` returns them.
+- **Catalogue.** 148 demo products seeded in production; `/api/products` returns them. From migration 019 a product has a SKU, a state (draft, published, archived), a price or "on request", counted or made-to-order stock, and options; only published products are public. The real catalogue (170 products) is prepared in the repository and loads as drafts. See [Furniture 2030 Phase 2](../furniture-2030/07-PHASE-2-REPORT.md).
 - **CRM and sales.** Leads, clients, contacts, tasks, quotations, quotation
   versions, templates, approvals.
 - **Commerce.** Products, categories, orders, returns.
@@ -126,7 +127,7 @@ Listed to stop anyone assuming otherwise. None of this exists today:
 | ~~P1~~ | ~~`tasks.priority`, `returns.state`, `invoices.status` are open vocabularies~~ **FIXED** | All three closed in `005`, `006` and `007`, in that order — normalise at the API boundary, prove it live, then constrain. Two of the three were hiding live data bugs: returns silently skipped the inventory restock, and a payment silently undid a cancellation. See 03 §2 |
 | P2 | `quotes.status` and `leads.status` still open at the storage layer | `quotes.status` is validated in code (`400` on anything outside `QUOTE_STATUSES`) but has no CHECK; `leads.status` has no allow-list at all. Low risk — neither feeds inventory or payments — but see 03 §2 |
 | P2 | Tailwind 3 / 4 split | Two styling systems; design tokens cannot be shared |
-| P2 | Vite rather than Next.js | No SSR; SEO relies on prerendering (76 routes) |
+| P2 | Vite rather than Next.js | No SSR; SEO relies on prerendering (16 routes: the static pages). A product page has no server-rendered HTML; its title, description and structured data are written in the browser |
 | P2 | SSE unavailable on Vercel | Polling fallback only in production |
 
 ## 7. Test and gate inventory
@@ -137,18 +138,18 @@ Every gate below runs in CI and/or inside `vercel:build`.
 |---|---|
 | `npm run qa` | 108 API checks against SQLite |
 | `npm run qa:pg` | 108 checks against a PostgreSQL rehearsal |
-| `npm run test:modules` | Twelve module suites, each on SQLite and on PostgreSQL (PGlite) |
+| `npm run test:modules` | Thirteen module suites, each on SQLite and on PostgreSQL (PGlite) |
 | `npm run test:return-id` | Every table with an integer id reports the new id on PostgreSQL; the list is compared with the catalogue |
 | `npm run test:migrate` | The SQLite → PostgreSQL copy: every row arrives, a failure rolls back, a lossy copy is never reported as success |
 | `npm run e2e:routes` | A browser signs in and opens every dashboard screen; CI only (needs Chromium) |
 | `npm run typecheck:all` | Both apps |
 | `npm run secret-scan` | The working tree: token patterns, and credentials written as prose. Not Git history |
-| `npm run smoke:render` | Both apps mount in jsdom |
+| `npm run smoke:render` | Both apps mount in jsdom; no demo product is compiled into the storefront |
 | `npm run check:deploy` | Routing, seed snapshot, no bracket catch-all |
 | `npm run test:router` | 21 router-basename cases |
 | `npm run check:migration` | Migrator covers every table; copy order comes from the foreign keys at run time (`npm run test:migrate`) |
 | `npm run seed:data:check` | Seed snapshot matches storefront sources |
-| `npm run vercel:build` | Full production assembly, 76 routes prerendered |
+| `npm run vercel:build` | Full production assembly, 16 routes prerendered |
 | `npm run docs:verify` | The counts in §2 of this file are still true |
 
 ## 8. How to verify production in five minutes

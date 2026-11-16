@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ImageGallery from "@/components/product/ImageGallery";
@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   ShoppingBag,
-  Heart,
   Share2,
   Truck,
   Shield,
@@ -30,17 +29,17 @@ import {
   ChevronLeft,
   CheckCircle,
 } from "lucide-react";
-import { getProductById, products, categoryLabel, formatPKR, optionPrice } from "@/data/products";
+import { getProductById, products, categoryLabel, formatPKR, optionPrice, fromPrice } from "@/data/products";
 import type { ProductColor } from "@/data/products";
 import { useQuote } from "@/contexts/QuoteContext";
 import { useCart } from "@/contexts/CartContext";
 import { useCatalogStatus } from "@/lib/runtime";
-import { brand } from "@/config/brand";
+import { brand, title } from "@/config/brand";
 import { CatalogUnavailable } from "@/components/shop/CatalogNotice";
+import { toast } from "sonner";
 
 const ProductDetail = () => {
   const { productId } = useParams<{ productId: string }>();
-  const navigate = useNavigate();
   /* The catalogue arrives from the API after the page has mounted, so the
      product is looked up on every render and nothing about it is frozen into
      state on the first one. */
@@ -94,6 +93,102 @@ const ProductDetail = () => {
     addToCart({ ...lineOf(), price: unitPrice });
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2500);
+  };
+
+  /* What the browser tab, a shared link and a search engine read about this
+     product. Until Furniture 2030 Phase 2 the build wrote this into a static
+     page for each of 60 demo products; the catalogue now comes from the
+     database, so it is written here, when the product arrives.
+
+     The facts are gathered into one string so the effect runs when one of them
+     changes and not on every refresh of the catalogue. */
+  const lowest = product ? fromPrice(product) : null;
+  const seoFacts = product
+    ? JSON.stringify({
+        id: product.id, name: product.name, sku: product.sku ?? null, image: product.images[0] ?? null,
+        category: categoryLabel(product.subcategory || product.category),
+        text: (product.shortDescription || product.description || "").trim().slice(0, 300),
+        price: lowest,
+        availability: !product.inStock ? "OutOfStock" : product.trackStock === false ? "MadeToOrder" : "InStock",
+      })
+    : "";
+  useEffect(() => {
+    const SCRIPT_ID = "product-jsonld";
+    const ROBOTS_ID = "product-robots";
+    /* Everything written to <head> here is taken back when the visitor moves
+       on, so the next page does not inherit this product's address or text. */
+    const before = {
+      title: document.title,
+      description: document.querySelector('meta[name="description"]')?.getAttribute("content") ?? null,
+      canonical: document.querySelector('link[rel="canonical"]')?.getAttribute("href") ?? null,
+    };
+    const restore = () => {
+      document.getElementById(SCRIPT_ID)?.remove();
+      document.getElementById(ROBOTS_ID)?.remove();
+      document.title = before.title;
+      if (before.description !== null) document.querySelector('meta[name="description"]')?.setAttribute("content", before.description);
+      const link = document.querySelector('link[rel="canonical"]');
+      if (before.canonical !== null) link?.setAttribute("href", before.canonical);
+      else link?.remove();
+    };
+    if (!seoFacts) {
+      if (status !== "ready") return;
+      /* An address with no product behind it still answers 200 — it is one
+         page for every address. Ask search engines not to keep it. */
+      document.title = title("Product not found");
+      const robots = document.createElement("meta");
+      robots.id = ROBOTS_ID; robots.name = "robots"; robots.content = "noindex";
+      document.head.appendChild(robots);
+      return restore;
+    }
+    const facts = JSON.parse(seoFacts) as { id: string; name: string; sku: string | null; image: string | null; category: string; text: string; price: number | null; availability: string };
+    const url = `${window.location.origin}/shop/${facts.id}`;
+    const description = facts.text || `${facts.name} — ${facts.category} by ${brand.name}.`;
+    document.title = title(`${facts.name} — ${facts.category}`);
+    document.querySelector('meta[name="description"]')?.setAttribute("content", description);
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", url);
+    const script = document.createElement("script");
+    script.id = SCRIPT_ID;
+    script.type = "application/ld+json";
+    script.text = JSON.stringify({
+      "@context": "https://schema.org", "@type": "Product",
+      name: facts.name, url, category: facts.category, description,
+      brand: { "@type": "Brand", name: brand.name },
+      ...(facts.sku ? { sku: facts.sku } : {}),
+      ...(facts.image ? { image: new URL(facts.image, window.location.origin).href } : {}),
+      /* An offer states a price. A product priced on request has none to
+         state, so it carries no offer — not an offer of 0. */
+      ...(facts.price !== null
+        ? { offers: { "@type": "Offer", url, priceCurrency: brand.currency, price: facts.price, availability: `https://schema.org/${facts.availability}` } }
+        : {}),
+    });
+    document.head.appendChild(script);
+    return restore;
+  }, [seoFacts, status]);
+
+  /* The address of this page, handed to the phone's share sheet where there is
+     one and copied otherwise. */
+  const handleShare = async () => {
+    if (!product) return;
+    const url = `${window.location.origin}/shop/${product.id}`;
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: product.name, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied.");
+    } catch (error) {
+      /* Closing the share sheet is not a failure. */
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error("The link could not be copied. Copy it from the address bar.");
+    }
   };
 
   /* Not "Product Not Found" while the catalogue is still on its way, and not
@@ -362,11 +457,9 @@ const ProductDetail = () => {
                     <>Add to Quote</>
                   )}
                 </Button>
-                <Button size="lg" variant="outline">
-                  <Heart className="h-5 w-5 mr-2" />
-                  Wishlist
-                </Button>
-                <Button size="icon" variant="outline">
+                {/* A "Wishlist" button stood here and did nothing; the shop has no
+                    wishlist. Share works: it hands over the link to this page. */}
+                <Button size="icon" variant="outline" aria-label={`Share ${product.name}`} title="Share" onClick={() => void handleShare()}>
                   <Share2 className="h-5 w-5" />
                 </Button>
               </div>

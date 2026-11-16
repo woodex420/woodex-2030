@@ -71,8 +71,8 @@ refuses to boot on Vercel without `DATABASE_URL`; respect that split.
 
 ### Trap 6 — Prerender can "succeed" while shipping an empty shell
 
-`scripts/prerender.mjs` renders the public routes in jsdom and writes
-`dist/<route>/index.html`. Three failure modes all report **76/76 routes
+`scripts/prerender.mjs` renders the static public routes in jsdom and writes
+`dist/<route>/index.html`. Three failure modes all report **16/16 routes
 written** while the HTML contains nothing:
 
 - **`React.lazy` never settles.** Every route is lazy-loaded, and inside a single
@@ -88,6 +88,16 @@ written** while the HTML contains nothing:
   `<div id="root"></div>` no-ops when the shell is a previous prerender. The
   swap is anchored on `</body>` instead, and re-running strips old JSON-LD so
   structured data does not double.
+
+**Product pages are not prerendered.** The catalogue lives in the database and a
+build has no database, so the 16 routes are the static pages of
+`apps/api/public-routes.mjs` and nothing else. (It used to be 76: the extra 60
+were demo products from a list compiled into the storefront.) The prerender
+window sets `__WOODEX_PRERENDER__ = true`; the storefront reads it and leaves
+the catalogue "loading", so a static page carries the loading placeholder.
+Remove that flag and every static page that lists products says the catalogue
+is unavailable — the stubbed `fetch` answers 503, which is what "unavailable"
+means in a real browser.
 
 Guard when you touch it: `PRERENDER_ONLY=/about node scripts/prerender.mjs`
 renders one route in under a second. Assert the root is **> 5 kB** and does not
@@ -108,7 +118,7 @@ npm run qa:pg                # the same battery on PGlite
 npm run test:modules         # every module suite, on SQLite AND on PGlite
 npm run test:return-id       # every insert reports its new id on PostgreSQL
 npm run test:migrate         # the SQLite → PostgreSQL copy moves every row, or changes nothing
-npm run vercel:build         # production shape; must print "76/76 routes rendered"
+npm run vercel:build         # production shape; must print "16/16 routes rendered"
 npm run smoke:hostinger      # all-in-one shape: real HTML, not the Loading shell
 ```
 

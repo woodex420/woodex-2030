@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { products, fromPrice, hasOptions, categoryLabel } from "@/data/products";
+import { products, fromPrice, hasOptions, categoryLabel, priceText } from "@/data/products";
 import type { Product } from "@/data/products";
 import { materials } from "@/data/materials";
 import { submitLead, useRuntimeRevision } from "@/lib/runtime";
@@ -22,13 +22,10 @@ const S = (b: Block, k: string) => String(b.props[k] ?? "");
 const L = (b: Block, k: string) => S(b, k).split("\n").map((x) => x.trim()).filter(Boolean);
 const imgSrc = (v: string) => (v.startsWith("http") || v.startsWith("/img/") ? v : "/img/" + v);
 const pkr = (n: number) => "Rs " + Math.round(n).toLocaleString("en-PK");
-/* The price of a product as these blocks print it. A product without a price
-   reads "Price on request" — never "Rs 0". */
-const priceOf = (p: Product) => {
-  const price = fromPrice(p);
-  if (price === null) return "Price on request";
-  return (hasOptions(p) && (p.variants?.length ?? 0) > 1 ? "From " : "") + pkr(price);
-};
+/* The price of a product as these blocks print it: the shop's own rule, in
+   this page's "Rs" style. A product without a price reads "Price on request"
+   — never "Rs 0". */
+const priceOf = (p: Product) => priceText(p, pkr);
 /* A "was" price is shown only against a real, lower price of the product itself. */
 const wasPriceOf = (p: Product) => {
   const price = fromPrice(p);

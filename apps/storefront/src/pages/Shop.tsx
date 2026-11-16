@@ -168,7 +168,7 @@ const Shop = () => {
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Shop Office & Home Furniture</h1>
             <p className="text-primary-foreground/75 max-w-2xl">
               Discover premium ergonomic chairs, executive desks, workstations, home furniture and more —
-              with prices in PKR and nationwide delivery included.
+              with prices in PKR and delivery across Pakistan.
             </p>
           </div>
         </section>
@@ -251,7 +251,9 @@ const Shop = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="featured">Featured</SelectItem>
-                        <SelectItem value="newest">Newest</SelectItem>
+                        {/* Offered only when the owner has marked something New:
+                            a sort order that changes nothing is a dead control. */}
+                        {(sortBy === "newest" || products.some((p) => p.isNew)) && <SelectItem value="newest">New arrivals first</SelectItem>}
                         <SelectItem value="price-low">Price: Low to High</SelectItem>
                         <SelectItem value="price-high">Price: High to Low</SelectItem>
                         <SelectItem value="name">Name: A to Z</SelectItem>

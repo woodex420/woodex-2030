@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Minus, Plus, Trash2, X } from "lucide-react";
-import { useCart } from "@/contexts/CartContext";
+import { useCart, MAX_ORDER_QTY } from "@/contexts/CartContext";
 import { formatPKR } from "@/data/products";
 import { keyOf } from "@/contexts/lineKey";
 
@@ -65,6 +65,7 @@ const CartDrawer = () => {
                       <div className="flex items-center border border-border rounded-sm">
                         <button
                           onClick={() => updateQuantity(keyOf(item), item.quantity - 1)}
+                          aria-label={`One fewer ${item.name}`}
                           className="p-1 hover:bg-muted transition-colors"
                         >
                           <Minus className="h-3 w-3" />
@@ -72,7 +73,9 @@ const CartDrawer = () => {
                         <span className="w-8 text-center text-xs font-medium">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(keyOf(item), item.quantity + 1)}
-                          className="p-1 hover:bg-muted transition-colors"
+                          disabled={item.quantity >= MAX_ORDER_QTY}
+                          aria-label={`One more ${item.name}`}
+                          className="p-1 hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
@@ -81,6 +84,11 @@ const CartDrawer = () => {
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
+                    {item.quantity >= MAX_ORDER_QTY && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {MAX_ORDER_QTY} is the most one order can take. For more, add it to a quote.
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

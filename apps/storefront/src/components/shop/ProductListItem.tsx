@@ -23,13 +23,15 @@ const ProductListItem = ({ product }: ProductListItemProps) => {
       <div className="flex flex-col md:flex-row">
         {/* Image */}
         <div className="relative w-full md:w-72 aspect-square md:aspect-auto shrink-0 overflow-hidden bg-muted">
-          {product.images[0] && (
+          {product.images[0] ? (
             <img
               src={product.images[0]}
               alt={product.name}
               loading="lazy"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
+          ) : (
+            <div className="w-full h-full min-h-40 flex items-center justify-center text-5xl font-bold text-muted-foreground/40" aria-hidden="true">{product.name[0]}</div>
           )}
 
           {/* Badges */}
@@ -59,35 +61,42 @@ const ProductListItem = ({ product }: ProductListItemProps) => {
               </h3>
             </Link>
 
-            {/* Description */}
-            <p className="text-muted-foreground mb-4 line-clamp-2">
-              {product.shortDescription}
-            </p>
+            {/* Description, features and colours are shown when the product
+                has them. A product taken from the old shop has a name, a
+                price and a photograph; a "Colors:" label with nothing after
+                it would be worse than no label. */}
+            {product.shortDescription && (
+              <p className="text-muted-foreground mb-4 line-clamp-2">
+                {product.shortDescription}
+              </p>
+            )}
 
-            {/* Features Preview */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {product.features.slice(0, 3).map((feature, index) => (
-                <div key={index} className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Check className="h-3 w-3 text-accent" />
-                  <span>{feature}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Color Options */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm text-muted-foreground">Colors:</span>
-              <div className="flex gap-1">
-                {product.colors.map((color, index) => (
-                  <div
-                    key={index}
-                    className="w-5 h-5 rounded-full border-2 border-border"
-                    style={{ backgroundColor: color.hex }}
-                    title={color.name}
-                  />
+            {product.features.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {product.features.slice(0, 3).map((feature, index) => (
+                  <div key={index} className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Check className="h-3 w-3 text-accent" />
+                    <span>{feature}</span>
+                  </div>
                 ))}
               </div>
-            </div>
+            )}
+
+            {product.colors.length > 0 && (
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-sm text-muted-foreground">Colors:</span>
+                <div className="flex gap-1">
+                  {product.colors.map((color, index) => (
+                    <div
+                      key={index}
+                      className="w-5 h-5 rounded-full border-2 border-border"
+                      style={{ backgroundColor: color.hex }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Price & Actions */}
             <div className="flex items-center justify-between mt-auto pt-4 border-t">
