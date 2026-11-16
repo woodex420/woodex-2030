@@ -1,0 +1,13 @@
+# Source: https://woodexfurniture.pk/categories/meeting-table   label: Meeting Table   page says: 11 of 11 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+alon-meeting-table | Alon Meeting Table | 0 |  | 1772735949_Alon%20Meeting%20Table.jpg
+apex-flow-manager-chair | Apex Flow Manager Chair | 29,000 |  | 1772736988_Apex-Flow-Manager-Chair.jpg
+alon-meeting-table-1772820681 | Alon Meeting Table | 0 |  | 1772820681_Alon-Meeting-Table.jpg
+connect-meeting-table | Connect Meeting Table | 0 |  | 1772820777_Connect-Meeting-Table.jpg
+emerald-meeting-table | Emerald-Meeting-Table | 0 |  | 1772820876_Emerald-Meeting-Table.jpg
+levander-meeting-table | Levander Meeting Table | 60,000 |  | 1772820975_Levander-Meeting-Table.jpg
+meeting-table-8-person | Meeting Table (8-person) | 85,000 |  | 1772821187_Meeting%20Table(8%20person).jpg
+nexus-meeting-table | Nexus meeting Table | 75,000 |  | 1772821435_Nexus-Meeting-Table.jpg
+nexus-meeting-table-2 | Nexus Meeting Table 2 | 75,000 |  | 1772821654_Nexus%20meeting%20Table%202.jpg
+onyx-meeting-table | Onyx Meeting Table | 0 |  | 1772821920_Onyx-Meeting-Table.jpg
+spark-meeting-table | Spark Meeting Table | 70,000 |  | 1772822013_Spark-Meeting-Table.jpg

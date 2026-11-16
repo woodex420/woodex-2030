@@ -1,0 +1,13 @@
+# Source: https://woodexfurniture.pk/categories/staff-table   label: Staff Table   page says: 11 of 11 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+nova-singe-workstation | Nova singe workstation | 1,950 |  | 1780562663_Nova-singe-workstation.jpg
+zone-staff-table | Zone Staff Table | 30,000 |  | 1780562915_Zone%20staff%20table.jpg
+tango-single-workstation | Tango Single Workstation | 25,500 | 28,000 | 1780563025_Tango%20Single%20Workstation.jpg
+step-staff-table | Step Staff Table | 27,000 |  | 1780563463_Step%20Staff%20Table.jpg
+flex-staff-table | Flex Staff Table | 17,500 |  | 1780563602_Flex%20Staff%20Table.jpg
+staff-table-pro | Staff Table Pro | 1,650 |  | 1780563786_Staff%20Table%20pro.jpg
+echo-staff-table | Echo Staff Table | 22,000 |  | 1780564048_Echo%20Staff%20Table.jpg
+brio-staff-table | Brio Staff Table | 30,500 | 32,000 | 1780564173_Brio%20Staff%20Table.jpg
+vibe-staff-table | Vibe Staff Table | 32,500 |  | 1780565743_Vibe%20Staff%20Table.jpg
+x-max-staff-table | X Max Staff Table | 25,500 |  | 1781691904_0_X-Max-Staff-Tab-e.jpg
+x-pro-staff-table | X-Pro Staff Table | 32,000 |  | 6a3294efba6ae6.24440004_X-Pro--Staff-Tabe.jpg

@@ -1,0 +1,12 @@
+# Source: https://woodexfurniture.pk/categories/executive-table   label: Executive Table   page says: 10 of 10 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+command-executive-desk | Command Executive Desk | 155,000 |  | 1772730329_Command%20Executive%20Desk.jpg
+elite-executive-desk-1772730378 | Elite Executive Desk | 180,000 |  | 1772730378_Elite%20Executive%20Desk.jpg
+impact-executive-desk | Impact Executive Desk | 118,000 |  | 1772730423_Impact%20Executive%20Desk.jpg
+infinity-executive-desk | Infinity Executive Desk | 95,000 |  | 1772730473_Infinity%20Executive%20Desk.jpg
+legacy-executive-desk | Legacy Executive Desk | 185,000 |  | 1772730522_Legacy%20Executive%20Desk.jpg
+nexus-executive-table | Nexus Executive Table | 110,000 |  | 1772730584_Nexus%20Executive%20Table.jpg
+nova-executive-desk | Nova Executive Desk | 115,000 |  | 1772730641_Nova%20Executive%20Desk.jpg
+signature-executive-desk | Signature Executive Desk | 120,000 |  | 1772730669_Signature%20Executive%20Desk.jpg
+space-executive-desk | Space Executive Desk | 110,000 |  | 1772730712_Space%20Executive%20Desk.jpg
+vision-executive-desk | Vision Executive Desk | 100,000 |  | 1772730735_Vision%20Executive%20Desk.jpg

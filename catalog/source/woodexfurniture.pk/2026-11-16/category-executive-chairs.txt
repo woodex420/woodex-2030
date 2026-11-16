@@ -1,0 +1,13 @@
+# Source: https://woodexfurniture.pk/categories/executive-chairs   label: Executive Chairs   page says: 11 of 11 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+ambassador-chairs-executive | Ambassador chairs Executive | 82,000 |  | 1772723876_Silvio%20Executive%20Chair.jpg
+crown-executive-chair | Crown Executive Chair | 48,000 |  | 1772727955_unnamed%20(6).jpg
+elite-executive-chair | Elite Executive Chair | 75,000 |  | 1772728427_unnamed.jpg
+imperial-executive-chair | Imperial Executive Chair | 52,000 |  | 1772728702_unnamed%20(4).jpg
+infinity-executive-chair | Infinity Executive Chair | 45,000 |  | 1772728987_unnamed%20(2).jpg
+milano-luxury-executive-chair | Milano luxury Executive Chair | 42,000 |  | 1772729337_unnamed%20(5).jpg
+nexa-executive-chair | Nexa Executive Chair | 52,000 |  | 1772729565_unnamed%20(4).jpg
+phoenix-executive-chair | phoenix Executive Chair | 42,000 |  | 1772729730_unnamed%20(7).jpg
+regal-executive-chair | Regal Executive Chair | 50,000 |  | 1772730046_unnamed%20(3).jpg
+silverstone-executive-chairs | Silverstone Executive chairs | 65,000 |  | 1772730237_Magic%202.jpg
+black-pearl-executive-chair | Black Pearl Executive Chair | 35,000 |  | 1772730426_unnamed.jpg

@@ -1,0 +1,16 @@
+# Source: https://woodexfurniture.pk/categories/manager-table   label: Manager Table   page says: 14 of 14 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+apex-manager-table | Apex Manager Table | 65,000 |  | 1772728635_Apex%20Manager%20Table.jpg
+edge-manager-table | Edge Manager Table | 72,000 |  | 1772728907_Edge%20Manager%20Table.jpg
+elite-manager-table | Elite Manager Table | 62,000 |  | 1772729001_Elite%20Manager%20Table.webp
+flux-manager-table | Flux Manager Table | 55,000 |  | 1772729077_Flux%20Manager%20Table.jpg
+infinity-manager-table | Infinity Manager Table | 75,000 |  | 1772729184_Infinity%20Manager%20Table.jpg
+metro-manager-table | Metro Manager Table | 52,000 |  | 1772729279_Metro%20Manager%20Table.jpg
+nova-manager-table | Nova Manager Table | 55,000 |  | 1772729340_Nova%20Manager%20Table.png
+orion-manager-table | Orion Manager Table | 80,000 |  | 1772729408_Orion%20Manager%20Table.jpg
+prime-manager-table | Prime Manager Table | 70,000 |  | 1772729466_Prime%20Manager%20Table.jpg
+pulse-manager-table | Pulse Manager Table | 70,000 |  | 1772729548_Pulse%20Manager%20Table.jpg
+shift-ergonomic-manager-table | Shift Ergonomic Manager Table | 75,000 |  | 1772729594_Shift%20Ergonomic%20Manager%20Table.jpg
+vertex-manager-table | Vertex Manager Table | 72,000 |  | 1772729633_Vertex%20Manager%20Table.jpg
+vibe-manager-table | Vibe Manager Table | 55,000 |  | 1772729672_Vibe%20Manager%20Table.jpg
+woodex-smart-series-l-shape-manager | Woodex Smart Series L Shape Manager | 75,000 |  | 1772729708_Woodex%20Smart%20Series%20L%20Shape%20Manager.png
