@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+const built = await build({ entryPoints: ['apps/storefront/src/lib/quoteCapture.ts'], bundle: true, platform: 'node', format: 'esm', write: false });
+const { captureBasketRequest: send } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
+let seen;
+const mock = (body, status = 200) => async (url, options) => { seen = { url, body: JSON.parse(options.body) }; return new Response(JSON.stringify(body), { status }); };
+const input = { customer: 'Synthetic basket', email: 'basket@example.test', requestKey: 'synthetic-key', contactConsent: true, items: [{ productId: 'external-node-key', qty: 2, price: 1, name: 'tampered' }] };
+await send(input, 'legacy', mock({ id: 1 })); assert.equal(seen.url, '/api/quotes'); assert.deepEqual(seen.body, input);
+const result = await send(input, 'v1', mock({ ok: true, reference: 'QR-SYNTHETIC', status: 'pending_review' }, 201));
+assert.equal(seen.url, '/api/v1/quote-requests'); assert.deepEqual(seen.body.items, [{ product_id: 'external-node-key', qty: 2 }]);
+assert.equal(seen.body.request_key, input.requestKey); assert.equal(seen.body.name, input.customer);
+assert.equal(result.ref, 'QR-SYNTHETIC'); assert.equal(result.id, undefined); assert.equal(result.handoffUnavailable, true);
+await assert.rejects(send(input, 'v1', mock({}), true), /verification/);
+await assert.rejects(send({ ...input, items: [{ productId: 'x', qty: 1, material: 'Unmapped colour' }] }, 'v1', mock({})), /team review/);
+for (const status of [409, 422, 429, 500]) await assert.rejects(send(input, 'v1', mock({}, status)));
+await assert.rejects(send(input, 'v1', mock({ ok: true, reference: null }, 202)), /not confirmed/);
+await assert.rejects(send(input, 'typo', mock({})), /Unsupported/);
+console.log('Basket adapter passed: opt-in routes, server-price-only mapping, challenge, variants, errors, no numeric handoff.');

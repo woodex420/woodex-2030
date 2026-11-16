@@ -1,3 +1,4 @@
+import { matchesCategory } from "@/lib/commerceTaxonomy";
 import { useState, useMemo, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
@@ -12,6 +13,8 @@ import { Search, Grid3X3, LayoutList, SlidersHorizontal, ChevronDown, ChevronRig
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getCategorySeo } from "@/data/seoContent";
+import { NativeCategoryContent } from "@/components/NativeCategoryContent";
+import { nativeCategory } from "@/lib/nativeCategories";
 import { useRuntimeRevision, useCatalogStatus } from "@/lib/runtime";
 import { CatalogLoading, CatalogUnavailable } from "@/components/shop/CatalogNotice";
 
@@ -46,10 +49,14 @@ const faqs = [
 
 const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialCategory = searchParams.get("category") || "all";
-
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const selectedCategory = searchParams.get("category") || "all";
+  const selectCategory = (category: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("segment");
+    if (category === "all") next.delete("category"); else next.set("category", category);
+    setSearchParams(next);
+  };
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["office-tables", "bedroom"]);
@@ -58,26 +65,17 @@ const Shop = () => {
   const tree = useMemo(() => categoryTree(), [catalogRevision]);
   const officeCategoryTree = tree.filter((node) => !node.home);
   const homeCategoryTree = tree.filter((node) => node.home);
+  /* Page content kept in the Laravel admin for this category, where that
+     connection is switched on; otherwise undefined and the page is as before. */
+  const native = nativeCategory(selectedCategory === 'all' ? (searchParams.get('segment') || 'all') : selectedCategory);
+  const nativePage = native?.page?.content;
 
   const seo = getCategorySeo(selectedCategory);
 
-  useEffect(() => {
-    // SeoContentBlock owns <title>, <meta description>, canonical, JSON-LD.
-    if (selectedCategory === "all") {
-      searchParams.delete("category");
-    } else {
-      searchParams.set("category", selectedCategory);
-    }
-    setSearchParams(searchParams, { replace: true });
-  }, [selectedCategory]);
-
-  useEffect(() => {
-    const cat = searchParams.get("category") || "all";
-    setSelectedCategory(cat);
-  }, [searchParams]);
-
   const filteredProducts = useMemo(() => {
     let result = getProductsByCategory(selectedCategory);
+    const segment = searchParams.get("segment");
+    if (segment === "office" || segment === "home") result = result.filter(product => matchesCategory(product, segment));
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
       result = result.filter(
@@ -89,7 +87,7 @@ const Shop = () => {
       );
     }
     return sortProducts(result, sortBy);
-  }, [selectedCategory, searchQuery, sortBy, catalogRevision]);
+  }, [selectedCategory, searchQuery, sortBy, catalogRevision, searchParams]);
 
   const toggleExpand = (id: string) => {
     setExpandedCategories((prev) =>
@@ -97,7 +95,11 @@ const Shop = () => {
     );
   };
 
-  const getCategoryLabel = () => (selectedCategory === "all" ? "All Products" : categoryLabel(selectedCategory));
+  const getCategoryLabel = () => {
+    if (native) return native.name;
+    if (selectedCategory === "all") return searchParams.get("segment") === "office" ? "Office Furniture" : searchParams.get("segment") === "home" ? "Home Furniture" : "All Products";
+    return categoryLabel(selectedCategory);
+  };
 
   /* A subcategory opened from a link (the header menu, a home-page tile)
      shows its parent expanded, so the customer sees where they are. */
@@ -110,7 +112,7 @@ const Shop = () => {
     <div key={cat.id}>
       <div className="flex items-center">
         <button
-          onClick={() => setSelectedCategory(cat.id)}
+          onClick={() => selectCategory(cat.id)}
           className={`flex-1 text-left px-3 py-2 text-sm rounded-sm transition-colors flex items-center justify-between ${
             selectedCategory === cat.id
               ? "bg-accent text-accent-foreground font-semibold"
@@ -138,7 +140,7 @@ const Shop = () => {
           {cat.children.map((child) => (
             <button
               key={child.id}
-              onClick={() => setSelectedCategory(child.id)}
+              onClick={() => selectCategory(child.id)}
               className={`flex items-center gap-1 w-full text-left px-2 py-1.5 text-xs rounded-sm transition-colors justify-between ${
                 selectedCategory === child.id
                   ? "text-accent font-semibold bg-accent/10"
@@ -162,7 +164,7 @@ const Shop = () => {
       <Header />
       <main className="flex-1">
         {/* Hero */}
-        <section className="bg-primary text-primary-foreground py-12">
+        {nativePage ? <NativeCategoryContent content={nativePage} placement="top" /> : <section className="bg-primary text-primary-foreground py-12">
           <div className="container mx-auto px-4">
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Pakistan's Finest</p>
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Shop Office & Home Furniture</h1>
@@ -173,6 +175,7 @@ const Shop = () => {
           </div>
         </section>
 
+        }
         {/* Breadcrumb */}
         <section className="py-3 bg-section-light border-b">
           <div className="container mx-auto px-4">
@@ -192,7 +195,7 @@ const Shop = () => {
                 <div className="sticky top-28">
                   {/* All Products */}
                   <button
-                    onClick={() => setSelectedCategory("all")}
+                    onClick={() => selectCategory("all")}
                     className={`w-full text-left px-3 py-2.5 text-sm rounded-sm transition-colors mb-3 font-semibold ${
                       selectedCategory === "all"
                         ? "bg-accent text-accent-foreground"
@@ -303,7 +306,7 @@ const Shop = () => {
                     <p className="text-muted-foreground mb-4">
                       {searchQuery.trim() ? "Try another search, or look through all products." : "Nothing is listed in this category yet."}
                     </p>
-                    <Button onClick={() => { setSelectedCategory("all"); setSearchQuery(""); }} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <Button onClick={() => { selectCategory("all"); setSearchQuery(""); }} className="bg-accent hover:bg-accent/90 text-accent-foreground">
                       View All Products
                     </Button>
                   </div>
@@ -323,11 +326,11 @@ const Shop = () => {
 
                 {/* SEO + AIO long-form content + FAQ */}
                 <div className="mt-16 border-t pt-12">
-                  <SeoContentBlock
+                  {nativePage ? <NativeCategoryContent content={nativePage} placement="bottom" /> : <SeoContentBlock
                     seo={seo}
                     path={selectedCategory === "all" ? "/shop" : `/shop?category=${selectedCategory}`}
                     hideIntro
-                  />
+                  />}
                 </div>
               </div>
             </div>

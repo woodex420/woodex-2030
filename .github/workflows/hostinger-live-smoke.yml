@@ -1,0 +1,33 @@
+name: Hostinger live staging smoke
+on:
+  push:
+    branches: ["arena/69363bda-woodex-2030"]
+    paths: [".github/workflows/hostinger-live-smoke.yml", "scripts/test-hostinger-live.mjs", ".htaccess", "index.php", "platform/public/index.php"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify actual hosted routing, source protection and native login
+        shell: bash
+        run: |
+          set -uo pipefail
+          # Allow the independent Hostinger Git pull a bounded propagation window.
+          for attempt in 1 2 3 4 5; do
+            if node scripts/test-hostinger-live.mjs; then
+              echo 'Hosted read-only smoke passed; authenticated/TOTP acceptance remains separate.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if [ "$attempt" -lt 5 ]; then sleep 20; fi
+          done
+          echo '::error title=Hosted admin not accepted::Staging routing, source protection or native login checks failed. See assertion above. No hosted writes performed.'
+          exit 1

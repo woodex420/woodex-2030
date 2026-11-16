@@ -1,0 +1,143 @@
+/* Woodex OS ↔ the ported v2.1 admin (docs/audit/16.8).
+
+   Their stylesheet is loaded unchanged — that is the point of the port. What this file does is remove the
+   parts of their app that belong to the OS now: the sidebar, the top bar, and the sign-in screen. The OS
+   navigation is the navigation; the strip at the top is the only OS chrome these screens carry. */
+
+.wx21-embed {
+  --strip: 44px;
+  padding-top: var(--strip);
+  background: var(--bg);
+}
+
+/* One admin: theirs is the OS session, so their sign-in screen never appears. */
+.wx21-embed #auth,
+.wx21-embed #side,
+.wx21-embed .side-shade {
+  display: none !important;
+}
+
+/* The top bar carried search, notifications, dark mode and the user menu; the OS header has all four. */
+.wx21-embed .top {
+  display: none !important;
+}
+
+.wx21-embed .app {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: calc(100vh - var(--strip));
+}
+
+.wx21-embed .main {
+  margin: 0;
+  min-width: 0;
+}
+
+.wx21-embed .content {
+  padding: 24px clamp(16px, 3vw, 34px) 48px;
+  max-width: 1500px;
+}
+
+/* The strip. Same navy/gold as the OS, so the switch between shell and screen is quiet. */
+.wx21-strip {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 2147483000;
+  height: var(--strip);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  background: #0a0f1e;
+  color: #fff;
+  font: 500 13px/1 "DM Sans", system-ui, sans-serif;
+  letter-spacing: .01em;
+}
+
+.wx21-strip a {
+  color: #fff;
+  text-decoration: none;
+  opacity: .9;
+}
+
+.wx21-strip a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.wx21-back {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* A drawn arrow, not a glyph: DM Sans has no arrow in the subset we ship and it renders as a tofu box. */
+.wx21-arrow {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-right-color: transparent;
+  border-radius: 3px;
+  transform: rotate(45deg);
+  margin-left: 2px;
+}
+
+.wx21-sep {
+  color: rgba(255, 255, 255, .35);
+}
+
+.wx21-sec {
+  color: rgba(255, 255, 255, .55);
+}
+
+.wx21-now {
+  color: #d4af6a;
+  font-weight: 600;
+}
+
+.wx21-exit {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+/* A message, not an overlay: it sits under the strip and pushes the screen down, so it can never hide the
+   page's own heading. Positioned absolute inside the body's strip padding would overlap, so it takes its own
+   line and the body grows by its height. */
+.wx21-blocked {
+  position: fixed;
+  inset: var(--strip) 0 auto 0;
+  z-index: 2147482999;
+  padding: 10px 16px;
+  background: #3b2a05;
+  color: #ffe6b0;
+  border-bottom: 1px solid rgba(212, 175, 106, .45);
+  font: 500 13px/1.45 "DM Sans", system-ui, sans-serif;
+  box-shadow: 0 6px 18px rgba(10, 15, 30, .25);
+}
+
+.wx21-blocked[hidden] {
+  display: none;
+}
+
+body.wx21-has-note {
+  padding-top: calc(var(--strip) + var(--note, 0px));
+}
+
+body.wx21-has-note .wx21-strip {
+  height: var(--strip);
+}
+
+body.wx21-has-note .app {
+  min-height: calc(100vh - var(--strip) - var(--note, 0px));
+}
+
+@media (max-width: 640px) {
+  .wx21-sec,
+  .wx21-sec + .wx21-sep {
+    display: none;
+  }
+}

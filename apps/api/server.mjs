@@ -20,6 +20,8 @@
  *   GET  /api/stats                  KPI + activity rollup for the dashboard
  *   GET  /img/:file                  shared product photography
  */
+import { nativeMediaBridge } from "./native-media-bridge.mjs";
+import { nativeCategoryBridge } from "./native-category-bridge.mjs";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -1863,6 +1865,7 @@ const isPublic = (m, p) =>
      that touches credentials still requires one. */
   (m === "POST" && p === "/api/auth/reset-password") ||
   m === "GET" && (
+    /^\/api\/v1\/media(?:\/\d+\/\d+)?$/.test(p) ||
     p === "/api/health" || p === "/api/theme" || p === "/api/auth/demo-available" ||
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
     /^\/api\/pages\/[^/]+\/public$/.test(p) ||
@@ -2232,6 +2235,11 @@ const publishBlocked = () => ({ status: 409, body: {
   error: "a product needs a SKU, or at least one option with a SKU, before it can be published",
   code: "publish_blocked", missing: ["sku"],
 } });
+// Same-origin read-only native categories. Runtime origin is a deployment setting, never a browser URL.
+app.get('/api/v1/media', nativeMediaBridge());
+app.get('/api/v1/media/:media/:version', nativeMediaBridge());
+app.get('/api/v1/catalogue/categories', nativeCategoryBridge());
+app.get('/api/v1/catalogue/categories/:category/hero/:revision', nativeCategoryBridge());
 
 app.get("/api/products", wrap(async (req, res) => {
   const q = String(req.query.q || "").toLowerCase();

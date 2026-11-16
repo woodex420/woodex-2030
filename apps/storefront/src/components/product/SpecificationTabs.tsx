@@ -105,57 +105,22 @@ const SpecificationTabs = ({ product }: SpecificationTabsProps) => {
               </div>
               <div>
                 {/* The rule checkout applies (brand.delivery). This text used to
-                    promise free delivery "within UAE for orders above AED 2,000". */}
+                    promise free delivery "within UAE for orders above AED 2,000",
+                    and free assembly for every item — a promise nobody confirmed. */}
                 <h4 className="font-medium mb-1">Delivery across Pakistan</h4>
                 <p className="text-sm text-muted-foreground">
                   Delivery is {formatPKR(brand.delivery.fee)} per order and free on orders of {formatPKR(brand.delivery.freeFrom)} or more.
-                  Our team confirms the delivery date with you after your order.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="shrink-0 w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <Settings className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">Professional Assembly</h4>
-                <p className="text-sm text-muted-foreground">
-                  Our team provides free professional assembly and installation for all furniture items.
+                  Our team confirms the delivery date and the installation with you after your order.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </TabsContent>
-
       <TabsContent value="warranty" className="mt-6">
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="shrink-0 w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <Shield className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">
-                  {product.specifications.find(s => s.label === "Warranty")?.value || "Standard Warranty"}
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  This product comes with a comprehensive warranty covering manufacturing defects and normal wear.
-                  Our warranty includes free repair or replacement of defective parts.
-                </p>
-              </div>
-            </div>
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <h5 className="font-medium mb-2">Warranty Coverage Includes:</h5>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Manufacturing defects</li>
-                <li>• Structural integrity issues</li>
-                <li>• Mechanism failures (for chairs and adjustable desks)</li>
-                <li>• Upholstery defects (within first year)</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6 space-y-4"><h4 className="font-medium">{product.specifications.find(s => s.label === "Warranty")?.value || "Warranty terms"}</h4>
+          <p className="whitespace-pre-line text-sm text-muted-foreground">{product.warranty || "Confirm this product's written warranty coverage, exclusions and service process with WOODEX. A source warranty label does not establish coverage for normal wear or every component."}</p>
+        </CardContent></Card>
       </TabsContent>
     </Tabs>
   );

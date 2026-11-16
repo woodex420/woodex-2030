@@ -6,6 +6,7 @@
  * Until Furniture 2030 Phase 2, 148 demo products were compiled in here; they
  * now live in ./demo-products.ts, which only the seed snapshot reads.
  */
+import { taxonomy, matchesCategory } from "@/lib/commerceTaxonomy";
 export interface ProductColor {
   name: string;
   hex: string;
@@ -39,6 +40,8 @@ export interface Product {
   originalPrice?: number;
   description: string;
   shortDescription: string;
+  shipping?: string;
+  warranty?: string;
   images: string[];
   colors: ProductColor[];
   specifications: ProductSpecification[];
@@ -59,48 +62,10 @@ export interface Product {
 }
 
 // ─── CATEGORY STRUCTURE ────────────────────────────────────────────────
-export const categoryGroups = [
-  {
-    id: "office",
-    name: "Office Furniture",
-    subcategories: [
-      { id: "executive-tables", name: "Executive Tables", parent: "office-tables" },
-      { id: "manager-tables", name: "Manager Tables", parent: "office-tables" },
-      { id: "staff-tables", name: "Staff Tables", parent: "office-tables" },
-      { id: "meeting-tables", name: "Meeting Tables", parent: "office-tables" },
-      { id: "reception-tables", name: "Reception Tables", parent: "office-tables" },
-      { id: "chairs", name: "Office Chairs", parent: "chairs" },
-      { id: "workstations", name: "Workstations", parent: "workstations" },
-      { id: "cubicle-workstations", name: "Cubicle Workstations", parent: "workstations" },
-      { id: "office-sofas", name: "Office Sofas", parent: "sofas" },
-      { id: "office-storage", name: "Office Storage", parent: "storage" },
-      { id: "cafe-furniture", name: "Cafe Furniture", parent: "cafe" },
-      { id: "public-sitting", name: "Public Sitting", parent: "public" },
-      { id: "home-office", name: "Home Office", parent: "home-office" },
-      { id: "acoustic", name: "Acoustic Furniture", parent: "acoustic" },
-      { id: "collaborative", name: "Collaborative Furniture", parent: "collaborative" },
-    ],
-  },
-  {
-    id: "home",
-    name: "Home Furniture",
-    subcategories: [
-      { id: "bed-sets", name: "Bed Sets", parent: "bedroom" },
-      { id: "bedside-tables", name: "Bedside Tables", parent: "bedroom" },
-      { id: "dressing-tables", name: "Dressing Tables", parent: "bedroom" },
-      { id: "mirrors", name: "Mirrors", parent: "bedroom" },
-      { id: "bench-settee", name: "Bench & Settee", parent: "bedroom" },
-      { id: "home-sofa", name: "Home Sofa", parent: "living" },
-      { id: "center-side-tables", name: "Center & Side Tables", parent: "living" },
-      { id: "coffee-tables", name: "Coffee Tables", parent: "living" },
-      { id: "console", name: "Console", parent: "living" },
-      { id: "tv-units", name: "TV Units", parent: "living" },
-      { id: "dining-sets", name: "Dining Sets", parent: "dining" },
-      { id: "dining-chairs", name: "Dining Chairs", parent: "dining" },
-      { id: "dining-tables", name: "Dining Tables", parent: "dining" },
-    ],
-  },
-];
+export const categoryGroups = taxonomy.segments.map(segment => ({
+  id: segment.id, name: segment.name,
+  subcategories: segment.groups.flatMap(group => group.children.map(child => ({ id: child.id, name: child.name, parent: group.id }))),
+}));
 
 // ─── SERIES ─────────────────────────────────────────────────────────────
 export const seriesList = [
@@ -301,7 +266,7 @@ export const getProductById = (id: string): Product | undefined => {
 
 export const getProductsByCategory = (category: string): Product[] => {
   if (category === "all") return products;
-  return products.filter((p) => p.category === category || p.subcategory === category);
+  return products.filter(product => matchesCategory(product, category));
 };
 
 export const getProductsBySeries = (seriesId: string): Product[] => {

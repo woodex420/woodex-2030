@@ -1,3 +1,5 @@
+import { collectionList } from "@/lib/commerceTaxonomy";
+import { useRuntimeRevision } from "@/lib/runtime";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
@@ -6,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/shop/ProductCard";
-import { seriesList, getProductsBySeries } from "@/data/products";
+import { seriesList as sourceSeries, getProductsBySeries } from "@/data/products";
 import { useCatalogStatus } from "@/lib/runtime";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getSeriesSeo } from "@/data/seoContent";
@@ -21,6 +23,8 @@ const seriesImages: Record<string, string> = {
 };
 
 const Series = () => {
+  useRuntimeRevision();
+  const seriesList = collectionList().map(c => { const source = sourceSeries.find(s => s.id === c.id); return source ? { ...source, name: c.name } : null; }).filter(s => !!s);
   const [activeTab, setActiveTab] = useState("woodex-series");
   const tabProducts = getProductsBySeries(activeTab).slice(0, 4);
   /* How many products a series has is counted from the catalogue. The figures
@@ -49,7 +53,7 @@ const Series = () => {
             <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Collections</p>
             <h1 className="text-4xl lg:text-5xl font-black mb-3">Furniture Series</h1>
             <p className="text-primary-foreground/75 max-w-xl">
-              Four distinct collections designed for different workspace needs, budgets, and aesthetics — all made in Pakistan.
+              {seriesList.length} distinct collections designed for different workspace needs, budgets, and aesthetics — all made in Pakistan.
             </p>
           </div>
         </section>

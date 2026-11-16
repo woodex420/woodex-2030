@@ -1,3 +1,4 @@
+import LeadChallenge from "@/components/LeadChallenge";
 import { getLeadAttribution, submitLead } from "@/lib/runtime";
 import { useState, useEffect } from "react";
 import { Mail, Phone, MapPin, Clock, Send, MessageCircle, ChevronDown } from "lucide-react";
@@ -55,6 +56,7 @@ const Contact = () => {
         interest: String(fd.get("subject") || "General inquiry").trim(),
         source: "Contact Form",
         note: String(fd.get("message") || "").trim().slice(0, 2000),
+        turnstile_token: String(fd.get("turnstile_token") || ""),
         ...getLeadAttribution(),
       });
       if (!result) throw new Error("The request could not be saved. Please try again.");
@@ -178,6 +180,7 @@ const Contact = () => {
                           <input name="contactConsent" type="checkbox" required className="mt-1 accent-[hsl(var(--accent))]" />
                           <span>I agree that WOODEX may contact me about this enquiry using my selected method.</span>
                         </label>
+                        <LeadChallenge />
                         {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
                         <Button type="submit" disabled={submitting} className="w-full bg-accent hover:bg-hon-green-dark text-accent-foreground font-semibold">
                           {submitting ? "Sending…" : "Send Message"}

@@ -1,3 +1,5 @@
+import LeadChallenge from "@/components/LeadChallenge";
+import { redeemLeadHandoff } from "@/lib/leadCapture";
 import { getLeadAttribution, logManualWhatsAppHandoff, submitLead, submitQuoteRequest, useRuntimeRevision } from "@/lib/runtime";
 import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
@@ -43,6 +45,9 @@ const Quotation = () => {
   const [pendingAction, setPendingAction] = useState<"print" | "email" | "whatsapp" | null>(null);
   const [manualHandoff, setManualHandoff] = useState<{ leadId: number; ref: string; interest: string } | null>(null);
   const [manualHandoffUrl, setManualHandoffUrl] = useState("");
+  const basketRequestKey = useRef(crypto.randomUUID());
+  const [submissionReference, setSubmissionReference] = useState("");
+  const [versionedHandoff, setVersionedHandoff] = useState<string | null>(null);
   const [handoffBusy, setHandoffBusy] = useState(false);
 
   /* One row per thing that can be quoted: a product, or — for a product sold
@@ -104,6 +109,8 @@ const Quotation = () => {
     try {
       const result = items.length > 0
         ? await submitQuoteRequest({
+            requestKey: basketRequestKey.current,
+            turnstile_token: String(fd.get("turnstile_token") || ""),
             customer: name,
             company,
             email,
@@ -131,9 +138,14 @@ const Quotation = () => {
             contactConsent,
             preferredChannel,
             note: "Quote request submitted without a product basket.",
+            turnstile_token: String(fd.get("turnstile_token") || ""),
             ...attribution,
           });
       if (!result) throw new Error("The request could not be saved. Please try again.");
+      setVersionedHandoff(preferredChannel === "whatsapp" ? result.handoffToken ?? null : null);
+      if (preferredChannel === "whatsapp" && result.handoffUnavailable) {
+        toast.info(`Enquiry ${result.ref} saved. WhatsApp handoff is currently unavailable; our team will follow up.`);
+      }
       const leadId = Number(result.leadId ?? result.id);
       if (preferredChannel === "whatsapp" && Number.isSafeInteger(leadId) && leadId > 0) {
         setManualHandoff({ leadId, ref: String(result.ref ?? ""), interest: projectType });
@@ -142,6 +154,7 @@ const Quotation = () => {
         setManualHandoff(null);
         setManualHandoffUrl("");
       }
+      setSubmissionReference(String(result.ref ?? ""));
       setSubmitted(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : "The request could not be saved. Please try again.";
@@ -176,7 +189,27 @@ const Quotation = () => {
     } finally { setHandoffBusy(false); }
   };
 
+  const openVersionedWhatsApp = async () => {
+    if (!versionedHandoff) return;
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
+    setHandoffBusy(true);
+    try {
+      const url = await redeemLeadHandoff(versionedHandoff);
+      setManualHandoffUrl(url);
+      if (popup) popup.location.href = url;
+      toast.success("Handoff logged. Review and send the message yourself in WhatsApp; Woodex did not send it.");
+    } catch (error) {
+      popup?.close();
+      toast.error(error instanceof Error ? error.message : "The handoff could not be logged.");
+    } finally { setHandoffBusy(false); }
+  };
+
   const createAndOpenBuilderHandoff = async () => {
+    if (import.meta.env.VITE_QUOTE_API_MODE === "v1") {
+      toast.info("Use the basket request form below to save your enquiry. Builder WhatsApp is not available on the new API yet.");
+      return;
+    }
     if (!clientInfo.contactConsent) {
       toast.error("Please confirm permission for follow-up before opening WhatsApp.");
       return;
@@ -524,13 +557,15 @@ const Quotation = () => {
                         <CheckCircle className="h-10 w-10 text-accent" />
                       </div>
                       <h3 className="text-2xl font-bold mb-2">Quote Request Submitted!</h3>
+                      {submissionReference && <p className="mb-2 break-all text-sm font-semibold">Reference: {submissionReference}</p>}
+                      {items.length > 0 && import.meta.env.VITE_QUOTE_API_MODE === "v1" && <p className="mb-2 text-sm">Pending staff review. This is not an issued quotation, order or stock reservation.</p>}
                       <p className="text-muted-foreground max-w-sm mx-auto">
                         Thank you! Our team will review your requirements and follow up through your selected contact method.
                       </p>
-                      {manualHandoff && (
+                      {(manualHandoff || versionedHandoff) && (
                         <div className="mx-auto mt-5 max-w-sm space-y-2">
-                          <p className="text-xs text-muted-foreground">WhatsApp is a manual handoff. This click is logged in the CRM inbox; Woodex does not send or receive a message automatically.</p>
-                          <Button type="button" disabled={handoffBusy} onClick={() => void openLoggedWhatsApp(manualHandoff)} className="bg-accent hover:bg-hon-green-dark text-accent-foreground">
+                          <p className="text-xs text-muted-foreground">WhatsApp is a manual handoff. This click is logged against your enquiry; Woodex does not send or receive a message automatically.{versionedHandoff ? " The secure link expires after 15 minutes." : ""}</p>
+                          <Button type="button" disabled={handoffBusy} onClick={() => { if (versionedHandoff) void openVersionedWhatsApp(); else if (manualHandoff) void openLoggedWhatsApp(manualHandoff); }} className="bg-accent hover:bg-hon-green-dark text-accent-foreground">
                             <MessageCircle className="mr-2 h-4 w-4" /> {handoffBusy ? "Logging handoff…" : "Log & open WhatsApp"}
                           </Button>
                           {manualHandoffUrl && <a href={manualHandoffUrl} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-accent underline">Open WhatsApp manually</a>}
@@ -584,6 +619,7 @@ const Quotation = () => {
                         <input name="contactConsent" type="checkbox" required className="mt-1 accent-[hsl(var(--accent))]" />
                         <span>I agree that WOODEX may contact me about this quote request using my selected method.</span>
                       </label>
+                      <LeadChallenge mode={items.length > 0 ? import.meta.env.VITE_QUOTE_API_MODE : import.meta.env.VITE_LEAD_API_MODE} />
                       {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
                       <Button type="submit" size="lg" disabled={submitting} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 gap-2 uppercase tracking-wider text-xs">
                         <ArrowRight className="h-4 w-4" /> {submitting ? "Submitting…" : "Submit Quote Request"}

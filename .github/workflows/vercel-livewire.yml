@@ -1,0 +1,37 @@
+name: Vercel Livewire runtime validation
+on:
+  workflow_dispatch:
+  push:
+    branches: ["arena/**"]
+    paths: ["deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", ".github/workflows/vercel-livewire.yml"]
+permissions:
+  contents: read
+jobs:
+  php-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: bcmath, ctype, curl, dom, exif, fileinfo, intl, mbstring, pdo_mysql, sodium, zip
+          tools: composer:v2
+          coverage: none
+      - name: Package committed Laravel source
+        run: node scripts/package-vercel-livewire.mjs "$RUNNER_TEMP/livewire"
+      - name: Validate entry syntax and locked platform requirements
+        working-directory: ${{ runner.temp }}/livewire
+        run: |
+          php -l api/index.php
+          composer check-platform-reqs --lock --no-dev
+          composer install --no-dev --no-scripts --prefer-dist --no-interaction --no-progress
+          composer check-platform-reqs --no-dev
+      - name: Assert fail-closed entry without credentials
+        working-directory: ${{ runner.temp }}/livewire
+        run: |
+          php -r 'register_shutdown_function(function () { if (http_response_code() !== 503) { exit(1); } }); require "api/index.php";' > "$RUNNER_TEMP/entry-output"
+          test "$(cat "$RUNNER_TEMP/entry-output")" = 'Admin service is not configured.'

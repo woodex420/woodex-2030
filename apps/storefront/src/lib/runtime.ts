@@ -1,4 +1,7 @@
+import { syncNativeCategories } from "./nativeCategories";
+import { captureBasketRequest } from "./quoteCapture";
 import { refreshTheme } from "./theme";
+import { captureStorefrontLead } from "./leadCapture";
 import { Fragment, createElement, useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { products, catalog } from "@/data/products";
@@ -145,6 +148,12 @@ export function startRuntimeSync(intervalMs = 15000) {
      placeholder, not a message that the shop is unavailable. */
   if ((window as unknown as { __WOODEX_PRERENDER__?: boolean }).__WOODEX_PRERENDER__) return;
 
+  /* Categories kept in the Laravel admin, where that connection is switched
+     on (the API answers "disabled" where it is not). */
+  void syncNativeCategories();
+  window.setInterval(() => void syncNativeCategories(), intervalMs);
+  window.addEventListener("focus", () => void syncNativeCategories());
+
   /* Until the catalogue has loaded once, ask again soon; after that, once a
      minute is enough — price and availability arrive through the overrides. */
   const refreshCatalog = async () => {
@@ -239,7 +248,21 @@ async function postOrExplain(path: string, body: unknown): Promise<Record<string
   throw new Error("The request could not be saved right now. Please try again in a moment.");
 }
 
-export const submitQuoteRequest = (payload: unknown) => postOrExplain("/api/quotes", payload);
-export const submitLead = (payload: unknown) => post("/api/leads", payload);
+/* Two destinations, chosen when the site is built. "legacy" (the default) is
+   this repository's API; "v1" is the Laravel API, behind its own opt-in. On
+   the default path a refusal still carries the API's reason (postOrExplain). */
+export const submitQuoteRequest = (payload: unknown) => {
+  const mode = import.meta.env.VITE_QUOTE_API_MODE || "legacy";
+  if (mode === "legacy") return postOrExplain("/api/quotes", payload);
+  return captureBasketRequest(payload as Record<string, unknown>, mode, fetch,
+    import.meta.env.PROD || !!import.meta.env.VITE_TURNSTILE_SITE_KEY)
+    .finally(() => { if (mode === "v1") window.dispatchEvent(new Event("woodex:lead-attempt")); });
+};
+export const submitLead = (payload: unknown) => {
+  const mode = import.meta.env.VITE_LEAD_API_MODE || "legacy";
+  return captureStorefrontLead(payload as Record<string, unknown>, mode, fetch,
+    import.meta.env.PROD || !!import.meta.env.VITE_TURNSTILE_SITE_KEY)
+    .finally(() => { if (mode === "v1") window.dispatchEvent(new Event("woodex:lead-attempt")); });
+};
 export const logManualWhatsAppHandoff = (leadId: number) => post(`/api/leads/${leadId}/whatsapp-handoff`, {});
 export const submitOrder = (payload: unknown) => postOrExplain("/api/orders", payload);

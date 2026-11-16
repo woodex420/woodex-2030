@@ -1,0 +1,1479 @@
+[
+  {
+    "name": "Renovation",
+    "description": "Full home or office renovation in our standard BOQ format. Ten work sections with a summary rollup, rates from live market.",
+    "sections": [
+      {
+        "name": "Civil Work",
+        "items": [
+          {
+            "desc": "Removal of existing windows, marble, brick walls and slabs demolished wherever required",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 50000
+          },
+          {
+            "desc": "Removal and disposal of bath tiles",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 50000
+          },
+          {
+            "desc": "A class brick work, beam/girder and slab pouring 1:4:8, PCC and plaster as per drawing",
+            "qty": 256,
+            "unit": "sft",
+            "rate": 2000
+          },
+          {
+            "desc": "MS girder",
+            "qty": 2,
+            "unit": "lumpsum",
+            "rate": 35000
+          },
+          {
+            "desc": "Transportation",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 0
+          }
+        ]
+      },
+      {
+        "name": "Flooring",
+        "items": [
+          {
+            "desc": "Floor tile, Master Bath (01), full body porcelain",
+            "qty": 17,
+            "unit": "sqmt",
+            "rate": 3200
+          },
+          {
+            "desc": "Wall tile, Master Bath (01)",
+            "qty": 62,
+            "unit": "sqmt",
+            "rate": 3200
+          },
+          {
+            "desc": "Floor tile, Bath (02)",
+            "qty": 12,
+            "unit": "sqmt",
+            "rate": 3200
+          },
+          {
+            "desc": "Wall tile, Bath (02)",
+            "qty": 35,
+            "unit": "sqmt",
+            "rate": 3200
+          },
+          {
+            "desc": "Cement, sand, tile bond and filling as directed by consultant",
+            "qty": 1355,
+            "unit": "sft",
+            "rate": 65
+          },
+          {
+            "desc": "Laying and fixing 2x4 porcelain tiles with mortar, joint filling and curing complete",
+            "qty": 1355,
+            "unit": "sft",
+            "rate": 120
+          },
+          {
+            "desc": "Laminate floor, Room 01 and 02",
+            "qty": 700,
+            "unit": "sft",
+            "rate": 1350
+          },
+          {
+            "desc": "Wooden skirting 4\"",
+            "qty": 150,
+            "unit": "rft",
+            "rate": 0
+          },
+          {
+            "desc": "Transportation",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 20000
+          }
+        ]
+      },
+      {
+        "name": "Ceiling",
+        "items": [
+          {
+            "desc": "POP false ceiling with aluminum channels and steel hanging wire, as per approved design",
+            "qty": 1000,
+            "unit": "sft",
+            "rate": 120
+          },
+          {
+            "desc": "Transportation",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 0
+          }
+        ]
+      },
+      {
+        "name": "Paint Work",
+        "items": [
+          {
+            "desc": "Ceiling paint, plastic emulsion 4 coats",
+            "qty": 1000,
+            "unit": "sft",
+            "rate": 80
+          },
+          {
+            "desc": "Wall paint, plastic emulsion 4 coats",
+            "qty": 695,
+            "unit": "sft",
+            "rate": 75
+          },
+          {
+            "desc": "Transportation",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 0
+          }
+        ]
+      },
+      {
+        "name": "Wood Work",
+        "items": [
+          {
+            "desc": "Media wall, Master Bed 01, supply making and fixing",
+            "qty": 142.5,
+            "unit": "sft",
+            "rate": 1200
+          },
+          {
+            "desc": "Media wall, Bed 02",
+            "qty": 121.125,
+            "unit": "sft",
+            "rate": 1200
+          },
+          {
+            "desc": "Bed wall, Master Bed 01",
+            "qty": 142.5,
+            "unit": "sft",
+            "rate": 1200
+          },
+          {
+            "desc": "Bed wall, Bed 02",
+            "qty": 102.125,
+            "unit": "sft",
+            "rate": 1200
+          },
+          {
+            "desc": "Wardrobe, Master Bath 01",
+            "qty": 92.625,
+            "unit": "sft",
+            "rate": 2800
+          },
+          {
+            "desc": "Wardrobe, Bath 02",
+            "qty": 76,
+            "unit": "sft",
+            "rate": 2800
+          },
+          {
+            "desc": "Dressing cabinet, Master Bath 01",
+            "qty": 48,
+            "unit": "sft",
+            "rate": 2200
+          }
+        ]
+      },
+      {
+        "name": "Glass Work",
+        "items": [
+          {
+            "desc": "Aluminium windows, Master Bed 01",
+            "qty": 128,
+            "unit": "sft",
+            "rate": 1500
+          },
+          {
+            "desc": "Aluminium windows, Bed 02",
+            "qty": 27.5,
+            "unit": "sft",
+            "rate": 1500
+          },
+          {
+            "desc": "12mm tempered glass, Master Bath 01",
+            "qty": 20,
+            "unit": "sft",
+            "rate": 1800
+          },
+          {
+            "desc": "12mm tempered glass, Bath 02",
+            "qty": 68,
+            "unit": "sft",
+            "rate": 1800
+          },
+          {
+            "desc": "Transportation",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 25000
+          }
+        ]
+      },
+      {
+        "name": "Bath Fitting, Fixtures and Accessories",
+        "items": [
+          {
+            "desc": "Muslim shower with fittings",
+            "qty": 10,
+            "unit": "each",
+            "rate": 0
+          },
+          {
+            "desc": "Vanity mixer tap",
+            "qty": 10,
+            "unit": "each",
+            "rate": 0
+          },
+          {
+            "desc": "Floor mounted W.C with fittings",
+            "qty": 10,
+            "unit": "each",
+            "rate": 0
+          },
+          {
+            "desc": "Vanity",
+            "qty": 10,
+            "unit": "each",
+            "rate": 0
+          },
+          {
+            "desc": "Paper holder, floor trap and accessories",
+            "qty": 32,
+            "unit": "each",
+            "rate": 0
+          }
+        ]
+      },
+      {
+        "name": "Curtain and Blinds",
+        "items": [
+          {
+            "desc": "Curtain, Master Bed 01, making providing and fixing",
+            "qty": 145,
+            "unit": "sft",
+            "rate": 0
+          },
+          {
+            "desc": "Curtain, Bed 02",
+            "qty": 80,
+            "unit": "sft",
+            "rate": 0
+          },
+          {
+            "desc": "Blackout blinds, Master Bed 01",
+            "qty": 145,
+            "unit": "sft",
+            "rate": 0
+          },
+          {
+            "desc": "Blinds, Bed 02",
+            "qty": 80,
+            "unit": "sft",
+            "rate": 0
+          }
+        ]
+      },
+      {
+        "name": "Electrical Work",
+        "items": [
+          {
+            "desc": "Complete electrical work, making providing and fixing",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 0
+          }
+        ]
+      },
+      {
+        "name": "Plumbing Work",
+        "items": [
+          {
+            "desc": "Water supply and drainage for 2 baths, providing laying and fixing",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 0
+          }
+        ]
+      }
+    ],
+    "terms": "50% advance payment with work order.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates."
+  },
+  {
+    "name": "Civil Work",
+    "description": "Dismantling, brick work, plaster and structural items for renovation and new build civil scope.",
+    "sections": [
+      {
+        "name": "Demolition",
+        "items": [
+          {
+            "desc": "Removal of existing windows, marble, brick walls and slabs demolished wherever required",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 50000
+          },
+          {
+            "desc": "Removal and disposal of bath tiles",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 50000
+          }
+        ]
+      },
+      {
+        "name": "Proposed Work",
+        "items": [
+          {
+            "desc": "A class brick work, beam/girder and slab pouring 1:4:8, PCC and plaster as per drawing",
+            "qty": 256,
+            "unit": "sft",
+            "rate": 2000
+          },
+          {
+            "desc": "MS girder",
+            "qty": 2,
+            "unit": "lumpsum",
+            "rate": 35000
+          }
+        ]
+      },
+      {
+        "name": "Transportation",
+        "items": [
+          {
+            "desc": "Transportation",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": 0
+          }
+        ]
+      }
+    ],
+    "terms": "50% advance payment with work order.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates."
+  },
+  {
+    "name": "Interior Designing",
+    "description": "Design-only scope. Concept, 3D views and working drawings. No execution.",
+    "sections": [
+      {
+        "name": "Design Concept",
+        "items": [
+          {
+            "desc": "Design concept and mood boards",
+            "qty": 1,
+            "unit": "job",
+            "rate": 75000
+          },
+          {
+            "desc": "Space planning and 2D layouts",
+            "qty": 1,
+            "unit": "job",
+            "rate": 50000
+          },
+          {
+            "desc": "Material and color palette",
+            "qty": 1,
+            "unit": "job",
+            "rate": 25000
+          }
+        ]
+      },
+      {
+        "name": "3D Visualization",
+        "items": [
+          {
+            "desc": "3D interior views (4K delivery), 2 revision rounds included",
+            "qty": 4,
+            "unit": "nos",
+            "rate": 25000
+          }
+        ]
+      },
+      {
+        "name": "Working Drawings",
+        "items": [
+          {
+            "desc": "Electrical layout drawings",
+            "qty": 1,
+            "unit": "job",
+            "rate": 30000
+          },
+          {
+            "desc": "Plumbing layout drawings",
+            "qty": 1,
+            "unit": "job",
+            "rate": 30000
+          },
+          {
+            "desc": "False ceiling and flooring drawings",
+            "qty": 1,
+            "unit": "job",
+            "rate": 40000
+          }
+        ]
+      }
+    ],
+    "terms": "75% advance payment with work order.\n25% on approval of project.\nAbove quote is exclusive of all applicable taxes.\nAdvance is nonrefundable."
+  },
+  {
+    "name": "Interior",
+    "description": "Interior finishing scope. Ceiling, paint, partitions and branding.",
+    "sections": [
+      {
+        "name": "Ceiling and Paint",
+        "items": [
+          {
+            "desc": "POP false ceiling, providing and fixing complete in all respects",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 130
+          },
+          {
+            "desc": "Paint works, approved brand and color (ICI / Brighto)",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 55
+          }
+        ]
+      },
+      {
+        "name": "Partitions and Glass",
+        "items": [
+          {
+            "desc": "Glass partition with door",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 950
+          },
+          {
+            "desc": "Glass frosted",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 120
+          },
+          {
+            "desc": "Wooden partition 5ft height",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 725
+          },
+          {
+            "desc": "Wooden hanging beam for glass partition",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 650
+          }
+        ]
+      },
+      {
+        "name": "Branding",
+        "items": [
+          {
+            "desc": "Branding vinyl",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 150
+          }
+        ]
+      }
+    ],
+    "terms": "50% advance payment with work order.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates."
+  },
+  {
+    "name": "Fit-out",
+    "description": "Commercial fit-out scope. Electrical, HVAC, partitions, doors and loose furniture.",
+    "sections": [
+      {
+        "name": "Electrical and HVAC",
+        "items": [
+          {
+            "desc": "Electrical labour: complete electrical points, switches and COB lights",
+            "qty": 1,
+            "unit": "job",
+            "rate": 55000
+          },
+          {
+            "desc": "HVAC pipe fixing with drain, as per instructions",
+            "qty": 1,
+            "unit": "rft",
+            "rate": 850
+          },
+          {
+            "desc": "Split unit installation with M.S. bracket stand",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 7500
+          }
+        ]
+      },
+      {
+        "name": "Glass and Doors",
+        "items": [
+          {
+            "desc": "Glass partition: fix panel door including sliding panel",
+            "qty": 1,
+            "unit": "job",
+            "rate": 35000
+          },
+          {
+            "desc": "Flash door (3.5x7) including chokat with complete hardware",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 30000
+          },
+          {
+            "desc": "Aluminium window with 8mm glass",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 1200
+          }
+        ]
+      },
+      {
+        "name": "Furniture",
+        "items": [
+          {
+            "desc": "Workstation repairing with top change and powder coating paint",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 9500
+          },
+          {
+            "desc": "Meeting table 8 to 10 person",
+            "qty": 1,
+            "unit": "job",
+            "rate": 55000
+          }
+        ]
+      }
+    ],
+    "terms": "50% advance payment with work order.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates."
+  },
+  {
+    "name": "Architecture",
+    "description": "Architectural design scope from concept to working drawings.",
+    "sections": [
+      {
+        "name": "Design",
+        "items": [
+          {
+            "desc": "Architectural design consultancy",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 350
+          },
+          {
+            "desc": "2D layouts and space planning",
+            "qty": 1,
+            "unit": "job",
+            "rate": 0
+          }
+        ]
+      },
+      {
+        "name": "Visualization and Drawings",
+        "items": [
+          {
+            "desc": "3D exterior and interior views",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 25000
+          },
+          {
+            "desc": "Complete working drawings set",
+            "qty": 1,
+            "unit": "job",
+            "rate": 0
+          }
+        ]
+      }
+    ],
+    "terms": "75% advance payment with work order.\n25% on approval of project.\nAbove quote is exclusive of all applicable taxes.\nAdvance is nonrefundable."
+  },
+  {
+    "name": "3D Visualization",
+    "description": "Photorealistic 3D views, 4K delivery, two revision rounds included.",
+    "sections": [
+      {
+        "name": "3D Views",
+        "items": [
+          {
+            "desc": "3D interior views (4K delivery), 2 revision rounds included",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 25000
+          }
+        ]
+      }
+    ],
+    "terms": "75% advance payment with work order.\n25% on approval of project.\nAbove quote is exclusive of all applicable taxes.\nAdvance is nonrefundable."
+  },
+  {
+    "name": "Furniture",
+    "description": "Custom furniture items made to order in our workshop.",
+    "sections": [
+      {
+        "name": "Furniture",
+        "items": [
+          {
+            "desc": "Dining table",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 10500
+          },
+          {
+            "desc": "Dining chair",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 10500
+          },
+          {
+            "desc": "Sofa seat",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 15500
+          },
+          {
+            "desc": "Bar stool",
+            "qty": 1,
+            "unit": "nos",
+            "rate": 4500
+          },
+          {
+            "desc": "Running table",
+            "qty": 1,
+            "unit": "rft",
+            "rate": 6500
+          }
+        ]
+      }
+    ],
+    "terms": "50% advance payment with work order.\nRates are exclusive of GST / PST.\nDelivery time as mutually agreed."
+  },
+  {
+    "name": "Design Consultancy",
+    "description": "Complete interior design consultancy from layouts to detail drawings.",
+    "sections": [
+      {
+        "name": "Consultancy",
+        "items": [
+          {
+            "desc": "Complete interior design consultancy: 2D layouts, 3D design, mood boards and detail drawings",
+            "qty": 1,
+            "unit": "sft",
+            "rate": 100
+          }
+        ]
+      }
+    ],
+    "terms": "75% advance payment with work order.\n25% on approval of project.\nAbove quote is exclusive of all applicable taxes.\nAdvance is nonrefundable.\nSite visits: 3 included; additional visits Rs 3,500 per visit."
+  },
+  {
+    "name": "3D Interior Design – Scope of Work",
+    "description": "Design-only scope: concept, 3D views and working drawings for the interior.",
+    "terms": "75% advance payment with work order.\n25% on approval of project.\nAbove quote is exclusive of all applicable taxes.\nAdvance is nonrefundable.",
+    "sections": [
+      {
+        "name": "Site & Brief",
+        "note": "",
+        "items": [
+          {
+            "desc": "Site visit, measurements and photographs",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          },
+          {
+            "desc": "Client brief, requirements and budget discussion",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          },
+          {
+            "desc": "Existing layout drawing (as-built)",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Concept Design",
+        "note": "",
+        "items": [
+          {
+            "desc": "Space planning / furniture layout (2 options)",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Mood board: colours, materials and finishes",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          },
+          {
+            "desc": "Concept presentation and one revision round",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "3D Visualization",
+        "note": "Two revision rounds per room are included.",
+        "items": [
+          {
+            "desc": "Photoreal 3D renders per room (4 views each)",
+            "qty": null,
+            "unit": "nos",
+            "rate": null
+          },
+          {
+            "desc": "360° panorama view (optional)",
+            "qty": null,
+            "unit": "nos",
+            "rate": null
+          },
+          {
+            "desc": "Walkthrough animation (optional)",
+            "qty": null,
+            "unit": "job",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Working Drawings",
+        "note": "",
+        "items": [
+          {
+            "desc": "Furniture and joinery detail drawings",
+            "qty": 1,
+            "unit": "set",
+            "rate": null
+          },
+          {
+            "desc": "False ceiling and lighting layout",
+            "qty": 1,
+            "unit": "set",
+            "rate": null
+          },
+          {
+            "desc": "Electrical, switch and socket layout",
+            "qty": 1,
+            "unit": "set",
+            "rate": null
+          },
+          {
+            "desc": "Flooring and wall finish layout",
+            "qty": 1,
+            "unit": "set",
+            "rate": null
+          },
+          {
+            "desc": "Material and finish schedule / BOQ",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Interior Design – Residential",
+    "description": "Full home interior: design, finishes, furniture and décor.",
+    "terms": "50% advance payment with work order.\n40% on completion of civil and wood work.\n10% on handover.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates.",
+    "sections": [
+      {
+        "name": "Design",
+        "note": "",
+        "items": [
+          {
+            "desc": "Interior design with 3D views and working drawings",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "False Ceiling",
+        "note": "",
+        "items": [
+          {
+            "desc": "Gypsum board false ceiling with cornice",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Cove lighting profile",
+            "qty": null,
+            "unit": "rft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Wall Finishes",
+        "note": "",
+        "items": [
+          {
+            "desc": "Paint work: putty, primer and 2 coats emulsion",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Wall panelling / fluted panels",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Wallpaper supply and installation",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Flooring",
+        "note": "",
+        "items": [
+          {
+            "desc": "Porcelain / marble tile flooring with installation",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Wooden / laminate flooring",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Wood Work",
+        "note": "",
+        "items": [
+          {
+            "desc": "Wardrobes with soft-close hardware",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "TV console / media wall",
+            "qty": null,
+            "unit": "rft",
+            "rate": null
+          },
+          {
+            "desc": "Kitchen cabinets (base + wall) with quartz top",
+            "qty": null,
+            "unit": "rft",
+            "rate": null
+          },
+          {
+            "desc": "Main and room doors with frames",
+            "qty": null,
+            "unit": "nos",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Loose Furniture & Décor",
+        "note": "",
+        "items": [
+          {
+            "desc": "Sofa set, bed, side tables and dining (as per design)",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          },
+          {
+            "desc": "Curtains and blinds",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Lights, chandeliers and décor accessories",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Electrical",
+        "note": "",
+        "items": [
+          {
+            "desc": "Wiring, switches, sockets and DB work",
+            "qty": null,
+            "unit": "point",
+            "rate": null
+          },
+          {
+            "desc": "LED spot / downlights",
+            "qty": null,
+            "unit": "nos",
+            "rate": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Interior Design – Commercial",
+    "description": "Offices, retail, restaurants and clinics: design + build.",
+    "terms": "50% advance payment with work order.\n40% on completion of civil and wood work.\n10% on handover.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates.",
+    "sections": [
+      {
+        "name": "Design",
+        "note": "",
+        "items": [
+          {
+            "desc": "Space planning, branding integration, 3D views and working drawings",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Partitions & Ceilings",
+        "note": "",
+        "items": [
+          {
+            "desc": "Glass partitions with aluminium frame",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Gypsum partitions with insulation",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Acoustic / grid ceiling",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Flooring",
+        "note": "",
+        "items": [
+          {
+            "desc": "Carpet tiles / vinyl flooring",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Porcelain tiles in common areas",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Joinery & Furniture",
+        "note": "",
+        "items": [
+          {
+            "desc": "Reception counter with branding",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          },
+          {
+            "desc": "Workstations with cable management",
+            "qty": null,
+            "unit": "nos",
+            "rate": null
+          },
+          {
+            "desc": "Meeting / conference table",
+            "qty": null,
+            "unit": "nos",
+            "rate": null
+          },
+          {
+            "desc": "Storage and pantry cabinets",
+            "qty": null,
+            "unit": "rft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "MEP",
+        "note": "",
+        "items": [
+          {
+            "desc": "Electrical, data and lighting points",
+            "qty": null,
+            "unit": "point",
+            "rate": null
+          },
+          {
+            "desc": "HVAC ducting and diffusers (coordination)",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          },
+          {
+            "desc": "Fire alarm / sprinkler adjustment",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Branding & Signage",
+        "note": "",
+        "items": [
+          {
+            "desc": "Logo wall / backlit signage",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          },
+          {
+            "desc": "Glass frosting film with logo",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Renovation – Scope of Work",
+    "description": "Renovation scope: demolition to finishing, room by room.",
+    "terms": "50% advance payment with work order.\n40% on completion of civil and wood work.\n10% on handover.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates.",
+    "sections": [
+      {
+        "name": "Demolition",
+        "note": "",
+        "items": [
+          {
+            "desc": "Removal of existing tiles, fixtures and debris",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Debris lifting and disposal",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Civil Work",
+        "note": "",
+        "items": [
+          {
+            "desc": "Brick masonry / wall changes",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Plaster work",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Waterproofing (bathrooms / roof)",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Plumbing & Electrical",
+        "note": "",
+        "items": [
+          {
+            "desc": "New plumbing lines (hot + cold)",
+            "qty": null,
+            "unit": "point",
+            "rate": null
+          },
+          {
+            "desc": "Rewiring with new DB",
+            "qty": null,
+            "unit": "point",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Finishing",
+        "note": "",
+        "items": [
+          {
+            "desc": "Tile / marble flooring",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Paint work",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "False ceiling",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Kitchen & Bathrooms",
+        "note": "",
+        "items": [
+          {
+            "desc": "Kitchen cabinets with countertop",
+            "qty": null,
+            "unit": "rft",
+            "rate": null
+          },
+          {
+            "desc": "Bathroom fittings, fixtures and vanity",
+            "qty": null,
+            "unit": "set",
+            "rate": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Turnkey Solution",
+    "description": "Design + build + furniture + handover under one contract.",
+    "terms": "50% advance payment with work order.\n40% on completion of civil and wood work.\n10% on handover.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates.",
+    "sections": [
+      {
+        "name": "Design Package",
+        "note": "",
+        "items": [
+          {
+            "desc": "Concept, 3D visualization and working drawings",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Civil & MEP",
+        "note": "",
+        "items": [
+          {
+            "desc": "Civil works as per drawings",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          },
+          {
+            "desc": "Electrical and plumbing works",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          },
+          {
+            "desc": "HVAC coordination",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Finishes",
+        "note": "",
+        "items": [
+          {
+            "desc": "Flooring, ceiling and wall finishes as per BOQ",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Wood Work & Furniture",
+        "note": "",
+        "items": [
+          {
+            "desc": "Built-in joinery (kitchen, wardrobes, doors)",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          },
+          {
+            "desc": "Loose furniture made in the Woodex workshop",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Décor & Handover",
+        "note": "",
+        "items": [
+          {
+            "desc": "Curtains, lights and accessories",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          },
+          {
+            "desc": "Deep cleaning, snag list and handover",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Project Management",
+        "note": "",
+        "items": [
+          {
+            "desc": "Site supervision, weekly reports and quality control",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Fit-out Solution",
+    "description": "Shell-to-ready fit-out for offices, retail and hospitality.",
+    "terms": "50% advance payment with work order.\n40% on completion of civil and wood work.\n10% on handover.\nPayment will be charged on the actual dimension / size of area.\nRates are valid for 15 days as per market rates.",
+    "sections": [
+      {
+        "name": "Preliminaries",
+        "note": "",
+        "items": [
+          {
+            "desc": "Site mobilization, protection and approvals",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Partitions & Ceilings",
+        "note": "",
+        "items": [
+          {
+            "desc": "Drywall / glass partitions",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "False ceiling with access panels",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Floor & Wall Finishes",
+        "note": "",
+        "items": [
+          {
+            "desc": "Raised floor / carpet / vinyl",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Paint and feature walls",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "MEP",
+        "note": "",
+        "items": [
+          {
+            "desc": "Lighting, power and data",
+            "qty": null,
+            "unit": "point",
+            "rate": null
+          },
+          {
+            "desc": "HVAC and fire-fighting modifications",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Joinery & FF&E",
+        "note": "",
+        "items": [
+          {
+            "desc": "Counters, pantry and storage",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          },
+          {
+            "desc": "Furniture, fixtures and equipment",
+            "qty": 1,
+            "unit": "lumpsum",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Handover",
+        "note": "",
+        "items": [
+          {
+            "desc": "Testing, commissioning and as-built drawings",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Architecture – Scope of Work",
+    "description": "Architectural design for residential and commercial buildings.",
+    "terms": "75% advance payment with work order.\n25% on approval of project.\nAbove quote is exclusive of all applicable taxes.\nAdvance is nonrefundable.",
+    "sections": [
+      {
+        "name": "Concept",
+        "note": "",
+        "items": [
+          {
+            "desc": "Site analysis and requirement brief",
+            "qty": 1,
+            "unit": "job",
+            "rate": null
+          },
+          {
+            "desc": "Concept plans (2 options)",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "3D exterior elevation (front)",
+            "qty": null,
+            "unit": "nos",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Design Development",
+        "note": "",
+        "items": [
+          {
+            "desc": "Final floor plans, sections and elevations",
+            "qty": null,
+            "unit": "sft",
+            "rate": null
+          },
+          {
+            "desc": "Submission drawings for authority approval",
+            "qty": 1,
+            "unit": "set",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Working Drawings",
+        "note": "",
+        "items": [
+          {
+            "desc": "Architectural working drawings",
+            "qty": 1,
+            "unit": "set",
+            "rate": null
+          },
+          {
+            "desc": "Structural drawings (coordination)",
+            "qty": 1,
+            "unit": "set",
+            "rate": null
+          },
+          {
+            "desc": "Electrical and plumbing drawings",
+            "qty": 1,
+            "unit": "set",
+            "rate": null
+          }
+        ]
+      },
+      {
+        "name": "Site Support",
+        "note": "",
+        "items": [
+          {
+            "desc": "Periodic site visits during construction",
+            "qty": null,
+            "unit": "nos",
+            "rate": null
+          }
+        ]
+      }
+    ]
+  }
+]
