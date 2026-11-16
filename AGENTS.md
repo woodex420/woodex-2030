@@ -9,8 +9,12 @@ They are not opinions; each one below cost real debugging time.
 ## 1. Read order
 
 1. **This file.**
-2. `docs/product/MASTER-PLAN.md` — the only plan. If a doc disagrees with it, the plan wins.
-3. `docs/README.md` — the index. Anything under `docs/archive/` is history, not instruction.
+2. `docs/woodex-os/12-DECISION-LOG.md`, then `docs/woodex-os/00-MASTER-PLAN.md` — **the direction since
+   2026-11-16**: one Laravel admin (`platform/`), with this repository's React dashboard and Node API
+   migrated into it module by module. The owner's latest recorded decision wins over every document.
+3. `docs/product/MASTER-PLAN.md` — the plan the React/Node system was built to. Still the reference for how
+   that system works and is released; no longer the destination.
+4. `docs/README.md` — the index. Anything under `docs/archive/` is history, not instruction.
 
 Never start from a random doc you found by grepping. There are 56 markdown files and
 several are superseded.
@@ -229,7 +233,34 @@ server, and in the built bundle served from `dist/` (so run `vercel:build` first
 
 ---
 
-## 6. If you are stuck
+## 6. The Laravel application — `platform/`
+
+WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/laravel-os/`; the programme is
+`docs/woodex-os/`. Sections 2–5 above are about `apps/` and `scripts/` and still apply to every change there.
+
+- **Done, for a change under `platform/`:** its test suite passes **on MySQL in CI** (workflow
+  `os-ci.yml`, five jobs). That is the authority. In a sandbox it runs on SQLite with a static PHP build —
+  `platform/tools/preview/README.md` says how to get PHP and Composer where only GitHub and npm are
+  reachable. Nine tests cannot run there (they need `pdo_mysql` or `xmlwriter`); read a sandbox run with
+  `tools/preview/sandbox/suite-summary.py`, which excuses a failure only by its cause, never by its name.
+- **Never run it against a real database.** The preview refuses anything but a SQLite file named
+  `woodex-synthetic-*`. Trap 5 applies here too.
+- **One navigation registry:** `app/Support/AdminNavigation.php`. A new screen is added there, once, with an
+  id and a permission. The sidebar shows only what can be opened; what cannot is told on the Feature status
+  screen. Do not put a disabled or "Soon" entry in the sidebar. The registry tests assert exact counts on
+  purpose, and one test opens every sidebar screen for four roles.
+- **Colours are roles** (`--wx-*`) and scales in `resources/css/admin.css`; a view names a role or a scale
+  step, not a hex value. `tests/Unit/AdminDesignTokensTest.php` fails below WCAG AA. The logo green
+  `#4f9d21` carries no white text (3.4 : 1); `brand-500` does.
+- **`public/build` is committed** — the production host has no Node.js. After changing CSS or JavaScript run
+  `npm ci && npm run build` in `platform/` and commit the new files with the old ones removed.
+- **A changed requirement changes a test; it does not delete one.** When the roadmap left the sidebar, the
+  tests that expected "Soon" entries were rewritten to expect them on Feature status.
+- The root `index.php` and `.htaccess` are the Hostinger entry of this application. Vercel does not use them.
+
+---
+
+## 7. If you are stuck
 
 1. Reproduce in `npm run smoke:render` before theorising.
 2. Check `git log --oneline -20` — the recent commits document what was just fixed.

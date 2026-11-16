@@ -8,6 +8,7 @@
 | Authority | The owner's specification set in [`spec/`](spec/README.md), then this plan. Where they disagree, the decision log wins (spec 08 §2). |
 | What this plan authorises | Work in this repository and in a sandbox. **Nothing here authorises a change to production, to a hosted database, to DNS or to Hostinger.** Each of those needs its own written approval. |
 | Written | 2026-11-16, at `aff7f2e` on `arena/1830554a-woodex-2030`; Laravel code read at `063fc7c` on `arena/69363bda-woodex-2030`. |
+| Progress | **Wave 0 done; Wave 1: slices 1.1–1.3 done** (2026-11-16). See [`01-WAVE-0-1-REPORT.md`](01-WAVE-0-1-REPORT.md). Sections 0 and 3 below describe the day the plan was written: since then the Laravel application has been run and tested in this sandbox, and both applications are on one branch. |
 
 ---
 

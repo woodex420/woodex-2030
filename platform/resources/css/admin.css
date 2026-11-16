@@ -344,7 +344,8 @@ button.wx-sidebar-heading:hover { color:var(--wx-sidebar-strong); }
 .wx-sidebar-search:focus { border-color:var(--wx-sidebar-accent); outline:none; }
 .wx-sidebar-search-icon { color:var(--wx-sidebar-muted); }
 .wx-sidebar-badge { background:var(--wx-sidebar-accent); color:var(--wx-sidebar-bg); }
-.wx-admin .wx-admin-sidebar :focus-visible { outline:2px solid var(--wx-sidebar-focus); outline-offset:2px; }
+/* Drawn inside the element: the list scrolls, and a ring outside it would be cut off at both sides. */
+.wx-admin .wx-admin-sidebar :focus-visible { outline:2px solid var(--wx-sidebar-focus); outline-offset:-2px; }
 .wx-theme-picker select { color:var(--wx-text); }
 .wx-theme-picker option { background:var(--wx-surface); color:var(--wx-text); }
 .wx-admin .wx-input { background:var(--wx-surface); border-color:var(--wx-control-border); color:var(--wx-text); }
