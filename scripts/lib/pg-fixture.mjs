@@ -127,19 +127,30 @@ export async function tablesWithIntegerId(target) {
 
 /**
  * Foreign keys between base tables in the current schema:
- * [{ child, parent, constraint }] — `child` holds the reference, `parent` is
- * what it points at, so a parent must be loaded first and emptied last.
+ * [{ child, parent, constraint, childColumns, parentColumns }] — `child` holds
+ * the reference, `parent` is what it points at, so a parent must be loaded
+ * first and emptied last.
  */
 export async function foreignKeys(target) {
   const rows = await target.q(`
-    SELECT con.conname AS constraint, child.relname AS child, parent.relname AS parent
+    SELECT con.conname AS constraint, child.relname AS child, parent.relname AS parent,
+           (SELECT string_agg(a.attname, ',' ORDER BY k.ord)
+              FROM unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord)
+              JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum) AS child_columns,
+           (SELECT string_agg(a.attname, ',' ORDER BY k.ord)
+              FROM unnest(con.confkey) WITH ORDINALITY AS k(attnum, ord)
+              JOIN pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.attnum) AS parent_columns
       FROM pg_constraint con
       JOIN pg_class child  ON child.oid  = con.conrelid
       JOIN pg_class parent ON parent.oid = con.confrelid
       JOIN pg_namespace ns ON ns.oid = child.relnamespace
      WHERE con.contype = 'f' AND ns.nspname = current_schema()
      ORDER BY child.relname, con.conname`);
-  return rows.map((row) => ({ child: row.child, parent: row.parent, constraint: row.constraint }));
+  return rows.map((row) => ({
+    child: row.child, parent: row.parent, constraint: row.constraint,
+    childColumns: String(row.child_columns ?? "").split(",").filter(Boolean),
+    parentColumns: String(row.parent_columns ?? "").split(",").filter(Boolean),
+  }));
 }
 
 /**
@@ -172,4 +183,31 @@ export function parentsFirst(tables, keys) {
     placed.add(next);
   }
   return { ordered, cycles };
+}
+
+/**
+ * Order the rows of ONE table so a row comes after the row it points at.
+ * Needed for a table that references itself (a client merged into another
+ * client): rows are inserted in batches, and a batch cannot point at a row a
+ * later batch has not inserted yet. Rows that point at nothing, or at a row
+ * that is not in the set, keep their place.
+ */
+export function referencedRowsFirst(rows, childColumn, parentColumn) {
+  const byKey = new Map(rows.map((row) => [String(row[parentColumn]), row]));
+  const placed = new Set();
+  const ordered = [];
+  const place = (row, trail) => {
+    const key = String(row[parentColumn]);
+    if (placed.has(key)) return;
+    const target = row[childColumn];
+    if (target !== null && target !== undefined) {
+      const parent = byKey.get(String(target));
+      /* A loop (A → B → A) has no valid order; stop following it and let the
+         database report the row it cannot accept. */
+      if (parent && parent !== row && !trail.has(String(target))) place(parent, new Set(trail).add(key));
+    }
+    if (!placed.has(key)) { placed.add(key); ordered.push(row); }
+  };
+  for (const row of rows) place(row, new Set());
+  return ordered;
 }

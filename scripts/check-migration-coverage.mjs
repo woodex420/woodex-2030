@@ -71,16 +71,21 @@ for (const t of migrated) {
 const dupes = migrated.filter((t, i) => migrated.indexOf(t) !== i);
 if (dupes.length) problems.push(`duplicate entries in TABLES: ${[...new Set(dupes)].join(", ")}`);
 
-/* Parent-before-child ordering for tables the target guards with foreign keys. */
-const order = (a, b) => {
-  const i = migrated.indexOf(a), j = migrated.indexOf(b);
-  if (i === -1 || j === -1 || i < j) return;
-  problems.push(`${b} is copied before its parent ${a} (foreign keys reject the insert)`);
-};
-order("clients", "projects");
-order("projects", "project_milestones");
-order("projects", "boq_lines");
-order("projects", "project_files");
+/* Copy order is NOT read from this list any more.
+   It used to be checked here with four hand-picked parent/child pairs — and
+   passed while four other pairs were backwards, because a hand-picked list
+   only knows the pairs someone thought of. The migrator now orders the copy by
+   the target's own foreign keys at run time, and scripts/test-pg-migrate.mjs
+   proves the result with real references in the data. What stays here is a
+   guard against going back: the copy must be ordered by the catalogue, and the
+   target must be emptied in ONE statement that names every table. */
+if (!/parentsFirst\(TABLES,/.test(migratorSrc)) {
+  problems.push("pg-migrate.mjs does not order the copy by the target's foreign keys (parentsFirst(TABLES, …))");
+}
+const truncates = migratorSrc.match(/TRUNCATE \$\{[^}]*\}/g) ?? [];
+if (truncates.length !== 1 || !/TRUNCATE \$\{TABLES\.join\(/.test(migratorSrc)) {
+  problems.push(`pg-migrate.mjs must empty the target once, naming every table (found ${truncates.length} TRUNCATE statement(s)); a per-table TRUNCATE … CASCADE empties tables that were already copied`);
+}
 
 console.log(`SQLite tables : ${sqliteTables.size}`);
 console.log(`Migrated      : ${migrated.length}`);
@@ -91,4 +96,4 @@ if (problems.length) {
   for (const p of problems) console.error("  ✗ " + p);
   process.exit(1);
 }
-console.log("\nAll SQLite tables are covered by the migrator, in dependency order.");
+console.log("\nAll SQLite tables are covered by the migrator; it orders the copy by the target's foreign keys at run time.");
