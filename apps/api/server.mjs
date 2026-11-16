@@ -1742,7 +1742,30 @@ if (STATIC_ROOT && fs.existsSync(STATIC_ROOT)) {
        /dashboard. Redirect rather than 404 (or serve) so both work either way. */
     if (clean === "/admin" || clean.startsWith("/admin/")) return res.redirect(308, "/dashboard" + clean.slice("/admin".length));
     if (clean === "/dashboard") return fs.existsSync(dashboardHtml) ? sendHtml(dashboardHtml, res) : next();
-    if (clean.startsWith("/dashboard/")) return fs.existsSync(dashboardHtml) ? sendHtml(dashboardHtml, res) : next();
+    if (clean.startsWith("/dashboard/")) {
+      if (!fs.existsSync(dashboardHtml)) return next();
+      /* The dashboard is built under /dashboard/, so its own bundle, stylesheet
+         and favicon live there too. This branch used to answer EVERY path under
+         /dashboard/ with the app shell — including /dashboard/assets/index-….js.
+         The browser asked for a script, received HTML, refused it ("Expected a
+         JavaScript module script but the server responded with text/html"), and
+         the dashboard was a blank page in this deployment shape. The smoke test
+         only fetched the shell, so it passed. A real file is now sent as itself.
+         A bundle that does not exist is a 404, not the shell: a stale bundle
+         name must fail as a missing file, not as a blank screen. Every other
+         path under /dashboard/ still gets the shell, as before, so a deep link
+         to any screen keeps working. */
+      const dashboardRoot = path.join(STATIC_ROOT, "dashboard") + path.sep;
+      const file = path.join(STATIC_ROOT, clean);
+      const isBundle = clean.startsWith("/dashboard/assets/");
+      if (file.startsWith(dashboardRoot) && fs.existsSync(file) && fs.statSync(file).isFile()) {
+        // Hashed bundles are immutable; a deploy renames them.
+        res.setHeader("cache-control", isBundle ? "public, max-age=31536000, immutable" : "no-cache");
+        return res.sendFile(file);
+      }
+      if (isBundle) return res.status(404).type("text/plain").send("Not found");
+      return sendHtml(dashboardHtml, res);
+    }
     if (clean === "/sitemap.xml" || clean === "/robots.txt") return next(); // the API owns these
     const candidate = clean === "/" ? indexHtml : path.join(STATIC_ROOT, clean, "index.html");
     const flat = clean === "/" ? null : path.join(STATIC_ROOT, clean);

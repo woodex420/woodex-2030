@@ -9,13 +9,21 @@
  * behaves like production:
  *
  *   1. every prerendered public route returns 200 HTML with a real <title>
- *   2. /dashboard serves the dashboard shell, not the storefront
+ *   2. /dashboard serves the dashboard shell, not the storefront — and every
+ *      script and stylesheet either shell names is delivered as a script or a
+ *      stylesheet
  *   3. /api/* still answers as JSON (the static layer must never swallow it)
  *   4. /sitemap.xml and /robots.txt come from the API, not from dist/
  *   5. the storefront never returns the "Loading page…" fallback
  *
  * Point 5 is the one that matters: a static server can happily serve a build
  * whose prerender silently failed, and nothing else would notice.
+ *
+ * The second half of point 2 was added after this test passed for a deployment
+ * in which the dashboard could not start: the server answered every path under
+ * /dashboard/ with the shell, including the dashboard's own bundle, so the
+ * browser received HTML where it had asked for JavaScript and showed a blank
+ * page. A shell is only half a page; this test now follows what it references.
  */
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, existsSync } from "node:fs";
@@ -99,6 +107,30 @@ try {
   check("/dashboard serves the dashboard shell", dash.status === 200 && /<div id="root">/.test(dash.body) && !/Gulberg III/.test(dash.body));
   const dashDeep = await get("/dashboard/orders");
   check("/dashboard/orders falls through to the SPA", dashDeep.status === 200 && /<div id="root">/.test(dashDeep.body));
+
+  /* A shell is not a page until its bundle arrives. Fetch what each shell
+     references and require the right kind of file back. */
+  const referenced = (html) => ({
+    scripts: [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)].map((m) => m[1]).filter((u) => u.startsWith("/")),
+    styles: [...html.matchAll(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]+)"/g)].map((m) => m[1]).filter((u) => u.startsWith("/")),
+  });
+  const home = await get("/");
+  for (const [label, shell] of [["dashboard", dash.body], ["storefront", home.body]]) {
+    const { scripts, styles } = referenced(shell);
+    check(`the ${label} shell names a script to load`, scripts.length > 0);
+    for (const url of scripts) {
+      const file = await get(url);
+      check(`${label} script ${url} is served as JavaScript`, file.status === 200 && /javascript/.test(file.type) && !/<div id="root">/.test(file.body), `${file.status} ${file.type}`);
+    }
+    for (const url of styles) {
+      const file = await get(url);
+      check(`${label} stylesheet ${url} is served as CSS`, file.status === 200 && /text\/css/.test(file.type), `${file.status} ${file.type}`);
+    }
+  }
+  const staleBundle = await get("/dashboard/assets/index-0000000.js");
+  check("a dashboard bundle that does not exist is a 404, not the shell", staleBundle.status === 404 && !/<div id="root">/.test(staleBundle.body), `${staleBundle.status} ${staleBundle.type}`);
+  const dashIcon = await get("/dashboard/favicon.svg");
+  check("the dashboard's favicon is an image", dashIcon.status === 200 && dashIcon.type.startsWith("image/"), `${dashIcon.status} ${dashIcon.type}`);
 
   /* ---- 3: API untouched ---- */
   const health = await get("/api/health");
