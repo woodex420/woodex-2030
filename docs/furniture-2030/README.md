@@ -24,6 +24,7 @@ That confirms standing decision D-01 ("do not rewrite") in [`../agency-os/02-TEC
 | 04 | [Hostinger Business preflight](04-HOSTINGER-BUSINESS-PREFLIGHT.md) | What the plan supports, what must change, and the database choice |
 | 05 | [Live site and catalogue](05-LIVE-SITE-AND-CATALOGUE.md) | State of woodexfurniture.pk and what a catalogue migration needs |
 | 06 | [Phase 1 report](06-PHASE-1-REPORT.md) | What Phase 1 fixed, how each fix is proven, what is still open, and what the owner must do |
+| 07 | [Phase 2 report](07-PHASE-2-REPORT.md) | The real catalogue: the product model, the import, what is proven, and the two steps that are the owner's |
 
 Generated inventories, re-derived from the code by a script:
 
@@ -41,6 +42,10 @@ Generated inventories, re-derived from the code by a script:
 
 **Phase 1 is delivered** (2026-11-16): see the [report](06-PHASE-1-REPORT.md). It fixed the defects that stood between a green gate and working software — the PostgreSQL failures, the data-losing copy tool, the two crashing screens — and added the checks that would have caught them.
 
-Two things are waiting for the owner, both in [01](01-OWNER-DECISIONS.md): change the production password (Q-1), and make the repository private (Q-2). Phase 2, the real catalogue, starts only when the owner approves it and has answered Q-4 and Q-5.
+Two things are waiting for the owner, both in [01](01-OWNER-DECISIONS.md): change the production password (Q-1), and make the repository private (Q-2). 
+
+**Phase 2 is delivered** (2026-11-16): see the [report](07-PHASE-2-REPORT.md). The platform holds products with SKUs, options and states, and the real catalogue — 170 products from the live shop — is prepared and loads as drafts. Two steps are the owner's: sign [`catalogue/IMPORT-REPORT.md`](catalogue/IMPORT-REPORT.md), and have migration 019 applied to the hosted database.
+
+**The direction changed on 2026-11-16** (OD-14): the Laravel WOODEX OS is now the base, and the Agency OS described in this folder is migrated into it module by module. That programme is in [`../woodex-os/`](../woodex-os/README.md). This folder remains the record of the React/Node system — its audit, its inventories, and the catalogue the migration will import.
 
 The audit in [02](02-AUDIT-FINDINGS.md) and the inventories describe commit `9b8cdca`, before Phase 1. They are kept as the record of what was found; the status table at the top of 02 says where each finding stands now.

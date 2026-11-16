@@ -1,0 +1,41 @@
+# commit f826e6e24838a8de774e37f4c874ce7d91e0113c + working tree (1 changed path(s)) | node v22.22.3 | 2026-11-16T19:37:53Z
+# step	exit code	seconds	last line of output
+secret-scan	0	0s	✓ secret-scan clean (467 files read from the working tree, 563 listed; token and prose-credential rules)
+docs-verify	0	0s	Documentation matches the code.
+check-deploy	0	0s	All deployment checks passed.
+seed-data-check	0	1s	[seed-data] snapshot matches the storefront sources.
+catalog-check	0	0s	[catalog] the prepared catalogue, the report and the sheet match the capture and the rules (170 products).
+test-catalog-build	0	0s	98 passed, 0 failed
+test-router	0	0s	All router paths correct
+check-migration	0	0s	All SQLite tables are covered by the migrator; it orders the copy by the target's foreign keys at run time.
+test-blocks	0	0s	✓ every registered block type renders in both the storefront and the editor preview, and every seeded image exists.
+typecheck-all	0	20s	✓ built in 433ms
+smoke-render	0	6s	All apps mounted
+qa-sqlite	0	3s	json → /tmp/qa-results.json
+qa-pg	0	9s	json → /tmp/qa-results.json
+test-modules-both-engines	0	43s	✓ every module suite passes on every engine — SQLite 13/13 suites, 836 checks · PostgreSQL 13/13 suites, 853 checks
+test-return-id	0	4s	✓ every table that generates an id reports it on PostgreSQL (64 tables, checked against the catalogue).
+test-migrate	0	12s	✓ the copy moves every row, refuses what it cannot do, and never reports success for a copy that lost data.
+test-integrity	0	3s	✓ integrity rehearsal passed — schema, constraints and ledger all behave.
+test-audit	0	21s	✓ audit self-test passed — the drift detector detects drift, by name.
+test-public	0	0s	✓ public surface correct — reachable where it should be, locked where it must be.
+test-stock	0	1s	✓ stock ledger behaves: sales consume, overselling is refused, returns restore once, cache reconciles.
+test-restore	0	7s	✓ restore drill passed — the backup restores faithfully, row for row.
+test-audit-log	0	6s	✓ audit self-test passed — 14/14
+test-procurement	0	1s	✓ procurement behaves: products move stock once, materials never, partials are honest, receipts are audited.
+test-bills	0	1s	✓ supplier invoices behave: variances are found and block payment, duplicates are refused, money cannot leave twice.
+test-production	0	1s	✓ all production checks passed
+test-upgrade	0	1s	✓ the upgrade path works
+test-ops	0	1s	✓ the Operations screens have a working API behind them
+test-inventory	0	0s	✓ inventory behaves: locations are attributed honestly, transfers are two ledger rows, stock reconciles at every step, holds promise without moving stock.
+test-finance	0	1s	✓ finance behaves: entries must balance, the ledger cannot be rewritten, corrections are reversals, documents post atomically.
+test-crm	0	1s	CRM rehearsal passed.
+test-delivery	0	1s	Delivery rehearsal passed.
+test-support	0	1s	Support rehearsal passed.
+test-credentials	0	1s	Credentials rehearsal passed.
+test-throttle	0	4s	Throttle rehearsal passed.
+test-catalog	0	2s	✓ the catalogue behaves: a draft is invisible, a SKU names one thing, no price is not a price of zero, nothing is invented, and the import neither repeats itself nor publishes.
+vercel-build	0	55s	[vercel-build] Storefront at /, Dashboard at /dashboard, shared API imagery at /img. Public routes prerendered.
+smoke-hostinger	0	1s	[smoke:hostinger] all-in-one deployment verified
+npm-audit-high	0	0s	  npm audit fix --force
+ci-test-all-browser-checks	0	264s	[ci] PASS: PostgreSQL rehearsal, every module on both engines, SQLite security/API QA, all browser journeys, every dashboard screen opened — on the dev server and in the production build — and the
