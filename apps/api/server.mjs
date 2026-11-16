@@ -6720,8 +6720,15 @@ app.patch("/api/service-visits/:id", wrapTxJson(async (req, res) => {
           { statusCode: 400, code: "work_done_required" });
       }
       sets.push("work_done = ?"); params.push(workDone);
-      sets.push("completed_at = ?"); params.push(row.completed_at ?? now());
-      if (!row.arrived_at) { sets.push("arrived_at = ?"); params.push(now()); }
+      /* One reading of the clock for both stamps. They used to be read one
+         after the other — completion first, arrival second — so whenever the
+         millisecond turned between the two calls the visit "arrived" after it
+         was "completed", the CHECK on the table refused the row, and the
+         technician saw an internal error for a visit that was perfectly valid.
+         Rare, and therefore seen as a test that failed one run in dozens. */
+      const stamp = now();
+      sets.push("completed_at = ?"); params.push(row.completed_at ?? stamp);
+      if (!row.arrived_at) { sets.push("arrived_at = ?"); params.push(row.completed_at && row.completed_at < stamp ? row.completed_at : stamp); }
     }
     sets.push("status = ?"); params.push(status);
   }
