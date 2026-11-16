@@ -1,0 +1,14 @@
+{
+  "_about": "Things a person noticed while reading the capture that no rule can detect. Keyed by the product's address on the live shop. Each note is shown in the import report and on the draft in the dashboard; none of them changes the data.",
+  "notes": {
+    "nova-singe-workstation": "The name reads \"singe\"; \"single\" is probably meant. The address carries the same spelling.",
+    "spot-work-manger-chair": "The name reads \"Manger\"; \"Manager\" is probably meant. The address carries the same spelling.",
+    "ambassador-chairs-executive": "The word order differs from every other executive chair (\"Ambassador chairs Executive\"). Its image file is named \"Silvio Executive Chair\".",
+    "ambassador-executive-table": "The product page describes \"the Marcus Desk\", not this product, and its SKU prefix WST is used by no other product.",
+    "imperial-executive-desk": "The address says \"imperial-executive-desk\" and the product is called \"Classic Executive Desk\". The product called \"Imperial Executive Desk\" has a different address.",
+    "imperial-executive-desk-1772727978": "The address says \"imperial-executive-desk\" and the product is called \"Royal Prestige Executive Table\".",
+    "nexus-meeting-table-2": "\"Nexus Meeting Table 2\" reads like a second size or finish of \"Nexus meeting Table\" at the same price. If so, it is a variant, not a product.",
+    "comfort-conference-visitor-chair": "PKR 85,000 is more than twice the next most expensive visitor chair (PKR 38,500).",
+    "nova-round-meeting-table": "PKR 85,000 is more than twice the next most expensive discussion table (PKR 35,000)."
+  }
+}

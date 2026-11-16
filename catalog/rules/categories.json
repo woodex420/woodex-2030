@@ -1,0 +1,29 @@
+{
+  "_about": "How a category on woodexfurniture.pk maps to the storefront taxonomy, and which SKU prefix the category uses. Read by scripts/catalog-build.mjs. `skuPrefix` is the prefix the live SKUs of that category mostly carry; `alsoPrefix` lists other spellings found for the same family. A prefix marked `new: true` did not exist on the live shop: it is proposed here because the category either has no SKUs at all or shares its prefix with another category.",
+  "categories": {
+    "ceo-table":             { "label": "CEO Table",             "category": "office-tables", "subcategory": "ceo-tables",        "skuPrefix": "ET" },
+    "executive-table":       { "label": "Executive Table",       "category": "office-tables", "subcategory": "executive-tables",  "skuPrefix": "ET" },
+    "manager-table":         { "label": "Manager Table",         "category": "office-tables", "subcategory": "manager-tables",    "skuPrefix": "MT" },
+    "staff-table":           { "label": "Staff Table",           "category": "office-tables", "subcategory": "staff-tables",      "skuPrefix": "ST" },
+    "meeting-table":         { "label": "Meeting Table",         "category": "office-tables", "subcategory": "meeting-tables",    "skuPrefix": "MTG", "new": true, "why": "The live meeting tables carry MT, which the manager tables also carry: eight codes collide." },
+    "conference-table":      { "label": "Conference Table",      "category": "office-tables", "subcategory": "conference-tables", "skuPrefix": "CT" },
+    "discussion-table":      { "label": "Discussion Table",      "category": "office-tables", "subcategory": "discussion-tables", "skuPrefix": "DT" },
+    "reception-desk":        { "label": "Reception Desk",        "category": "office-tables", "subcategory": "reception-tables",  "skuPrefix": "RD", "alsoPrefix": ["RT"] },
+    "center-table":          { "label": "Center Table",          "category": "office-tables", "subcategory": "center-tables",     "skuPrefix": "CTB", "new": true, "why": "No product in this category has a SKU." },
+    "executive-chairs":      { "label": "Executive Chairs",      "category": "chairs",        "subcategory": "executive-chairs",  "skuPrefix": "EC" },
+    "manager-chair":         { "label": "Manager Chair",         "category": "chairs",        "subcategory": "manager-chairs",    "skuPrefix": "MC" },
+    "staff-chairs":          { "label": "Staff Chairs",          "category": "chairs",        "subcategory": "staff-chairs",      "skuPrefix": "SC" },
+    "visitor-chair":         { "label": "Visitor Chair",         "category": "chairs",        "subcategory": "visitor-chairs",    "skuPrefix": "VC" },
+    "workstation":           { "label": "Workstation",           "category": "workstations",  "subcategory": null,                "skuPrefix": "WS" },
+    "cubicle-workstation":   { "label": "Cubicle Workstation",   "category": "cubicle-workstations", "subcategory": null,         "skuPrefix": "CW", "new": true, "why": "The category has no products on the live shop." },
+    "office-sofas":          { "label": "Office Sofas",          "category": "office-sofas",  "subcategory": null,                "skuPrefix": "SF", "new": true, "why": "No product in this category has a SKU." },
+    "office-storages":       { "label": "Office Storages",       "category": "storage",       "subcategory": null,                "skuPrefix": "OS", "new": true, "why": "No product in this category has a SKU." },
+    "home-office-furniture": { "label": "Home Office Furniture", "category": "home-office",   "subcategory": null,                "skuPrefix": "HOF", "alsoPrefix": ["HF"] },
+    "series":                { "label": "Series",                "notAProductCategory": true, "why": "\"Series\" is a collection page on the live shop, not a kind of furniture. A product found only there is placed by its SKU prefix." }
+  },
+  "specificity": [
+    "ceo-table", "executive-table", "manager-table", "staff-table", "conference-table", "discussion-table", "meeting-table",
+    "reception-desk", "center-table", "executive-chairs", "manager-chair", "staff-chairs", "visitor-chair",
+    "workstation", "cubicle-workstation", "office-sofas", "office-storages", "home-office-furniture", "series"
+  ]
+}
