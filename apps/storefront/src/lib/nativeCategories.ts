@@ -33,6 +33,8 @@ export async function syncNativeCategories() {
         if (error.disabled === true) pausedUntil = Date.now() + DISABLED_PAUSE_MS;
         if (error.disabled === true && current) { current = null; signature = ''; window.dispatchEvent(new CustomEvent('woodex:runtime')); }
       }
+      // Refused (401, 403, 404…): the same question gets the same answer in fifteen seconds. Ask later.
+      else if (response.status >= 400 && response.status < 500) pausedUntil = Date.now() + DISABLED_PAUSE_MS;
       return;
     } // Keep last known good on a transient outage; initial load uses the bundled tree.
     const data = await response.json();

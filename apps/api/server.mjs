@@ -1866,6 +1866,11 @@ const isPublic = (m, p) =>
   (m === "POST" && p === "/api/auth/reset-password") ||
   m === "GET" && (
     /^\/api\/v1\/media(?:\/\d+\/\d+)?$/.test(p) ||
+    /* The category bridge is read by the shop of a signed-out visitor, exactly
+       like the media bridge above. It was registered without being listed here,
+       so it answered 401 "sign in required" to every visitor: the category
+       connection to the Laravel admin could not have worked for the public. */
+    /^\/api\/v1\/catalogue\/categories(?:\/[A-Za-z0-9-]+\/hero\/\d+)?$/.test(p) ||
     p === "/api/health" || p === "/api/theme" || p === "/api/auth/demo-available" ||
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
     /^\/api\/pages\/[^/]+\/public$/.test(p) ||

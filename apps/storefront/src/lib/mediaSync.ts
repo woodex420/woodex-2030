@@ -64,6 +64,8 @@ export async function syncMediaMappings() {
         const body = await response.json().catch(() => ({}));
         if (body.disabled === true) { pausedUntil = Date.now() + DISABLED_PAUSE_MS; mappings.clear(); applyMediaMappings(); }
       }
+      // Refused (401, 403, 404…): the same question gets the same answer in fifteen seconds. Ask later.
+      else if (response.status >= 400 && response.status < 500) pausedUntil = Date.now() + DISABLED_PAUSE_MS;
       return;
     }
     const data = await response.json();

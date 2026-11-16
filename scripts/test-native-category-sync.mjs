@@ -44,4 +44,10 @@ await api.syncNativeCategories(); assert.equal(askedAfterDisabled, 0, 'After "di
 const realNow = Date.now; Date.now = () => realNow() + 11 * 60_000;
 await api.syncNativeCategories(); assert.equal(askedAfterDisabled, 1, 'Ten minutes after "disabled" the shop asks again');
 assert.equal(api.categorySegments()[0].name, 'Home renamed', '…and takes the categories it is given');
+// Refused outright (the bridge once answered every visitor 401): the shop does not repeat the question at once either.
+let askedAfterRefusal = 0;
+globalThis.fetch = async () => { askedAfterRefusal++; return Response.json({ error: 'sign in required' }, { status: 401 }); };
+await api.syncNativeCategories(); await api.syncNativeCategories();
+assert.equal(askedAfterRefusal, 1, 'After a refusal the next poll is not sent');
+assert.equal(api.categorySegments()[0].name, 'Home renamed', 'A refusal keeps the last categories');
 console.log('Native category sync: dynamic names/order/descendants, Series, last-good outage, explicit rollback, schema rejection and read-only bridge safety passed.');
