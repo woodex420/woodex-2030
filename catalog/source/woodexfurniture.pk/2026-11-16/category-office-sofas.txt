@@ -1,0 +1,12 @@
+# Source: https://woodexfurniture.pk/categories/office-sofas   label: Office Sofas   page says: 10 of 10 Products
+# Row: slug | name | price shown | compare-at price shown (blank = none) | image file under /assets/images/products/
+divanex-sofa-chair | Divanex Sofa Chair | 35,000 |  | 1781692316_0_Divanex-Sofa-Chair-1.jpg
+executive-smart-sofa | Executive-Smart-Sofa | 99,000 |  | 1781692431_0_Executive-Smart-Sofa.jpg
+orlin-executive-visitor-chair | Orlin Executive Visitor chair | 32,000 |  | 1781692586_0_Orlin-Visitor-chair1.jpg
+phoenix-executive-sofa | Phoenix Executive Sofa | 95,500 |  | 1781693371_0_Phoenix-Executive-Sofa.jpg
+nola-executive-chair | Nola Executive Chair | 45,000 |  | 1781694574_0_Nola-Executive-Chair.jpg
+focus-smart-lounge-seating | Focus Smart Lounge Seating | 95,000 |  | 1781695152_0_Focus-Smart-Lounge-Seating.jpg
+royal-chesterfield-sofa | Royal Chesterfield Sofa | 95,000 |  | 1781697028_0_Royal-Chesterfield-Sofa.jpg
+executive-pro-smart-sofa | Executive Pro Smart Sofa | 120,000 |  | 1781697139_0_Executive-Pro-Smart-Sofa.jpg
+nova-executive-sofa | Nova executive sofa | 90,000 |  | 1781697874_0_sofa-set.webp
+venus-executive-sofa-jpg | Venus Executive Sofa.jpg | 125,000 |  | 1781698949_0_Venus-Executive-Sofa.jpg
