@@ -235,8 +235,9 @@ try {
   await staff("/api/products", { method: "POST", body: desk({ id: "probe-hidden", sku: "PD-10006" }) });
   same((await order([{ id: "probe-hidden", qty: 1 }])).status, 400, "a draft cannot be ordered");
   same((await order([{ id: "probe-hidden", qty: 1 }])).json?.error, (await order([{ id: "no-such-product", qty: 1 }])).json?.error, "…and the refusal reads the same as for a product that does not exist");
-  const madeToOrder = await order([{ id: "probe-mto", qty: 7 }]);
-  same([madeToOrder.status, madeToOrder.json?.items?.[0]?.sku, madeToOrder.json?.items?.[0]?.price], [201, "PD-10004", 40000], "a made-to-order product can be ordered in any quantity, and the line carries its SKU");
+  /* The line arrives with a price of the visitor's choosing; the catalogue's price is the one saved. */
+  const madeToOrder = await order([{ id: "probe-mto", qty: 7, price: 1 }]);
+  same([madeToOrder.status, madeToOrder.json?.items?.[0]?.sku, madeToOrder.json?.items?.[0]?.price], [201, "PD-10004", 40000], "a made-to-order product can be ordered in any quantity, and the line carries its SKU and the catalogue's price");
   same((await staff("/api/products/probe-mto/stock")).json?.total, 0, "…and no stock movement is written for it");
   same((await staff("/api/products/probe-mto", { method: "PATCH", body: { inStock: false } })).json?.inStock, false, "switching it off…");
   same((await order([{ id: "probe-mto", qty: 1 }])).status, 409, "…makes it unavailable");
@@ -246,7 +247,7 @@ try {
   const refused = await order([{ id: "probe-request", qty: 1 }]);
   same([refused.status, refused.json?.code], [409, "price_on_request"], "a product on request cannot be ordered");
   same((await order([{ id: "probe-two", qty: 1 }])).status, 400, "a product sold by option needs the option");
-  const chosen = await order([{ id: "probe-two", qty: 2, variantId: small.json.id }]);
+  const chosen = await order([{ id: "probe-two", qty: 2, variantId: small.json.id, price: 1 }]);
   same([chosen.status, chosen.json?.items?.[0]?.price, chosen.json?.items?.[0]?.sku, chosen.json?.items?.[0]?.variant, chosen.json?.total],
     [201, 41000, "PD-10002-S", "1600 mm", 82000], "with the option: the option's price, SKU and label are on the line");
   same((await order([{ id: "probe-two", qty: 1, variantId: hidden.json.id }])).status, 400, "a withdrawn option cannot be ordered");
@@ -256,10 +257,14 @@ try {
   console.log("\n[8] what a customer can ask a quotation for");
   const quote = (items) => api("/api/quotes", { method: "POST", body: { customer: "Probe Customer", phone: "0300 0000000", items } });
   same((await quote([{ productId: "probe-hidden", qty: 1 }])).status, 400, "a draft cannot be quoted");
-  const mixed = await quote([{ productId: "probe-request", qty: 2 }, { productId: "probe-two", qty: 1, variantId: large.json.id }]);
+  /* Both lines arrive with a price of the visitor's choosing. A page can send
+     anything; the catalogue decides. (Without these two prices this check
+     passed against a server that priced the on-request line from the request:
+     found by breaking the server on purpose.) */
+  const mixed = await quote([{ productId: "probe-request", qty: 2, price: 1 }, { productId: "probe-two", qty: 1, variantId: large.json.id, price: 1 }]);
   same(mixed.status, 201, "a product on request can be quoted, next to a priced one");
   same(mixed.json?.items?.map((i) => [i.id, i.price, i.sku, i.variant ?? null]), [["probe-request", 0, "PD-10003", null], ["probe-two", 47000, "PD-10002-L", "1800 mm"]],
-    "the on-request line carries no price; the other carries the option's");
+    "the on-request line carries no price and the other carries the option's, whatever prices the page sent");
   same([mixed.json?.total, mixed.json?.details?.pricingReview?.required, mixed.json?.details?.pricingReview?.unpricedLines], [47000, true, ["Probe Desk"]],
     "the total counts only what has a price, and sales are told a line needs one");
   same((await quote([{ productId: "probe-two", qty: 1 }])).status, 400, "a product sold by option needs the option in a quotation too");

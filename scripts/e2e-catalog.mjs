@@ -42,7 +42,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { launchBrowser } from "./lib/browser.mjs";
+import { launchBrowser, signInToDashboard } from "./lib/browser.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataset = JSON.parse(fs.readFileSync(path.join(ROOT, "apps/api/catalog-data.json"), "utf8"));
@@ -191,9 +191,7 @@ try {
   const dash = watch(await context.newPage(), "dashboard");
   failingPage = dash;
   await dash.goto(DASHBOARD + "/", { waitUntil: "domcontentloaded" });
-  await dash.getByPlaceholder("admin").first().fill("admin");
-  await dash.locator('input[type="password"]').fill("admin");
-  await dash.getByRole("button", { name: /sign in/i }).click();
+  await signInToDashboard(dash);
   await dash.getByRole("link", { name: "Overview", exact: true }).waitFor();
   await dash.goto(DASHBOARD + "/catalog/import", { waitUntil: "domcontentloaded" });
   await dash.getByRole("heading", { name: "Catalogue import" }).waitFor();

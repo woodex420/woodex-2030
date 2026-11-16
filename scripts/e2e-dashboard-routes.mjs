@@ -41,7 +41,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { launchBrowser } from "./lib/browser.mjs";
+import { launchBrowser, signInToDashboard } from "./lib/browser.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BASE = (process.env.DASHBOARD_BASE ?? process.env.BASE ?? "http://127.0.0.1:5173").replace(/\/+$/, "");
@@ -210,9 +210,7 @@ try {
   const signIn = current;
   await page.goto(BASE + "/", { waitUntil: "domcontentloaded", timeout: 30_000 });
   await page.getByText(SIGN_IN_TEXT).waitFor({ timeout: 20_000 });
-  await page.getByPlaceholder("admin").first().fill(USER);
-  await page.locator('input[type="password"]').first().fill(PASSWORD);
-  await page.getByRole("button", { name: /^sign in$/i }).click();
+  await signInToDashboard(page, { user: USER, password: PASSWORD });
   await page.waitForSelector("main", { timeout: 20_000 });
   await settle();
   current = null;

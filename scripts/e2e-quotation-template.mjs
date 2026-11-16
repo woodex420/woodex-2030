@@ -3,6 +3,7 @@
    Requires the API + dashboard and Playwright Chromium. Set E2E_REQUIRED=1 in CI. */
 import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { signInToDashboard } from "./lib/browser.mjs";
 
 const BASE = process.env.DASHBOARD_BASE ?? process.env.BASE ?? "http://127.0.0.1:5173";
 const browserRequired = process.env.E2E_REQUIRED === "1";
@@ -68,9 +69,7 @@ try {
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
-  await page.getByPlaceholder("admin").first().fill("admin");
-  await page.locator('input[type="password"]').fill("admin");
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await signInToDashboard(page);
   await page.getByRole("link", { name: "Overview", exact: true }).waitFor();
 
   await page.goto(`${BASE}/quotations/new`, { waitUntil: "domcontentloaded" });
