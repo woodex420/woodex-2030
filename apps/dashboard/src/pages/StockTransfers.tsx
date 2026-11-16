@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { useApi, mutate } from "@/lib/api";
+import { useApi, useProducts, mutate } from "@/lib/api";
 import { Plus, RefreshCw, Truck, Trash2, ArrowRight } from "@/icons";
 
 /* Stock transfers — moving units between locations.
@@ -28,7 +28,6 @@ type Transfer = {
   lines: { id: number; productId: string; productName: string; qty: number }[];
 };
 type Location = { id: number; warehouseId: number; warehouseName: string | null; code: string; name: string; active: boolean };
-type Product = { id: string; name: string; stockQty: number };
 
 const STATUS_TONE: Record<string, "neutral" | "info" | "warning" | "success" | "danger"> = {
   draft: "neutral", dispatched: "warning", received: "success", cancelled: "neutral",
@@ -44,7 +43,7 @@ export default function StockTransfers() {
   const transfers = useApi<{ total: number; items: Transfer[] }>(
     `/api/stock-transfers${filter ? `?status=${filter}` : ""}`, 20000);
   const locations = useApi<{ total: number; items: Location[] }>("/api/storage-locations?active=true", 60000);
-  const products = useApi<{ items: Product[] }>("/api/products", 120000);
+  const products = useProducts(120000);
 
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");

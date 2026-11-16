@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SkeletonRows, EmptyState } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { QuoteTemplateDesigner, DEFAULT_QUOTE_TEMPLATE, PAYMENT_TERMS_NOTE } from "@/components/quotation/QuoteTemplateDesigner";
-import { useApi, mutate, fmtPKR, timeAgo, type ApiLead, type ApiQuote, type ApiQuoteVersion, type ApiProduct, type ApiQuoteTemplate, type ApiQuoteTemplateBlock } from "@/lib/api";
+import { useApi, useProducts, mutate, fmtPKR, timeAgo, type ApiLead, type ApiQuote, type ApiQuoteVersion, type ApiProduct, type ApiQuoteTemplate, type ApiQuoteTemplateBlock } from "@/lib/api";
 import { ArrowRight, Check, FileText, Plus, Save, Search, Send, Sparkles } from "@/icons";
 
 const IconTrash = ({ size = 14 }: { size?: number }) => (
@@ -164,7 +164,7 @@ export function QuotationBuilder() {
   const [searchParams] = useSearchParams();
   const quoteKey = searchParams.get("id");
   const quoteId = quoteKey && /^\d+$/.test(quoteKey) ? Number(quoteKey) : null;
-  const catalog = useApi<{ items: ApiProduct[] }>("/api/products");
+  const catalog = useProducts();
   const leads = useApi<{ items: ApiLead[] }>("/api/leads", 15000);
   const [status, setStatus] = useState<string>("Draft");
   const [savedId, setSavedId] = useState<number | null>(null);

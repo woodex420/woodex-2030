@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { useApi, mutate, fmtPKR } from "@/lib/api";
+import { useApi, useProducts, mutate, fmtPKR } from "@/lib/api";
 import { Plus, RefreshCw, ClipboardList, Trash2, Package } from "@/icons";
 
 /* Purchase orders — the second screen the procurement API never had.
@@ -64,7 +64,7 @@ export default function PurchaseOrders() {
 
   const pos = useApi<{ total: number; open: number; items: PO[] }>("/api/purchase-orders", 20000);
   const suppliers = useApi<{ items: Supplier[] }>("/api/suppliers?active=true");
-  const products = useApi<{ total: number; items: Option[] }>("/api/products");
+  const products = useProducts();
   const materials = useApi<Option[]>("/api/materials");
 
   /* One price source. A product line defaults to its list price but the buyer

@@ -27,6 +27,14 @@ export type ApiProduct = {
   updatedAt?: string;
 };
 
+/* GET /api/products answers with a windowed list — never a bare array.
+   Each screen used to write this shape down for itself. Two wrote it as an
+   array, TypeScript believed them, and both crashed the moment they were
+   opened (Furniture 2030 F-05). The shape is now written once, here, and
+   screens read the catalogue through `useProducts()` below, which leaves
+   nothing to declare and so nothing to get wrong. */
+export type ApiProductList = { total: number; items: ApiProduct[]; limit: number | null; offset: number };
+
 export type ApiMaterial = { id: string; name: string; category: string; image: string };
 
 export type ApiLead = {
@@ -211,6 +219,11 @@ export function timeAgo(iso: string) {
   if (s < 3600) return Math.floor(s / 60) + "m ago";
   if (s < 86400) return Math.floor(s / 3600) + "h ago";
   return Math.floor(s / 86400) + "d ago";
+}
+
+/** The product catalogue, typed once. `intervalMs` re-reads it on a timer, as for `useApi`. */
+export function useProducts(intervalMs = 0) {
+  return useApi<ApiProductList>("/api/products", intervalMs);
 }
 
 export function useApi<T>(path: string | null, intervalMs = 0) {

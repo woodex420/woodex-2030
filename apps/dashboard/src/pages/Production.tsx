@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { useApi, mutate } from "@/lib/api";
+import { useApi, useProducts, mutate } from "@/lib/api";
 import { Plus, RefreshCw, Factory, ClipboardCheck, ShieldCheck, Trash2, Package, AlertTriangle } from "@/icons";
 
 /* Production — recipes, job cards, and the QC gate.
@@ -35,7 +35,6 @@ type JobCard = {
   qcPassedAt: string | null; qcBy: string | null; qcNote: string | null;
   materials: Material[]; movements: Movement[];
 };
-type Product = { id: string; name: string; price: number };
 type Mat = { id: string; name: string };
 
 const STAGE_LABEL: Record<string, string> = {
@@ -53,7 +52,7 @@ export default function Production() {
   /* ---- data ---- */
   const jobs = useApi<{ total: number; open: number; awaitingQc: number; items: JobCard[] }>("/api/job-cards", 15000);
   const boms = useApi<{ total: number; active: number; items: Bom[] }>("/api/boms", 30000);
-  const products = useApi<{ total: number; items: Product[] }>("/api/products");
+  const products = useProducts();
   const materials = useApi<Mat[]>("/api/materials");
 
   const productName = (id: string) => (products.data?.items ?? []).find((p) => p.id === id)?.name ?? id;

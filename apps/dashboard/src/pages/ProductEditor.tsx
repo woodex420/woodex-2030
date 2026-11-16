@@ -9,7 +9,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { ErrorState, Skeleton } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
-import { img, mutate, useApi, type ApiProduct } from "@/lib/api";
+import { img, mutate, useApi, useProducts, type ApiProduct } from "@/lib/api";
 import { ChevronLeft, Eye, Save, Trash2 } from "@/icons";
 
 type ProductDraft = {
@@ -78,7 +78,7 @@ export default function ProductEditor() {
   const navigate = useNavigate();
   const { push } = useToast();
   const product = useApi<ApiProduct>(id ? `/api/products/${encodeURIComponent(id)}` : null);
-  const catalog = useApi<{ items: ApiProduct[] }>("/api/products");
+  const catalog = useProducts();
   const media = useApi<{ items: string[] }>("/api/media");
   const [draft, setDraft] = useState<ProductDraft>(blankDraft);
   const [idTouched, setIdTouched] = useState(false);
