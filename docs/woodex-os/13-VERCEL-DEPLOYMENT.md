@@ -63,7 +63,9 @@ Also true for the real mode on Vercel, by the platform's nature:
 - **Nothing runs on a schedule.** The queue, reminders and the heartbeat need a cron caller; none is configured.
 - A request may take a few seconds when Vercel starts a new copy.
 
-Hostinger remains the production target of the specification (spec 08). Vercel is where the admin can be seen.
+Hostinger is the production host: MySQL on shared hosting, by the owner's own decision log (D-004, D-005;
+DL-020). A real admin on Vercel is therefore **not planned**; this section is kept as the record of what it would
+take. Vercel is where the admin can be seen.
 
 ## 3. How a request is served
 
@@ -156,7 +158,7 @@ the `[demo] workspace ready` line, and run the workflow "Vercel live check (WOOD
 tries a wrong password, reads the security headers and the marks on the session cookie, asks for a screen that
 does not exist (the admin's own 404 page) and sends a form without its token (419), and asks for files that
 must stay closed. Its findings are one notice on the run. It never signs in: a signed-in check of the live
-address needs the demo password as a GitHub secret, which only the owner can add (line Q-3 of
+address needs the demo password as a GitHub secret, which only the owner can add (line T-151 of
 [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)).
 
 ## 6. Deploying

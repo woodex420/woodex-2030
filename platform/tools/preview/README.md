@@ -99,7 +99,7 @@ A real browser is available too: `npm install @sparticuz/chromium puppeteer-core
 
 ## Looking at every screen, and pressing through the main jobs
 
-Three tools, written for the analysis of the hosted demo (`docs/woodex-os/14-PRODUCTION-TODO.md` §2). They need
+Three tools, written for the analysis of the hosted demo (`docs/woodex-os/14-PRODUCTION-TODO.md` §17). They need
 Node, Playwright's Chromium (or `E2E_CHROMIUM_PATH`), and the demo passwords in `WX_PW_*`; none of them is ever
 written to a file.
 

@@ -238,6 +238,12 @@ server, and in the built bundle served from `dist/` (so run `vercel:build` first
 WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/laravel-os/`; the programme is
 `docs/woodex-os/`. Sections 2–5 above are about `apps/` and `scripts/` and still apply to every change there.
 
+- **What is open** is one list: `docs/woodex-os/14-PRODUCTION-TODO.md`, lines `T-001` onward, each with a
+  priority (P0 to P3), who acts, and what "done" means. Change a line's status in the same commit as the
+  work. Its sources are in `docs/woodex-os/15-SPECIFICATION-ANALYSIS.md`. The production host is Hostinger
+  shared hosting with MySQL (DL-020); Vercel carries a demo only.
+- **Furniture only.** The code came from the Woodex Interior application. Do not add Interior wording,
+  defaults or sample content to a screen that is open; removing what is there is lines T-030 to T-035.
 - **Done, for a change under `platform/`:** its test suite passes **on MySQL in CI** (workflow
   `os-ci.yml`, five jobs). That is the authority. In a sandbox it runs on SQLite with a static PHP build —
   `platform/tools/preview/README.md` says how to get PHP and Composer where only GitHub and npm are

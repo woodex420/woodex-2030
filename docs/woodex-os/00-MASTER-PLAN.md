@@ -8,7 +8,7 @@
 | Authority | The owner's specification set in [`spec/`](spec/README.md), then this plan. Where they disagree, the decision log wins (spec 08 §2). |
 | What this plan authorises | Work in this repository and in a sandbox. **Nothing here authorises a change to production, to a hosted database, to DNS or to Hostinger.** Each of those needs its own written approval. |
 | Written | 2026-11-16, at `aff7f2e` on `arena/1830554a-woodex-2030`; Laravel code read at `063fc7c` on `arena/69363bda-woodex-2030`. |
-| Progress | **Wave 0 done; Wave 1: slices 1.1–1.3 done** (2026-11-16). See [`01-WAVE-0-1-REPORT.md`](01-WAVE-0-1-REPORT.md). Sections 0 and 3 below describe the day the plan was written: since then the Laravel application has been run and tested in this sandbox, and both applications are on one branch. |
+| Progress | **Wave 0 done; Wave 1: slices 1.1–1.4 done, and the Reimagined theme on the shared parts** (2026-11-17). See [`01-WAVE-0-1-REPORT.md`](01-WAVE-0-1-REPORT.md). Everything still open, numbered and prioritised: [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md). Sections 0 and 3 below describe the day the plan was written: since then the Laravel application has been run and tested in this sandbox, and both applications are on one branch. |
 
 ---
 
@@ -46,7 +46,7 @@ This is the route the owner's umbrella plan calls a *modular monolith*, reached 
 
 | Source | What it gives |
 |---|---|
-| [`spec/`](spec/README.md) — the owner's documents 02–09 and the umbrella plan | Target architecture, data model, API conventions, **the canonical admin navigation and design tokens (05)**, module behaviour, working rules, migration rules |
+| [`spec/`](spec/README.md) — the owner's documents 02–12 and the umbrella plan (10, 11 and 12 arrived on 17 November) | Target architecture, data model, API conventions, **the canonical admin navigation and design tokens (05)**, module behaviour, working rules, migration rules |
 | `docs/laravel-os/` (on the Laravel branch) | What the Laravel application contains, what was done on 11–13 November, what is still open |
 | `docs/furniture-2030/` (this branch) | Audit of the React/Node system with evidence, inventories of its 223 routes, 47 screens and 74 tables, the prepared real catalogue |
 
@@ -60,8 +60,11 @@ The sources do not fully agree. Spec 08 §2 forbids settling such a difference s
 | C-4 | **Look.** The umbrella plan says navy/charcoal with a wood accent. Spec 05 §5 gives charcoal + WOODEX green — the very values of today's React dashboard (`apps/dashboard/src/index.css`: `#4f9d21`, `#43851c`, `#171b1e`, Inter). | **Decided: spec 05, the Agency OS look** (D-03, DL-007). |
 | C-5 | **Which products.** The Laravel preview held the 148 sample products (18 shared photographs). The real catalogue — 170 products captured from woodexfurniture.pk — is prepared on this branch. | The real catalogue is the import source (Wave 5). The 148 are test fixtures only. |
 | C-6 | **Which admin.** On 2026-11-16 the owner first answered "the admin is the React dashboard at `/admin`", then asked for this plan with Laravel as the base. | The later instruction is the target (DL-001). The earlier answer stays true of the **live** system until each module is cut over. |
+| C-7 | **The owner's own decision log** (spec 12, received 17 November) records D-003 and D-009: keep the React storefront **and dashboard** as separate applications. That is the position of spec 02 and 09 in C-1, now in the owner's own words. | **Livewire stays in force** (DL-020): the instructions of 16 and 17 November name the Laravel admin and are later. The owner is asked to confirm — line T-001 of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md). For the shop, D-003 and D-009 agree with C-3. |
+| C-8 | **Production host.** The to-do list of 17 November (version 1) asked the owner to choose between Hostinger and Vercel. The owner's log had already decided: MySQL on Hostinger shared hosting (D-004, D-005). | **Hostinger** (DL-020). Vercel carries the demo only. |
+| C-9 | **Interior.** The owner's log excludes Woodex Interior branding, data and workflows (D-008). The Laravel code came from the Interior application; switched-off modules hide most of it, but open screens still carry Interior wording and defaults. | To be removed from the open screens first (lines T-030 to T-035), from each closed module in its wave. |
 
-**Missing documents.** Spec 08 names `01-MASTER-PRD.md`; the numbering implies 10 and 11. They were not supplied and are in no branch. Until the PRD arrives, spec 07 (modules) and spec 05 (admin) stand in for it.
+**Missing documents.** Spec 08 names `01-MASTER-PRD.md`. It was not supplied and is in no branch; spec 07 (modules) and spec 05 (admin) stand in for it. Documents 10 (QA and acceptance), 11 (roadmap) and 12 (the owner's decision log) arrived on 17 November; what they change is in [`15-SPECIFICATION-ANALYSIS.md`](15-SPECIFICATION-ANALYSIS.md).
 
 ---
 
@@ -251,8 +254,8 @@ So the tokens ship as the spec gives them, plus the four darker "on-fill" values
 | 1.7 | **Screen pass** | Each existing screen brought to the page patterns of spec 05 §8, area by area in the order of D-04 |
 
 **Progress (2026-11-17).** Slices 1.1 to 1.4 are done. The look is that of the Reimagined theme since decision
-DL-017: the sidebar of 1.3 is light, with the charcoal one as a setting. Slices 1.5 to 1.7 are lines U-4 to U-6
-of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md).
+DL-017: the sidebar of 1.3 is light, with the charcoal one as a setting. Slices 1.5 to 1.7 are lines T-041, T-044
+and T-045 of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md).
 
 ### 7.3 Acceptance
 
@@ -280,8 +283,8 @@ The rules are spec 09 §4, §6 and §7. In short:
 
 | | State | Next |
 |---|---|---|
-| Hostinger staging | A release package builds in GitHub Actions. The live test has **never passed**: on 13 Nov the site redirected and protected its source files, but the admin did not start. The branch notes point to a missing `vendor/` folder; a repair package was built. The database was imported by the owner in phpMyAdmin, per those notes. | Install dependencies on the host, rerun the live test. Needs the two SSH secrets in a GitHub environment. |
-| Vercel (Livewire) | **A demo with sample data is live** at `woodex-os.vercel.app/admin` since 16 November (DL-014, DL-015): [`13-VERCEL-DEPLOYMENT.md`](13-VERCEL-DEPLOYMENT.md). A real admin there needs its own MySQL (not Supabase), a first-install job, file storage, a caller for the timed jobs and mail. Runs on a community PHP runtime, on the Hobby plan. | The owner decides whether the real admin runs here or on Hostinger (O-1 of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)). |
+| Hostinger staging | A release package builds in GitHub Actions. The live test has **never passed**: on 13 Nov the site redirected and protected its source files, but the admin did not start. The branch notes point to a missing `vendor/` folder; a repair package was built. The database was imported by the owner in phpMyAdmin, per those notes. | Install dependencies on the host, rerun the live test. Needs the two SSH secrets in a GitHub environment. Lines T-130 to T-142 of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md). |
+| Vercel (Livewire) | **A demo with sample data is live** at `woodex-os.vercel.app/admin` since 16 November (DL-014, DL-015): [`13-VERCEL-DEPLOYMENT.md`](13-VERCEL-DEPLOYMENT.md). A real admin there needs its own MySQL (not Supabase), a first-install job, file storage, a caller for the timed jobs and mail. Runs on a community PHP runtime, on the Hobby plan. | Stays a demo. The real admin runs on Hostinger, by the owner's log (D-004, D-005; DL-020). |
 | Vercel (React + Node) | Live, Phase 1. | Stays until Wave 11. |
 
 ---

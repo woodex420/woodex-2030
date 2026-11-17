@@ -65,7 +65,7 @@ Screenshots: [`evidence/`](evidence/) — the shell before and after, Feature st
 | What | What changed | Proof |
 |---|---|---|
 | 1.4 Top bar | One row at every width: 56 px on a phone (it was two rows, 113 px), 64 px above. The page's trail, search, a "New" menu filtered by permission and module, bells, assistant, user menu with the theme choice | `AdminTopBarTest` (12 cases); the crawl: no top bar taller than 72 px |
-| Findings of the analysis | Nine dead links, sideways scrolling on a phone, thirty unlabelled fields, bare error pages, small touch targets, a silent quotation form, the PHP version in every answer. The full table is in [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md) §2 | `AdminLinksOpenTest`, `AdminFormLabelsTest`, `ErrorPagesTest`, `SecurityHeadersTest`; crawl and journeys |
+| Findings of the analysis | Nine dead links, sideways scrolling on a phone, thirty unlabelled fields, bare error pages, small touch targets, a silent quotation form, the PHP version in every answer. The full table is in [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md) §17 | `AdminLinksOpenTest`, `AdminFormLabelsTest`, `ErrorPagesTest`, `SecurityHeadersTest`; crawl and journeys |
 | The Reimagined theme (DL-017) | Light sidebar with the current screen filled green (charcoal kept as a setting), green brand tile, bold tight headings, cards with 12 px corners and a hair of shadow, figures with upper-case labels and tinted tiles, pills with an edge, the theme's arrow on selects. Done in five shared components (card, figure, pill, "nothing here", page header), the sidebar and the stylesheet, so every screen follows | `AdminDesignTokensTest` checks every text pair for three tones (light, charcoal sidebar, dark); screenshots `evidence/theme-before-*` and `theme-after-*` |
 
 The suite after both: 2,244 passed, 34 skipped, 0 failed (PHP 8.5, SQLite). The crawl of four roles and the
@@ -83,8 +83,8 @@ tones must show the current screen as a fill that stands out from the sidebar. N
 
 | | |
 |---|---|
-| Slices 1.5–1.7 | The rest of the component pass (tables as one component, pagination, modal, toasts, the five states on every list), the dashboard layout of spec 05 §7, and the screen-by-screen pass. Next, in the order of DL-008; lines U-4 to U-6 of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md). |
-| Selected states | Stage steps, activity types and the business-line switch are still charcoal pills; the theme fills them green. Part of U-6. |
+| Slices 1.5–1.7 | The rest of the component pass (tables as one component, pagination, modal, toasts, the five states on every list), the dashboard layout of spec 05 §7, and the screen-by-screen pass. Next, in the order of DL-008; lines T-041, T-044 and T-045 of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md). |
+| Selected states | Stage steps, activity types and the business-line switch are still charcoal pills; the theme fills them green. Part of T-045. |
 | The dark theme | Looked at in a browser on the dashboard, Leads and a lead page, desktop and phone. Not on every screen. |
 | Hard-coded colours | A few rules in `admin.css` and some views still name a grey directly instead of a role. To be removed in the component pass. |
 | Wave S (Hostinger staging) | Untouched. It needs the SSH secrets and the plan details from the owner. |
