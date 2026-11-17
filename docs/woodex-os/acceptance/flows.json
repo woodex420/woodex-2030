@@ -48,6 +48,7 @@
     "write a draft quotation for that client",
     "price one line; the total follows",
     "the quotation PDF",
+    "the same PDF is drawn on the screen (the preview: a worker, a later script, the fonts)",
     "documents can be issued here: terms and a signer are in place",
     "a quotation above the discount limit cannot be sent: approval is asked for",
     "the approver finds the request in the queue and approves it",
