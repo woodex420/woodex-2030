@@ -185,6 +185,17 @@
       "lines": [
         "T-152"
       ]
+    },
+    {
+      "id": "D-014",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The merge made changes to the live shop that the release report had not listed",
+      "detail": "The branch merged on 17 November also held the work done on the React shop between 11 and 13 November. With the merge it went live on `woodex-2030.vercel.app`: the Products menu is a plain list built from the category file shared with the admin, without its two picture tiles and with three more entries; a heading such as \"Office Tables\" lists the products of all its sub-categories; the connections to the Laravel admin and the second destination of the enquiry forms are in the build, switched off. The shop's gate passed on the merge commit and the outside check passed after it, so nothing is known to be broken; but the owner released the merge without this list. The report now carries it (`17-RELEASE-2026-11-17.md`), and the earlier build is kept by Vercel.",
+      "lines": [
+        "T-026"
+      ]
     }
   ]
 }

@@ -1,6 +1,6 @@
 # WOODEX OS — acceptance and release gates
 
-**Written 2026-11-17, after the owner lifted the holds (decision DL-022). Code: branch `arena/7ecb4f83-woodex-2030`.**
+**Written 2026-11-17, after the owner lifted the holds (decision DL-022). Code: branch `arena/7ecb4f83-woodex-2030`, merged into `main` the same day at 10:22 UTC (merge commit `88ec4cc`).**
 
 The owner's specification sets the rules by which this work is judged: five release gates (document 10 §7),
 25 critical scenarios (§3), eleven flows to be pressed in a browser (§2), four severities of defect with a release
@@ -30,10 +30,14 @@ sentence ("2,280 tests") are readings of 17 November 2026; the release report of
 2. **What 17 November changed.** The admin is Furniture-only and carries Woodex's real catalogue: 170 products as
    drafts, on the hosted workspace too. The React shop's database lost an open door (D-001), received catalogue
    migration 019, and its migration ledger agrees with the files again. The acceptance scenarios, the defect
-   register and the module sheets exist and are checked.
-3. **What only the owner can do now**, in this order: change the old dashboard's password (T-021) · load the real
-   products into the React shop and withdraw the sample ones (T-091) · look at the hosted workspace and approve
-   or return the design (T-005) · read the sheets of §4 and approve or return each module's requirements ·
+   register and the module sheets exist and are checked. At 10:22 UTC the branch was merged into `main`, and
+   Vercel rebuilt both sites from it; asked from outside afterwards, both answer as they should. The merge also
+   made live the changes to the React shop of 11 to 13 November, its Products menu among them, which the release
+   report had not listed beforehand (D-014, T-026).
+3. **What only the owner can do now**, in this order: change the old dashboard's password (T-021) · look at the
+   React shop as the merge rebuilt it, and say whether it stays (T-026) · load the real products into the React
+   shop and withdraw the sample ones (T-091) · look at the hosted workspace and approve or return the design
+   (T-005) · read the sheets of §4 and approve or return each module's requirements ·
    send the Hostinger details (T-006).
 
 ---
@@ -355,10 +359,10 @@ may not.
 |---|---|---|---|---|---|
 | **Critical** | Data loss, privilege bypass, financial corruption, site unavailable | Blocks release | 1 | 0 | 1 |
 | **High** | Core workflow broken, wrong totals or status, major security or privacy issue | Blocks the release it affects | 1 | 0 | 1 |
-| **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 6 | 0 | 2 |
+| **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 7 | 0 | 2 |
 | **Low** | Cosmetic or a minor inconvenience | May be scheduled later | 1 | 0 | 0 |
 
-**Not closed (9)**
+**Not closed (10)**
 
 | # | Severity | Found | Defect | Closed by |
 |---|---|---|---|---|
@@ -371,6 +375,7 @@ may not.
 | D-011 | Medium | 2026-11-17 | **No backup of the shop's database is known to exist.** None was taken before the changes of 17 November, and whether the Supabase plan keeps any has not been checked. What the database held can be rebuilt today: its 148 products are the seed file's, and both changes have their undo. That stops being true with the first real order. | T-187 |
 | D-012 | Medium | 2026-11-16 | **The admin sends no Content-Security-Policy.** The other security headers are sent and checked from outside. A policy is the remaining one. | T-068 |
 | D-013 | Low | 2026-11-16 | **The hosted workspace sends its stylesheet and scripts with no caching.** `max-age=0`: every visit asks again. The files carry a fingerprint in their name and could be kept for a year. | T-152 |
+| D-014 | Medium | 2026-11-17 | **The merge made changes to the live shop that the release report had not listed.** The branch merged on 17 November also held the work done on the React shop between 11 and 13 November. With the merge it went live on `woodex-2030.vercel.app`: the Products menu is a plain list built from the category file shared with the admin, without its two picture tiles and with three more entries; a heading such as "Office Tables" lists the products of all its sub-categories; the connections to the Laravel admin and the second destination of the enquiry forms are in the build, switched off. The shop's gate passed on the merge commit and the outside check passed after it, so nothing is known to be broken; but the owner released the merge without this list. The report now carries it (`17-RELEASE-2026-11-17.md`), and the earlier build is kept by Vercel. | T-026 |
 
 **Closed (4)**
 
@@ -389,7 +394,7 @@ may not.
 | What | May it go out? | Why |
 |---|---|---|
 | The hosted admin workspace, `woodex-os.vercel.app` | **Yes, as a preview** | It says on every screen what it is. It holds the real catalogue as drafts and no other real record, and it keeps nothing that is typed |
-| Pull request #36 merged into `main`; Vercel then rebuilds the React shop from it | **Yes** | Released by the owner (DL-022). The shop's test gate and the Laravel suite are green on the branch, and Vercel has built the shop from it. The shop's database holds sample products, one lead and no order. The open critical defect is a password: the merge neither causes it nor makes it worse |
+| Pull request #36 merged into `main`; Vercel then rebuilds the React shop from it | **Yes — and it went out** on 17 November, 10:22 UTC (merge commit `88ec4cc`) | Released by the owner (DL-022). The shop's test gate and the Laravel suite were green on the branch and are green on the merge commit; both sites, asked from outside after it, answer as they should. The shop's database holds sample products, one lead and no order. The open critical defect is a password: the merge neither causes it nor makes it worse. One thing was not said beforehand: the merge also made live the changes to the shop of 11 to 13 November, its Products menu among them (D-014, T-026; `17-RELEASE-2026-11-17.md`) |
 | Real products on sale in the React shop | **The owner's step** (T-091) | Publishing is a decision per product. By publishing, the owner accepts D-008 (photographs on the old website) and D-009 (points to check) for those products, or settles them first |
 | Real customers and orders on either system: the cutover of gate E | **No** | D-002 is critical and open. D-006 is high and open: previews share the production database. For the Laravel admin, gate D has not started |
 

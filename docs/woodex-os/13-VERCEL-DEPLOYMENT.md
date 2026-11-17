@@ -14,9 +14,10 @@ Woodex's real one).
 | Runtime | `vercel-php@0.9.0` (PHP 8.5), a community runtime. Vercel has no official PHP support |
 | Mode today | **Preview workspace**: Woodex's real catalogue as drafts; sample customers, leads and documents (section 2) |
 
-A push to a branch builds a preview of `woodex-os`. The project's production branch is `main`, and `main` has a
-`platform/` folder only from the merge of pull request #36 on (DL-022 lifted DL-011): from then a push to `main`
-updates production by itself. Before it, and for any other commit, production is updated on purpose (section 6).
+A push to a branch builds a preview of `woodex-os`. The project's production branch is `main`, and `main` holds
+a `platform/` folder since pull request #36 was merged (17 November 2026, 10:22 UTC, merge commit `88ec4cc`;
+DL-022 lifted DL-011): a push to `main` now updates production by itself. For any other commit, production is
+updated on purpose (section 6).
 
 ## 2. The two modes
 
@@ -172,7 +173,7 @@ address needs the demo password as a GitHub secret, which only the owner can add
 
 - A push to any branch builds a preview (`woodex-os-git-<branch>-woodexs-projects.vercel.app`, Vercel login
   needed).
-- A push to `main` updates production, once `main` holds `platform/` (section 1). Eight minutes later the
+- A push to `main` updates production (section 1). Eight minutes later the
   workflow "Live check after a merge" asks the deployed address, and the React shop, from outside
   (`live-check-after-merge.yml`).
 - Production (`woodex-os.vercel.app`) is updated by creating a production deployment of a chosen commit, in

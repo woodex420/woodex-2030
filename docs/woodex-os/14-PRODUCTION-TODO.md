@@ -1,6 +1,6 @@
 # WOODEX OS — master to-do list to complete the Laravel admin
 
-**Version 2 · written 2026-11-17 · updated the same day, after the owner lifted the holds (DL-022)** · Branch `arena/7ecb4f83-woodex-2030` (pull request #36) · Replaces version 1 of the same morning.
+**Version 2 · written 2026-11-17 · updated the same day, after the owner lifted the holds (DL-022)** · Branch `arena/7ecb4f83-woodex-2030`, merged into `main` the same day at 10:22 UTC (pull request #36, merge commit `88ec4cc`); the work goes on in branch `arena/04517247-woodex-2030` · Replaces version 1 of the same morning.
 
 This is the one list of everything between today and a complete, production Laravel admin. It holds **every
 task that was already pending and every new one** found by analysing the owner's specification set, including
@@ -25,7 +25,7 @@ with real, backed-up data; the old dashboard is no longer needed.
 
 | | |
 |---|---|
-| Hosted workspace | `https://woodex-os.vercel.app/admin`, commit `42995d3`. **The catalogue is the real one** — 170 products of woodexfurniture.pk, as drafts. Customers, leads and documents are samples, and nothing typed there is kept: the site has no permanent database. One account per role. Checked from outside by a GitHub workflow: 35 of 35 |
+| Hosted workspace | `https://woodex-os.vercel.app/admin`, built by Vercel from `main` at `88ec4cc` since the merge (the same `platform/` as `42995d3`, which was live before). **The catalogue is the real one** — 170 products of woodexfurniture.pk, as drafts. Customers, leads and documents are samples, and nothing typed there is kept: the site has no permanent database. One account per role. Checked from outside by a GitHub workflow, eight minutes after the merge: 35 of 35 |
 | Destinations | 68. For an owner: **29 open**, 13 still in the old React dashboard, 21 built but switched off, 5 not built |
 | Accepted modules | **0.** A module is accepted only with browser acceptance, a migration plan and the owner's sign-off (document 07 §15). Each open module has its sheet: document 16 §4 |
 | Release gates | None passed. A design: built, not approved · B modules: none accepted · C page builder: not started · D Hostinger: not started · E cutover: blocked by one open critical defect, the old dashboard's password. Criterion by criterion: [`16-ACCEPTANCE-AND-RELEASE-GATES.md`](16-ACCEPTANCE-AND-RELEASE-GATES.md) §1 |
@@ -34,7 +34,7 @@ with real, backed-up data; the old dashboard is no longer needed.
 | Real data | In Laravel: the catalogue only (170 draft products, 8 added categories). The React shop and its Node API (Vercel + Supabase) hold almost none: read on 17 November, 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment. That database received catalogue migration 019 and lost an open door the same day (DL-024) |
 | The other admin | `woodex-2030.vercel.app/admin` — the sign-in titled "Woodex Workspace", with a username — is the **old React dashboard**, a different system. The Laravel admin is `woodex-os.vercel.app/admin` — "Welcome back", with an e-mail address. The old one stays in use for its 13 destinations until each is moved (T-025) |
 
-**This list in numbers:** 136 lines — 17 done, 25 can start now, 66 wait for an earlier line or wave, 28 wait for the owner. 63 are new since version 1. By priority: 32 P0, 73 P1, 24 P2, 7 P3.
+**This list in numbers:** 137 lines — 18 done, 25 can start now, 65 wait for an earlier line or wave, 29 wait for the owner. 64 are new since version 1. By priority: 32 P0, 74 P1, 24 P2, 7 P3.
 
 ---
 
@@ -59,7 +59,7 @@ IDs in brackets are the owner's own log (document 12) or earlier records.
 | # | Pri | What is needed | Default in force until answered | Blocks | Status |
 |---|---|---|---|---|---|
 | T-001 | P0 | **NEW** Confirm: the admin is the Laravel admin; the React dashboard is retired module by module. This changes D-003 and D-009 of your log for the dashboard (not for the shop) | Yes — your decision of 16 November (DL-001, DL-005) | everything | **Done** — confirmed by you on 17 November (DL-022) |
-| T-002 | P0 | Merge pull request #36 into `main`. The shop redeploys from `main`; its test gate is green on the branch | Not merged (DL-011) | one code line; the timed live check | Next — released by you (DL-022); merged by the agent as the last step of the round of 17 November: see pull request #36 |
+| T-002 | P0 | Merge pull request #36 into `main`. The shop redeploys from `main`; its test gate is green on the branch | Released by you (DL-022) | one code line; the timed live check | **Done** 17 November, 10:22 UTC — merge commit `88ec4cc`. On it the React and Node gate, the Laravel suite on MySQL and the Vercel rehearsal are green; Vercel rebuilt both sites (`woodex-os` 10:23, `woodex-2030` 10:26 UTC). Asked from outside at 10:31 UTC, both answer as they should: the hosted admin 35 of 35, the shop 12 of 12 with its 148 products (run 44064267681). What the merge carried into the live shop: `17-RELEASE-2026-11-17.md`, and line T-026 |
 | T-003 | P0 | Furniture's own price list, terms, quotation wording and signers (D-8) | No template or rate is installed; issuing documents is blocked | T-084, T-085, T-103 | Owner |
 | T-004 | P0 | **NEW** Who may approve quotations, discounts, expenses, purchase orders and publishing, and the discount limit of each role (O-010). Which staff roles exist and how many people in each (Q-6) | Quotations: by permission, with a limit per role set in Settings; the owner may approve anything | T-060, T-081 | Owner |
 | T-005 | P1 | **NEW** Approve the design foundation: sidebar, colours, top bar, cards — on the live demo (gate A; document 11, phase 1). Includes the sidebar's tone: light, as in the Reimagined theme, or charcoal | Light sidebar (DL-017) | gate A | Owner |
@@ -82,7 +82,8 @@ IDs in brackets are the owner's own log (document 12) or earlier records.
 | T-022 | P1 | Two-factor sign-in required for owner and admin? | Optional | T-065 | Owner |
 | T-023 | P2 | The missing `01-MASTER-PRD.md` | Documents 05 and 07 stand in | — | Owner |
 | T-024 | P3 | **NEW** "The actual AI agent failure example and task" (O-011): your log's own open question. Needed only if you want that diagnosis | — | — | Owner |
-| T-025 | P2 | The old address `woodex-2030.vercel.app/admin` still opens the old React dashboard ("Woodex Workspace"), and is easily taken for the new admin. Choose: leave it until cutover, or put a line on that sign-in page that links to the Laravel admin | Left as it is. A link is a small change to the old dashboard; it would ship with T-002 | — | Owner |
+| T-025 | P2 | The old address `woodex-2030.vercel.app/admin` still opens the old React dashboard ("Woodex Workspace"), and is easily taken for the new admin. Choose: leave it until cutover, or put a line on that sign-in page that links to the Laravel admin | Left as it is. A link is a small change to the old dashboard; it would ship with the next merge into `main` | — | Owner |
+| T-026 | P1 | **NEW** The merge of 17 November made live the changes to the React shop of 11 to 13 November, which the release report had not listed beforehand (defect D-014). Above all the Products menu: a plain list from the category file shared with the admin, without its two picture tiles, with three more entries (Home Office, Acoustic Furniture, Collaborative Furniture). Look at the shop and say: it stays, or the earlier build is put back | It stays as rebuilt | — | Owner |
 
 **Already answered — no action:** online payment at checkout: no, cash on delivery at launch (O-004, OD-4), so payments are recorded by hand (P-003) · a staging account for visual checks: the demo, one account per role (O-012) · production host: Hostinger shared hosting, MySQL (D-004, D-005).
 
@@ -228,7 +229,7 @@ Wave 2 replaces 15 routes of the old API. T-061 comes first: it is cheap today a
 | T-139 | P1 | **NEW** Behaviour within the plan's limits (document 10 §2 and §6). Read from Hostinger's documentation, not yet seen on the account: 120 processes, 60 entry processes, a request stopped after 120 s. The crawl and the journeys run against staging with realistic data | No request over 5 s; no limit hit | Agent | Later (T-133) |
 | T-140 | P1 | https, the domain, the admin's own host name | The admin answers on its address; the old one redirects; the https-only header is seen on the real domain | Agent | Later (T-007) |
 | T-141 | P1 | **NEW** The shop's static build served from the same account; cookie and cross-origin rules between shop and API (document 09 §9, steps 6 and 7) | A form on the staging shop reaches the staging admin | Agent | Later (T-100) |
-| T-142 | P2 | The outside check on a timer: for the demo now, for staging and production later. The six-hourly timer is in the workflow; GitHub starts timers only from `main`. A failure should open an issue (today GitHub only mails the repository's owner) | It runs every six hours from `main`; a forced failure opens an issue | Agent | Later (T-002) |
+| T-142 | P2 | The outside check on a timer: for the demo now, for staging and production later. The six-hourly timer is in the workflow; GitHub starts timers only from `main`. A failure should open an issue (today GitHub only mails the repository's owner) | It runs every six hours from `main`; a forced failure opens an issue | Agent | Next — the workflow is on `main` since the merge of 17 November, so GitHub can start the timer. To do: read its first timed run; open an issue on a failure |
 
 ---
 
