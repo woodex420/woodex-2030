@@ -101,3 +101,17 @@ it('puts the trail of a record page in the bar and keeps one way back on the pag
     // The trail is written once, not also above the heading as before.
     expect(substr_count($html, 'aria-label="Breadcrumb"'))->toBe(1);
 });
+
+it('draws the light sidebar of the theme by default, and the charcoal one where that is set', function () {
+    $owner = $this->userWithRole('owner');
+
+    // Decision DL-017: the Reimagined admin's sidebar. The tone is one setting (WOODEX_ADMIN_SIDEBAR_TONE).
+    expect(config('woodex.admin.sidebar_tone'))->toBe('light');
+    $this->actingAs($owner)->get(route('admin.dashboard'))->assertOk()
+        ->assertDontSee('data-sidebar-tone', false)
+        ->assertSee('wx-sidebar-brand wx-brand', false);
+
+    config(['woodex.admin.sidebar_tone' => 'charcoal']);
+    $this->actingAs($owner)->get(route('admin.dashboard'))->assertOk()
+        ->assertSee('data-sidebar-tone="charcoal"', false);
+});

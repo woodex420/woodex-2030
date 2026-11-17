@@ -29,7 +29,7 @@
                 <x-icon name="chevron-left" class="size-3.5" /> {{ $back['label'] }}
             </a>
         @endif
-        <h1 class="font-heading text-title-sm font-normal tracking-tight text-gray-900 dark:text-white">{{ $title }}</h1>
+        <h1 class="font-heading text-2xl leading-8 font-bold text-gray-900 sm:text-[26px] sm:leading-9 dark:text-white">{{ $title }}</h1>
         @if ($description)
             <p class="mt-1 max-w-2xl text-theme-sm text-gray-500 dark:text-gray-400">{{ $description }}</p>
         @endif

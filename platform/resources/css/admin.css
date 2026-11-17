@@ -6,6 +6,11 @@
  * apps/storefront/src/index.css; tests/Unit/AdminDesignTokensTest.php compares the two files, so the
  * shop and the admin cannot drift apart unnoticed. (Until DL-013 the palette was the React dashboard's.)
  *
+ * The shapes follow the admin of the same theme, "Woodex Reimagined" (decision DL-017): a light sidebar
+ * whose current screen is filled green, bold headings set tight, white cards with 12 px corners and a
+ * hair of shadow, small upper-case labels above figures, tinted status pills with an edge. Read from
+ * that project's src/index.css, src/admin/Layout.tsx and src/admin/components.tsx on 2026-11-17.
+ *
  * Two of the store's values are not used as they are, because text in them is too faint (WCAG AA):
  * white on the store green #629924 is 3.4:1, so filled controls use a darker step of the same green;
  * and the store's secondary text #737373 is 4.35:1 on its own grey surface, so the admin uses #6b6b6b.
@@ -91,12 +96,13 @@
   --color-gray-900: #1f1f1f;
   --color-gray-950: #171717;
 
-  /* Corners, as in the store (--radius: 0.25rem): controls 4px, cards 8px. Every rounded-* utility in the
-     views follows from these five values. */
+  /* Corners. Controls 4px, as in the store (--radius: 0.25rem); tiles inside a card 6px; cards 12px, as the
+     cards of the Reimagined admin (DL-017; they were 8px). Every rounded-* utility in the views follows
+     from these five values. */
   --radius-md: 0.25rem;
   --radius-lg: 0.25rem;
   --radius-xl: 0.375rem;
-  --radius-2xl: 0.5rem;
+  --radius-2xl: 0.75rem;
   --radius-3xl: 0.75rem;
 
   --color-success-50: #e9f4ee;
@@ -173,6 +179,16 @@
     display: none !important;
   }
 
+  /* Headings are set tight and table headings are small upper-case labels, as in the theme (DL-017). In the
+     base layer: a size or weight utility on the element still decides the rest. */
+  .wx-admin :is(h1, h2, h3, h4) {
+    letter-spacing: -0.02em;
+  }
+  .wx-admin thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
   /* A scrolling box holds its own hidden labels. `.sr-only` is absolutely positioned: inside a wide table its
      containing block was the page, so a label sat 250 px to the right of a phone's window and the whole page
      scrolled sideways (Users and Access, found by scripts/os-screens.mjs). In the base layer, so that a
@@ -211,10 +227,10 @@
   @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-theme-sm font-medium;
 }
 
-/* The sidebar is charcoal in both themes; its colours are the --wx-sidebar-* roles below. */
+/* The sidebar's colours are the --wx-sidebar-* roles below: light by default, charcoal on request. */
 @utility menu-item-active {
   background: var(--wx-sidebar-active);
-  color: var(--wx-sidebar-strong);
+  color: var(--wx-sidebar-on-active);
 }
 
 @utility menu-item-inactive {
@@ -295,11 +311,11 @@
 .wx-underline-tab { display:inline-flex; align-items:center; gap:.45rem; flex-shrink:0; padding:1rem .8rem; border-bottom:2px solid transparent; font-size:.8rem; color:var(--color-gray-500); font-weight:500; }
 .wx-underline-tab:hover,.wx-underline-tab.is-active { color:var(--color-navy-900); border-color:var(--color-navy-900); }
 .wx-count { border-radius:999px; padding:.1rem .45rem; background:var(--color-gray-100); color:var(--color-gray-600); font-size:.65rem; font-weight:600; }
-.wx-eyebrow { display:block; font-size:.65rem; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--color-gray-400); }
-.wx-summary-card { display:flex; flex-direction:column; gap:.5rem; padding:1.2rem 1.4rem; background:white; border:1px solid var(--color-gray-200); border-radius:1rem; }
-.wx-summary-card strong { font-size:1.8rem; line-height:1.1; color:var(--color-navy-900); font-weight:600; }
+.wx-eyebrow { display:block; font-size:.6875rem; letter-spacing:.08em; text-transform:uppercase; font-weight:600; color:var(--color-gray-400); }
+.wx-summary-card { display:flex; flex-direction:column; gap:.5rem; padding:1.2rem 1.4rem; background:white; border:1px solid var(--color-gray-200); border-radius:var(--radius-2xl); box-shadow:var(--shadow-theme-xs); }
+.wx-summary-card strong { font-size:1.6rem; line-height:1.1; color:var(--color-navy-900); font-weight:700; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
 button.wx-summary-card:hover { border-color:var(--color-navy-300); background:var(--color-brand-25); }
-.wx-filter-panel { padding:1rem; border:1px solid var(--color-gray-200); border-radius:1rem; background:white; }
+.wx-filter-panel { padding:1rem; border:1px solid var(--color-gray-200); border-radius:var(--radius-2xl); background:white; box-shadow:var(--shadow-theme-xs); }
 .wx-filter-pill,.wx-history-button { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--color-gray-200); border-radius:999px; background:white; padding:.45rem .9rem; font-size:.75rem; color:var(--color-gray-600); }
 .wx-filter-pill[aria-pressed=true] { background:var(--color-navy-900); color:white; border-color:var(--color-navy-900); }
 .wx-leads-table thead { background:var(--color-gray-50); }
@@ -349,8 +365,26 @@ button.wx-summary-card:hover { border-color:var(--color-navy-300); background:va
   --wx-accent: #629924;
   --wx-focus: #52801e;
   --wx-chat-canvas: #f5f5f5;
+  /* The store's charcoal (its --primary): the dark sidebar, and anything else that is meant to be dark. */
+  --wx-charcoal: #22262a;
+  /* A pale green tile and the text that sits on it: icon tiles, the initials of the signed-in person. */
+  --wx-primary-soft: #ebf6df;
+  --wx-on-primary-soft: #355313;
 
-  /* The sidebar: the store's charcoal, in the light theme and in the dark one. */
+  /* The sidebar, as in the Reimagined admin (DL-017): white, and the current screen filled green. */
+  --wx-sidebar-bg: #ffffff;
+  --wx-sidebar-border: #e0e0e0;
+  --wx-sidebar-text: #525252;
+  --wx-sidebar-strong: #1f1f1f;
+  --wx-sidebar-muted: #6b6b6b;
+  --wx-sidebar-hover: #f5f5f5;
+  --wx-sidebar-active: #52801e;
+  --wx-sidebar-on-active: #ffffff;
+  --wx-sidebar-accent: #52801e;
+  --wx-sidebar-focus: #52801e;
+}
+/* The charcoal sidebar of specification 05, kept as a choice: WOODEX_ADMIN_SIDEBAR_TONE=charcoal. */
+:root[data-sidebar-tone='charcoal'] {
   --wx-sidebar-bg: #22262a;
   --wx-sidebar-border: #2d3339;
   --wx-sidebar-text: #d4d7da;
@@ -358,8 +392,10 @@ button.wx-summary-card:hover { border-color:var(--color-navy-300); background:va
   --wx-sidebar-muted: #a8adb3;
   --wx-sidebar-hover: #2d3339;
   --wx-sidebar-active: #394047;
+  --wx-sidebar-on-active: #ffffff;
   --wx-sidebar-accent: #91d345;
   --wx-sidebar-focus: #91d345;
+  --wx-sidebar-marker: #91d345;
 }
 :root.dark {
   --wx-page: #17191c;
@@ -375,8 +411,19 @@ button.wx-summary-card:hover { border-color:var(--color-navy-300); background:va
   --wx-accent: #629924;
   --wx-focus: #91d345;
   --wx-chat-canvas: #17191c;
+  --wx-primary-soft: #283e0f;
+  --wx-on-primary-soft: #d3e8ba;
+  /* In the dark theme the sidebar is dark whichever tone was chosen; the current screen stays green. */
   --wx-sidebar-bg: #1b1e22;
   --wx-sidebar-border: #2d3339;
+  --wx-sidebar-text: #d4d7da;
+  --wx-sidebar-strong: #ffffff;
+  --wx-sidebar-muted: #a8adb3;
+  --wx-sidebar-hover: #2d3339;
+  --wx-sidebar-active: #629924;
+  --wx-sidebar-on-active: #0f1410;
+  --wx-sidebar-accent: #91d345;
+  --wx-sidebar-focus: #91d345;
   --color-gray-400: #a8adb3;
   --color-gray-500: #a8adb3;
   --color-gray-900: #22262a;
@@ -395,10 +442,21 @@ button.wx-sidebar-heading:hover { color:var(--wx-sidebar-strong); }
 .wx-sidebar-search:focus { border-color:var(--wx-sidebar-accent); outline:none; }
 .wx-sidebar-search-icon { color:var(--wx-sidebar-muted); }
 .wx-sidebar-badge { background:var(--wx-sidebar-accent); color:var(--wx-sidebar-bg); }
+/* On the current screen (filled) the count turns round: the fill's text colour as ground, the fill as text. */
+.menu-item-active .wx-sidebar-badge { background:var(--wx-sidebar-on-active); color:var(--wx-sidebar-active); }
+/* The brand, as in the theme: the mark on a green tile, the name heavy and tight, the line below it small,
+   green and widely spaced. Only where the admin shows it (sidebar, sign-in, error and setup pages): the
+   public pages and documents use the same component with their own look. */
+.wx-brand svg { width:2.25rem; height:2.25rem; padding:.3rem; border-radius:var(--radius-xl); background:var(--wx-primary); color:var(--wx-on-primary); }
+.wx-brand .font-heading { font-size:19px; font-weight:800; letter-spacing:-0.01em; }
+.wx-brand small { margin-top:.3rem; font-size:9.5px; font-weight:600; letter-spacing:.24em; color:var(--wx-sidebar-accent); }
 /* Drawn inside the element: the list scrolls, and a ring outside it would be cut off at both sides. */
 .wx-admin .wx-admin-sidebar :focus-visible { outline:2px solid var(--wx-sidebar-focus); outline-offset:-2px; }
 .wx-admin .wx-input { background:var(--wx-surface); border-color:var(--wx-control-border); color:var(--wx-text); }
 .wx-admin .wx-input::placeholder { color:var(--wx-muted); opacity:1; }
+/* A select draws the theme's arrow, not the browser's own (which differs on every system). The arrow is a
+   mid grey that reads on the white surface and on the dark one (3.7:1 and 4.1:1). Not for a list box. */
+.wx-admin select.wx-input:not([multiple]):not([size]) { appearance:none; padding-right:2.25rem; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23858585' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right .7rem center; background-size:1rem; text-overflow:ellipsis; }
 .wx-primary-button,.wx-primary-bubble { background:var(--wx-primary); color:var(--wx-on-primary); }
 .wx-primary-button:hover { background:var(--wx-primary-hover); }
 .wx-summary-card,.wx-filter-panel,.wx-inbox-grid,.wx-filter-pill,.wx-history-button,
@@ -433,8 +491,9 @@ a.wx-topbar-crumb:hover { color:var(--wx-text); text-decoration:underline; text-
 @media (min-width:768px) { .wx-topbar-new { width:auto; padding:0 .875rem 0 .625rem; } }
 .wx-topbar-user { display:inline-flex; align-items:center; gap:.5rem; flex-shrink:0; height:2.5rem; padding:0 .25rem; border-radius:var(--radius-lg); color:var(--wx-text); }
 .wx-topbar-user:hover { background:var(--wx-elevated); }
-.wx-topbar-avatar { display:flex; align-items:center; justify-content:center; width:2.25rem; height:2.25rem; border-radius:var(--radius-lg); background:var(--wx-sidebar-bg); color:var(--wx-sidebar-strong); font-size:12px; font-weight:600; }
-.dark .wx-topbar-avatar { background:var(--wx-elevated); }
+.wx-topbar-avatar { display:flex; align-items:center; justify-content:center; width:2.25rem; height:2.25rem; border-radius:999px; background:var(--wx-primary-soft); color:var(--wx-on-primary-soft); font-size:12px; font-weight:700; }
+/* The bar lets the page show through a little while it scrolls underneath, as in the theme. */
+@supports (backdrop-filter: blur(8px)) { .wx-admin-header { background:color-mix(in srgb, var(--wx-surface) 90%, transparent); backdrop-filter:blur(8px); } }
 .wx-topbar-role,.wx-page-back { color:var(--wx-muted); }
 .wx-page-back:hover { color:var(--wx-text); }
 .wx-topbar-menu { padding:.375rem; border:1px solid var(--wx-border); border-radius:var(--radius-2xl); background:var(--wx-surface); color:var(--wx-text); box-shadow:0 12px 32px rgb(0 0 0 / .12); }
@@ -447,13 +506,15 @@ a.wx-topbar-crumb:hover { color:var(--wx-text); text-decoration:underline; text-
 .wx-theme-choice:hover { color:var(--wx-text); }
 .wx-theme-choice[aria-pressed=true] { background:var(--wx-elevated); box-shadow:inset 0 0 0 1px var(--wx-control-border); color:var(--wx-text); font-weight:600; }
 
-/* Compact Preline-style operational surfaces; existing tokens/routes/plugins remain authoritative. */
-.wx-stat { box-shadow:0 1px 2px rgb(0 0 0 / .025); }
-a.wx-stat:hover { border-color:var(--wx-control-border); transform:translateY(-1px); }
-.wx-admin .menu-item-active::before { content:""; position:absolute; left:0; top:25%; bottom:25%; width:3px; border-radius:3px; background:var(--wx-sidebar-accent); }
+/* Cards (x-admin.card, x-admin.stat): white, a 1 px edge, 12 px corners and a hair of shadow, as in the theme. */
+.wx-card,.wx-stat { box-shadow:var(--shadow-theme-xs); }
+a.wx-stat:hover { border-color:var(--wx-primary); box-shadow:var(--shadow-theme-sm); }
+.wx-stat-tile { background:var(--wx-primary-soft); color:var(--wx-on-primary-soft); }
+/* The green fill marks the current screen. Only the charcoal sidebar, whose current screen is a grey step,
+   needs the bar at its edge as well. */
+:root[data-sidebar-tone='charcoal']:not(.dark) .wx-admin .menu-item-active::before { content:""; position:absolute; left:0; top:25%; bottom:25%; width:3px; border-radius:3px; background:var(--wx-sidebar-marker); }
 @media (prefers-reduced-motion: reduce) {
   .wx-admin-sidebar,.wx-stat,.wx-admin .menu-item { transition:none !important; }
-  a.wx-stat:hover { transform:none; }
 }
 
 /* Product workspace: readable form + persistent visual summary; no fixed-width mobile overflow. */

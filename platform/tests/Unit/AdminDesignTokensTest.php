@@ -50,7 +50,7 @@ it('computes contrast the way WCAG defines it', function () {
         ->and(round(wxContrast('#777777', '#ffffff'), 2))->toBe(4.48); // the classic near miss
 });
 
-it('keeps text readable in the light theme and in the dark one', function (string $selector) {
+it('keeps text readable in the light theme, with the charcoal sidebar, and in the dark theme', function (string $selector) {
     $light = wxRoles(':root');
     $roles = $selector === ':root' ? $light : array_merge($light, wxRoles($selector));
 
@@ -58,9 +58,17 @@ it('keeps text readable in the light theme and in the dark one', function (strin
         ['--wx-text', '--wx-page'], ['--wx-text', '--wx-surface'], ['--wx-text', '--wx-elevated'],
         ['--wx-muted', '--wx-page'], ['--wx-muted', '--wx-surface'], ['--wx-muted', '--wx-elevated'],
         ['--wx-on-primary', '--wx-primary'], ['--wx-on-primary', '--wx-primary-hover'],
+        // Icon tiles, and the initials of the signed-in person.
+        ['--wx-on-primary-soft', '--wx-primary-soft'],
         ['--wx-sidebar-text', '--wx-sidebar-bg'], ['--wx-sidebar-text', '--wx-sidebar-hover'],
-        ['--wx-sidebar-strong', '--wx-sidebar-active'], ['--wx-sidebar-muted', '--wx-sidebar-bg'],
-        ['--wx-sidebar-muted', '--wx-sidebar-hover'], ['--wx-sidebar-bg', '--wx-sidebar-accent'],
+        // A screen's name under the pointer, and the name of the screen one is on (filled).
+        ['--wx-sidebar-strong', '--wx-sidebar-bg'], ['--wx-sidebar-strong', '--wx-sidebar-hover'],
+        ['--wx-sidebar-on-active', '--wx-sidebar-active'],
+        ['--wx-sidebar-muted', '--wx-sidebar-bg'], ['--wx-sidebar-muted', '--wx-sidebar-hover'],
+        // The count beside a screen: the sidebar's ground as text on the accent.
+        ['--wx-sidebar-bg', '--wx-sidebar-accent'],
+        // The line under the brand name.
+        ['--wx-sidebar-accent', '--wx-sidebar-bg'],
     ];
     foreach ($text as [$fore, $back]) {
         expect(wxContrast($roles[$fore], $roles[$back]))->toBeGreaterThanOrEqual(4.5, "{$selector}: {$fore} on {$back}");
@@ -68,12 +76,32 @@ it('keeps text readable in the light theme and in the dark one', function (strin
 
     $edges = [
         ['--wx-control-border', '--wx-surface'], ['--wx-focus', '--wx-surface'], ['--wx-focus', '--wx-page'],
-        ['--wx-sidebar-focus', '--wx-sidebar-bg'], ['--wx-sidebar-accent', '--wx-sidebar-bg'], ['--wx-sidebar-accent', '--wx-sidebar-active'],
+        ['--wx-sidebar-focus', '--wx-sidebar-bg'], ['--wx-sidebar-accent', '--wx-sidebar-bg'],
+        // The screen one is on must stand out. Where it is filled (light and dark), the fill against the sidebar.
+        // Where it is only a grey step (the charcoal sidebar), the bar at its edge against that step.
+        isset($roles['--wx-sidebar-marker']) && $selector !== ':root.dark'
+            ? ['--wx-sidebar-marker', '--wx-sidebar-active']
+            : ['--wx-sidebar-active', '--wx-sidebar-bg'],
     ];
     foreach ($edges as [$fore, $back]) {
         expect(wxContrast($roles[$fore], $roles[$back]))->toBeGreaterThanOrEqual(3.0, "{$selector}: {$fore} against {$back}");
     }
-})->with([':root', ':root.dark']);
+})->with([':root', ":root[data-sidebar-tone='charcoal']", ':root.dark']);
+
+it('marks the current screen in every sidebar: a fill, or a bar where the fill is too faint', function () {
+    $light = wxRoles(':root');
+    $charcoal = array_merge($light, wxRoles(":root[data-sidebar-tone='charcoal']"));
+
+    // Light (the Reimagined admin, DL-017): white, the current screen filled with the green that carries white text.
+    expect($light['--wx-sidebar-bg'])->toBe($light['--wx-surface'])
+        ->and($light['--wx-sidebar-active'])->toBe($light['--wx-primary'])
+        ->and($light)->not->toHaveKey('--wx-sidebar-marker');
+    // Charcoal (specification 05): the store's charcoal; its current screen is a grey step, so it has the bar.
+    expect($charcoal['--wx-sidebar-bg'])->toBe($light['--wx-charcoal'])
+        ->and(wxContrast($charcoal['--wx-sidebar-active'], $charcoal['--wx-sidebar-bg']))->toBeLessThan(3.0)
+        ->and($charcoal)->toHaveKey('--wx-sidebar-marker');
+    expect(wxAdminCss())->toContain(":root[data-sidebar-tone='charcoal']:not(.dark) .wx-admin .menu-item-active::before");
+});
 
 it('keeps the scale steps that carry text readable', function () {
     $white = '#ffffff';
@@ -93,7 +121,7 @@ it('keeps the scale steps that carry text readable', function () {
 it('uses the storefront\'s palette', function () {
     $roles = wxRoles(':root');
 
-    expect($roles['--wx-sidebar-bg'])->toBe('#22262a')
+    expect($roles['--wx-charcoal'])->toBe('#22262a')
         ->and($roles['--wx-page'])->toBe('#f7f7f7')
         ->and($roles['--wx-surface'])->toBe('#ffffff')
         ->and($roles['--wx-text'])->toBe('#1f1f1f')
@@ -136,7 +164,7 @@ it('takes its charcoal, green, text and border colours from the storefront\'s ow
 
     $roles = wxRoles(':root');
     expect($roles['--wx-accent'])->toBe($store('accent'), 'the green')
-        ->and($roles['--wx-sidebar-bg'])->toBe($store('primary'), 'the charcoal')
+        ->and($roles['--wx-charcoal'])->toBe($store('primary'), 'the charcoal')
         ->and($roles['--wx-text'])->toBe($store('foreground'), 'the text colour')
         ->and($roles['--wx-border'])->toBe($store('border'), 'the border colour')
         ->and($roles['--wx-surface'])->toBe($store('background'), 'the surface');

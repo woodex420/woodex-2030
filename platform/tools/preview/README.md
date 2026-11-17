@@ -96,3 +96,18 @@ none failed), with nothing excused.
 MySQL itself is still only in CI: the two installer tests need the driver, not a server.
 
 A real browser is available too: `npm install @sparticuz/chromium puppeteer-core` ships a headless Chromium inside the npm package, and it runs with `AWS_EXECUTION_ENV=AWS_Lambda_nodejs22.x` set so that its bundled libraries are unpacked.
+
+## Looking at every screen, and pressing through the main jobs
+
+Three tools, written for the analysis of the hosted demo (`docs/woodex-os/14-PRODUCTION-TODO.md` §2). They need
+Node, Playwright's Chromium (or `E2E_CHROMIUM_PATH`), and the demo passwords in `WX_PW_*`; none of them is ever
+written to a file.
+
+| Tool | What it does |
+|---|---|
+| `tools/vercel/serve-demo.sh [port]` | Builds the sample-data workspace and serves it exactly as Vercel does (its PHP runtime, its launcher, `vercel.json`), on `127.0.0.1:8191` by default, until stopped |
+| `scripts/os-screens.mjs` (repository root) | Signs in as each demo role and opens every screen it can reach, on a desktop and on a 390 px phone. Reports per role: pages not fine, links that lead nowhere, fields without a label, controls under 24 px, pages wider than the window, the height of the top bar, sizes and times. Exit code 1 if a page or a download is not fine. `OS_BASE`, `OS_ROLES`, `OS_MAX_PAGES`, `--out`, `--shots` |
+| `scripts/os-journeys.mjs` (repository root) | Fourteen steps that **write** records (a lead, a task, a draft quotation…). Refuses a page without the sample-data notice unless `OS_ALLOW_REAL=1`. `OS_TRACE=1` prints every request with its time |
+
+A crawl of the four roles takes about five and a half minutes; the journeys about twenty seconds.
+

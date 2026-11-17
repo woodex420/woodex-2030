@@ -60,15 +60,32 @@ With only the shipped modules on, an owner's Feature status reads: **29 availabl
 
 Screenshots: [`evidence/`](evidence/) — the shell before and after, Feature status, and the phone drawer.
 
+### Wave 1, slice 1.4, the findings of the analysis, and the Reimagined theme — commit `493ce22` and the one after it
+
+| What | What changed | Proof |
+|---|---|---|
+| 1.4 Top bar | One row at every width: 56 px on a phone (it was two rows, 113 px), 64 px above. The page's trail, search, a "New" menu filtered by permission and module, bells, assistant, user menu with the theme choice | `AdminTopBarTest` (12 cases); the crawl: no top bar taller than 72 px |
+| Findings of the analysis | Nine dead links, sideways scrolling on a phone, thirty unlabelled fields, bare error pages, small touch targets, a silent quotation form, the PHP version in every answer. The full table is in [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md) §2 | `AdminLinksOpenTest`, `AdminFormLabelsTest`, `ErrorPagesTest`, `SecurityHeadersTest`; crawl and journeys |
+| The Reimagined theme (DL-017) | Light sidebar with the current screen filled green (charcoal kept as a setting), green brand tile, bold tight headings, cards with 12 px corners and a hair of shadow, figures with upper-case labels and tinted tiles, pills with an edge, the theme's arrow on selects. Done in five shared components (card, figure, pill, "nothing here", page header), the sidebar and the stylesheet, so every screen follows | `AdminDesignTokensTest` checks every text pair for three tones (light, charcoal sidebar, dark); screenshots `evidence/theme-before-*` and `theme-after-*` |
+
+The suite after both: 2,244 passed, 34 skipped, 0 failed (PHP 8.5, SQLite). The crawl of four roles and the
+fourteen journeys were repeated with the theme: every page opens, nothing is wider than a phone, 14 of 14 hold.
+
+**A test whose expectation changed, and why.** `AdminDesignTokensTest` pinned the sidebar's ground to the store's
+charcoal. The sidebar is light now (DL-017), so the charcoal is pinned as its own role (`--wx-charcoal`) and as
+the ground of the charcoal tone, and the contrast pairs are checked for three tones instead of two. The pair
+"bar at the edge of the current screen" is asked only where that bar is drawn (the charcoal tone); the other two
+tones must show the current screen as a fill that stands out from the sidebar. No pair was dropped.
+
 **Tests that were changed, and why.** Eight existing test files asserted the old sidebar: its group names, and switched-off modules shown as disabled "Soon" entries. The specification moved the roadmap out of the sidebar (spec 05 §3; DL-009), so those assertions were rewritten to the new rule — a closed module is absent from the sidebar and listed on Feature status — not deleted. The exact count of live destinations is still asserted (48 → 50: the audit log is named on its own, and Feature status joined).
 
 ## Not done
 
 | | |
 |---|---|
-| Slices 1.4–1.7 | The top bar (the command palette exists already and now reads the new registry), the component pass, the dashboard layout of spec 05 §7, and the screen-by-screen pass. Next, in the order of DL-008. |
-| The sign-in page | Still has the earlier look. |
-| The dark theme | Its tokens pass the contrast test. Nobody has looked at it in a browser. |
+| Slices 1.5–1.7 | The rest of the component pass (tables as one component, pagination, modal, toasts, the five states on every list), the dashboard layout of spec 05 §7, and the screen-by-screen pass. Next, in the order of DL-008; lines U-4 to U-6 of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md). |
+| Selected states | Stage steps, activity types and the business-line switch are still charcoal pills; the theme fills them green. Part of U-6. |
+| The dark theme | Looked at in a browser on the dashboard, Leads and a lead page, desktop and phone. Not on every screen. |
 | Hard-coded colours | A few rules in `admin.css` and some views still name a grey directly instead of a role. To be removed in the component pass. |
 | Wave S (Hostinger staging) | Untouched. It needs the SSH secrets and the plan details from the owner. |
 | The browser journeys of the React side on the merged tree | Only the catalogue journey was run locally. The full browser step runs in CI. |
@@ -86,4 +103,4 @@ Unverified assumptions: that staff find Feature status without being told (it is
 
 ## Status
 
-**Partial** — Wave 0 complete; Wave 1: three of seven slices.
+**Partial** — Wave 0 complete; Wave 1: four of seven slices, and the theme of DL-017 on the shared parts. Everything still open is in [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md).

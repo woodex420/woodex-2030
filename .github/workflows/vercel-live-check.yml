@@ -1,7 +1,9 @@
 name: Vercel live check (WOODEX OS)
 # What a visitor gets from the deployed admin, asked from outside. It needs no secret: it opens the sign-in page,
-# tries a wrong password and looks for files that must not be handed out. The findings are written as one notice
-# on the run, so they can be read without the log.
+# tries a wrong password, reads the security headers and the marks on the session cookie, asks for a screen that
+# does not exist, and looks for files that must not be handed out. The findings are written as one notice on the
+# run, so they can be read without the log. It never signs in: what a signed-in person gets is checked on the
+# rehearsal (platform/tools/vercel/check-entry.sh, scripts/os-screens.mjs, scripts/os-journeys.mjs).
 on:
   workflow_dispatch:
   push:
@@ -49,6 +51,28 @@ jobs:
           must "form reopens" "$(code "$SITE/admin/login")" 200
           must "form says the password is wrong" "$(grep -c 'do not match\|These credentials' "$out/body" | head -1)" 1
           must "admin still asks for sign-in" "$(code "$SITE/admin")" 302
+
+          # What the answers carry besides the page: headers, cookie marks, the admin's own refusal pages.
+          code "$SITE/admin/login" > /dev/null
+          must "the answer names no software version (x-powered-by)" "$(tr -d '\r' < "$out/head" | grep -ci '^x-powered-by:')" 0
+          must "x-content-type-options" "$(header x-content-type-options)" "nosniff"
+          must "x-frame-options" "$(header x-frame-options)" "SAMEORIGIN"
+          must "kept out of search engines" "$(header x-robots-tag | grep -c 'noindex')" 1
+          must "sign-in page is never cached" "$(header cache-control | grep -c 'no-store')" 1
+          note "https-only header: $(header strict-transport-security)"
+          note "server header: $(header server)"
+          cookie="$(tr -d '\r' < "$out/head" | grep -i '^set-cookie: woodex_livewire_session=' | head -1 | tr 'A-Z' 'a-z')"
+          must "session cookie is Secure" "$(printf '%s' "$cookie" | grep -c '; secure')" 1
+          must "session cookie is HttpOnly" "$(printf '%s' "$cookie" | grep -c '; httponly')" 1
+          must "session cookie is SameSite=Lax" "$(printf '%s' "$cookie" | grep -c 'samesite=lax')" 1
+          must "a screen that does not exist: 404" "$(code "$SITE/admin/no-such-screen-live-check")" 404
+          must "…answered with the admin's own page" "$(grep -c 'data-error-page="404"' "$out/body")" 1
+          must "a form sent without its token is refused: 419" "$(code -X POST --data-urlencode "email=owner@woodex.test" "$SITE/admin/login")" 419
+          must "…answered with the admin's own page" "$(grep -c 'data-error-page="419"' "$out/body")" 1
+          code "${style:-$SITE/missing}" > /dev/null
+          note "stylesheet cache-control: $(header cache-control)"
+          # One request from this runner's network: an impression, not a measurement.
+          note "sign-in page first byte after $(curl -s -o /dev/null -w '%{time_starttransfer}' --max-time 40 "$SITE/admin/login") s"
 
           for file in /install /composer.json /.env /index.php /api/index.php /vendor/autoload.php /database/woodex-synthetic-vercel-demo.sqlite /database/woodex-synthetic-vercel-demo.sqlite.key; do
             status="$(code "$SITE$file")"

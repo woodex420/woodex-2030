@@ -23,7 +23,7 @@
 <body class="wx-auth">
     <div class="wx-auth-shell">
         <header class="wx-auth-header">
-            <a href="{{ route('login') }}" class="wx-auth-brand" aria-label="WOODEX OS sign in">
+            <a href="{{ route('login') }}" class="wx-auth-brand wx-brand" aria-label="WOODEX OS sign in">
                 <x-brand-logo subtitle="OPERATING SYSTEM" />
             </a>
             <a href="{{ \App\Support\SyntheticPreview::enabled() ? url('/') : config('woodex.public_site_url') }}" class="wx-auth-website">Woodex Furniture <span aria-hidden="true">↗</span></a>

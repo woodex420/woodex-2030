@@ -15,9 +15,9 @@
 
     <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4" data-feature-summary>
         @foreach ($states as $state => $meta)
-            <div class="wx-surface rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
-                <p class="text-theme-xs text-gray-500">{{ $meta['label'] }}</p>
-                <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white" data-feature-count="{{ $state }}">{{ $counts[$state] }}</p>
+            <div class="wx-surface wx-card rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+                <p class="text-theme-xs font-medium tracking-wide text-gray-500 uppercase">{{ $meta['label'] }}</p>
+                <p class="mt-1 text-2xl leading-8 font-bold tracking-tight tabular-nums text-gray-900 dark:text-white" data-feature-count="{{ $state }}">{{ $counts[$state] }}</p>
             </div>
         @endforeach
     </div>

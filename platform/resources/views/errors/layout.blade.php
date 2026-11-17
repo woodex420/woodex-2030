@@ -32,7 +32,7 @@
 <body class="wx-auth">
     <div class="wx-auth-shell">
         <header class="wx-auth-header">
-            <a href="{{ $home }}" class="wx-auth-brand" aria-label="WOODEX OS">
+            <a href="{{ $home }}" class="wx-auth-brand wx-brand" aria-label="WOODEX OS">
                 <x-brand-logo subtitle="OPERATING SYSTEM" />
             </a>
         </header>

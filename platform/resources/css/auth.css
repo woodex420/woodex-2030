@@ -8,7 +8,7 @@
 .wx-auth-shell { display:flex; flex-direction:column; min-height:100svh; max-width:1200px; margin:auto; padding:28px clamp(20px,5vw,64px) 24px; }
 .wx-auth-header { display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .wx-auth-brand { color:var(--wx-text); text-decoration:none; }
-.wx-auth-brand svg { width:40px; height:40px; padding:5px; border-radius:4px; color:var(--wx-sidebar-strong); background:var(--wx-sidebar-bg); }
+.wx-auth-brand svg { width:40px; height:40px; padding:5px; border-radius:4px; color:var(--wx-on-primary); background:var(--wx-primary); }
 .wx-auth-website { font-size:13px; color:var(--wx-muted); text-decoration:none; }
 .wx-auth-website:hover { color:var(--wx-text); text-decoration:underline; }
 .wx-auth-main { display:flex; justify-content:center; align-items:center; flex:1; min-width:0; padding:40px 0; }

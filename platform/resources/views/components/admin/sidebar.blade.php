@@ -27,7 +27,7 @@
     class="wx-admin-sidebar fixed inset-y-0 left-0 z-50 flex h-screen w-[280px] -translate-x-full flex-col border-r px-4 transition-all duration-300 ease-in-out xl:w-(--wx-sidebar-w) xl:translate-x-0"
     :class="$store.sidebar.mobileOpen && 'translate-x-0!'"
     id="wx-sidebar" aria-label="Main navigation">
-    <div class="wx-sidebar-brand flex h-(--wx-topbar-h) shrink-0 items-center px-2">
+    <div class="wx-sidebar-brand wx-brand flex h-(--wx-topbar-h) shrink-0 items-center px-2">
         <a href="{{ route('admin.dashboard') }}" wire:navigate class="flex items-center rounded-lg">
             <x-brand-logo subtitle="OPERATING SYSTEM" x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen" />
             <x-brand-logo compact x-cloak x-show="!$store.sidebar.expanded && !$store.sidebar.mobileOpen" />
@@ -55,7 +55,7 @@
                         @click="$store.sidebar.toggleGroup('{{ $groupKey }}')"
                         aria-controls="wx-nav-{{ $groupKey }}"
                         :aria-expanded="navQuery.trim() || {{ $holdsCurrent ? 'true' : 'false' }} || $store.sidebar.groupOpen('{{ $groupKey }}') ? 'true' : 'false'"
-                        class="wx-sidebar-heading mb-2 flex w-full items-center justify-between gap-2 rounded px-3 py-1 text-[11px] font-semibold tracking-[0.12em] uppercase transition">
+                        class="wx-sidebar-heading mb-1.5 flex w-full items-center justify-between gap-2 rounded px-3 py-1 text-[10.5px] font-semibold tracking-[0.18em] uppercase transition">
                     <span>{{ $group['title'] }}</span>
                     <span class="shrink-0 transition-transform duration-200"
                           :class="{{ $holdsCurrent ? 'true' : 'false' }} || $store.sidebar.groupOpen('{{ $groupKey }}') ? '' : '-rotate-90'">

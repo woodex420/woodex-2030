@@ -250,6 +250,10 @@ So the tokens ship as the spec gives them, plus the four darker "on-fill" values
 | 1.6 | **Dashboard** | The layout of spec 05 §7, from real data only. Every figure links to the records behind it. A section whose module is not in Laravel yet is absent, not faked |
 | 1.7 | **Screen pass** | Each existing screen brought to the page patterns of spec 05 §8, area by area in the order of D-04 |
 
+**Progress (2026-11-17).** Slices 1.1 to 1.4 are done. The look is that of the Reimagined theme since decision
+DL-017: the sidebar of 1.3 is light, with the charcoal one as a setting. Slices 1.5 to 1.7 are lines U-4 to U-6
+of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md).
+
 ### 7.3 Acceptance
 
 - Spec 05 §10, checked in a browser at 1366 px and at 390 px.
@@ -277,7 +281,7 @@ The rules are spec 09 §4, §6 and §7. In short:
 | | State | Next |
 |---|---|---|
 | Hostinger staging | A release package builds in GitHub Actions. The live test has **never passed**: on 13 Nov the site redirected and protected its source files, but the admin did not start. The branch notes point to a missing `vendor/` folder; a repair package was built. The database was imported by the owner in phpMyAdmin, per those notes. | Install dependencies on the host, rerun the live test. Needs the two SSH secrets in a GitHub environment. |
-| Vercel (Livewire) | A package profile exists and passes an install check. Not deployed. Needs its own MySQL; cannot use Supabase. Runs on a community PHP runtime. | Not a target of this plan. Hostinger is. |
+| Vercel (Livewire) | **A demo with sample data is live** at `woodex-os.vercel.app/admin` since 16 November (DL-014, DL-015): [`13-VERCEL-DEPLOYMENT.md`](13-VERCEL-DEPLOYMENT.md). A real admin there needs its own MySQL (not Supabase), a first-install job, file storage, a caller for the timed jobs and mail. Runs on a community PHP runtime, on the Hobby plan. | The owner decides whether the real admin runs here or on Hostinger (O-1 of [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)). |
 | Vercel (React + Node) | Live, Phase 1. | Stays until Wave 11. |
 
 ---

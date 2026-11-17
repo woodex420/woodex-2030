@@ -16,7 +16,9 @@
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
-        <div class="lg:col-span-2">
+        {{-- min-w-0: a grid column is never narrower than what it holds, so on a phone the table (which scrolls
+             in its own box) pushed the whole page 48 px wider than the window. Found by scripts/os-screens.mjs. --}}
+        <div class="min-w-0 lg:col-span-2">
             <x-admin.card title="Open invoices, oldest first">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-left text-theme-sm divide-y divide-gray-100 dark:divide-gray-800">

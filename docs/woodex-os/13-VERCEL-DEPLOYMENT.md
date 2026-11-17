@@ -107,7 +107,7 @@ every screen" (workflow `vercel-livewire.yml`), on every change under `platform/
 It uses Vercel's own parts, fetched from npm: the PHP 8.5 runtime of `vercel-php@0.9.0` with its `php.ini`, and
 its launcher. It installs the packages with the builder's own Composer command, runs `composer run vercel`, makes
 the tree read-only, and serves it from `/var/task` through the `routes` and `env` of `vercel.json`. Only
-Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 72 checks, among them:
+Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 74 checks, among them:
 
 - without settings, with half the settings, or with a database that is not MySQL: 503;
 - a real deployment's build touches nothing; a demo without passwords fails the build;
@@ -133,10 +133,31 @@ VERCEL_PHP=/tmp/vercel-php/node_modules bash tools/vercel/check-entry.sh [--buil
 entry are identical, no secret and no demo switch is in the repository, and every file in `platform/public` has
 a route.
 
+**The same demo, kept running, for a browser.** `tools/vercel/serve-demo.sh [port]` builds the demo and serves it
+through the same parts until stopped. Two scripts in the repository's `scripts/` folder use it:
+
+- `os-screens.mjs` signs in as each demo role and opens every screen it can reach, on a desktop and then on a
+  390 px phone: status, console errors, links that lead nowhere, fields without a label, controls smaller than
+  24 px, anything wider than the window, page size and time.
+- `os-journeys.mjs` presses through fourteen steps that write records: a lead, a task, the search, a draft
+  quotation with a priced line, two PDFs, the CSV export, an upload, the 404 and 403 pages, sign-out. It refuses
+  to run against a page without the sample-data notice.
+
+```
+cd platform && WX_PW_OWNER=… WX_PW_MANAGER=… WX_PW_SALES=… WX_PW_ACCOUNTS=… \
+  VERCEL_PHP=/tmp/vercel-php/node_modules bash tools/vercel/serve-demo.sh 8191
+node scripts/os-screens.mjs --out /tmp/screens      # same four WX_PW_* values; OS_BASE defaults to :8191
+node scripts/os-journeys.mjs --out /tmp/journeys    # WX_PW_OWNER, WX_PW_SALES
+```
+
 **What this cannot show:** Vercel's own network and build machines. After a deployment, read the build log for
 the `[demo] workspace ready` line, and run the workflow "Vercel live check (WOODEX OS)"
 (`vercel-live-check.yml`): from outside, without any secret, it opens the sign-in page of the deployed address,
-tries a wrong password and asks for files that must stay closed. Its findings are one notice on the run.
+tries a wrong password, reads the security headers and the marks on the session cookie, asks for a screen that
+does not exist (the admin's own 404 page) and sends a form without its token (419), and asks for files that
+must stay closed. Its findings are one notice on the run. It never signs in: a signed-in check of the live
+address needs the demo password as a GitHub secret, which only the owner can add (line Q-3 of
+[`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)).
 
 ## 6. Deploying
 

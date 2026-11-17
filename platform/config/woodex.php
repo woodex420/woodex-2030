@@ -12,6 +12,9 @@ return [
         // Production: a dedicated admin host with an empty path. Local/CI: /admin on any host.
         'domain' => env('ADMIN_DOMAIN') ?: null,
         'path' => trim((string) env('ADMIN_PATH', 'admin'), '/'),
+        // The sidebar in the light theme: "light" (white, the current screen filled green: the Reimagined
+        // admin, decision DL-017) or "charcoal" (the dark sidebar of specification 05). Anything else is light.
+        'sidebar_tone' => env('WOODEX_ADMIN_SIDEBAR_TONE', 'light') === 'charcoal' ? 'charcoal' : 'light',
     ],
 
     'public_site_url' => env('PUBLIC_SITE_URL', env('APP_URL', 'http://localhost')),
