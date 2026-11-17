@@ -37,7 +37,7 @@
       ],
       "closed": {
         "on": "2026-11-17",
-        "how": "Every privilege on tables and sequences taken from the two roles, also for tables created later (`deploy/supabase/2026-11-17-close-data-api.sql`, DL-024). Read back: the two roles hold a privilege on 0 of 72 tables, and the owner of the tables holds everything on all of them."
+        "how": "Every privilege on tables and sequences taken from the two roles, also for tables created later (`deploy/supabase/2026-11-17-close-data-api.sql`, DL-024). Read back: the two roles hold a privilege on 0 of 73 tables and on no sequence, and the owner of the tables holds everything. Asked from outside afterwards, the shop serves its 148 products as before."
       }
     },
     {
