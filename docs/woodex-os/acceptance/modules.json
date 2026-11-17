@@ -65,7 +65,7 @@
         },
         {
           "state": "met",
-          "evidence": "Pass in the suite of 17 November (2,359 tests; the same suite on MySQL 8.4 in CI): `Feature/LeadsIndexTest.php`, `Feature/LeadShowTest.php`, `Feature/ContactsTest.php`, `Feature/TasksAndVisitsTest.php`, `Feature/LeadCsvImportTest.php`, `Feature/Crm/LeadCsvExportTest.php`, `Feature/PipelineBoardTest.php`, `Unit/PhoneTest.php`.",
+          "evidence": "Pass in the suite of 17 November (2,434 tests; the same suite on MySQL 8.4 in CI): `Feature/LeadsIndexTest.php`, `Feature/LeadShowTest.php`, `Feature/ContactsTest.php`, `Feature/TasksAndVisitsTest.php`, `Feature/LeadCsvImportTest.php`, `Feature/Crm/LeadCsvExportTest.php`, `Feature/PipelineBoardTest.php`, `Feature/Sales/LeadValueFollowsQuotationTest.php`, `Unit/PhoneTest.php`.",
           "lines": []
         },
         {
@@ -153,7 +153,7 @@
         },
         {
           "state": "met",
-          "evidence": "Pass in the suite of 17 November (2,359 tests; the same suite on MySQL 8.4 in CI): `Feature/QuotesTest.php`, `Feature/QuoteSendingTest.php`, `Feature/QuotationSafetyTest.php`, `Feature/PaymentsTest.php`, `Feature/PaymentIntegrityTest.php`, `Feature/Sales/InvoiceScreenTest.php`, `Feature/Sales/ClientAnswerTest.php`, `Feature/Sales/BillingTimelineTest.php`, `Feature/DocumentLibraryTest.php`, `Unit/QuoteCalculatorTest.php`.",
+          "evidence": "Pass in the suite of 17 November (2,434 tests; the same suite on MySQL 8.4 in CI): `Feature/QuotesTest.php`, `Feature/QuoteSendingTest.php`, `Feature/QuotationSafetyTest.php`, `Feature/PaymentsTest.php`, `Feature/PaymentIntegrityTest.php`, `Feature/Sales/InvoiceScreenTest.php`, `Feature/Sales/ClientAnswerTest.php`, `Feature/Sales/BillingTimelineTest.php`, `Feature/DocumentLibraryTest.php`, `Unit/QuoteCalculatorTest.php`.",
           "lines": []
         },
         {
@@ -238,7 +238,7 @@
         },
         {
           "state": "met",
-          "evidence": "Pass in the suite of 17 November (2,359 tests; the same suite on MySQL 8.4 in CI): `Feature/NativeProductsTest.php`, `Feature/WoodexCatalogueImportTest.php`, `Feature/CommerceCategoriesTest.php`, `Feature/CommerceTaxonomyTest.php`, `Feature/SeriesRulesTest.php`, `Feature/CommerceWorkflowTest.php`, `Feature/CommerceReadinessTest.php`.",
+          "evidence": "Pass in the suite of 17 November (2,434 tests; the same suite on MySQL 8.4 in CI): `Feature/NativeProductsTest.php`, `Feature/WoodexCatalogueImportTest.php`, `Feature/CommerceCategoriesTest.php`, `Feature/CommerceTaxonomyTest.php`, `Feature/SeriesRulesTest.php`, `Feature/CommerceWorkflowTest.php`, `Feature/CommerceReadinessTest.php`.",
           "lines": []
         },
         {
@@ -323,7 +323,7 @@
         },
         {
           "state": "met",
-          "evidence": "Pass in the suite of 17 November (2,359 tests; the same suite on MySQL 8.4 in CI): `Feature/Overview/ControlCentreTest.php`, `Feature/Overview/ControlViewTest.php`, `Feature/ReportsKitTest.php`, `Feature/QuoteSendingTest.php`.",
+          "evidence": "Pass in the suite of 17 November (2,434 tests; the same suite on MySQL 8.4 in CI): `Feature/Overview/ControlCentreTest.php`, `Feature/Overview/ControlViewTest.php`, `Feature/ReportsKitTest.php`, `Feature/QuoteSendingTest.php`.",
           "lines": []
         },
         {
@@ -409,7 +409,7 @@
         },
         {
           "state": "met",
-          "evidence": "Pass in the suite of 17 November (2,359 tests; the same suite on MySQL 8.4 in CI): `Feature/ProjectsTest.php`, `Feature/ProjectCostsTest.php`, `Feature/Projects/ProjectCostPostingTest.php`, `Feature/Projects/ProjectCostsScreenTest.php`.",
+          "evidence": "Pass in the suite of 17 November (2,434 tests; the same suite on MySQL 8.4 in CI): `Feature/ProjectsTest.php`, `Feature/ProjectCostsTest.php`, `Feature/Projects/ProjectCostPostingTest.php`, `Feature/Projects/ProjectCostsScreenTest.php`.",
           "lines": []
         },
         {
@@ -490,7 +490,7 @@
         },
         {
           "state": "met",
-          "evidence": "Pass in the suite of 17 November (2,359 tests; the same suite on MySQL 8.4 in CI): `Feature/Accounts/AccountsLedgerTest.php`, `Feature/Accounts/TrialBalanceTest.php`, `Feature/Accounts/PayablesTest.php`, `Feature/Accounts/ExpensesLedgerTest.php`, `Feature/Accounts/GlSalesPostingTest.php`.",
+          "evidence": "Pass in the suite of 17 November (2,434 tests; the same suite on MySQL 8.4 in CI): `Feature/Accounts/AccountsLedgerTest.php`, `Feature/Accounts/TrialBalanceTest.php`, `Feature/Accounts/PayablesTest.php`, `Feature/Accounts/ExpensesLedgerTest.php`, `Feature/Accounts/GlSalesPostingTest.php`.",
           "lines": []
         },
         {
@@ -574,7 +574,7 @@
         },
         {
           "state": "met",
-          "evidence": "Pass in the suite of 17 November (2,359 tests; the same suite on MySQL 8.4 in CI): `Feature/ShopContentTest.php`, `Feature/MasterMediaTest.php`, `Feature/StorefrontMediaTest.php`, `Feature/CatalogImagesTest.php`.",
+          "evidence": "Pass in the suite of 17 November (2,434 tests; the same suite on MySQL 8.4 in CI): `Feature/ShopContentTest.php`, `Feature/MasterMediaTest.php`, `Feature/StorefrontMediaTest.php`, `Feature/CatalogImagesTest.php`.",
           "lines": []
         },
         {
@@ -661,7 +661,7 @@
         },
         {
           "state": "met",
-          "evidence": "Pass in the suite of 17 November (2,359 tests; the same suite on MySQL 8.4 in CI): `Feature/UsersAndSettingsTest.php`, `Feature/SettingsAndRulesTest.php`, `Feature/AuditLogTest.php`, `Feature/SystemScreensTest.php`, `Feature/FeatureStatusTest.php`, `Feature/SwitchedOffModulesTest.php`, `Feature/InstallerTest.php`, `Feature/SecurityHeadersTest.php`.",
+          "evidence": "Pass in the suite of 17 November (2,434 tests; the same suite on MySQL 8.4 in CI): `Feature/UsersAndSettingsTest.php`, `Feature/SettingsAndRulesTest.php`, `Feature/AuditLogTest.php`, `Feature/SystemScreensTest.php`, `Feature/FeatureStatusTest.php`, `Feature/SwitchedOffModulesTest.php`, `Feature/Security/SignInLimitTest.php`, `Feature/Security/MassAssignmentTest.php`, `Feature/Security/CrossOriginTest.php`, `Feature/Security/StoredScriptTest.php`, `Feature/Security/SecretsStayOutTest.php`, `Feature/Security/SensitiveActionsLeaveATraceTest.php`, `Feature/InstallerTest.php`, `Feature/SecurityHeadersTest.php`.",
           "lines": []
         },
         {

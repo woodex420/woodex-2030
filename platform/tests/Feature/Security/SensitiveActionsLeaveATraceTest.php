@@ -255,7 +255,8 @@ it('never writes a secret setting into the list of changes: only that it changed
         ->and((string) $row->properties)->not->toContain('EAAG-a-secret-value')
         ->and(json_decode((string) $row->properties, true)['changed'][$secret])->toBe(['secret' => true])
         // A value that is no secret is written with what it was and what it became.
-        ->and(json_decode((string) $row->properties, true)['changed']['whatsapp_api_version'])->toBe(['old' => 'v23.0', 'new' => 'v24.0']);
+        ->and(json_decode((string) $row->properties, true)['changed']['whatsapp_api_version'])->toEqualCanonicalizing(['old' => 'v23.0', 'new' => 'v24.0'])
+        ->and(json_decode((string) $row->properties, true)['changed']['whatsapp_api_version']['new'])->toBe('v24.0');
 });
 
 it('writes nothing, and changes nothing, when a settings screen is saved as it was opened', function () {
@@ -269,6 +270,29 @@ it('writes nothing, and changes nothing, when a settings screen is saved as it w
 
     expect(DB::table('activity_log')->where('log_name', 'settings')->count())->toBe($before)
         ->and(DB::table('settings')->orderBy('id')->get(['group', 'name', 'payload'])->map(fn (object $row): string => "{$row->group}.{$row->name}={$row->payload}")->all())->toBe($stored);
+});
+
+it('does not take the same content in another order for a change', function () {
+    // MySQL hands a stored object back with its names in its own order. Found by the suite on MySQL in CI: a
+    // screen saved as it was opened wrote "discount limits changed", from a value to the same value.
+    $this->actingAs($this->owner);
+    $sales = app(SalesSettings::class);
+    $limits = $sales->discount_limits_bp;
+    $bands = $sales->budget_bands;
+    $before = DB::table('activity_log')->where('log_name', 'settings')->count();
+
+    $sales->discount_limits_bp = array_reverse($limits, true);
+    $sales->budget_bands = array_reverse($bands, true);
+    $sales->save();
+
+    expect(count($limits))->toBeGreaterThan(1)
+        ->and(DB::table('activity_log')->where('log_name', 'settings')->count())->toBe($before);
+
+    // A list is another matter: there the order is the content.
+    $sales->lost_reasons = array_reverse($sales->lost_reasons);
+    $sales->save();
+
+    expect(DB::table('activity_log')->where('log_name', 'settings')->count())->toBe($before + 1);
 });
 
 it('saves the follow-up of quotations as the box says', function () {

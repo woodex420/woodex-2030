@@ -101,13 +101,17 @@
   {
    "id": "D-006",
    "severity": "high",
-   "state": "open",
+   "state": "closed",
    "found": "2026-11-17",
    "title": "Preview builds of the React shop use the production database",
    "detail": "In the shop's Vercel project the database address is set for Production, Preview and Development alike. Vercel builds a preview of every branch that is pushed, so code that nobody has reviewed runs against the live data, and each preview address signs in to the same records. Harmless while the database holds sample products and one lead; not once it holds customers and orders. On 17 November the owner chose the repair (DL-026): take the database address out of Preview and Development. It is made as soon as the Vercel app is switched on again. Since 17 November, 16:05 UTC, the address is set for Production only (T-164): a preview built from then on has no database. Every preview that Vercel built before keeps the address until it is deleted, so this stays open for them.",
    "lines": [
     "T-188"
-   ]
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Three things together. The database address is set for Production only since 16:05 UTC, so a preview built from then on has no database (T-164). The previews built before cannot be opened by a stranger: both Vercel projects ask for a sign-in to Vercel on every address except the site's own domain, read from the project settings and asked from outside on every run of the live check, which opens an issue if it stops being so. And Vercel deletes each of them 30 days after it was built: the last by 17 December. They were not deleted by hand (T-188). DL-029."
+   }
   },
   {
    "id": "D-007",
@@ -337,13 +341,17 @@
   {
    "id": "D-024",
    "severity": "low",
-   "state": "open",
+   "state": "closed",
    "found": "2026-11-17",
    "title": "A lead's value does not follow its quotation",
    "detail": "The expected value of a lead is typed by hand. Sending or accepting a quotation does not set it, so the pipeline board and the \"Expected value\" order count a sale won for 496,800 as nothing unless somebody typed the figure.",
    "lines": [
     "T-092"
-   ]
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "A sent quotation gives the lead its total when the lead has no value or still carries the total of an earlier sending; a figure typed by hand is kept; an accepted quotation sets the value. The pipeline's \"Won\" adds up to the accepted quotations. `app/Domain/Sales/Actions/SetLeadValueFromQuote.php`; ten tests in `LeadValueFollowsQuotationTest.php`. DL-029."
+   }
   },
   {
    "id": "D-025",
@@ -411,6 +419,51 @@
    "lines": [
     "T-172"
    ]
+  },
+  {
+   "id": "D-030",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Saving the sales rules switched the follow-up of quotations off",
+   "detail": "Settings → Sales rules has a box \"follow up quotations automatically\". Whoever saved that screen, for any reason, switched it off: the box had no validation rule, so it was not among the checked values and was read as \"off\", ticked or not. It could not be switched on from the screen at all. Sent quotations were then no longer chased, and nothing said so. Found when every change of a setting began to be recorded (T-067): a save that changed nothing wrote a change.",
+   "lines": [
+    "T-067"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The box has its rule (`SettingsPage::saveSales`). `SensitiveActionsLeaveATraceTest.php`: a screen saved as it was opened changes nothing, and the box saves as it says."
+   }
+  },
+  {
+   "id": "D-031",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Three smaller things the security tests found",
+   "detail": "The invoice page kept the number of its invoice where the browser could change it: the page then showed another invoice without having been opened for it (today every person who may open one invoice may open them all, so nothing was gained by it). Two records handed out a secret when turned into an array for a browser or a log: the hash of a client's six-digit portal code, and a visitor's chat key. And the example settings file switches debugging on: copied by hand to a live site, a fault there would have shown the request, the queries and the code to whoever caused it.",
+   "lines": [
+    "T-160"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The invoice's number is locked, and a test finds every page that keeps its record unlocked. The two columns are hidden, and a test finds every secret-looking column that is not. A site that calls itself production refuses the debugging switch and its health report says the settings file is wrong (`app/Support/DebugGuard.php`). Tests in `tests/Feature/Security/`. DL-029."
+   }
+  },
+  {
+   "id": "D-032",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Six sensitive actions left no trace",
+   "detail": "The list of changes (System → Audit log) had no row for an invitation, a change of role, a deactivation or a reactivation of a person, nor for any change of a setting: who may give which discount, what a document says, who signs it. Document 08 §7 asks for an audit event for each.",
+   "lines": [
+    "T-067"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Each writes a row with who did it and what changed; a secret setting is recorded as changed, never with its value (`ManageStaff`, `RecordSettingsChange`). `SensitiveActionsLeaveATraceTest.php` lists nineteen sensitive actions and fails when one is silent."
+   }
   }
  ]
 }

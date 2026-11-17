@@ -52,9 +52,29 @@ final class RecordSettingsChange
             ->log(ucfirst($group).' settings changed: '.implode(', ', array_keys($changed)).'.');
     }
 
+    /**
+     * The same content counts as the same, whatever order its named parts come in: MySQL hands a stored object back
+     * with its names in an order of its own, so "sales: 500, owner: 10000" and "owner: 10000, sales: 500" must not
+     * be written down as a change. A list keeps its order: there the order is the content.
+     */
     private function same(mixed $old, mixed $new): bool
     {
-        return json_encode($this->plain($old)) === json_encode($this->plain($new));
+        return json_encode($this->ordered($this->plain($old))) === json_encode($this->ordered($this->plain($new)));
+    }
+
+    private function ordered(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        $value = array_map(fn (mixed $item): mixed => $this->ordered($item), $value);
+
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return $value;
     }
 
     private function plain(mixed $value): mixed
