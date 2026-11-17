@@ -149,9 +149,13 @@ through the same parts until stopped. Two scripts in the repository's `scripts/`
 - `os-screens.mjs` signs in as each demo role and opens every screen it can reach, on a desktop and then on a
   390 px phone: status, console errors, links that lead nowhere, fields without a label, controls smaller than
   24 px, anything wider than the window, page size and time.
-- `os-journeys.mjs` presses through fourteen steps that write records: a lead, a task, the search, a draft
-  quotation with a priced line, two PDFs, the CSV export, an upload, the 404 and 403 pages, sign-out. It refuses
-  to run against a page without the sample-data notice.
+- `os-journeys.mjs` presses through two journeys, 27 steps that write records. A working day: a lead, a task,
+  the search, a draft quotation with a priced line, two PDFs, the CSV export, an upload, a product of the real
+  catalogue, the 404 and 403 pages, sign-out. The sale, by the people who do each part: an enquiry handed to a
+  sales person, a quotation above the discount limit, its approval, sending, the client's yes, the invoice, the
+  payment, the receipt. It refuses to run against a page without the sample-data notice. `OS_STRICT=1` makes a
+  step that is left out a failure; `WOODEX_MODULES=lead_api` before `serve-demo.sh` rehearses the product as it
+  ships, with the client's own pages off.
 
 ```
 cd platform && WX_PW_OWNER=… WX_PW_MANAGER=… WX_PW_SALES=… WX_PW_ACCOUNTS=… \

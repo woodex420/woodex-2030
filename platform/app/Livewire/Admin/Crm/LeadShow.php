@@ -260,6 +260,12 @@ class LeadShow extends Component
         $to = $userId === '' ? null : User::query()->where('is_active', true)->findOrFail((int) $userId);
         $current = $this->lead->owner_id;
 
+        // Choosing the person who has it already changes nothing: no second "Assigned to …" on the timeline and
+        // no second notice to them.
+        if ($current === $to?->id) {
+            return;
+        }
+
         // Taking a lead away from someone needs a reason on the timeline (CRM-009).
         if ($current !== null && $current !== $to?->id) {
             $this->reassignTo = $userId;

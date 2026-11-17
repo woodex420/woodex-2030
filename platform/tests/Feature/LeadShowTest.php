@@ -173,6 +173,19 @@ it('lets a manager reassign the lead', function () {
         ->and($this->lead->activities()->where('type', 'assignment')->latest('id')->value('body'))->toContain('Owner is on leave');
 });
 
+it('writes nothing when a lead is given to the person who has it already', function () {
+    $manager = $this->userWithRole('sales_manager');
+    $this->actingAs($manager);
+    $before = $this->lead->activities()->where('type', 'assignment')->count();
+
+    Livewire::test(LeadShow::class, ['lead' => $this->lead])
+        ->call('assignTo', (string) $this->lead->owner_id)
+        ->assertSet('showReassign', false);
+
+    expect($this->lead->activities()->where('type', 'assignment')->count())->toBe($before)
+        ->and($this->lead->fresh()->owner_id)->toBe($this->lead->owner_id);
+});
+
 it('does not let a sales user act on another person\'s lead', function () {
     $this->actingAs($this->userWithRole('sales'));
 

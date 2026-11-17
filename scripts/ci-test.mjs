@@ -159,6 +159,13 @@ try {
   console.log("[ci] Rehearsing the SQLite → PostgreSQL copy: every row, rollback on failure.");
   await runChecked(process.execPath, ["--experimental-sqlite", "scripts/test-pg-migrate.mjs"], baseEnv, "migrate", 600_000);
 
+  /* Row-level security (migration 020). The hosted database is served over
+     HTTPS by its provider; a role that is granted everything must still read
+     nothing. The suite builds the schema from every migration file, so a table
+     that a later migration creates without the lock fails here. */
+  console.log("[ci] Checking row-level security on every table of the PostgreSQL schema.");
+  await runChecked(process.execPath, ["scripts/test-rls.mjs"], baseEnv, "rls", 300_000);
+
   /* Every module suite, on BOTH engines. Each owns a throwaway database and
      asserts the contract that matters for its module:
 
