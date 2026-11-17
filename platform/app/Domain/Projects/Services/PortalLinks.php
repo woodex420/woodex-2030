@@ -37,9 +37,16 @@ final class PortalLinks
         return self::signed('projects.portal', $project);
     }
 
+    /**
+     * The link to give a client: on a screen, in an e-mail, in a WhatsApp message.
+     *
+     * The signature is made over the path, as the page checks it (`signed:relative`), and the site's address is
+     * put in front afterwards. It used to be made over the whole address, which the page refused: every link
+     * that was shown, copied, e-mailed or shared answered "No access" (defect D-025).
+     */
     public static function absolute(Project $project): string
     {
-        return URL::temporarySignedRoute('projects.portal', now()->addDays(self::DAYS), ['project' => $project->public_id]);
+        return url(self::portal($project));
     }
 
     /**

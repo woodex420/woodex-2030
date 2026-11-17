@@ -340,6 +340,62 @@
    "lines": [
     "T-092"
    ]
+  },
+  {
+   "id": "D-025",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Every link to a client's project page was refused, and the portal screen carried a script no browser could read",
+   "detail": "Where the client's pages are switched on (the demo; a site that turns the module on), the link to a client's project page answered \"No access\" wherever the admin gave it: on the project, on the Client portal screen, in the e-mail \"Open my project\", in the WhatsApp message and in the review request. The link was signed over the whole address; the page checks the path only. On the Client portal screen the \"Copy\" button also carried a Blade directive as plain text, so the browser reported a script error as soon as one project existed. No test had ever opened the screen or one of its links; the crawl missed it because it ran on a site without a project. The product as it ships has these pages off and showed no link.",
+   "lines": [
+    "T-167"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The link is signed over the path and the site's address is put in front (`app/Domain/Projects/Services/PortalLinks.php`); the button reads the link from the element. `ClientPortalTest.php` opens each of the five links and the screen. In CI the journeys now run before the crawl, so every screen is opened with the records of a sale in it."
+   }
+  },
+  {
+   "id": "D-026",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Open screens still offered what belongs to switched-off modules",
+   "detail": "A switched-off module is closed at its own addresses, but three open screens offered its things. The project that a sale opens had \"Case study\": a draft page for the public website, written from the Interior studio's template, while the website is off. Settings showed \"WhatsApp\" (the Cloud API's keys and costs) and \"Bot\" (the chat bot's prompt, written for the Interior studio). Integrations listed Telegram, WhatsApp, Google, Gmail, Drive, the Facebook page and the AI bridge with their buttons; one of them makes an access key for an endpoint that is closed. A lead could also be asked to price an estimate while the estimator is off.",
+   "lines": [
+    "T-034"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Each is offered only while its module is on, and answers \"not found\" when asked for anyway: `SwitchedOffModulesTest.php`, 43 tests, which also ask for the two Interior quotation designs and every address of the estimator. Removing a stored connection and revoking a bridge key stay possible, because they only take away. DL-027."
+   }
+  },
+  {
+   "id": "D-027",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Four packages of the admin had published security advisories",
+   "detail": "The first run of the new audit (T-069) reported nine advisories in `symfony/http-foundation`, `symfony/http-kernel`, `symfony/routing` and `symfony/serializer` 8.1.10, among them CVE-2026-118516 (a host placeholder of a route could match the path) and CVE-2026-118515 (file objects built from untrusted data). Packagist states no severity for them; the audit treats an advisory without one as blocking. The fixed versions were published on 4 November.",
+   "lines": [
+    "T-069"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The four packages are at 8.1.11 in `platform/composer.lock`, with no other requirement changed; the whole suite passes on them and the audit in CI reports no blocking advisory. What is left is D-028."
+   }
+  },
+  {
+   "id": "D-028",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "One low advisory in Laravel, and eleven moderate ones in the shop's build tools",
+   "detail": "`laravel/framework` 13.39.0 carries CVE-2026-128083 (low; fixed in 13.40.0): text injected into the output of a task run through the Concurrency process driver, which this application does not use. `npm audit` reports eleven moderate advisories, in the linter, in `react-router` and in a Tailwind plugin; the fix npm offers for `react-router` is a change of major version. None fails the audit, which stops at high.",
+   "lines": [
+    "T-071"
+   ]
   }
  ]
 }

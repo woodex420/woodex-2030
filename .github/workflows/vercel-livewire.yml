@@ -105,7 +105,7 @@ jobs:
             echo "::add-mask::$value"
             echo "$name=$value" >> "$GITHUB_ENV"
           done
-      - name: "The demo as it is deployed: every screen, then both journeys (the client has a page of their own)"
+      - name: "The demo as it is deployed: both journeys (the client has a page of their own), then every screen"
         working-directory: platform
         run: |
           export VERCEL_PHP="$RUNNER_TEMP/vercel-php/node_modules"
@@ -116,12 +116,15 @@ jobs:
             kill -0 "$(cat "$RUNNER_TEMP/demo.pid")" 2>/dev/null || { echo "The rehearsal stopped:"; tail -30 "$RUNNER_TEMP/demo.log"; exit 1; }
             sleep 3
           done
+          # The journeys go first, so that every screen is then opened with the records of a sale in it: a lead
+          # that was won, a quotation, an invoice, a payment, a project. Opened on the bare seed, the client portal
+          # screen passed although its "Copy" button broke the page as soon as one project existed (D-025).
           # Both scripts run even when the first one fails, and the result is written on the run page as one line
           # (scripts/os-notice.mjs): a failed run then says what failed without its log.
           failed=0
-          node ../scripts/os-screens.mjs --out "$RUNNER_TEMP/screens" || failed=1
           node ../scripts/os-journeys.mjs --out "$RUNNER_TEMP/journeys-demo" || failed=1
-          node ../scripts/os-notice.mjs "The demo as it is deployed" "$RUNNER_TEMP/screens" "$RUNNER_TEMP/journeys-demo"
+          node ../scripts/os-screens.mjs --out "$RUNNER_TEMP/screens" || failed=1
+          node ../scripts/os-notice.mjs "The demo as it is deployed" "$RUNNER_TEMP/journeys-demo" "$RUNNER_TEMP/screens"
           grep -q 'the client gets a page of their own' "$RUNNER_TEMP/journeys-demo/journeys.json" || { echo "::error title=The demo as it is deployed::the client did not get a page of their own"; failed=1; }
           kill -- "-$(cat "$RUNNER_TEMP/demo.pid")" 2>/dev/null || true
           sleep 2

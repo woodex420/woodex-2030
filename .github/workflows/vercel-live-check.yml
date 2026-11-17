@@ -182,6 +182,13 @@ jobs:
           existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 200 --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")"
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/body.md"
+            number="$existing"
           else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+            url="$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/body.md")"
+            number="${url##*/}"
+          fi
+          echo "::notice title=An issue carries this result::#$number — $title"
+          # A proof leaves nothing open behind it. A real failure stays open until a person closes it.
+          if [ "$PRETENDED" = yes ]; then
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" --comment "Closed by the run that wrote it: this was a proof that a failed live check opens an issue, and the proof is done."
           fi

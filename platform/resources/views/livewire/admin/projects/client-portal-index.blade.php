@@ -23,8 +23,10 @@
                 <div class="flex flex-wrap items-center gap-2" x-data>
                     <input type="text" readonly value="{{ $links[$project->id] }}" aria-label="Portal link for {{ $project->code }}"
                            class="wx-input w-72 text-theme-xs" onclick="this.select()">
-                    <x-admin.button variant="secondary" size="sm" type="button" x-data
-                                    @click="navigator.clipboard?.writeText(@js($links[$project->id])); $el.textContent = 'Copied'; setTimeout(() => $el.textContent = 'Copy', 1500)">
+                    {{-- The link is carried in a data attribute: a Blade directive such as @@js() is not compiled inside the
+                         tag of a component, and the page then carried a script that no browser could read. --}}
+                    <x-admin.button variant="secondary" size="sm" type="button" x-data data-link="{{ $links[$project->id] }}"
+                                    @click="navigator.clipboard?.writeText($el.dataset.link); $el.textContent = 'Copied'; setTimeout(() => $el.textContent = 'Copy', 1500)">
                         Copy
                     </x-admin.button>
                     <x-admin.button variant="secondary" size="sm" :href="$links[$project->id]" target="_blank" rel="noopener">Open</x-admin.button>
