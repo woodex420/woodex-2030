@@ -114,6 +114,15 @@ if ($demo) {
         'WOODEX_PREVIEW_LOGIN_EMAIL' => 'owner@woodex.test',
         'WOODEX_PREVIEW_SHOW_CREDENTIALS' => $open ? 'true' : 'false',
         'WOODEX_PREVIEW_LOGIN_PASSWORD' => $open ? $ownerPassword : '',
+        // The owner's word of 17 November 2026 (decision DL-026), for the demo and nowhere else:
+        //  - the client's own pages are open, so that accepting a quotation online and reporting a payment with a
+        //    slip can be tried (the product itself ships with them off: config/modules.php);
+        //  - documents can be issued, with the sample terms and the sample signer that the demo's build writes
+        //    (tools/preview/synthetic_fixtures.php). On a real site this switch is the owner's confirmation of the
+        //    real terms and signers (list line T-084), and it stays off until that is given.
+        // A value set for the project, or for a rehearsal, takes the place of either default.
+        'WOODEX_MODULES' => $read('WOODEX_MODULES') !== '' ? $read('WOODEX_MODULES') : 'lead_api,client_portal',
+        'DOCUMENTS_OWNER_CONFIRMED' => $read('DOCUMENTS_OWNER_CONFIRMED') !== '' ? $read('DOCUMENTS_OWNER_CONFIRMED') : 'true',
     ] as $name => $value) {
         $write($name, $value);
     }

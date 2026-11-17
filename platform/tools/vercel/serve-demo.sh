@@ -10,12 +10,13 @@
 # http://127.0.0.1:<port> (default 8191) until the script is stopped; PHP itself listens on port 3000, as the
 # launcher always does. Everything is fictional and lives in /tmp.
 #
-# Two settings are handed on to the running site when they are set, for a rehearsal on this machine only (the
-# Vercel project carries neither):
-#   DOCUMENTS_OWNER_CONFIRMED=true   lets a quotation and an invoice be issued, so that the whole sale can be
-#                                    pressed through (scripts/os-journeys.mjs). On any real site this switch
-#                                    is the owner's word that terms and signers are right (list line T-084).
-#   WOODEX_MODULES=lead_api,…        the optional modules that are switched on (config/modules.php).
+# The demo opens the client's own pages and lets documents be issued with its sample terms and sample signer
+# (api/index.php; the owner's word of 17 November 2026, decision DL-026). Two settings are handed on to the
+# running site when they are set, to rehearse another configuration on this machine:
+#   WOODEX_MODULES=lead_api          the product as it ships: the client's pages are off, and staff write down
+#                                    the client's answer and take the payment (scripts/os-journeys.mjs presses
+#                                    whichever of the two ways the site offers).
+#   DOCUMENTS_OWNER_CONFIRMED=false  a site whose owner has not confirmed terms and signers: nothing is issued.
 set -u
 PORT="${1:-8191}"
 [ -f api/index.php ] && [ -f vercel.json ] && [ -f vendor/autoload.php ] || { echo "Run from platform/, with vendor/ installed."; exit 2; }

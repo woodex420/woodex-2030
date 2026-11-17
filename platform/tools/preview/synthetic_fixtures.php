@@ -77,11 +77,14 @@ if ($mode === 'staff') {
     $business->save();
 
     // Interior payment terms must not appear on Furniture documents; no Furniture terms have been supplied.
+    // What stands here is a sample and says so on every document that carries it (the owner's word of
+    // 17 November 2026, decision DL-026: the demo may issue documents with sample terms and a sample signer).
     $sales = app(SalesSettings::class);
-    $placeholder = 'SYNTHETIC PREVIEW — commercial terms not yet supplied by the owner.';
+    $placeholder = 'SAMPLE TERMS — for this demo only. Woodex Furniture has not yet supplied its commercial terms.';
     $sales->execution_terms = $placeholder;
     $sales->design_terms = $placeholder;
     $sales->invoice_terms = $placeholder;
+    $sales->signatories = [['name' => 'Sample Signer', 'title' => 'Sample only — not a real signatory']];
     $sales->save();
 
     echo json_encode(['staff' => User::query()->with('roles:name')->get()->map(fn (User $u) => [$u->email, $u->roles->pluck('name')->all()])->all()], JSON_UNESCAPED_SLASHES), "\n";
