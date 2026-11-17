@@ -37,6 +37,7 @@ final class AcceptQuote
         private readonly MoveLeadToStage $moveLead,
         private readonly OpenProjectFromQuote $openProject,
         private readonly RaiseAdvanceInvoice $raiseInvoice,
+        private readonly SetLeadValueFromQuote $leadValue,
     ) {}
 
     public function handle(Quote $quote, string $name, ?string $phone, ?string $ip, ?string $userAgent, ?User $by = null, ?int $revision = null, ?AcceptanceChannel $channel = null, ?string $note = null): Quote
@@ -95,6 +96,9 @@ final class AcceptQuote
             if (! $contact->is_client) {
                 $contact->update(['is_client' => true, 'became_client_at' => now()]);
             }
+
+            // What was accepted is what the lead is worth: the board's "Won" then adds up to the sales made.
+            $this->leadValue->accepted($quote);
 
             $lead = $quote->lead;
             $won = PipelineStage::query()->where('type', StageType::Won)->first();

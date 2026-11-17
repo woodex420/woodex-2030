@@ -57,6 +57,7 @@ use App\Integrations\WhatsApp\Clients\WhatsAppCloudApi;
 use App\Integrations\WhatsApp\Contracts\WhatsAppGateway;
 use App\Integrations\WhatsApp\WhatsAppCredentials;
 use App\Models\User;
+use App\Support\DebugGuard;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -89,6 +90,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        DebugGuard::apply($this->app);
+
         RateLimiter::for('telegram-webhooks', function (Request $request): array {
             $sender = $request->input('message.from.id');
             $key = hash('sha256', is_scalar($sender) ? (string) $sender : 'unknown');

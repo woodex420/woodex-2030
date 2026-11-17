@@ -37,6 +37,7 @@ final class SendQuote
         private readonly QuoteSnapshot $snapshots,
         private readonly QuotePdf $pdf,
         private readonly LogQuoteEvent $log,
+        private readonly SetLeadValueFromQuote $leadValue,
     ) {}
 
     /**
@@ -127,6 +128,9 @@ final class SendQuote
             ]);
 
             $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now()]);
+
+            // The lead's expected value follows what was offered, unless somebody typed their own figure.
+            $this->leadValue->sent($quote, $version);
 
             // What "sent" meant, for the timeline. With the client pages switched off there is no link: the
             // document is frozen and its PDF is what reaches the client — by e-mail if asked, otherwise by hand.

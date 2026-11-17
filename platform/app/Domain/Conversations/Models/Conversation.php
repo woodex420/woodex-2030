@@ -67,6 +67,9 @@ class Conversation extends Model
         'snoozed_until', 'closed_at', 'closed_by', 'labels', 'widget_token', 'widget_state',
     ];
 
+    /** The visitor's own key to their chat: whoever holds it can read and write that chat. */
+    protected $hidden = ['widget_token'];
+
     protected function casts(): array
     {
         return [
