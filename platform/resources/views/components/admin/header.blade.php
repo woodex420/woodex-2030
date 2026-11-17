@@ -92,8 +92,13 @@
                          production); any other non-production system keeps the plain label. --}}
                     @if (\App\Support\SyntheticPreview::enabled())
                         <div class="wx-environment m-1 rounded border px-3 py-2 text-theme-xs" role="note" data-environment="demo">
-                            <strong>Demo workspace</strong>
-                            <p class="mt-1">Sample data only. It can be erased at any time.</p>
+                            @if (\App\Domain\Commerce\Services\WoodexCatalogue::loaded())
+                                <strong>Preview workspace</strong>
+                                <p class="mt-1">Real catalogue, sample records. Nothing typed here is kept.</p>
+                            @else
+                                <strong>Demo workspace</strong>
+                                <p class="mt-1">Sample data only. It can be erased at any time.</p>
+                            @endif
                         </div>
                     @else
                         <div class="wx-environment m-1 rounded border px-3 py-2 text-theme-xs" role="note" data-environment="{{ app()->isLocal() ? 'local' : 'non-production' }}">

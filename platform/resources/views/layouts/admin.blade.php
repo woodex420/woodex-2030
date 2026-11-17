@@ -58,7 +58,12 @@
                     {{-- A demo (the Vercel demo, a sandbox preview): said on every screen, so nobody takes it for the real system. --}}
                     <aside data-demo-notice role="note" class="mb-5 flex items-start gap-3 rounded-xl border border-warning-500/40 bg-warning-50 px-4 py-3 text-theme-sm text-warning-700 dark:bg-warning-500/10">
                         <x-icon name="alert" class="mt-0.5 size-5 shrink-0" />
-                        <p><strong>Demo workspace — sample data.</strong> Everything here is fictional and can be erased at any time. Do not enter real customer details or passwords.</p>
+                        @if (\App\Domain\Commerce\Services\WoodexCatalogue::loaded())
+                            {{-- The owner released the real catalogue for this workspace (DL-022). The rest is still sample data, and the site still has no permanent database. --}}
+                            <p><strong>Preview workspace — real catalogue, sample records.</strong> The products and categories are Woodex's own, loaded as drafts. Customers, leads and documents are samples. Nothing typed here is kept: this site has no permanent database yet. Do not enter real customer details or passwords.</p>
+                        @else
+                            <p><strong>Demo workspace — sample data.</strong> Everything here is fictional and can be erased at any time. Do not enter real customer details or passwords.</p>
+                        @endif
                     </aside>
                 @endif
                 @if (session('warning'))

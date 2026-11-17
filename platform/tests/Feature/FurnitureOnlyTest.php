@@ -537,7 +537,8 @@ it('splits a report by line only where that tells something', function () {
     $this->get('/admin/reports?tab=revenue')->assertOk()->assertDontSee('By business line')->assertSee('per month and per bank');
 
     // A record of a line that is no longer sold is not folded into Furniture: the split comes back.
-    Lead::factory()->for($contact)->create(['owner_id' => $owner->id, 'business_line' => 'project', 'service' => null, 'message' => 'Shelving for the showroom.']);
+    // (The factory dates a lead up to twenty days back, which can fall outside the period of the report.)
+    Lead::factory()->for($contact)->create(['owner_id' => $owner->id, 'business_line' => 'project', 'service' => null, 'message' => 'Shelving for the showroom.', 'created_at' => now(), 'updated_at' => now()]);
     $this->get('/admin/reports?tab=funnel')->assertOk()->assertSee('By business line');
 
     // And where several lines are sold it is there from the start.

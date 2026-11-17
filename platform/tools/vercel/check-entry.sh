@@ -247,6 +247,12 @@ cp "$OUT/body" "$OUT/dashboard.html"
 check "the dashboard starts as a page" "$(head -c 15 "$OUT/dashboard.html")" "<!DOCTYPE html>"
 has "the admin says it is a demo with sample data" 'data-demo-notice' "$OUT/dashboard.html"
 has "the signed-in person is the demo owner" 'SYNTHETIC Owner' "$OUT/dashboard.html"
+# The real catalogue (released by the owner, DL-022): 170 products of woodexfurniture.pk, drafts, none published.
+has "…and the notice says the catalogue is real and the records are samples" 'Preview workspace — real catalogue, sample records' "$OUT/dashboard.html"
+check "the products of the catalogue: 200" "$(visit /admin/commerce/products)" 200
+has "…a product of the live shop is listed, with its code" 'Ambassador Executive Table' "$OUT/body"
+has "…its code" 'WST-10001' "$OUT/body"
+has "…as a draft" 'Draft / review' "$OUT/body"
 
 # Every screen the dashboard links to must open: the sidebar, the command palette and the dashboard's own links.
 mapfile -t SCREENS < <(grep -o 'href="https://demo.woodex.test/admin[^"#?]*"' "$OUT/dashboard.html" | sed 's/^href="https:\/\/demo.woodex.test//;s/"$//' | grep -v '/logout$' | sort -u)

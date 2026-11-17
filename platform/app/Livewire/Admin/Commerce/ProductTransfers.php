@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\Commerce;
 
 use App\Domain\Commerce\Services\ProductCatalogue;
 use App\Domain\Commerce\Services\ProductTransfer;
+use App\Domain\Commerce\Services\WoodexCatalogue;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -26,6 +27,8 @@ final class ProductTransfers extends Component
     public array $summary = [];
 
     public bool $confirm = false;
+
+    public bool $confirmCatalogue = false;
 
     public function mount(): void
     {
@@ -61,6 +64,20 @@ final class ProductTransfers extends Component
         $this->toast($count.' products imported as drafts. Existing records were skipped.');
     }
 
+    /** The real catalogue (woodexfurniture.pk, 170 products): drafts only, nothing overwritten. */
+    public function importCatalogue(): void
+    {
+        app(ProductCatalogue::class)->authorize($this->user());
+        if (! $this->confirmCatalogue) {
+            $this->addError('catalogue', 'Tick the box to approve loading the catalogue as drafts.');
+
+            return;
+        }
+        $added = app(WoodexCatalogue::class)->import($this->user());
+        $this->confirmCatalogue = false;
+        $this->toast($added['products'].' products loaded as drafts'.($added['categories'] > 0 ? ' and '.$added['categories'].' categories added, switched off' : '').'. Nothing was published or overwritten.');
+    }
+
     public function importSource(): void
     {
         app(ProductCatalogue::class)->authorize($this->user());
@@ -78,6 +95,6 @@ final class ProductTransfers extends Component
     {
         app(ProductCatalogue::class)->authorize($this->user());
 
-        return view('livewire.admin.commerce.product-transfers', ['source' => app(ProductTransfer::class)->sourceSummary(), 'sample' => array_slice(app(ProductTransfer::class)->source()['items'], 0, 5)]);
+        return view('livewire.admin.commerce.product-transfers', ['catalogue' => app(WoodexCatalogue::class)->summary(), 'source' => app(ProductTransfer::class)->sourceSummary(), 'sample' => array_slice(app(ProductTransfer::class)->source()['items'], 0, 5)]);
     }
 }

@@ -1,0 +1,5072 @@
+{
+  "schema": 1,
+  "source": "apps/api/catalog-data.json",
+  "sha256": "87bba35aa1cb8273a67196a57bb753a0183eb9b8174dd424c30778d55b026c88",
+  "dataset": "woodexfurniture.pk-2026-11-16-706e6de68b9b4bd1",
+  "site": "woodexfurniture.pk",
+  "capturedOn": "2026-11-16",
+  "counts": {
+    "products": 170,
+    "skipped": 1,
+    "priceOnRequest": 33,
+    "needingReview": 116
+  },
+  "categories": [
+    {
+      "slug": "executive-chairs",
+      "name": "Executive Chairs",
+      "parent": "chairs"
+    },
+    {
+      "slug": "manager-chairs",
+      "name": "Manager Chairs",
+      "parent": "chairs"
+    },
+    {
+      "slug": "staff-chairs",
+      "name": "Staff Chairs",
+      "parent": "chairs"
+    },
+    {
+      "slug": "visitor-chairs",
+      "name": "Visitor Chairs",
+      "parent": "chairs"
+    },
+    {
+      "slug": "center-tables",
+      "name": "Center Tables",
+      "parent": "office-tables"
+    },
+    {
+      "slug": "ceo-tables",
+      "name": "CEO Tables",
+      "parent": "office-tables"
+    },
+    {
+      "slug": "conference-tables",
+      "name": "Conference Tables",
+      "parent": "office-tables"
+    },
+    {
+      "slug": "discussion-tables",
+      "name": "Discussion Tables",
+      "parent": "office-tables"
+    }
+  ],
+  "items": [
+    {
+      "id": "ambassador-executive-table",
+      "name": "Ambassador Executive Table",
+      "sku": "WST-10001",
+      "price": 15000,
+      "priceOnRequest": false,
+      "originalPrice": 185000,
+      "category": "office-tables",
+      "subcategory": "ceo-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772727338_Ambassador%20Executive%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "discount-high",
+          "text": "The live shop shows PKR 15,000, down from PKR 185,000: a 92% reduction. One of the two prices is probably wrong."
+        },
+        {
+          "code": "sku-prefix",
+          "text": "The SKU prefix WST is used by no other product. The code is unique, so it is kept."
+        },
+        {
+          "code": "note",
+          "text": "The product page describes \"the Marcus Desk\", not this product, and its SKU prefix WST is used by no other product."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "ambassador-executive-table",
+        "name": "Ambassador Executive Table",
+        "sku": "SKU: WST-10001",
+        "price": 15000,
+        "compareAt": 185000,
+        "categories": [
+          "ceo-table"
+        ]
+      }
+    },
+    {
+      "id": "elegance-executive-office-table",
+      "name": "Elegance Executive Office Table",
+      "sku": "ET-10002",
+      "price": 155000,
+      "priceOnRequest": false,
+      "originalPrice": 185000,
+      "category": "office-tables",
+      "subcategory": "ceo-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772727754_Elegance%20Executive%20Office%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU ET-10002 because CT-10002 was shared with Diamond Conference Table. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "elegance-executive-office-table",
+        "name": "Elegance Executive Office Table",
+        "sku": "SKU: CT-10002",
+        "price": 155000,
+        "compareAt": 185000,
+        "categories": [
+          "ceo-table"
+        ]
+      }
+    },
+    {
+      "id": "elite-executive-desk",
+      "name": "Elite Executive Desk",
+      "sku": "ET-10009",
+      "price": 145000,
+      "priceOnRequest": false,
+      "originalPrice": 150000,
+      "category": "office-tables",
+      "subcategory": "ceo-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772727836_Elite%20Executive%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given ET-10009. Confirm the code or enter another."
+        },
+        {
+          "code": "name-duplicate",
+          "text": "1 other product has the same name at a different price. Two different products need two different names."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "elite-executive-desk",
+        "name": "Elite Executive Desk",
+        "sku": "—",
+        "price": 145000,
+        "compareAt": 150000,
+        "categories": [
+          "ceo-table"
+        ]
+      }
+    },
+    {
+      "id": "imperial-executive-desk",
+      "name": "Classic Executive Desk",
+      "sku": "ET-10010",
+      "price": 130000,
+      "priceOnRequest": false,
+      "originalPrice": 150000,
+      "category": "office-tables",
+      "subcategory": "ceo-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/69a9afb3344da.png"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given ET-10010. Confirm the code or enter another."
+        },
+        {
+          "code": "address-name",
+          "text": "The address \"imperial-executive-desk\" does not match the name \"Classic Executive Desk\"."
+        },
+        {
+          "code": "note",
+          "text": "The address says \"imperial-executive-desk\" and the product is called \"Classic Executive Desk\". The product called \"Imperial Executive Desk\" has a different address."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "imperial-executive-desk",
+        "name": "Classic Executive Desk",
+        "sku": "—",
+        "price": 130000,
+        "compareAt": 150000,
+        "categories": [
+          "ceo-table"
+        ]
+      }
+    },
+    {
+      "id": "imperial-executive-desk-1772727978",
+      "name": "Royal Prestige Executive Table",
+      "sku": "ET-10011",
+      "price": 130000,
+      "priceOnRequest": false,
+      "originalPrice": 150000,
+      "category": "office-tables",
+      "subcategory": "ceo-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/69a9af6e83a4a.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given ET-10011. Confirm the code or enter another."
+        },
+        {
+          "code": "address-number",
+          "text": "The address ends in a number (1772727978) because another product took the plain address first."
+        },
+        {
+          "code": "address-name",
+          "text": "The address \"imperial-executive-desk-1772727978\" does not match the name \"Royal Prestige Executive Table\"."
+        },
+        {
+          "code": "note",
+          "text": "The address says \"imperial-executive-desk\" and the product is called \"Royal Prestige Executive Table\"."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "imperial-executive-desk-1772727978",
+        "name": "Royal Prestige Executive Table",
+        "sku": "—",
+        "price": 130000,
+        "compareAt": 150000,
+        "categories": [
+          "ceo-table"
+        ]
+      }
+    },
+    {
+      "id": "imperial-executive-desk-1772728039",
+      "name": "Imperial Executive Desk",
+      "sku": "ET-10012",
+      "price": 130000,
+      "priceOnRequest": false,
+      "originalPrice": 150000,
+      "category": "office-tables",
+      "subcategory": "ceo-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772728039_Imperial%20Executive%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU ET-10012 because CT-10004 was shared with Eminence Conference Table. Confirm the new code or enter another."
+        },
+        {
+          "code": "address-number",
+          "text": "The address ends in a number (1772728039) because another product took the plain address first."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "imperial-executive-desk-1772728039",
+        "name": "Imperial Executive Desk",
+        "sku": "SKU: CT-10004",
+        "price": 130000,
+        "compareAt": 150000,
+        "categories": [
+          "ceo-table"
+        ]
+      }
+    },
+    {
+      "id": "command-executive-desk",
+      "name": "Command Executive Desk",
+      "sku": "ET-10001",
+      "price": 155000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730329_Command%20Executive%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "command-executive-desk",
+        "name": "Command Executive Desk",
+        "sku": "ET-10001",
+        "price": 155000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "elite-executive-desk-1772730378",
+      "name": "Elite Executive Desk",
+      "sku": "ET-10013",
+      "price": 180000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730378_Elite%20Executive%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU ET-10013 because RT-10002 was shared with Crown Point Reception Desk. Confirm the new code or enter another."
+        },
+        {
+          "code": "name-duplicate",
+          "text": "1 other product has the same name at a different price. Two different products need two different names."
+        },
+        {
+          "code": "address-number",
+          "text": "The address ends in a number (1772730378) because another product took the plain address first."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "elite-executive-desk-1772730378",
+        "name": "Elite Executive Desk",
+        "sku": "RT-10002",
+        "price": 180000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "impact-executive-desk",
+      "name": "Impact Executive Desk",
+      "sku": "ET-10003",
+      "price": 118000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730423_Impact%20Executive%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "impact-executive-desk",
+        "name": "Impact Executive Desk",
+        "sku": "ET-10003",
+        "price": 118000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "infinity-executive-desk",
+      "name": "Infinity Executive Desk",
+      "sku": "ET-10004",
+      "price": 95000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730473_Infinity%20Executive%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "infinity-executive-desk",
+        "name": "Infinity Executive Desk",
+        "sku": "ET-10004",
+        "price": 95000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "legacy-executive-desk",
+      "name": "Legacy Executive Desk",
+      "sku": "ET-10005",
+      "price": 185000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730522_Legacy%20Executive%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "legacy-executive-desk",
+        "name": "Legacy Executive Desk",
+        "sku": "ET-10005",
+        "price": 185000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "nexus-executive-table",
+      "name": "Nexus Executive Table",
+      "sku": "ET-10006",
+      "price": 110000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730584_Nexus%20Executive%20Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nexus-executive-table",
+        "name": "Nexus Executive Table",
+        "sku": "ET-10006",
+        "price": 110000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "nova-executive-desk",
+      "name": "Nova Executive Desk",
+      "sku": "ET-10007",
+      "price": 115000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730641_Nova%20Executive%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nova-executive-desk",
+        "name": "Nova Executive Desk",
+        "sku": "ET-10007",
+        "price": 115000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "signature-executive-desk",
+      "name": "Signature Executive Desk",
+      "sku": "ET-10008",
+      "price": 120000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730669_Signature%20Executive%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "signature-executive-desk",
+        "name": "Signature Executive Desk",
+        "sku": "ET-10008",
+        "price": 120000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "space-executive-desk",
+      "name": "Space Executive Desk",
+      "sku": "ET-10014",
+      "price": 110000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730712_Space%20Executive%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given ET-10014. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "space-executive-desk",
+        "name": "Space Executive Desk",
+        "sku": "—",
+        "price": 110000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "vision-executive-desk",
+      "name": "Vision Executive Desk",
+      "sku": "ET-10015",
+      "price": 100000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "executive-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730735_Vision%20Executive%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given ET-10015. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "vision-executive-desk",
+        "name": "Vision Executive Desk",
+        "sku": "—",
+        "price": 100000,
+        "compareAt": null,
+        "categories": [
+          "executive-table"
+        ]
+      }
+    },
+    {
+      "id": "apex-manager-table",
+      "name": "Apex Manager Table",
+      "sku": "MT-10001",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772728635_Apex%20Manager%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "2 other products carried the SKU MT-10001 on the live shop. This one keeps it because its category, Manager Table, is the one that uses the prefix MT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "apex-manager-table",
+        "name": "Apex Manager Table",
+        "sku": "SKU: MT-10001",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "edge-manager-table",
+      "name": "Edge Manager Table",
+      "sku": "MT-10002",
+      "price": 72000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772728907_Edge%20Manager%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU MT-10002 on the live shop. This one keeps it because its category, Manager Table, is the one that uses the prefix MT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "edge-manager-table",
+        "name": "Edge Manager Table",
+        "sku": "SKU: SKU: MT-10002",
+        "price": 72000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "elite-manager-table",
+      "name": "Elite Manager Table",
+      "sku": "MT-10003",
+      "price": 62000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729001_Elite%20Manager%20Table.webp"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU MT-10003 on the live shop. This one keeps it because its category, Manager Table, is the one that uses the prefix MT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "elite-manager-table",
+        "name": "Elite Manager Table",
+        "sku": "MT-10003",
+        "price": 61999.99,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "flux-manager-table",
+      "name": "Flux Manager Table",
+      "sku": "MT-10004",
+      "price": 55000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729077_Flux%20Manager%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU MT-10004 on the live shop. This one keeps it because its category, Manager Table, is the one that uses the prefix MT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "flux-manager-table",
+        "name": "Flux Manager Table",
+        "sku": "MT-10004",
+        "price": 54999.99,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "infinity-manager-table",
+      "name": "Infinity Manager Table",
+      "sku": "MT-10005",
+      "price": 75000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729184_Infinity%20Manager%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU MT-10005 on the live shop. This one keeps it because its category, Manager Table, is the one that uses the prefix MT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "infinity-manager-table",
+        "name": "Infinity Manager Table",
+        "sku": "MT-10005",
+        "price": 75000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "metro-manager-table",
+      "name": "Metro Manager Table",
+      "sku": "MT-10006",
+      "price": 52000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729279_Metro%20Manager%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU MT-10006 on the live shop. This one keeps it because its category, Manager Table, is the one that uses the prefix MT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "metro-manager-table",
+        "name": "Metro Manager Table",
+        "sku": "MT-10006",
+        "price": 51999.99,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "nova-manager-table",
+      "name": "Nova Manager Table",
+      "sku": "MT-10007",
+      "price": 55000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729340_Nova%20Manager%20Table.png"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU MT-10007 on the live shop. This one keeps it because its category, Manager Table, is the one that uses the prefix MT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nova-manager-table",
+        "name": "Nova Manager Table",
+        "sku": "MT-10007",
+        "price": 55000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "orion-manager-table",
+      "name": "Orion Manager Table",
+      "sku": "MT-10008",
+      "price": 80000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729408_Orion%20Manager%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU MT-10008 on the live shop. This one keeps it because its category, Manager Table, is the one that uses the prefix MT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "orion-manager-table",
+        "name": "Orion Manager Table",
+        "sku": "MT-10008",
+        "price": 80000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "prime-manager-table",
+      "name": "Prime Manager Table",
+      "sku": "MT-10009",
+      "price": 70000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729466_Prime%20Manager%20Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "prime-manager-table",
+        "name": "Prime Manager Table",
+        "sku": "SKU: MT-10009",
+        "price": 70000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "pulse-manager-table",
+      "name": "Pulse Manager Table",
+      "sku": "MT-10010",
+      "price": 70000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729548_Pulse%20Manager%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-lookalike",
+          "text": "The SKU MT-10010 and the SKU MT-100010 of Spark Meeting Table are the same number written two ways. One of them should change."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "pulse-manager-table",
+        "name": "Pulse Manager Table",
+        "sku": "SKU: MT-10010",
+        "price": 69999.99,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "shift-ergonomic-manager-table",
+      "name": "Shift Ergonomic Manager Table",
+      "sku": "MT-10011",
+      "price": 75000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729594_Shift%20Ergonomic%20Manager%20Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "shift-ergonomic-manager-table",
+        "name": "Shift Ergonomic Manager Table",
+        "sku": "SKU: MT-10011",
+        "price": 75000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "vertex-manager-table",
+      "name": "Vertex Manager Table",
+      "sku": "MT-10012",
+      "price": 72000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729633_Vertex%20Manager%20Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "vertex-manager-table",
+        "name": "Vertex Manager Table",
+        "sku": "SKU: MT-10012",
+        "price": 71999.99,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "vibe-manager-table",
+      "name": "Vibe Manager Table",
+      "sku": "MT-10013",
+      "price": 55000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729672_Vibe%20Manager%20Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "vibe-manager-table",
+        "name": "Vibe Manager Table",
+        "sku": "SKU: MT-10013",
+        "price": 55000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "woodex-smart-series-l-shape-manager",
+      "name": "Woodex Smart Series L Shape Manager",
+      "sku": "MT-10014",
+      "price": 75000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "manager-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729708_Woodex%20Smart%20Series%20L%20Shape%20Manager.png"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given MT-10014. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "woodex-smart-series-l-shape-manager",
+        "name": "Woodex Smart Series L Shape Manager",
+        "sku": "—",
+        "price": 75000,
+        "compareAt": null,
+        "categories": [
+          "manager-table"
+        ]
+      }
+    },
+    {
+      "id": "nova-singe-workstation",
+      "name": "Nova Singe Workstation",
+      "sku": "ST-10001",
+      "price": 1950,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780562663_Nova-singe-workstation.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-check",
+          "text": "Named like a product of Workstation and filed under Staff Table. Check which is right."
+        },
+        {
+          "code": "price-low",
+          "text": "PKR 1,950 is below PKR 5,000, which is unusual for furniture. A digit may be missing."
+        },
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given ST-10001. Confirm the code or enter another."
+        },
+        {
+          "code": "note",
+          "text": "The name reads \"singe\"; \"single\" is probably meant. The address carries the same spelling."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nova-singe-workstation",
+        "name": "Nova singe workstation",
+        "sku": "—",
+        "price": 1950,
+        "compareAt": null,
+        "categories": [
+          "staff-table"
+        ]
+      }
+    },
+    {
+      "id": "zone-staff-table",
+      "name": "Zone Staff Table",
+      "sku": "ST-10002",
+      "price": 30000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780562915_Zone%20staff%20table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "zone-staff-table",
+        "name": "Zone Staff Table",
+        "sku": "SKU: ST-10002",
+        "price": 30000,
+        "compareAt": null,
+        "categories": [
+          "staff-table"
+        ]
+      }
+    },
+    {
+      "id": "tango-single-workstation",
+      "name": "Tango Single Workstation",
+      "sku": "ST-10003",
+      "price": 25500,
+      "priceOnRequest": false,
+      "originalPrice": 28000,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780563025_Tango%20Single%20Workstation.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-check",
+          "text": "Named like a product of Workstation and filed under Staff Table. Check which is right."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "tango-single-workstation",
+        "name": "Tango Single Workstation",
+        "sku": "SKU: ST-10003",
+        "price": 25500,
+        "compareAt": 28000,
+        "categories": [
+          "staff-table"
+        ]
+      }
+    },
+    {
+      "id": "step-staff-table",
+      "name": "Step Staff Table",
+      "sku": "ST-10004",
+      "price": 27000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780563463_Step%20Staff%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given ST-10004. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "step-staff-table",
+        "name": "Step Staff Table",
+        "sku": "—",
+        "price": 27000,
+        "compareAt": null,
+        "categories": [
+          "staff-table"
+        ]
+      }
+    },
+    {
+      "id": "flex-staff-table",
+      "name": "Flex Staff Table",
+      "sku": "ST-10005",
+      "price": 17500,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780563602_Flex%20Staff%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-also",
+          "text": "Also listed under Home Office Furniture on the live shop. The new shop files a product in one place: Staff Table."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "flex-staff-table",
+        "name": "Flex Staff Table",
+        "sku": "SKU: ST-10005",
+        "price": 17500,
+        "compareAt": null,
+        "categories": [
+          "staff-table",
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "staff-table-pro",
+      "name": "Staff Table Pro",
+      "sku": "ST-10006",
+      "price": 1650,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780563786_Staff%20Table%20pro.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-also",
+          "text": "Also listed under Home Office Furniture on the live shop. The new shop files a product in one place: Staff Table."
+        },
+        {
+          "code": "price-low",
+          "text": "PKR 1,650 is below PKR 5,000, which is unusual for furniture. A digit may be missing."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "staff-table-pro",
+        "name": "Staff Table Pro",
+        "sku": "SKU: ST-10006",
+        "price": 1650,
+        "compareAt": null,
+        "categories": [
+          "staff-table",
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "echo-staff-table",
+      "name": "Echo Staff Table",
+      "sku": "ST-10007",
+      "price": 22000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780564048_Echo%20Staff%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-also",
+          "text": "Also listed under Home Office Furniture on the live shop. The new shop files a product in one place: Staff Table."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "echo-staff-table",
+        "name": "Echo Staff Table",
+        "sku": "SKU: ST-10007",
+        "price": 22000,
+        "compareAt": null,
+        "categories": [
+          "staff-table",
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "brio-staff-table",
+      "name": "Brio Staff Table",
+      "sku": "ST-10008",
+      "price": 30500,
+      "priceOnRequest": false,
+      "originalPrice": 32000,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780564173_Brio%20Staff%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-also",
+          "text": "Also listed under Home Office Furniture on the live shop. The new shop files a product in one place: Staff Table."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "brio-staff-table",
+        "name": "Brio Staff Table",
+        "sku": "SKU: ST-10008",
+        "price": 30500,
+        "compareAt": 32000,
+        "categories": [
+          "staff-table",
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "vibe-staff-table",
+      "name": "Vibe Staff Table",
+      "sku": "ST-10009",
+      "price": 32500,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780565743_Vibe%20Staff%20Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "vibe-staff-table",
+        "name": "Vibe Staff Table",
+        "sku": "ST-10009",
+        "price": 32500,
+        "compareAt": null,
+        "categories": [
+          "staff-table"
+        ]
+      }
+    },
+    {
+      "id": "x-max-staff-table",
+      "name": "X Max Staff Table",
+      "sku": "ST-100010",
+      "price": 25500,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781691904_0_X-Max-Staff-Tab-e.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-also",
+          "text": "Also listed under Home Office Furniture on the live shop. The new shop files a product in one place: Staff Table."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "x-max-staff-table",
+        "name": "X Max Staff Table",
+        "sku": "ST-100010",
+        "price": 25500,
+        "compareAt": null,
+        "categories": [
+          "staff-table",
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "x-pro-staff-table",
+      "name": "X-Pro Staff Table",
+      "sku": "ST-10011",
+      "price": 32000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "staff-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/6a3294efba6ae6.24440004_X-Pro--Staff-Tabe.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-also",
+          "text": "Also listed under Home Office Furniture on the live shop. The new shop files a product in one place: Staff Table."
+        },
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given ST-10011. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "x-pro-staff-table",
+        "name": "X-Pro Staff Table",
+        "sku": "—",
+        "price": 32000,
+        "compareAt": null,
+        "categories": [
+          "staff-table",
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "aspire-conference-table",
+      "name": "Aspire Conference Table",
+      "sku": "CT-10001",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "conference-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772819839_Aspire-Conference-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "aspire-conference-table",
+        "name": "Aspire-Conference-Table",
+        "sku": "SKU: CT-10001",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "conference-table"
+        ]
+      }
+    },
+    {
+      "id": "diamond-conference-table",
+      "name": "Diamond Conference Table",
+      "sku": "CT-10002",
+      "price": 85000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "conference-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772819968_Diamond-Conference-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "2 other products carried the SKU CT-10002 on the live shop. This one keeps it because its category, Conference Table, is the one that uses the prefix CT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "diamond-conference-table",
+        "name": "Diamond-Conference-Table",
+        "sku": "SKU: CT-10002",
+        "price": 85000,
+        "compareAt": null,
+        "categories": [
+          "conference-table"
+        ]
+      }
+    },
+    {
+      "id": "division-conference-table",
+      "name": "Division Conference Table",
+      "sku": "CT-10003",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "conference-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820085_Division-Conference-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "division-conference-table",
+        "name": "Division-Conference-Table",
+        "sku": "SKU: CT-10003",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "conference-table"
+        ]
+      }
+    },
+    {
+      "id": "eminence-conference-table",
+      "name": "Eminence Conference Table",
+      "sku": "CT-10004",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "conference-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820175_Eminence-Conference-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU CT-10004 on the live shop. This one keeps it because its category, Conference Table, is the one that uses the prefix CT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "eminence-conference-table",
+        "name": "Eminence Conference Table",
+        "sku": "SKU: CT-10004",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "conference-table"
+        ]
+      }
+    },
+    {
+      "id": "imperial-executive-conference-table",
+      "name": "Imperial Executive Conference Table",
+      "sku": "CT-10005",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "conference-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820260_Imperial-Executive-Conference-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "imperial-executive-conference-table",
+        "name": "Imperial Executive Conference Table",
+        "sku": "SKU: CT-10005",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "conference-table"
+        ]
+      }
+    },
+    {
+      "id": "infinity-executive-conference-table",
+      "name": "Infinity Executive Conference Table",
+      "sku": "CT-10006",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "conference-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820354_Infinity-Executive-Conference-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "infinity-executive-conference-table",
+        "name": "Infinity Executive Conference Table",
+        "sku": "SKU: CT-10006",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "conference-table"
+        ]
+      }
+    },
+    {
+      "id": "nova-prime-conference-table",
+      "name": "Nova Prime Conference Table",
+      "sku": "CT-10008",
+      "price": 95000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "conference-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820453_Nova-Prime-Conference-Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nova-prime-conference-table",
+        "name": "Nova Prime Conference Table",
+        "sku": "SKU: CT-10008",
+        "price": 95000,
+        "compareAt": null,
+        "categories": [
+          "conference-table"
+        ]
+      }
+    },
+    {
+      "id": "sapphire-executive-conference-table",
+      "name": "Sapphire Executive Conference Table",
+      "sku": "CT-10009",
+      "price": 85000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "conference-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820540_Sapphire-Executive-Conference-Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "sapphire-executive-conference-table",
+        "name": "Sapphire Executive Conference Table",
+        "sku": "SKU: CT-10009",
+        "price": 85000,
+        "compareAt": null,
+        "categories": [
+          "conference-table"
+        ]
+      }
+    },
+    {
+      "id": "echo-round-meeting-table",
+      "name": "Echo Round Meeting Table",
+      "sku": "DT-10001",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "discussion-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772818507_Echo%20Round%20Meeting%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "echo-round-meeting-table",
+        "name": "Echo Round Meeting Table",
+        "sku": "SKU: DT-10001",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "discussion-table"
+        ]
+      }
+    },
+    {
+      "id": "facet-meeting-table",
+      "name": "Facet Meeting Table",
+      "sku": "DT-10002",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "discussion-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772818678_Facet-Meeting-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "facet-meeting-table",
+        "name": "Facet Meeting Table",
+        "sku": "SKU: DT-10002",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "discussion-table"
+        ]
+      }
+    },
+    {
+      "id": "loop-meeting-table",
+      "name": "Loop Meeting Table",
+      "sku": "DT-10003",
+      "price": 20000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "discussion-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772818905_Loop%20meeting%20table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "loop-meeting-table",
+        "name": "Loop Meeting Table",
+        "sku": "SKU: DT-10003",
+        "price": 20000,
+        "compareAt": null,
+        "categories": [
+          "discussion-table"
+        ]
+      }
+    },
+    {
+      "id": "manila-meeting-table",
+      "name": "Manila Meeting Table",
+      "sku": "DT-10004",
+      "price": 25000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "discussion-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772819059_Manila-Meeting-Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "manila-meeting-table",
+        "name": "Manila Meeting Table",
+        "sku": "SKU: DT-10004",
+        "price": 25000,
+        "compareAt": null,
+        "categories": [
+          "discussion-table"
+        ]
+      }
+    },
+    {
+      "id": "next-meeting-table",
+      "name": "Next Meeting Table",
+      "sku": "DT-10005",
+      "price": 35000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "discussion-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772819238_Next%20Meeting%20Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "next-meeting-table",
+        "name": "Next Meeting Table",
+        "sku": "SKU: DT-10005",
+        "price": 35000,
+        "compareAt": null,
+        "categories": [
+          "discussion-table"
+        ]
+      }
+    },
+    {
+      "id": "nova-round-meeting-table",
+      "name": "Nova Round Meeting Table",
+      "sku": "DT-10006",
+      "price": 85000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "discussion-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772819370_Novo%20Round%20Meeting%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "note",
+          "text": "PKR 85,000 is more than twice the next most expensive discussion table (PKR 35,000)."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nova-round-meeting-table",
+        "name": "Nova Round Meeting Table",
+        "sku": "SKU: DT-10006",
+        "price": 85000,
+        "compareAt": null,
+        "categories": [
+          "discussion-table"
+        ]
+      }
+    },
+    {
+      "id": "raison-meeting-table",
+      "name": "Raison Meeting Table",
+      "sku": "DT-10007",
+      "price": 20000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "discussion-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772819459_Raison-Meeting-Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "raison-meeting-table",
+        "name": "Raison-Meeting-Table",
+        "sku": "SKU: DT-10007",
+        "price": 20000,
+        "compareAt": null,
+        "categories": [
+          "discussion-table"
+        ]
+      }
+    },
+    {
+      "id": "solo-meeting-table",
+      "name": "Solo Meeting Table",
+      "sku": "DT-10008",
+      "price": 22000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "discussion-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772819561_Solo-Meeting-Table.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "solo-meeting-table",
+        "name": "Solo Meeting Table",
+        "sku": "SKU: DT-10008",
+        "price": 22000,
+        "compareAt": null,
+        "categories": [
+          "discussion-table"
+        ]
+      }
+    },
+    {
+      "id": "alon-meeting-table",
+      "name": "Alon Meeting Table",
+      "sku": "MTG-10001",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772735949_Alon%20Meeting%20Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "pairing-assumed",
+          "text": "Another product has the same name and price. The two SKUs were matched to the two addresses in the order they were created; check that each product carries its own SKU."
+        },
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10001 because MT-10001 was shared with Apex Manager Table. Confirm the new code or enter another."
+        },
+        {
+          "code": "name-duplicate",
+          "text": "1 other product has the same name and the same price. It may be one product entered twice."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "alon-meeting-table",
+        "name": "Alon Meeting Table",
+        "sku": "MT-10001",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "alon-meeting-table-1772820681",
+      "name": "Alon Meeting Table",
+      "sku": "MTG-10002",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820681_Alon-Meeting-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "pairing-assumed",
+          "text": "Another product has the same name and price. The two SKUs were matched to the two addresses in the order they were created; check that each product carries its own SKU."
+        },
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10002 because MT-10001 was shared with Apex Manager Table. Confirm the new code or enter another."
+        },
+        {
+          "code": "name-duplicate",
+          "text": "1 other product has the same name and the same price. It may be one product entered twice."
+        },
+        {
+          "code": "address-number",
+          "text": "The address ends in a number (1772820681) because another product took the plain address first."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "alon-meeting-table-1772820681",
+        "name": "Alon Meeting Table",
+        "sku": "SKU: MT-10001",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "connect-meeting-table",
+      "name": "Connect Meeting Table",
+      "sku": "MTG-10003",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820777_Connect-Meeting-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10003 because MT-10002 was shared with Edge Manager Table. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "connect-meeting-table",
+        "name": "Connect Meeting Table",
+        "sku": "SKU: MT-10002",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "emerald-meeting-table",
+      "name": "Emerald Meeting Table",
+      "sku": "MTG-10004",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820876_Emerald-Meeting-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10004 because MT-10003 was shared with Elite Manager Table. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "emerald-meeting-table",
+        "name": "Emerald-Meeting-Table",
+        "sku": "SKU: MT-10003",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "levander-meeting-table",
+      "name": "Levander Meeting Table",
+      "sku": "MTG-10005",
+      "price": 60000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772820975_Levander-Meeting-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10005 because MT-10004 was shared with Flux Manager Table. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "levander-meeting-table",
+        "name": "Levander Meeting Table",
+        "sku": "SKU: MT-10004",
+        "price": 60000,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "meeting-table-8-person",
+      "name": "Meeting Table (8-person)",
+      "sku": "MTG-10006",
+      "price": 85000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772821187_Meeting%20Table(8%20person).jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10006 because MT-10005 was shared with Infinity Manager Table. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "meeting-table-8-person",
+        "name": "Meeting Table (8-person)",
+        "sku": "SKU: MT-10005",
+        "price": 85000,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "nexus-meeting-table",
+      "name": "Nexus Meeting Table",
+      "sku": "MTG-10007",
+      "price": 75000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772821435_Nexus-Meeting-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10007 because MT-10006 was shared with Metro Manager Table. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nexus-meeting-table",
+        "name": "Nexus meeting Table",
+        "sku": "SKU: MT-10006",
+        "price": 75000,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "nexus-meeting-table-2",
+      "name": "Nexus Meeting Table 2",
+      "sku": "MTG-10008",
+      "price": 75000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772821654_Nexus%20meeting%20Table%202.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10008 because MT-10007 was shared with Nova Manager Table. Confirm the new code or enter another."
+        },
+        {
+          "code": "note",
+          "text": "\"Nexus Meeting Table 2\" reads like a second size or finish of \"Nexus meeting Table\" at the same price. If so, it is a variant, not a product."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nexus-meeting-table-2",
+        "name": "Nexus Meeting Table 2",
+        "sku": "SKU: MT-10007",
+        "price": 75000,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "onyx-meeting-table",
+      "name": "Onyx Meeting Table",
+      "sku": "MTG-10009",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772821920_Onyx-Meeting-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU MTG-10009 because MT-10008 was shared with Orion Manager Table. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "onyx-meeting-table",
+        "name": "Onyx Meeting Table",
+        "sku": "SKU: MT-10008",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "spark-meeting-table",
+      "name": "Spark Meeting Table",
+      "sku": "MT-100010",
+      "price": 70000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "meeting-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772822013_Spark-Meeting-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-prefix",
+          "text": "The SKU MT-100010 carries the prefix of Manager Table; this product is filed under Meeting Table. The code is unique, so it is kept."
+        },
+        {
+          "code": "sku-lookalike",
+          "text": "The SKU MT-100010 and the SKU MT-10010 of Pulse Manager Table are the same number written two ways. One of them should change."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "spark-meeting-table",
+        "name": "Spark Meeting Table",
+        "sku": "SKU: MT-100010",
+        "price": 70000,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "careline-reception-desk",
+      "name": "CareLine Reception Desk",
+      "sku": "RD-10001",
+      "price": 95000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772732189_CareLine%20Reception%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "careline-reception-desk",
+        "name": "CareLine Reception Desk",
+        "sku": "RD-10001",
+        "price": 95000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "deep-max-reception-desk",
+      "name": "Deep Max Reception Desk",
+      "sku": "RD-10003",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772732560_Deep%20Max%20Reception%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "deep-max-reception-desk",
+        "name": "Deep Max Reception Desk",
+        "sku": "RD-10003",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "elitewave-reception-desk",
+      "name": "EliteWave Reception Desk",
+      "sku": "RD-10004",
+      "price": 120000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772732736_EliteWave-300x300.jpg"
+      ],
+      "review": [
+        {
+          "code": "image-small",
+          "text": "The image file name says 300 × 300 pixels: a thumbnail, too small for a product page."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "elitewave-reception-desk",
+        "name": "EliteWave Reception Desk",
+        "sku": "RD-10004",
+        "price": 120000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "execline-reception-desk",
+      "name": "ExecLine Reception Desk",
+      "sku": "RD-10005",
+      "price": 98000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772732881_ExecLine%20Reception%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "execline-reception-desk",
+        "name": "ExecLine Reception Desk",
+        "sku": "RD-10005",
+        "price": 97999.99,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "focusline-reception-desk",
+      "name": "FocusLine Reception Desk",
+      "sku": "RD-10006",
+      "price": 145000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772733012_FocusLine-300x300.jpg"
+      ],
+      "review": [
+        {
+          "code": "image-small",
+          "text": "The image file name says 300 × 300 pixels: a thumbnail, too small for a product page."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "focusline-reception-desk",
+        "name": "FocusLine Reception Desk",
+        "sku": "RD-10006",
+        "price": 145000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "glamedge-reception-desk",
+      "name": "GlamEdge Reception Desk",
+      "sku": "RD-10007",
+      "price": 90000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772733180_GlamEdge%20Reception%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "glamedge-reception-desk",
+        "name": "GlamEdge Reception Desk",
+        "sku": "RD-10007",
+        "price": 90000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "grandhost-reception-desk",
+      "name": "GrandHost Reception Desk",
+      "sku": "RD-10008",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772733272_GrandHost%20Reception%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "grandhost-reception-desk",
+        "name": "GrandHost Reception Desk",
+        "sku": "RD-10008",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "horizonhost-reception-desk",
+      "name": "HorizonHost Reception Desk",
+      "sku": "RT-10008",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772733388_HorizonHost%20Reception%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "horizonhost-reception-desk",
+        "name": "HorizonHost Reception Desk",
+        "sku": "RT-10008",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "luxefront-reception-desk",
+      "name": "LuxeFront Reception Desk",
+      "sku": "RD-100010",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772733562_LuxeFront%20Reception%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "luxefront-reception-desk",
+        "name": "LuxeFront Reception Desk",
+        "sku": "RD-100010",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "medfront-reception-desk",
+      "name": "MedFront Reception Desk",
+      "sku": "RD-100011",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772733698_MedFront%20Reception%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "medfront-reception-desk",
+        "name": "MedFront Reception Desk",
+        "sku": "RD-100011",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "mirrorlin-reception-desk",
+      "name": "MirrorLin Reception Desk",
+      "sku": "RT-100012",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/69a9ca40d66f8.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "mirrorlin-reception-desk",
+        "name": "MirrorLin Reception Desk",
+        "sku": "RT-100012",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "omega-reception-counter",
+      "name": "Omega Reception Counter",
+      "sku": "RT-100013",
+      "price": 115000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772733937_RECE-1-300x300.jpg"
+      ],
+      "review": [
+        {
+          "code": "image-small",
+          "text": "The image file name says 300 × 300 pixels: a thumbnail, too small for a product page."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "omega-reception-counter",
+        "name": "Omega Reception Counter",
+        "sku": "RT-100013",
+        "price": 115000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "pinnacle-office-reception-desk",
+      "name": "Pinnacle Office Reception Desk",
+      "sku": "RD-100014",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772734030_Pinnacle-Office-Reception-Desk-300x300.jpg"
+      ],
+      "review": [
+        {
+          "code": "image-small",
+          "text": "The image file name says 300 × 300 pixels: a thumbnail, too small for a product page."
+        },
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "pinnacle-office-reception-desk",
+        "name": "Pinnacle Office Reception Desk",
+        "sku": "RD-100014",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "prodesk-reception-desk",
+      "name": "ProDesk Reception Desk",
+      "sku": "RD-100015",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772734146_ProDesk-300x300.jpg"
+      ],
+      "review": [
+        {
+          "code": "image-small",
+          "text": "The image file name says 300 × 300 pixels: a thumbnail, too small for a product page."
+        },
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "prodesk-reception-desk",
+        "name": "ProDesk Reception Desk",
+        "sku": "RD-100015",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "pulsecounter-reception-desk",
+      "name": "PulseCounter Reception Desk",
+      "sku": "RD-100016",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772734259_PulseCounter%20Reception%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU RD-100016 on the live shop. This one keeps it because it was created first among the products of the category that uses this prefix."
+        },
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "pulsecounter-reception-desk",
+        "name": "PulseCounter Reception Desk",
+        "sku": "RD-100016",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "pureentry-office-reception-desk",
+      "name": "PureEntry Office Reception Desk",
+      "sku": "RD-10009",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772734376_PureEntry%20Office%20Reception%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU RD-10009 because RD-100016 was shared with PulseCounter Reception Desk. Confirm the new code or enter another."
+        },
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "pureentry-office-reception-desk",
+        "name": "PureEntry Office Reception Desk",
+        "sku": "RD-100016",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "sharpline-reception-desk",
+      "name": "SharpLine Reception Desk",
+      "sku": "RD-100018",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772734488_SharpLine-Reception-300x300.jpg"
+      ],
+      "review": [
+        {
+          "code": "image-small",
+          "text": "The image file name says 300 × 300 pixels: a thumbnail, too small for a product page."
+        },
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU RD-100018 on the live shop. This one keeps it because it was created first among the products of the category that uses this prefix."
+        },
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "sharpline-reception-desk",
+        "name": "SharpLine Reception Desk",
+        "sku": "RD-100018",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "strato-reception-desk",
+      "name": "Strato Reception Desk",
+      "sku": "RD-10017",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772734637_StratoDesk-Reception-300x300.jpg"
+      ],
+      "review": [
+        {
+          "code": "image-small",
+          "text": "The image file name says 300 × 300 pixels: a thumbnail, too small for a product page."
+        },
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU RD-10017 because RD-100018 was shared with SharpLine Reception Desk. Confirm the new code or enter another."
+        },
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "strato-reception-desk",
+        "name": "Strato Reception Desk",
+        "sku": "RD-100018",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "style-touch-reception-desk",
+      "name": "Style Touch Reception Desk",
+      "sku": "RD-100020",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772734785_Style-Touch-Reception-300x300.jpg"
+      ],
+      "review": [
+        {
+          "code": "image-small",
+          "text": "The image file name says 300 × 300 pixels: a thumbnail, too small for a product page."
+        },
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "style-touch-reception-desk",
+        "name": "Style Touch Reception Desk",
+        "sku": "RD-100020",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "vitadesk-reception-desk",
+      "name": "VitaDesk Reception Desk",
+      "sku": "RD-100021",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772734917_VitaDesk%20Reception%20Desk.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-shared",
+          "text": "14 products of Reception Desk are priced at exactly PKR 65,000. It may be a default that was never replaced."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "vitadesk-reception-desk",
+        "name": "VitaDesk Reception Desk",
+        "sku": "RD-100021",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "crown-point-reception-desk",
+      "name": "Crown Point Reception Desk",
+      "sku": "RT-10002",
+      "price": 45000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "reception-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780567578_CrownPoint.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU RT-10002 on the live shop. This one keeps it because its category, Reception Desk, is the one that uses the prefix RT."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "crown-point-reception-desk",
+        "name": "Crown Point Reception Desk",
+        "sku": "RT-10002",
+        "price": 45000,
+        "compareAt": null,
+        "categories": [
+          "reception-desk"
+        ]
+      }
+    },
+    {
+      "id": "weave-center-table",
+      "name": "Weave Center Table",
+      "sku": "CTB-10001",
+      "price": 22000,
+      "priceOnRequest": false,
+      "category": "office-tables",
+      "subcategory": "center-tables",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781871490_0_office-center-table.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given CTB-10001. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "weave-center-table",
+        "name": "Weave Center Table",
+        "sku": "—",
+        "price": 22000,
+        "compareAt": null,
+        "categories": [
+          "center-table"
+        ]
+      }
+    },
+    {
+      "id": "ambassador-chairs-executive",
+      "name": "Ambassador Chairs Executive",
+      "sku": "EC-10001",
+      "price": 82000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772723876_Silvio%20Executive%20Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU EC-10001 on the live shop. This one keeps it because it was created first among the products of the category that uses this prefix."
+        },
+        {
+          "code": "note",
+          "text": "The word order differs from every other executive chair (\"Ambassador chairs Executive\"). Its image file is named \"Silvio Executive Chair\"."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "ambassador-chairs-executive",
+        "name": "Ambassador chairs Executive",
+        "sku": "SKU: EC-10001",
+        "price": 82000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "crown-executive-chair",
+      "name": "Crown Executive Chair",
+      "sku": "EC-10002",
+      "price": 48000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772727955_unnamed%20(6).jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU EC-10002 because EC-10001 was shared with Ambassador Chairs Executive. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "crown-executive-chair",
+        "name": "Crown Executive Chair",
+        "sku": "SKU: EC-10001",
+        "price": 48000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "elite-executive-chair",
+      "name": "Elite Executive Chair",
+      "sku": "EC-10004",
+      "price": 75000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772728427_unnamed.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "elite-executive-chair",
+        "name": "Elite Executive Chair",
+        "sku": "SKU: EC-10004",
+        "price": 75000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "imperial-executive-chair",
+      "name": "Imperial Executive Chair",
+      "sku": "EC-10005",
+      "price": 52000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772728702_unnamed%20(4).jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU EC-10005 on the live shop. This one keeps it because it was created first among the products of the category that uses this prefix."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "imperial-executive-chair",
+        "name": "Imperial Executive Chair",
+        "sku": "SKU: EC-10005",
+        "price": 52000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "infinity-executive-chair",
+      "name": "Infinity Executive Chair",
+      "sku": "EC-10003",
+      "price": 45000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772728987_unnamed%20(2).jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU EC-10003 because EC-10005 was shared with Imperial Executive Chair. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "infinity-executive-chair",
+        "name": "Infinity Executive Chair",
+        "sku": "SKU: EC-10005",
+        "price": 45000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "milano-luxury-executive-chair",
+      "name": "Milano Luxury Executive Chair",
+      "sku": "EC-10006",
+      "price": 42000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729337_unnamed%20(5).jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "milano-luxury-executive-chair",
+        "name": "Milano luxury Executive Chair",
+        "sku": "SKU: EC-10006",
+        "price": 42000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "nexa-executive-chair",
+      "name": "Nexa Executive Chair",
+      "sku": "EC-10007",
+      "price": 52000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729565_unnamed%20(4).jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nexa-executive-chair",
+        "name": "Nexa Executive Chair",
+        "sku": "SKU: EC-10007",
+        "price": 52000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "phoenix-executive-chair",
+      "name": "Phoenix Executive Chair",
+      "sku": "EC-10008",
+      "price": 42000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772729730_unnamed%20(7).jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "phoenix-executive-chair",
+        "name": "phoenix Executive Chair",
+        "sku": "SKU: EC-10008",
+        "price": 42000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "regal-executive-chair",
+      "name": "Regal Executive Chair",
+      "sku": "EC-10009",
+      "price": 50000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730046_unnamed%20(3).jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU EC-10009 on the live shop. This one keeps it because it was created first among the products of the category that uses this prefix."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "regal-executive-chair",
+        "name": "Regal Executive Chair",
+        "sku": "SKU: EC-10009",
+        "price": 50000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "silverstone-executive-chairs",
+      "name": "Silverstone Executive Chairs",
+      "sku": "EC-10010",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730237_Magic%202.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU EC-10010 because EC-10009 was shared with Regal Executive Chair. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "silverstone-executive-chairs",
+        "name": "Silverstone Executive chairs",
+        "sku": "SKU: EC-10009",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "black-pearl-executive-chair",
+      "name": "Black Pearl Executive Chair",
+      "sku": "EC-10011",
+      "price": 35000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "executive-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730426_unnamed.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU EC-10011 because CT-10002 was shared with Diamond Conference Table. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "black-pearl-executive-chair",
+        "name": "Black Pearl Executive Chair",
+        "sku": "SKU: CT-10002",
+        "price": 35000,
+        "compareAt": null,
+        "categories": [
+          "executive-chairs"
+        ]
+      }
+    },
+    {
+      "id": "atlas-manager-chair",
+      "name": "Atlas Manager Chair",
+      "sku": "MC-10002",
+      "price": 35000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772737154_Atlas-Manager-Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "atlas-manager-chair",
+        "name": "Atlas Manager Chair",
+        "sku": "MC-10002",
+        "price": 35000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "elite-command-manager-chair",
+      "name": "Elite Command Manager Chair",
+      "sku": "MC-10003",
+      "price": 24500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772737536_Elite%20Command%20Manager%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "elite-command-manager-chair",
+        "name": "Elite Command Manager Chair",
+        "sku": "MC-10003",
+        "price": 24499.99,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "forma-ergofit-manager-chair",
+      "name": "Forma ErgoFit Manager Chair",
+      "sku": "MC-10004",
+      "price": 35000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772737780_Forma%20ErgoFit%20Manager%20Chair.png"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "forma-ergofit-manager-chair",
+        "name": "Forma ErgoFit Manager Chair",
+        "sku": "MC-10004",
+        "price": 35000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "grip-back-manager-chair",
+      "name": "Grip Back Manager Chair",
+      "sku": "MC-10005",
+      "price": 38000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772737954_05.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "grip-back-manager-chair",
+        "name": "Grip Back Manager Chair",
+        "sku": "MC-10005",
+        "price": 38000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "keystone-manager-chair",
+      "name": "Keystone Manager Chair",
+      "sku": "MC-10006",
+      "price": 48000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/69a9d6bd09596.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "keystone-manager-chair",
+        "name": "Keystone Manager Chair",
+        "sku": "MC-10006",
+        "price": 48000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "matrix-flow-manager-chair",
+      "name": "Matrix Flow Manager Chair",
+      "sku": "MC-10007",
+      "price": 36000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772738363_Matrix-Flow-Manager-Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "matrix-flow-manager-chair",
+        "name": "Matrix Flow Manager Chair",
+        "sku": "MC-10007",
+        "price": 36000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "nexus-command-manager-chair",
+      "name": "Nexus Command-Manager Chair",
+      "sku": "MC-10008",
+      "price": 32000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772738463_Nexus-Command-Manager-Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nexus-command-manager-chair",
+        "name": "Nexus Command-Manager Chair",
+        "sku": "MC-10008",
+        "price": 32000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "onyx-prestige-manager-chair",
+      "name": "Onyx Prestige Manager Chair",
+      "sku": "MC-10009",
+      "price": 65000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772738644_Onyx-Prestige-Manager-Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "onyx-prestige-manager-chair",
+        "name": "Onyx Prestige Manager Chair",
+        "sku": "MC-10009",
+        "price": 65000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "prime-performance-manager-chair",
+      "name": "Prime Performance Manager Chair",
+      "sku": "MC-100010",
+      "price": 55000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772738821_Prime-Performance-Manager-Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "prime-performance-manager-chair",
+        "name": "Prime Performance Manager Chair",
+        "sku": "MC-100010",
+        "price": 55000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "relief-pro-manager-chair",
+      "name": "Relief Pro Manager Chair",
+      "sku": "MC-100011",
+      "price": 27000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772738988_03.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "relief-pro-manager-chair",
+        "name": "Relief Pro Manager Chair",
+        "sku": "MC-100011",
+        "price": 27000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "spot-work-manger-chair",
+      "name": "Spot Work Manger Chair",
+      "sku": "MC-100012",
+      "price": 38000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772739148_Spot%20Work%20Manger%20Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "note",
+          "text": "The name reads \"Manger\"; \"Manager\" is probably meant. The address carries the same spelling."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "spot-work-manger-chair",
+        "name": "Spot Work Manger Chair",
+        "sku": "MC-100012",
+        "price": 38000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "titan-pro-manager-chair",
+      "name": "Titan Pro Manager Chair",
+      "sku": "MC-100013",
+      "price": 75000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772739238_Titan-Pro-Manager-Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "titan-pro-manager-chair",
+        "name": "Titan Pro Manager Chair",
+        "sku": "MC-100013",
+        "price": 75000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "vertex-active-back-manager-chair",
+      "name": "Vertex Active Back Manager Chair",
+      "sku": "MC-100014",
+      "price": 35000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772739316_Vertex-ActiveBack-Manager-Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "vertex-active-back-manager-chair",
+        "name": "Vertex Active Back Manager Chair",
+        "sku": "MC-100014",
+        "price": 35000,
+        "compareAt": null,
+        "categories": [
+          "manager-chair"
+        ]
+      }
+    },
+    {
+      "id": "apex-flow-manager-chair",
+      "name": "Apex Flow Manager Chair",
+      "sku": "MC-10001",
+      "price": 29000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "manager-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772736988_Apex-Flow-Manager-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-moved",
+          "text": "Filed under Meeting Table on the live shop. Its name and its SKU prefix MC both say Manager Chair, so it is placed there."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "apex-flow-manager-chair",
+        "name": "Apex Flow Manager Chair",
+        "sku": "MC-10001",
+        "price": 29000,
+        "compareAt": null,
+        "categories": [
+          "meeting-table"
+        ]
+      }
+    },
+    {
+      "id": "grid-staff-chair",
+      "name": "Grid Staff Chair",
+      "sku": "SC-10001",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772822635_Grid%20staff%20chair.webp"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "grid-staff-chair",
+        "name": "Grid Staff Chair",
+        "sku": "SKU: SC-10001",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "lite-compact-staff-chair",
+      "name": "Lite Compact Staff Chair",
+      "sku": "SC-10002",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772822879_Lite-Compact-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "lite-compact-staff-chair",
+        "name": "Lite Compact Staff Chair",
+        "sku": "SKU: SC-10002",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "max-staff-chair",
+      "name": "Max Staff Chair",
+      "sku": "SC-1000",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772822948_Max%20Staff%20Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "sku-format",
+          "text": "The SKU SC-1000 does not follow the pattern of the others (letters, a dash, and a number from 10001). It may be incomplete."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "max-staff-chair",
+        "name": "Max Staff Chair",
+        "sku": "SKU: SC-1000",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "pace-staff-chair",
+      "name": "Pace Staff Chair",
+      "sku": "SC-10004",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823049_Pace-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "pace-staff-chair",
+        "name": "Pace Staff Chair",
+        "sku": "SKU: SC-10004",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "support-staff-chair",
+      "name": "Support Staff Chair",
+      "sku": "SC-10005",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823148_Premium-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "image-other-product",
+          "text": "The image file is named after another product, Premium Staff Chair. Check that the picture shows this product."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "support-staff-chair",
+        "name": "Support Staff Chair",
+        "sku": "SKU: SC-10005",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "signal-staff-chair",
+      "name": "Signal Staff Chair",
+      "sku": "SC-10006",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823221_Signal-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "signal-staff-chair",
+        "name": "Signal Staff Chair",
+        "sku": "SKU: SC-10006",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "rock-solid-staff-chair",
+      "name": "Rock Solid Staff Chair",
+      "sku": "SC-10007",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823312_Rock-Solid-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "rock-solid-staff-chair",
+        "name": "Rock Solid Staff Chair",
+        "sku": "SKU: SC-10007",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "premium-staff-chair",
+      "name": "Premium Staff Chair",
+      "sku": "SC-10008",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823381_Premium-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "premium-staff-chair",
+        "name": "Premium Staff Chair",
+        "sku": "SKU: SC-10008",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "task-master-staff-chair",
+      "name": "Task Master Staff Chair",
+      "sku": "SC-10009",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823451_Task-Master-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "task-master-staff-chair",
+        "name": "Task Master Staff Chair",
+        "sku": "SKU: SC-10009",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "unit-staff-chair",
+      "name": "Unit Staff Chair",
+      "sku": "SC-100011",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823612_Unit%20Staff%20Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "unit-staff-chair",
+        "name": "Unit Staff Chair",
+        "sku": "SKU: SC-100011",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "wave-comfort-staff-chair",
+      "name": "Wave Comfort Staff Chair",
+      "sku": "SC-100012",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823681_Wave-Comfort-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "wave-comfort-staff-chair",
+        "name": "Wave Comfort Staff Chair",
+        "sku": "SKU: SC-100012",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "staff-chairs"
+        ]
+      }
+    },
+    {
+      "id": "team-staff-chair",
+      "name": "Team Staff Chair",
+      "sku": "SC-100010",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "chairs",
+      "subcategory": "staff-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772823546_Team-Staff-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-inferred",
+          "text": "Filed under Series on the live shop. Its name and its SKU prefix SC both say Staff Chairs, so it is placed there."
+        },
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "team-staff-chair",
+        "name": "Team Staff Chair",
+        "sku": "SKU: SC-100010",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "series"
+        ]
+      }
+    },
+    {
+      "id": "back-support-visitor-chair",
+      "name": "Back Support Visitor Chair",
+      "sku": "VC-10001",
+      "price": 15500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/69aae90f3a74a.jpg"
+      ],
+      "review": [
+        {
+          "code": "pairing-assumed",
+          "text": "Another product has the same name and price. The two SKUs were matched to the two addresses in the order they were created; check that each product carries its own SKU."
+        },
+        {
+          "code": "name-duplicate",
+          "text": "1 other product has the same name and the same price. It may be one product entered twice."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "back-support-visitor-chair",
+        "name": "Back Support Visitor Chair",
+        "sku": "SKU: VC-10001",
+        "price": 15500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "balance-visitor-chair",
+      "name": "Balance Visitor Chair",
+      "sku": "VC-10002",
+      "price": 10500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772808615_Balance%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "balance-visitor-chair",
+        "name": "Balance Visitor Chair",
+        "sku": "SKU: VC-10002",
+        "price": 10500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "clarity-manager-visitor-chair",
+      "name": "Clarity Manager Visitor Chair",
+      "sku": "VC-10003",
+      "price": 14500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772808714_Clarity%20Manager%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "clarity-manager-visitor-chair",
+        "name": "Clarity Manager Visitor Chair",
+        "sku": "SKU: VC-10003",
+        "price": 14500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "curve-visitor-chair",
+      "name": "Curve Visitor Chair",
+      "sku": "VC-10004",
+      "price": 11500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772808842_Curve%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "curve-visitor-chair",
+        "name": "Curve Visitor Chair",
+        "sku": "SKU: VC-10004",
+        "price": 11500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "quad-conference-visitor-chair",
+      "name": "QUAD Conference Visitor Chair",
+      "sku": "VC-10005",
+      "price": 10500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772808948_QUAD%20Conference%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "quad-conference-visitor-chair",
+        "name": "QUAD Conference Visitor Chair",
+        "sku": "SKU: VC-10005",
+        "price": 10500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "back-support-visitor-chair-1772809047",
+      "name": "Back Support Visitor Chair",
+      "sku": "VC-10006",
+      "price": 15500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809047_Back%20Support%20Visitor%20Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "pairing-assumed",
+          "text": "Another product has the same name and price. The two SKUs were matched to the two addresses in the order they were created; check that each product carries its own SKU."
+        },
+        {
+          "code": "name-duplicate",
+          "text": "1 other product has the same name and the same price. It may be one product entered twice."
+        },
+        {
+          "code": "address-number",
+          "text": "The address ends in a number (1772809047) because another product took the plain address first."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "back-support-visitor-chair-1772809047",
+        "name": "Back Support Visitor Chair",
+        "sku": "SKU: VC-10006",
+        "price": 15500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "star-visitor-chair",
+      "name": "Star Visitor Chair",
+      "sku": "VC-10007",
+      "price": 16500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809140_Star%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "star-visitor-chair",
+        "name": "Star Visitor Chair",
+        "sku": "SKU: VC-10007",
+        "price": 16500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "edge-executive-visitor-chair",
+      "name": "Edge Executive Visitor Chair",
+      "sku": "VC-10008",
+      "price": 25000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809229_Edge%20Executive%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "edge-executive-visitor-chair",
+        "name": "Edge Executive Visitor Chair",
+        "sku": "SKU: VC-10008",
+        "price": 25000,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "grid-conference-visitor-chair",
+      "name": "Grid Conference Visitor Chair",
+      "sku": "VC-10009",
+      "price": 28500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809306_Grid%20Conference%20Visitor%20Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-shared-kept",
+          "text": "1 other product carried the SKU VC-10009 on the live shop. This one keeps it because it was created first among the products of the category that uses this prefix."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "grid-conference-visitor-chair",
+        "name": "Grid Conference Visitor Chair",
+        "sku": "SKU: VC-10009",
+        "price": 28500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "line-visitor-chair",
+      "name": "Line Visitor Chair",
+      "sku": "VC-10016",
+      "price": 11500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809377_Line%20Visitor%20Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-reassigned",
+          "text": "Given the SKU VC-10016 because VC-10009 was shared with Grid Conference Visitor Chair. Confirm the new code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "line-visitor-chair",
+        "name": "Line Visitor Chair",
+        "sku": "SKU: VC-10009",
+        "price": 11500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "welcome-visitor-chair",
+      "name": "Welcome Visitor Chair",
+      "sku": "VC-100010",
+      "price": 14500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809448_Welcome%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "welcome-visitor-chair",
+        "name": "Welcome Visitor Chair",
+        "sku": "SKU: VC-100010",
+        "price": 14500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "wing-conference-visitor-chair",
+      "name": "WING Conference Visitor Chair",
+      "sku": "VC-100011",
+      "price": 15000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809524_WING%20Conference%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "wing-conference-visitor-chair",
+        "name": "WING Conference Visitor Chair",
+        "sku": "SKU: VC-100011",
+        "price": 15000,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "prime-manager-visitor-chair",
+      "name": "Prime Manager Visitor Chair",
+      "sku": "VC-100012",
+      "price": 28500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809590_Prime%20Manager%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "prime-manager-visitor-chair",
+        "name": "Prime Manager Visitor Chair",
+        "sku": "SKU: VC-100012",
+        "price": 28500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "comfort-conference-visitor-chair",
+      "name": "Comfort Conference Visitor Chair",
+      "sku": "VC-100013",
+      "price": 85000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809674_Comfort%20Conference%20Visitor%20Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "note",
+          "text": "PKR 85,000 is more than twice the next most expensive visitor chair (PKR 38,500)."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "comfort-conference-visitor-chair",
+        "name": "Comfort Conference Visitor Chair",
+        "sku": "SKU: VC-100013",
+        "price": 85000,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "swan-executive-visitor-chair",
+      "name": "SWAN Executive Visitor Chair",
+      "sku": "VC-100014",
+      "price": 38000,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809747_SWAN-Executive-Visitor-Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "swan-executive-visitor-chair",
+        "name": "SWAN Executive Visitor Chair",
+        "sku": "SKU: VC-100014",
+        "price": 38000,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "crown-executive-visitor-chair",
+      "name": "Crown Executive Visitor Chair",
+      "sku": "VC-100015",
+      "price": 38500,
+      "priceOnRequest": false,
+      "category": "chairs",
+      "subcategory": "visitor-chairs",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772809837_Crown%20Executive%20Visitor%20Chair.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "crown-executive-visitor-chair",
+        "name": "Crown Executive Visitor Chair",
+        "sku": "SKU: VC-100015",
+        "price": 38500,
+        "compareAt": null,
+        "categories": [
+          "visitor-chair"
+        ]
+      }
+    },
+    {
+      "id": "evolution-workstation",
+      "name": "Evolution Workstation",
+      "sku": "WS-10001",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772730954_Evolution%20Workstation.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "evolution-workstation",
+        "name": "Evolution Workstation",
+        "sku": "WS-10001",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "flow-workstation",
+      "name": "Flow Workstation",
+      "sku": "WS-10002",
+      "price": 125000,
+      "priceOnRequest": false,
+      "originalPrice": 155000,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731031_Flow%20Workstation.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "flow-workstation",
+        "name": "Flow Workstation",
+        "sku": "WS-10002",
+        "price": 125000,
+        "compareAt": 155000,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "momentum-workstation",
+      "name": "Momentum Workstation",
+      "sku": "WS-10004",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731209_White-workstation-2.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "momentum-workstation",
+        "name": "Momentum Workstation",
+        "sku": "WS-10004",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "nexus-workstation",
+      "name": "Nexus Workstation",
+      "sku": "WS-10003",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731279_1764329211927-019aca36-be9a-7493-a781-690ba3bfd4f0.png"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        },
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given WS-10003. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nexus-workstation",
+        "name": "Nexus Workstation",
+        "sku": "—",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "nova-workstation",
+      "name": "Nova Workstation",
+      "sku": "WS-10005",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731417_White-workstation.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nova-workstation",
+        "name": "Nova Workstation",
+        "sku": "WS-10005",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "onyx-workstation",
+      "name": "Onyx Workstation",
+      "sku": "WS-10006",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731497_White-workstation-16.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "onyx-workstation",
+        "name": "Onyx Workstation",
+        "sku": "WS-10006",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "quantum-workstation",
+      "name": "Quantum Workstation",
+      "sku": "WS-10007",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731564_White-workstation-10.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "quantum-workstation",
+        "name": "Quantum Workstation",
+        "sku": "WS-10007",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "synergy-workstation",
+      "name": "Synergy Workstation",
+      "sku": "WS-10008",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731644_White-workstation-3.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "synergy-workstation",
+        "name": "Synergy Workstation",
+        "sku": "WS-10008",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "vertex-workstation",
+      "name": "Vertex Workstation",
+      "sku": "WS-10009",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731715_White-workstation-9.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "vertex-workstation",
+        "name": "Vertex Workstation",
+        "sku": "WS-10009",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "vibe-workstation",
+      "name": "Vibe Workstation",
+      "sku": "WS-100010",
+      "price": 0,
+      "priceOnRequest": true,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1772731784_White-workstation-13.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-missing",
+          "text": "The live price is PKR 0. Imported as \"price on request\": customers can ask for a quotation and cannot order it until a price is entered."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "vibe-workstation",
+        "name": "Vibe Workstation",
+        "sku": "WS-100010",
+        "price": 0,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "infinity-workstation",
+      "name": "Infinity Workstation",
+      "sku": "WS-10011",
+      "price": 75000,
+      "priceOnRequest": false,
+      "category": "workstations",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781692130_0_infinity-workstation.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given WS-10011. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "infinity-workstation",
+        "name": "Infinity Workstation",
+        "sku": "—",
+        "price": 75000,
+        "compareAt": null,
+        "categories": [
+          "workstation"
+        ]
+      }
+    },
+    {
+      "id": "divanex-sofa-chair",
+      "name": "Divanex Sofa Chair",
+      "sku": "SF-10001",
+      "price": 35000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781692316_0_Divanex-Sofa-Chair-1.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10001. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "divanex-sofa-chair",
+        "name": "Divanex Sofa Chair",
+        "sku": "—",
+        "price": 35000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "executive-smart-sofa",
+      "name": "Executive Smart Sofa",
+      "sku": "SF-10002",
+      "price": 99000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781692431_0_Executive-Smart-Sofa.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10002. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "executive-smart-sofa",
+        "name": "Executive-Smart-Sofa",
+        "sku": "—",
+        "price": 99000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "orlin-executive-visitor-chair",
+      "name": "Orlin Executive Visitor Chair",
+      "sku": "SF-10003",
+      "price": 32000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781692586_0_Orlin-Visitor-chair1.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-check",
+          "text": "Named like a product of Visitor Chair and filed under Office Sofas. Check which is right."
+        },
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10003. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "orlin-executive-visitor-chair",
+        "name": "Orlin Executive Visitor chair",
+        "sku": "—",
+        "price": 32000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "phoenix-executive-sofa",
+      "name": "Phoenix Executive Sofa",
+      "sku": "SF-10004",
+      "price": 95500,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781693371_0_Phoenix-Executive-Sofa.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10004. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "phoenix-executive-sofa",
+        "name": "Phoenix Executive Sofa",
+        "sku": "—",
+        "price": 95500,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "nola-executive-chair",
+      "name": "Nola Executive Chair",
+      "sku": "SF-10005",
+      "price": 45000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781694574_0_Nola-Executive-Chair.jpg"
+      ],
+      "review": [
+        {
+          "code": "category-check",
+          "text": "Named like a product of Executive Chairs and filed under Office Sofas. Check which is right."
+        },
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10005. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nola-executive-chair",
+        "name": "Nola Executive Chair",
+        "sku": "—",
+        "price": 45000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "focus-smart-lounge-seating",
+      "name": "Focus Smart Lounge Seating",
+      "sku": "SF-10006",
+      "price": 95000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781695152_0_Focus-Smart-Lounge-Seating.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10006. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "focus-smart-lounge-seating",
+        "name": "Focus Smart Lounge Seating",
+        "sku": "—",
+        "price": 95000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "royal-chesterfield-sofa",
+      "name": "Royal Chesterfield Sofa",
+      "sku": "SF-10007",
+      "price": 95000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781697028_0_Royal-Chesterfield-Sofa.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10007. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "royal-chesterfield-sofa",
+        "name": "Royal Chesterfield Sofa",
+        "sku": "—",
+        "price": 95000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "executive-pro-smart-sofa",
+      "name": "Executive Pro Smart Sofa",
+      "sku": "SF-10008",
+      "price": 120000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781697139_0_Executive-Pro-Smart-Sofa.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10008. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "executive-pro-smart-sofa",
+        "name": "Executive Pro Smart Sofa",
+        "sku": "—",
+        "price": 120000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "nova-executive-sofa",
+      "name": "Nova Executive Sofa",
+      "sku": "SF-10009",
+      "price": 90000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781697874_0_sofa-set.webp"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10009. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "nova-executive-sofa",
+        "name": "Nova executive sofa",
+        "sku": "—",
+        "price": 90000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "venus-executive-sofa-jpg",
+      "name": "Venus Executive Sofa",
+      "sku": "SF-10010",
+      "price": 125000,
+      "priceOnRequest": false,
+      "category": "office-sofas",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781698949_0_Venus-Executive-Sofa.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given SF-10010. Confirm the code or enter another."
+        },
+        {
+          "code": "address-name",
+          "text": "The address \"venus-executive-sofa-jpg\" does not match the name \"Venus Executive Sofa\"."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "venus-executive-sofa-jpg",
+        "name": "Venus Executive Sofa.jpg",
+        "sku": "—",
+        "price": 125000,
+        "compareAt": null,
+        "categories": [
+          "office-sofas"
+        ]
+      }
+    },
+    {
+      "id": "brook-display-cabinet",
+      "name": "Brook Display Cabinet",
+      "sku": "OS-10001",
+      "price": 78000,
+      "priceOnRequest": false,
+      "category": "storage",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781871796_0_06.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given OS-10001. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "brook-display-cabinet",
+        "name": "Brook Display Cabinet",
+        "sku": "—",
+        "price": 78000,
+        "compareAt": null,
+        "categories": [
+          "office-storages"
+        ]
+      }
+    },
+    {
+      "id": "magic-full-height-cabinet",
+      "name": "Magic Full Height Cabinet",
+      "sku": "OS-10002",
+      "price": 48000,
+      "priceOnRequest": false,
+      "category": "storage",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781871916_0_Magic-Full-Height-Cabinet.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given OS-10002. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "magic-full-height-cabinet",
+        "name": "Magic Full Height Cabinet",
+        "sku": "—",
+        "price": 48000,
+        "compareAt": null,
+        "categories": [
+          "office-storages"
+        ]
+      }
+    },
+    {
+      "id": "polo-pedestal",
+      "name": "Polo Pedestal",
+      "sku": "OS-10003",
+      "price": 15000,
+      "priceOnRequest": false,
+      "category": "storage",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1781872054_0_Polo-Pedestal.jpg"
+      ],
+      "review": [
+        {
+          "code": "sku-generated",
+          "text": "Had no SKU on the live shop and is given OS-10003. Confirm the code or enter another."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "polo-pedestal",
+        "name": "Polo Pedestal",
+        "sku": "—",
+        "price": 15000,
+        "compareAt": null,
+        "categories": [
+          "office-storages"
+        ]
+      }
+    },
+    {
+      "id": "home-office-desk-pro",
+      "name": "Home Office Desk Pro",
+      "sku": "HF-10001",
+      "price": 25500,
+      "priceOnRequest": false,
+      "category": "home-office",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780564983_home%20office%20Desk%20Pro.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "home-office-desk-pro",
+        "name": "Home Office Desk Pro",
+        "sku": "SKU: HF-10001",
+        "price": 25500,
+        "compareAt": null,
+        "categories": [
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "studio-pro-table",
+      "name": "Studio Pro Table",
+      "sku": "HOF-10002",
+      "price": 1950,
+      "priceOnRequest": false,
+      "category": "home-office",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/6a329625c7cc48.79713627_Studio-Pro-Table.jpg"
+      ],
+      "review": [
+        {
+          "code": "price-low",
+          "text": "PKR 1,950 is below PKR 5,000, which is unusual for furniture. A digit may be missing."
+        }
+      ],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "studio-pro-table",
+        "name": "Studio Pro Table",
+        "sku": "SKU: HOF-10002",
+        "price": 1950,
+        "compareAt": null,
+        "categories": [
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "lumu-home-office-desk",
+      "name": "Lumu Home Office Desk",
+      "sku": "HOF-10003",
+      "price": 26500,
+      "priceOnRequest": false,
+      "category": "home-office",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780565437_Lumu%20Home%20office%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "lumu-home-office-desk",
+        "name": "Lumu Home office Desk",
+        "sku": "HOF-10003",
+        "price": 26500,
+        "compareAt": null,
+        "categories": [
+          "home-office-furniture"
+        ]
+      }
+    },
+    {
+      "id": "aero-home-office-desk",
+      "name": "Aero Home Office Desk",
+      "sku": "HOF-10004",
+      "price": 16500,
+      "priceOnRequest": false,
+      "originalPrice": 18000,
+      "category": "home-office",
+      "images": [
+        "https://woodexfurniture.pk/assets/images/products/1780565593_Aero%20Home%20office%20Desk.jpg"
+      ],
+      "review": [],
+      "source": {
+        "site": "woodexfurniture.pk",
+        "capturedOn": "2026-11-16",
+        "address": "aero-home-office-desk",
+        "name": "Aero Home office Desk",
+        "sku": "HOF-10004",
+        "price": 16500,
+        "compareAt": 18000,
+        "categories": [
+          "home-office-furniture"
+        ]
+      }
+    }
+  ]
+}

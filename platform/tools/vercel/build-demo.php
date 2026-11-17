@@ -96,13 +96,21 @@ $run('tables', ['artisan', 'migrate', '--force', '--no-interaction']);
 $run('reference data', ['artisan', 'db:seed', '--class=ProductionSeeder', '--force', '--no-interaction']);
 $run('staff accounts', ['tools/preview/synthetic_fixtures.php', 'staff']);
 $run('sample records', ['tools/preview/synthetic_fixtures.php', 'data']);
+// The real catalogue, released by the owner on 17 November 2026 (DL-022): 170 products of woodexfurniture.pk, as
+// drafts, under the demo owner's name. Customers, leads and documents stay fictional.
+$run('Woodex catalogue', ['artisan', 'commerce:import-catalogue', '--as=owner@woodex.test', '--no-interaction']);
 
 $pdo = new PDO('sqlite:'.$database);
 $staff = (int) $pdo->query("select count(*) from users where email like '%@woodex.test'")->fetchColumn();
 $others = (int) $pdo->query("select count(*) from users where email not like '%@woodex.test'")->fetchColumn();
 $pending = (int) $pdo->query('select count(*) from migrations')->fetchColumn();
+$products = (int) $pdo->query('select count(*) from commerce_products where published_revision_id is null')->fetchColumn();
+$published = (int) $pdo->query('select count(*) from commerce_products where published_revision_id is not null')->fetchColumn();
 $pdo = null;
 if ($staff !== 4 || $others !== 0 || $pending === 0 || ! is_file($database.'.key')) {
     $fail("unexpected content: {$staff} demo accounts, {$others} other accounts, {$pending} migrations.");
 }
-$say(sprintf('workspace ready: %d KB, %d migrations, %d demo accounts.', (int) round(filesize($database) / 1024), $pending, $staff));
+if ($products !== 170 || $published !== 0) {
+    $fail("unexpected catalogue: {$products} draft products (170 expected), {$published} published (none expected).");
+}
+$say(sprintf('workspace ready: %d KB, %d migrations, %d demo accounts, %d catalogue products (drafts).', (int) round(filesize($database) / 1024), $pending, $staff, $products));

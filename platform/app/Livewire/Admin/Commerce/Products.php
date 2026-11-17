@@ -219,7 +219,9 @@ final class Products extends Component
         if (! $manager) {
             $query->whereNull('archived_at')->whereExists(fn ($q) => $q->selectRaw('1')->from('commerce_product_revisions as snapshot')->whereColumn('snapshot.id', 'commerce_products.published_revision_id')->whereColumn('snapshot.product_id', 'commerce_products.id')->when($this->search !== '', fn ($q) => $q->where('snapshot.content->name', 'like', '%'.mb_substr($this->search, 0, 120).'%'))->when($this->categoryFilter !== '', fn ($q) => $categoryScope($q, 'snapshot.content->category_ids'))->when($this->seriesFilter !== '', fn ($q) => $q->whereJsonContains('snapshot.content->series_ids', (int) $this->seriesFilter)));
         } elseif ($this->search !== '') {
-            $query->where('name', 'like', '%'.mb_substr($this->search, 0, 120).'%');
+            // By name, or by the product's code: codes are stored in capitals inside the draft.
+            $term = mb_substr($this->search, 0, 120);
+            $query->where(fn ($found) => $found->where('name', 'like', '%'.$term.'%')->orWhere('draft', 'like', '%'.mb_strtoupper($term).'%'));
         }
         if ($manager) {
             $query->when($this->categoryFilter !== '', fn ($q) => $categoryScope($q, 'draft->category_ids'))->when($this->seriesFilter !== '', fn ($q) => $q->whereJsonContains('draft->series_ids', (int) $this->seriesFilter));
