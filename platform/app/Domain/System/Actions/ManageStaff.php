@@ -33,6 +33,10 @@ final class ManageStaff
 
             $user->syncRoles([$role]);
 
+            // Who let whom in, and as what (T-067). The person signed in is taken as the one who did it.
+            activity('system')->performedOn($user)->withProperties(['role' => $role, 'email' => $user->email])
+                ->log("Invited {$user->name} as {$role}.");
+
             return $user;
         });
 
@@ -56,7 +60,7 @@ final class ManageStaff
             $this->guardRoleChange($user, $by, $role);
         }
 
-        DB::transaction(function () use ($user, $name, $role, $phone, $title, $currentRole): void {
+        DB::transaction(function () use ($user, $by, $name, $role, $phone, $title, $currentRole): void {
             $user->forceFill([
                 'name' => trim($name),
                 'phone' => Phone::normalize($phone),
@@ -65,6 +69,11 @@ final class ManageStaff
 
             if ($currentRole !== $role) {
                 $user->syncRoles([$role]);
+
+                // A role decides what a person may see and do: the change is kept, with who made it (T-067).
+                activity('system')->performedOn($user)->causedBy($by)->withProperties(['old' => $currentRole, 'new' => $role])
+                    ->log("Changed the role of {$user->name} from ".($currentRole ?? 'none')." to {$role}.");
+
                 if (! $user->canUseTelegram()) {
                     TelegramLink::query()->where('user_id', $user->id)->update([
                         'is_active' => false, 'link_code' => null, 'link_code_expires_at' => null,
@@ -92,7 +101,13 @@ final class ManageStaff
             }
         }
 
+        $wasActive = (bool) $user->is_active;
         $user->forceFill(['is_active' => $active])->save();
+
+        if ($wasActive !== $active) {
+            activity('system')->performedOn($user)->causedBy($by)->withProperties(['active' => $active])
+                ->log($active ? "Reactivated {$user->name}." : "Deactivated {$user->name}: signed out everywhere.");
+        }
 
         if (! $active) {
             // Sign them out everywhere straight away (database sessions) and cut off Telegram (TGM-007).

@@ -67,7 +67,7 @@
         {
           "text": "Unit/API/browser tests pass.",
           "state": "partly",
-          "evidence": "Unit and feature tests pass: 2,359 on 17 November, and the same suite on MySQL 8.4 in CI. In a browser both journeys and a crawl of every screen as four roles pass, by hand and, since 17 November, in CI on every push that touches the admin (`.github/workflows/vercel-livewire.yml`); which of the eleven flows of document 10 they press is in §3.",
+          "evidence": "Unit and feature tests pass: 2,434 on 17 November, and the same suite on MySQL 8.4 in CI. In a browser both journeys and a crawl of every screen as four roles pass, by hand and, since 17 November, in CI on every push that touches the admin (`.github/workflows/vercel-livewire.yml`); which of the eleven flows of document 10 they press is in §3.",
           "lines": [
             "T-165",
             "T-080"
@@ -190,9 +190,8 @@
         {
           "text": "Migration snapshot.",
           "state": "open",
-          "evidence": "No snapshot has been taken for a move. What the old database held on 17 November was read and is written down: 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment. Since 17 November a new preview of the shop no longer reaches that database; the previews built before still do, until they are deleted.",
+          "evidence": "No snapshot has been taken for a move. What the old database held on 17 November was read and is written down: 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment. Since 17 November a new preview of the shop has no database; the previews built before cannot be opened without a sign-in to Vercel, and Vercel deletes them within 30 days.",
           "lines": [
-            "T-188",
             "T-180"
           ]
         },

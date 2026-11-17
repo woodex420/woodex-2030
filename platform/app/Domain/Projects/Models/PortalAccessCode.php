@@ -16,6 +16,9 @@ class PortalAccessCode extends Model
 {
     protected $guarded = ['id'];
 
+    /** The code is six digits: its hash can be tried out in minutes, so it never leaves the server. */
+    protected $hidden = ['code_hash'];
+
     /** Minutes a code stays usable. */
     public const int LIFETIME_MINUTES = 15;
 

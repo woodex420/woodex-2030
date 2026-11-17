@@ -15,7 +15,8 @@ Read in this order:
 | 7 | [`16-ACCEPTANCE-AND-RELEASE-GATES.md`](16-ACCEPTANCE-AND-RELEASE-GATES.md) | **Where the owner's own rules stand**: the five release gates, the 25 acceptance scenarios with the tests that prove them, the eleven browser flows, one acceptance sheet per open module, the defect register. Written from the files in [`acceptance/`](acceptance/) and checked in CI |
 | 8 | [`17-RELEASE-2026-11-17.md`](17-RELEASE-2026-11-17.md) | The release report of 17 November 2026, in the ten points of document 10 §9: what went out, what was changed in the shop's database, the evidence, what was not done |
 | 9 | [`18-RELEASE-2026-11-17-SECOND.md`](18-RELEASE-2026-11-17-SECOND.md) | The release report of pull request #37, written before its merge: what the merge changes on each live site, what was changed by hand on Vercel and in the shop's database, the evidence |
-| 10 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
+| 10 | [`19-RELEASE-2026-11-17-THIRD.md`](19-RELEASE-2026-11-17-THIRD.md) | The release report of pull request #39, written before its merge: the security tests and what they found, a trace for every sensitive action, a lead's value from its quotation |
+| 11 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
 
 Related, elsewhere in this repository:
 

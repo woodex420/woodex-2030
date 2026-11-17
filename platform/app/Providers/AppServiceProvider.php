@@ -45,6 +45,7 @@ use App\Domain\Sales\Models\RecurringInvoice;
 use App\Domain\Sales\Policies\InvoicePolicy;
 use App\Domain\Sales\Policies\PaymentPolicy;
 use App\Domain\Sales\Policies\QuotePolicy;
+use App\Domain\System\Actions\RecordSettingsChange;
 use App\Domain\System\Models\ChangeRequest;
 use App\Domain\Website\Models\Media;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -57,6 +58,7 @@ use App\Integrations\WhatsApp\Clients\WhatsAppCloudApi;
 use App\Integrations\WhatsApp\Contracts\WhatsAppGateway;
 use App\Integrations\WhatsApp\WhatsAppCredentials;
 use App\Models\User;
+use App\Support\DebugGuard;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -69,6 +71,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
+use Spatie\LaravelSettings\Events\SavingSettings;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -89,6 +92,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        DebugGuard::apply($this->app);
+
         RateLimiter::for('telegram-webhooks', function (Request $request): array {
             $sender = $request->input('message.from.id');
             $key = hash('sha256', is_scalar($sender) ? (string) $sender : 'unknown');
@@ -184,6 +189,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Re-applied on every Livewire update request, not only on the first page load.
         Livewire::addPersistentMiddleware([EnsureUserIsActive::class]);
+
+        // Every saved setting leaves a row in the list of changes (T-067).
+        Event::listen(SavingSettings::class, RecordSettingsChange::class);
 
         Event::listen(LeadCaptured::class, SendNewLeadAlerts::class);
         // Slice C: an estimator enquiry arrives with the three facts the rate book needs, so its draft

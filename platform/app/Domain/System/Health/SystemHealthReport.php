@@ -8,6 +8,7 @@ use App\Console\Commands\Heartbeat;
 use App\Domain\System\Models\ScheduledTaskRun;
 use App\Integrations\Telegram\Contracts\TelegramGateway;
 use App\Integrations\Turnstile\TurnstileVerifier;
+use App\Support\DebugGuard;
 use App\Support\Install\DatabaseUpdates;
 use App\Support\Install\SiteState;
 use Carbon\CarbonImmutable;
@@ -317,8 +318,10 @@ final class SystemHealthReport
     {
         return [
             'label' => 'Debug mode off in production',
-            'ok' => ! (app()->isProduction() && config('app.debug')),
-            'value' => config('app.debug') ? 'debug on' : 'debug off',
+            // In production the switch is refused when the site starts (App\Support\DebugGuard); the settings
+            // file that asked for it is still wrong, and is reported here until it is corrected.
+            'ok' => ! (app()->isProduction() && (config('app.debug') || DebugGuard::wasAsked())),
+            'value' => DebugGuard::wasAsked() ? 'asked for in the settings, and refused' : (config('app.debug') ? 'debug on' : 'debug off'),
             'hint' => 'APP_DEBUG=false on the server.',
         ];
     }

@@ -22,6 +22,7 @@ use App\Support\Money;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -39,6 +40,8 @@ class InvoiceShow extends Component
 {
     use InteractsWithAdmin;
 
+    /** The invoice this page was opened for. Locked: the browser cannot hand the page another one. */
+    #[Locked]
     public int $invoiceId;
 
     public string $amount = '';

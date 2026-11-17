@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\Features\SupportFileUploads\WithFileUploads;
@@ -50,6 +51,8 @@ class ProjectShow extends Component
 {
     use InteractsWithAdmin, WithFileUploads, WithPagination;
 
+    /** The project this page was opened for. Locked: the browser cannot hand the page another one. */
+    #[Locked]
     public Project $project;
 
     /** @var array<int, TemporaryUploadedFile> */
