@@ -190,9 +190,9 @@
         {
           "text": "Migration snapshot.",
           "state": "open",
-          "evidence": "No snapshot has been taken for a move. What the old database held on 17 November was read and is written down: 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment.",
+          "evidence": "No snapshot has been taken for a move. What the old database held on 17 November was read and is written down: 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment. Since 17 November a new preview of the shop no longer reaches that database; the previews built before still do, until they are deleted.",
           "lines": [
-            "T-164",
+            "T-188",
             "T-180"
           ]
         },

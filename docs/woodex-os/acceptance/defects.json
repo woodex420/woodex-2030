@@ -104,9 +104,9 @@
    "state": "open",
    "found": "2026-11-17",
    "title": "Preview builds of the React shop use the production database",
-   "detail": "In the shop's Vercel project the database address is set for Production, Preview and Development alike. Vercel builds a preview of every branch that is pushed, so code that nobody has reviewed runs against the live data, and each preview address signs in to the same records. Harmless while the database holds sample products and one lead; not once it holds customers and orders. On 17 November the owner chose the repair (DL-026): take the database address out of Preview and Development. It is made as soon as the Vercel app is switched on again.",
+   "detail": "In the shop's Vercel project the database address is set for Production, Preview and Development alike. Vercel builds a preview of every branch that is pushed, so code that nobody has reviewed runs against the live data, and each preview address signs in to the same records. Harmless while the database holds sample products and one lead; not once it holds customers and orders. On 17 November the owner chose the repair (DL-026): take the database address out of Preview and Development. It is made as soon as the Vercel app is switched on again. Since 17 November, 16:05 UTC, the address is set for Production only (T-164): a preview built from then on has no database. Every preview that Vercel built before keeps the address until it is deleted, so this stays open for them.",
    "lines": [
-    "T-164"
+    "T-188"
    ]
   },
   {
@@ -145,13 +145,17 @@
   {
    "id": "D-010",
    "severity": "medium",
-   "state": "open",
+   "state": "closed",
    "found": "2026-11-17",
    "title": "The shop's database has no row-level security",
    "detail": "The second lock behind D-001. With the privileges gone the tables cannot be reached through the Data API; row-level security keeps it that way if a privilege is ever granted again by mistake. Migration 020 is written and tested (`scripts/migrations/020_row_level_security.sql`, `scripts/test-rls.mjs`); by the owner's word of 17 November (DL-026) it is applied to the live database once a backup or a safe way back is confirmed, which needs the Supabase app switched on.",
    "lines": [
     "T-163"
-   ]
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Migration 020 was applied to the live database at 16:07:45 UTC, in one transaction with its ledger row: all 73 tables carry row-level security and the policy `no_access_through_the_data_api`, none forced. The shop's API connects as the owner of the tables and reads as before: asked from outside 67 seconds later, the shop served its 148 products (run 44122391808). The text that was run is kept in `deploy/supabase/2026-11-17-apply-020-row-level-security.sql`. DL-028."
+   }
   },
   {
    "id": "D-011",
@@ -159,7 +163,7 @@
    "state": "open",
    "found": "2026-11-17",
    "title": "No backup of the shop's database is known to exist",
-   "detail": "None was taken before the changes of 17 November, and whether the Supabase plan keeps any has not been checked. What the database held can be rebuilt today: its 148 products are the seed file's, and both changes have their undo. That stops being true with the first real order.",
+   "detail": "None was taken before the changes of 17 November, and whether the Supabase plan keeps any has not been checked. What the database held can be rebuilt today: its 148 products are the seed file's, and both changes have their undo. That stops being true with the first real order. On 17 November the agent looked again before applying migration 020: its connection to Supabase shows neither the plan nor any backup, so this could not be settled. That migration changes no row and has a tested rollback (DL-028).",
    "lines": [
     "T-187"
    ]
@@ -395,6 +399,17 @@
    "detail": "`laravel/framework` 13.39.0 carries CVE-2026-128083 (low; fixed in 13.40.0): text injected into the output of a task run through the Concurrency process driver, which this application does not use. `npm audit` reports eleven moderate advisories, in the linter, in `react-router` and in a Tailwind plugin; the fix npm offers for `react-router` is a change of major version. None fails the audit, which stops at high.",
    "lines": [
     "T-071"
+   ]
+  },
+  {
+   "id": "D-029",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "Ten functions of the shop's database have no fixed search path",
+   "detail": "The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today.",
+   "lines": [
+    "T-172"
    ]
   }
  ]
