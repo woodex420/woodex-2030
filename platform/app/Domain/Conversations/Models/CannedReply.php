@@ -88,7 +88,8 @@ class CannedReply extends Model
             '{first_name}' => $contact !== null ? Str::before($contact->name ?? '', ' ') : '',
             '{studio_name}' => $business->brand_name,
             '{studio_hours}' => self::hoursSummary($hours->opensAt, $hours->closesAt, $hours->workingDays),
-            '{quote_link}' => $quote !== null ? QuoteLinks::portal($quote) : '',
+            // Empty while the client pages are switched off: a link that answers 404 is worse than none.
+            '{quote_link}' => $quote !== null ? (string) QuoteLinks::clientPage($quote) : '',
         ];
 
         return str_replace(array_keys($values), $values, $this->body);

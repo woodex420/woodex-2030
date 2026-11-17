@@ -6,6 +6,8 @@ namespace App\Livewire\Admin\System;
 
 use App\Domain\Bot\Actions\SyncBotKnowledge;
 use App\Domain\Bot\Models\BotKnowledge;
+use App\Domain\Crm\Enums\BusinessLine;
+use App\Domain\Sales\Services\DocumentReadiness;
 use App\Integrations\WhatsApp\Actions\TestWhatsAppConnection;
 use App\Integrations\WhatsApp\WhatsAppCredentials;
 use App\Livewire\Admin\Crm\ContactsIndex;
@@ -119,6 +121,7 @@ class SettingsPage extends Component
             'signatories' => array_values($sales->signatories),
             'execution_terms' => $sales->execution_terms,
             'design_terms' => $sales->design_terms,
+            'invoice_terms' => $sales->invoice_terms,
         ];
 
         $bot = app(BotSettings::class);
@@ -239,14 +242,19 @@ class SettingsPage extends Component
             'sales.signatories' => ['array', 'max:4'],
             'sales.signatories.*.name' => ['required', 'string', 'max:80'],
             'sales.signatories.*.title' => ['required', 'string', 'max:80'],
-            'sales.execution_terms' => ['required', 'string', 'max:5000'],
-            'sales.design_terms' => ['required', 'string', 'max:5000'],
+            // The execution and design terms are the Interior brand's. An installation that does not sell that
+            // brand neither shows nor asks for them, and what they hold is left as it is.
+            'sales.execution_terms' => [$this->interiorTerms() ? 'required' : 'nullable', 'string', 'max:5000'],
+            'sales.design_terms' => [$this->interiorTerms() ? 'required' : 'nullable', 'string', 'max:5000'],
+            'sales.invoice_terms' => ['required', 'string', 'max:5000'],
         ], [
             'sales.budget_bands.*.key.regex' => 'Keys use lowercase letters, numbers and dashes only (e.g. 3m-7m).',
         ], [
             'sales.sla_first_response_minutes' => 'response target', 'sales.discount_limits.*' => 'discount limit',
             'sales.budget_bands.*.key' => 'key', 'sales.budget_bands.*.label' => 'label',
             'sales.signatories.*.name' => 'name', 'sales.signatories.*.title' => 'title',
+            'sales.execution_terms' => 'execution terms', 'sales.design_terms' => 'design terms',
+            'sales.invoice_terms' => 'invoice terms',
         ])['sales'];
 
         $reasons = collect(preg_split('/\R/', (string) $data['lost_reasons']) ?: [])->map(fn ($r) => trim((string) $r))->filter()->unique()->values()->all();
@@ -270,8 +278,11 @@ class SettingsPage extends Component
         $settings->lost_reasons = $reasons;
         $settings->budget_bands = collect((array) $data['budget_bands'])->mapWithKeys(fn ($b) => [trim($b['key']) => trim($b['label'])])->all();
         $settings->signatories = array_values(array_map(fn ($s) => ['name' => trim($s['name']), 'title' => trim($s['title'])], $data['signatories'] ?? []));
-        $settings->execution_terms = trim($data['execution_terms']);
-        $settings->design_terms = trim($data['design_terms']);
+        if ($this->interiorTerms()) {
+            $settings->execution_terms = trim((string) $data['execution_terms']);
+            $settings->design_terms = trim((string) $data['design_terms']);
+        }
+        $settings->invoice_terms = trim($data['invoice_terms']);
         $settings->save();
 
         $this->sales['lost_reasons'] = implode("\n", $reasons);
@@ -416,6 +427,12 @@ class SettingsPage extends Component
         $this->toast('Saved credentials removed. The server .env is used again if it holds any.');
     }
 
+    /** Whether this installation sells the Interior brand, whose quotations print the execution and design terms. */
+    private function interiorTerms(): bool
+    {
+        return in_array(BusinessLine::Interior, BusinessLine::offeredBrands(), true);
+    }
+
     public function render(): View
     {
         $credentials = app(WhatsAppCredentials::class);
@@ -441,6 +458,9 @@ class SettingsPage extends Component
             'whatsappSource' => $credentials->isConfigured() ? $credentials->source() : null,
             'days' => [1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun'],
             'roles' => UsersIndex::ROLES,
+            'interiorTerms' => $this->interiorTerms(),
+            // What still stops a quotation or an invoice from being issued, point by point.
+            'documentProblems' => app(DocumentReadiness::class)->problems(),
         ]);
     }
 

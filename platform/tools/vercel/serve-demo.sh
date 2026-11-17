@@ -9,6 +9,13 @@
 # and for a full rehearsal). The four demo passwords need 16 characters or more. The site answers on
 # http://127.0.0.1:<port> (default 8191) until the script is stopped; PHP itself listens on port 3000, as the
 # launcher always does. Everything is fictional and lives in /tmp.
+#
+# Two settings are handed on to the running site when they are set, for a rehearsal on this machine only (the
+# Vercel project carries neither):
+#   DOCUMENTS_OWNER_CONFIRMED=true   lets a quotation and an invoice be issued, so that the whole sale can be
+#                                    pressed through (scripts/os-journeys.mjs). On any real site this switch
+#                                    is the owner's word that terms and signers are right (list line T-084).
+#   WOODEX_MODULES=lead_api,…        the optional modules that are switched on (config/modules.php).
 set -u
 PORT="${1:-8191}"
 [ -f api/index.php ] && [ -f vercel.json ] && [ -f vendor/autoload.php ] || { echo "Run from platform/, with vendor/ installed."; exit 2; }
@@ -40,5 +47,6 @@ TASK="$(mktemp -d)"; ln -s "$PWD" "$TASK/user"; ln -s "$PHP_DIR" "$TASK/php"; ln
 trap 'rm -rf "$TASK"' EXIT
 echo "The demo answers on http://127.0.0.1:$PORT/admin (stop with Ctrl+C)."
 env -i PATH="$PATH" HOME="$HOME_DIR" "${BLOCK[@]}" WOODEX_DEMO=1 "${PASSWORDS[@]}" ${WOODEX_DEMO_SHOW_PASSWORD:+WOODEX_DEMO_SHOW_PASSWORD="$WOODEX_DEMO_SHOW_PASSWORD"} \
+  ${DOCUMENTS_OWNER_CONFIRMED:+DOCUMENTS_OWNER_CONFIRMED="$DOCUMENTS_OWNER_CONFIRMED"} ${WOODEX_MODULES:+WOODEX_MODULES="$WOODEX_MODULES"} \
   LAMBDA_TASK_ROOT="$TASK" NOW_ENTRYPOINT=api/index.php NOW_PHP_DEV=0 VERCEL_PHP_PACKAGE="$PACKAGE" STAND_IN_PORT="$PORT" STAND_IN_ROUTES="$ROUTES" \
   LD_LIBRARY_PATH="$LIB_DIR" PHP_INI_EXTENSION_DIR="$PHP_DIR/modules" PHP_INI_SCAN_DIR=":$PACKAGE/conf" node tools/vercel/launcher-stand-in.cjs

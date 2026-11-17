@@ -2,11 +2,14 @@
     <x-admin.page-header title="Settings" description="Business details appear on quotations, invoices and the website. Sales rules drive SLAs, discounts and reports."
                          :breadcrumbs="['System' => null, 'Settings' => null]" />
 
-    @if (app(\App\Domain\Sales\Services\DocumentReadiness::class)->problems() !== [])
-        <div role="status" class="mb-6 rounded-lg border border-gray-200 bg-white p-4 text-theme-sm dark:border-gray-800 dark:bg-gray-900">
-            <strong>Furniture setup pending owner confirmation.</strong>
-            Confirm the legal identity, contact details, payment/warranty/delivery terms and authorized signatories before issuing business documents.
-            Blank fields are intentional; no replacement commercial terms have been invented. Quotation sending and new invoice issuance are blocked until required settings and operator-recorded owner confirmation are complete. Draft editing and historical document access remain available.
+    @if ($documentProblems !== [])
+        {{-- What stops a quotation or an invoice from being issued, point by point, so that nobody has to guess. --}}
+        <div role="status" class="mb-6 rounded-lg border border-warning-500/30 bg-warning-50 p-4 text-theme-sm text-warning-800 dark:bg-warning-500/10 dark:text-warning-300">
+            <p class="font-medium">Documents cannot be issued yet</p>
+            <p class="mt-1">A quotation cannot be sent and an invoice cannot be issued until {{ count($documentProblems) === 1 ? 'this point is' : 'these '.count($documentProblems).' points are' }} closed. Drafts can be written and documents already issued can be opened meanwhile. Nothing was filled in for you: the wording on your documents is yours to give.</p>
+            <ul class="mt-2 list-disc space-y-0.5 pl-5">
+                @foreach ($documentProblems as $problem)<li>{{ $problem }}</li>@endforeach
+            </ul>
         </div>
     @endif
 
@@ -231,10 +234,16 @@
                 </div>
             </x-admin.card>
 
-            <x-admin.card title="Terms and signatures" description="Printed at the end of every quotation.">
+            <x-admin.card title="Terms and signatures" description="The standard wording on documents, and the people who sign them.">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <x-admin.field label="Execution terms" for="sales.execution_terms"><textarea id="sales.execution_terms" wire:model="sales.execution_terms" rows="6" class="wx-input h-auto py-2.5"></textarea></x-admin.field>
-                    <x-admin.field label="Design terms" for="sales.design_terms"><textarea id="sales.design_terms" wire:model="sales.design_terms" rows="6" class="wx-input h-auto py-2.5"></textarea></x-admin.field>
+                    @if ($interiorTerms)
+                        <x-admin.field label="Execution terms" for="sales.execution_terms"><textarea id="sales.execution_terms" wire:model="sales.execution_terms" rows="6" class="wx-input h-auto py-2.5"></textarea></x-admin.field>
+                        <x-admin.field label="Design terms" for="sales.design_terms"><textarea id="sales.design_terms" wire:model="sales.design_terms" rows="6" class="wx-input h-auto py-2.5"></textarea></x-admin.field>
+                    @endif
+                    <x-admin.field label="Invoice terms" for="sales.invoice_terms" class="md:col-span-2"
+                                   hint="One per line. Printed on an invoice that is written by hand. An invoice made from a quotation carries that quotation's own terms.">
+                        <textarea id="sales.invoice_terms" wire:model="sales.invoice_terms" rows="4" class="wx-input h-auto py-2.5" placeholder="For example: Payment is due within the days stated on this invoice."></textarea>
+                    </x-admin.field>
                     <div class="md:col-span-2">
                         <span class="wx-label">Signatories</span>
                         <div class="space-y-2">

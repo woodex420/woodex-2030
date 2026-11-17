@@ -12,8 +12,12 @@
             <tr><td style="padding:28px">
                 <p style="margin:0 0 12px">Dear {{ $s['client']['name'] }},</p>
                 <p style="margin:0 0 12px">Thank you for considering {{ $s['company']['brand'] }}. Your quotation <strong>{{ $s['label'] }}</strong> for “{{ $s['title'] }}” is ready: <strong>{{ $total }}</strong>@if ($valid), valid until {{ $valid }}@endif.</p>
+                @if ($link === null)
+                <p style="margin:0 0 20px">The PDF is attached. To confirm the order, reply to this email.</p>
+                @else
                 <p style="margin:0 0 20px">Open it to see every line, download the PDF (also attached) and accept it online.</p>
                 <p style="margin:0 0 24px"><a href="{{ $link }}" style="display:inline-block;background:#0f1e36;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px">View your quotation</a></p>
+                @endif
                 <p style="margin:0;color:#6e87ac;font-size:13px">Questions? Reply to this email or WhatsApp us at {{ $s['company']['whatsapp'] }}.</p>
             </td></tr>
             <tr><td style="padding:16px 28px;background:#fcf2e8;color:#6e87ac;font-size:12px">{{ $s['company']['legal_name'] }} · {{ $s['company']['address'] }} · {{ $s['company']['website'] }}</td></tr>

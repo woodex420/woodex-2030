@@ -11,7 +11,9 @@ use App\Domain\Sales\Mail\QuoteSentMail;
 use App\Domain\Sales\Models\Quote;
 use App\Domain\Sales\Models\QuoteItem;
 use App\Domain\Sales\Models\QuoteVersion;
+use App\Domain\Sales\Services\DocumentReadiness;
 use App\Domain\Sales\Services\QuoteApprovalRules;
+use App\Domain\Sales\Services\QuoteLinks;
 use App\Domain\Sales\Services\QuotePdf;
 use App\Domain\Sales\Services\QuoteSnapshot;
 use App\Models\User;
@@ -43,7 +45,7 @@ final class SendQuote
     public function problems(Quote $quote): array
     {
         $items = $quote->items()->get(['id', 'qty', 'rate_minor', 'is_optional']);
-        $problems = app(\App\Domain\Sales\Services\DocumentReadiness::class)->problems();
+        $problems = app(DocumentReadiness::class)->problems();
 
         if ($items->where('is_optional', false)->isEmpty()) {
             $problems[] = 'Add at least one line that is not optional.';
@@ -126,7 +128,15 @@ final class SendQuote
 
             $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now()]);
 
-            $this->log->handle($quote, 'sent', $by, "{$quote->label()} sent to {$quote->contact->name}".($email ? ' (link + email)' : ' (link)').'.', [
+            // What "sent" meant, for the timeline. With the client pages switched off there is no link: the
+            // document is frozen and its PDF is what reaches the client — by e-mail if asked, otherwise by hand.
+            $how = match (true) {
+                QuoteLinks::clientPagesOpen() => $email ? ' (link + email)' : ' (link)',
+                $email => ' (PDF by e-mail)',
+                default => ' (PDF, to be given to the client)',
+            };
+
+            $this->log->handle($quote, 'sent', $by, "{$quote->label()} sent to {$quote->contact->name}{$how}.", [
                 'revision' => (int) $quote->revision,
                 'total_minor' => (int) $quote->total_minor,
                 'email' => $email,

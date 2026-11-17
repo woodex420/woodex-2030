@@ -12,9 +12,11 @@
                     <x-admin.button variant="secondary" icon="document">PDF</x-admin.button>
                 </a>
             @endif
-            <a href="{{ $portal }}" target="_blank" rel="noopener">
-                <x-admin.button variant="secondary" icon="link">Client link</x-admin.button>
-            </a>
+            @if ($portal)
+                <a href="{{ $portal }}" target="_blank" rel="noopener">
+                    <x-admin.button variant="secondary" icon="link">Client link</x-admin.button>
+                </a>
+            @endif
             @if ($whatsapp)
                 <a href="{{ $whatsapp }}" target="_blank" rel="noopener">
                     <x-admin.button variant="secondary" icon="chat">Send on WhatsApp</x-admin.button>
@@ -253,10 +255,17 @@
                             <dd class="truncate">{{ $invoice->contact->email }}</dd>
                         </div>
                     @endif
-                    <div>
-                        <dt class="text-gray-500">Client link</dt>
-                        <dd><a href="{{ $portal }}" target="_blank" rel="noopener" class="break-all text-brand-600 hover:underline dark:text-brand-400">{{ $portal }}</a></dd>
-                    </div>
+                    @if ($portal)
+                        <div>
+                            <dt class="text-gray-500">Client link</dt>
+                            <dd><a href="{{ $portal }}" target="_blank" rel="noopener" class="break-all text-brand-600 hover:underline dark:text-brand-400">{{ $portal }}</a></dd>
+                        </div>
+                    @elseif ($invoice->status !== \App\Domain\Sales\Enums\InvoiceStatus::Draft)
+                        <div>
+                            <dt class="text-gray-500">Reaching the client</dt>
+                            <dd>The client pages are switched off on this site: give the client the PDF.</dd>
+                        </div>
+                    @endif
                     @if ($invoice->quote)
                         <div>
                             <dt class="text-gray-500">Quotation</dt>
