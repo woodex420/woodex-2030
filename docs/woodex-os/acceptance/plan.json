@@ -1,0 +1,612 @@
+{
+  "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
+  "written": "2026-11-17",
+  "commit": "dfc8369",
+  "sizes": {
+    "S": "small",
+    "M": "medium",
+    "L": "large"
+  },
+  "titles": {
+    "T-003": "Give Furniture's price list, terms, quotation wording and who signs",
+    "T-004": "Say who may approve what, and each role's discount limit",
+    "T-005": "Approve the design on the live demo, or say what to change",
+    "T-006": "Send the Hostinger details and enter the two SSH secrets in GitHub",
+    "T-007": "Name the addresses for the shop, the admin and the API",
+    "T-008": "Confirm the currency (PKR) and the tax rules",
+    "T-009": "Give a mailbox for sending mail (SMTP) on the Furniture domain",
+    "T-010": "Say whether delivery and installation are two separate jobs",
+    "T-011": "Decide product options, and the stock rule: from stock or made to order",
+    "T-012": "Say how many warehouses and branches there are, and where",
+    "T-013": "Name who reviews the accounting; show the ledger screens at launch or not",
+    "T-014": "Choose the WhatsApp and Telegram provider and account",
+    "T-015": "Say whether the client portal is part of the product",
+    "T-016": "Approve the list of redirects before cutover",
+    "T-017": "Say which existing customer and order records may be moved",
+    "T-018": "Name one person and one document for warranty, delivery and returns",
+    "T-021": "Change the old dashboard's password; make the repository private",
+    "T-022": "Say whether owner and admin must use two-factor sign-in",
+    "T-023": "Send the missing document `01-MASTER-PRD.md`",
+    "T-024": "Send the AI-agent failure example, if you want that diagnosis",
+    "T-025": "The old dashboard's address: leave it, or add a link to the new admin",
+    "T-026": "Look at the React shop as it was rebuilt, and say whether it stays",
+    "T-090": "Review the imported catalogue: points to check, prices, categories",
+    "T-091": "Load the 170 real products into the React shop; withdraw the samples",
+    "T-151": "Add the demo owner's password as a GitHub secret, for a signed-in check",
+    "T-171": "Read the eight module sheets: approve or return each",
+    "T-181": "Approve in writing before any real record moves, and before production",
+    "T-187": "Say whether Supabase keeps backups, or give the database address as a secret",
+    "T-041": "One table component for every list, with the five states",
+    "T-043": "A warning before leaving a form with unsaved changes",
+    "T-044": "The dashboard as a widget framework, with the missing widgets",
+    "T-045": "Screen pass, area by area: theme colours, page patterns, dark theme",
+    "T-046": "Help, pinned screens and recently opened screens in the top bar",
+    "T-049": "No text smaller than 12 px",
+    "T-052": "Page weight: a near-empty page under 60 KB of HTML",
+    "T-054": "Keyboard and screen-reader tests in a browser",
+    "T-063": "The rules of `/api/v1`, held by a contract test",
+    "T-071": "Package updates, and the advisories the audit reports",
+    "T-072": "The content policy without `eval`",
+    "T-086": "A quotation line from the catalogue keeps its product and price",
+    "T-142": "The outside check on a timer: the first timed run",
+    "T-152": "Long caching for the stylesheet and scripts",
+    "T-153": "A guard on the size of the Vercel function",
+    "T-154": "A cold start on Vercel, measured",
+    "T-172": "A fixed search path for the functions of the shop's database",
+    "T-175": "Every table of the old system mapped to its Laravel owner",
+    "T-189": "Close pull request #29: its work is already in `main`",
+    "T-033": "Interior lists and fields in open screens replaced by Furniture's wording",
+    "T-042": "On a phone, the key lists show cards instead of a wide table",
+    "T-047": "Search finds a screen by keyword and by its old name",
+    "T-048": "The signed-in person and Settings at the foot of the sidebar",
+    "T-050": "A reference screen showing every shared component and state",
+    "T-051": "Placeholders while a list loads; a notice when the connection is lost",
+    "T-053": "Phones with real amounts of data: no page wider than the window",
+    "T-055": "The notification bell's request every 30 seconds, measured on the real host",
+    "T-056": "Workspace preferences, Team onboarding and release notes",
+    "T-060": "One role and permission matrix from the two systems",
+    "T-064": "Business settings in one screen: currency, time zone, tax rules",
+    "T-065": "A screen for sign-in locks and open sessions",
+    "T-066": "A currency code on payments, bills, expenses and journal lines",
+    "T-073": "\"Connect\" of a connector that signs in at another site",
+    "T-080": "The sale end to end on staging, with real test records",
+    "T-081": "Approvals as one queue for every kind",
+    "T-082": "Reports: definitions, time zone, currency, exports by permission",
+    "T-083": "Contacts with several phone numbers and e-mail addresses",
+    "T-084": "Documents issued with Furniture's real terms and signers",
+    "T-085": "Estimations with Furniture's rates; the module switched on",
+    "T-087": "Tax rules on quotations and invoices; credit notes; payment schedules",
+    "T-088": "Commerce readiness: the command exits clean on staging",
+    "T-089": "The catalogue's photographs copied into the media library",
+    "T-100": "The shop's enquiry and quote-request forms write to Laravel",
+    "T-101": "Import of leads, contacts, companies, tasks and meetings",
+    "T-102": "The old system stops writing CRM records: one writer",
+    "T-103": "Sales documents merged, with Furniture's templates",
+    "T-105": "The shop reads products, categories and series from `/api/v1`",
+    "T-106": "Orders, in the admin and from the shop",
+    "T-107": "Delivery and installation",
+    "T-108": "Support and warranty",
+    "T-109": "Stock: ledger, warehouses, transfers, reservations",
+    "T-110": "Suppliers, purchase orders, goods receipts, supplier invoices",
+    "T-111": "Production: bills of material, job cards, the quality gate",
+    "T-112": "Projects merged; the client portal switched on",
+    "T-113": "Finance merged: expenses, credit notes, payment schedules",
+    "T-114": "Reports merged",
+    "T-115": "The page-builder prototype (gate C)",
+    "T-116": "Website Studio on Puck",
+    "T-117": "Today's pages moved into the page builder",
+    "T-118": "An inbox for Furniture's channels",
+    "T-119": "Automation with a dry run and approvals",
+    "T-120": "Marketing: campaigns, attribution, landing pages",
+    "T-121": "Cutover: the final data move; the old system retired",
+    "T-130": "The Hostinger staging site starts",
+    "T-131": "Compatibility verified on the Hostinger account",
+    "T-132": "A deploy job from GitHub, rolled back in one step",
+    "T-133": "First installation on staging: the tables and the first owner",
+    "T-134": "Timed jobs and the queue on Hostinger",
+    "T-135": "Mail through SMTP",
+    "T-136": "Uploads that survive a deployment",
+    "T-137": "Backups, and one proven restore",
+    "T-138": "Errors and failed jobs reach a person",
+    "T-139": "Behaviour within the hosting plan's limits",
+    "T-140": "https, the domain, the admin's own host name",
+    "T-141": "The shop's build served from the same Hostinger account",
+    "T-155": "Richer sample data, Furniture's own",
+    "T-156": "The demo removed or moved once the real admin exists",
+    "T-161": "A sweep for records opened by their number as the wrong role",
+    "T-165": "Browser journeys for the remaining flows of document 10",
+    "T-168": "Performance: query budgets and a run with realistic volumes",
+    "T-176": "The differences between PostgreSQL and MySQL, tested",
+    "T-177": "One rule for identifiers; old-to-new numbers kept",
+    "T-178": "An importer per module, repeatable, with a dry run",
+    "T-179": "A reconciliation report per domain",
+    "T-180": "One full rehearsal of the data move, and of going back",
+    "T-185": "A runbook: deploy, roll back, restore, passwords, accounts",
+    "T-186": "Training and handover",
+    "T-188": "The shop's old previews are gone"
+  },
+  "notes": {
+    "T-080": "Done on the rehearsal on 17 November. What is left is the same journey on staging.",
+    "T-105": "It can be built and proven on the rehearsal as soon as T-063 is done. Switching the live shop over also needs the real admin on Hostinger (T-133).",
+    "T-115": "Building the prototype needs nobody. Accepting it is yours: gate C.",
+    "T-188": "Nobody acts: Vercel deletes each preview 30 days after it was built. The outside check watches one of them."
+  },
+  "rounds": [
+    {
+      "name": "What is typed is not lost; a quotation takes its products from the catalogue",
+      "why": "Both are P1 and on the path of a sale, and neither needs anybody.",
+      "lines": [
+        {
+          "id": "T-043",
+          "size": "M",
+          "found": "41 views hold a form that is sent through Livewire. The menu, the top bar and most links open the next screen without loading a whole page (116 places), so the browser's own question on leaving a page would never be asked for them. Six editors mention unsaved edits on the screen; none asks before the screen is left.",
+          "build": [
+            "One small script in the admin's own bundle watches every create and edit form, and every editor that saves without a form: typing in a field or changing it marks it as changed, and a save that succeeds clears the mark.",
+            "Leaving a changed form asks first, in both ways a person leaves: by a link inside the admin (the admin's own dialog, \"Stay\" or \"Leave without saving\") and by closing or reloading the tab (the browser's own question).",
+            "Search and filter forms, the sign-in forms and the client's pages are left out, by a written list."
+          ],
+          "tests": [
+            "A test reads every view that holds a form or an editor and fails when one is neither watched nor on the written list of exceptions.",
+            "A test opens a screen with a watched form and a list screen: the first carries the mark in its page, the second does not."
+          ],
+          "browser": [
+            "New journey steps: text is typed into \"New lead\" and a menu link is pressed. The dialog shows; \"Stay\" keeps the screen and the text; \"Leave without saving\" opens the other screen.",
+            "An untouched form lets go without asking. After a save, leaving does not ask.",
+            "Closing the tab on a changed form raises the browser's own question.",
+            "The same at 390 px, and the dialog by keyboard only: Tab, Enter, and Escape for \"Stay\"."
+          ],
+          "against": "With the watch taken out of the script, the first and third browser steps fail. With the clearing after a save taken out, \"after a save\" fails.",
+          "back": "No record changes. The script is part of the built bundle (`platform/public/build`), rebuilt and committed; putting the commit back removes it."
+        },
+        {
+          "id": "T-086",
+          "size": "M",
+          "found": "The quotation builder adds a line from the rate book, which is a price list of its own, or by hand. It cannot take one of the 170 products of the catalogue: a line holds a product's name as typed text, with no link to the product. In the catalogue 137 products have a price and 33 are \"price on request\"; every product has a code; 116 still carry points to check (T-090).",
+          "build": [
+            "\"Add a product\" in the quotation builder: a search by name or code over the catalogue. Any product that is not archived can be chosen, published in the shop or not: all 170 are drafts today. Choosing one writes a line with its name, its code and its price as they are at that moment: the reduced price where the product has one.",
+            "A product that still carries points to check says so in the search, so that a doubtful price is seen before it is used. The price on the line can be changed by hand, as on any line.",
+            "The line keeps a link to the product and its own copy of name, code and price: new columns on quotation and invoice lines, in one migration that only adds.",
+            "A product without a price adds a line marked \"price on request\"; the quotation cannot be sent until a price is typed.",
+            "The invoice made from the quotation carries the same link and the same copies."
+          ],
+          "tests": [
+            "Choosing a product copies its name, code and price onto the line.",
+            "Changing the product's price or name afterwards changes neither a draft's line nor a sent quotation, its total or its PDF.",
+            "Archiving the product afterwards leaves the line as it was.",
+            "The invoice made from the quotation, and a revision of the quotation, keep the product.",
+            "A quotation with a \"price on request\" line is refused at sending, with the reason on the screen.",
+            "A role that may not edit quotations cannot add a product.",
+            "The migration runs forward and back on MySQL in CI."
+          ],
+          "browser": [
+            "The working-day journey prices its line by choosing a product of the real catalogue by its code, and reads the price on the screen and in the PDF."
+          ],
+          "against": "With the copy taken out, so that the line reads the product's price of the day, the second test fails.",
+          "back": "The migration only adds columns and its way back removes them. No existing line is changed."
+        }
+      ]
+    },
+    {
+      "name": "The rules of the API the shop will use",
+      "why": "P1, and of the lines that need nobody the one the most other work stands behind: the shop's reading of the catalogue (T-105), and after it the page builder.",
+      "lines": [
+        {
+          "id": "T-063",
+          "size": "M",
+          "found": "`/api/v1` has seven endpoints: the categories and their pictures, the media list and its files, an enquiry, the WhatsApp hand-off and a basket request. Each answers in its own shape. The React shop already holds a caller for each. On the live shop none of them reaches Laravel: the two switches of its forms and the address of the Laravel API are not among the settings of its Vercel project (read on 17 November). The shop's contract tests in CI hold today's shapes.",
+          "build": [
+            "The rules, written down in one document: the answer as `data` / `meta` / `error` with error codes, pages, the filters that are allowed, an idempotency key on every create, money as whole minor units, times in UTC, and how the shop or an outside client signs in. Recorded with it: staff need no JSON API.",
+            "One builder for answers and one handler for errors, used by all seven endpoints, so that a refused field, a missing record, too many requests and a fault all arrive in the same shape, each with the request number of T-062.",
+            "A create that is sent twice with the same key writes once and answers the same.",
+            "The shop's callers move to the new shape in the same commit."
+          ],
+          "tests": [
+            "A contract test names every route under `/api/v1`: a route added without its contract fails it.",
+            "For each endpoint the answer is compared key by key: success, a refused field (422), not found (404), wrong method (405), too many requests (429) and a fault (500).",
+            "The same idempotency key twice gives one record and the same answer; the same key with other content is refused.",
+            "Money arrives as whole numbers and times in UTC; the request number in the answer equals the one in the header.",
+            "The existing tests of the seven endpoints, and the shop's contract tests of its callers, move to the new shape in the same commit; each change is listed in the round's report.",
+            "After the merge the outside check asks one address of `/api/v1` on the live demo and requires the new error shape."
+          ],
+          "browser": [],
+          "against": "With one endpoint left in its old shape, the contract test names it.",
+          "back": "On the live shop the switches are off, so no visitor's request reaches these endpoints. The round changes files of the React shop, its callers: the release report names them before the merge. The endpoints of the old website's bridge keep their shape; that module is switched off."
+        }
+      ]
+    },
+    {
+      "name": "One table for every list",
+      "why": "P1 and part of gate A. Three lines wait for it (T-042, T-050, T-051), and the screen pass (T-045) builds on it.",
+      "lines": [
+        {
+          "id": "T-041",
+          "size": "L",
+          "found": "50 screens write their own table: 14 in Sales, 10 in Accounts, 6 in CRM, 5 in System, the others in reports, projects and modules that are switched off. Commerce's lists are not tables. 29 lists turn pages: 15 through the shared page links, 14 through the framework's plain ones. Shared parts exist for buttons, cards, fields, dialogs, toasts, the empty state and the page links; none for a table. (36 more tables are in PDF and mail templates; those stay as they are.)",
+          "build": [
+            "One table component: headings that sort, a place for filters, pages, the choosing of rows with actions on all chosen, and the five states: loading, empty, error, no permission, success.",
+            "One list of each area that has tables moves to it first: Leads, Quotations, Projects, Payables by age, Users, and one report. The other lists follow in the screen pass (T-045).",
+            "The standards for dialogs and toasts are written beside it."
+          ],
+          "tests": [
+            "A test draws the component in each of the five states and reads its words and its roles for a screen reader: a named table, headings that say how they sort.",
+            "For each list that moves: sorting, filtering, paging and an action on chosen rows give the same rows as before. The lists' existing tests pass unchanged.",
+            "A test counts the screens that still write their own table. The number is written down and may only fall."
+          ],
+          "browser": [
+            "The crawl opens the moved lists as each role at 1366 and 390 px: no sideways scrolling, no console error.",
+            "A journey step sorts the leads by a heading, by keyboard, and reads the first row."
+          ],
+          "against": "With the empty state taken out of the component, the first test fails. With a hand-written table put back, the count fails.",
+          "back": "Views only. Each list moves in its own commit and can be put back alone."
+        }
+      ]
+    },
+    {
+      "name": "The shop's database: its functions and the map of its tables",
+      "why": "One reading of the live database serves both lines. T-175 is P1, and the two lines about moving data wait for it (T-176, T-177).",
+      "lines": [
+        {
+          "id": "T-172",
+          "size": "S",
+          "found": "Read from the live database on 17 November, 20:04 UTC: its public schema holds nine functions and one aggregate, and none has a fixed search path (defect D-029). Six of the functions come from the numbered migrations; three functions and the aggregate from the base schema file. None belongs to an extension. Only the database's owner can create objects there, so nothing can be put in their way today.",
+          "build": [
+            "Migration 021 sets the search path of each of the nine functions, named one by one, with its rollback file.",
+            "The aggregate (`group_concat`) is expected to take no search path of its own in PostgreSQL; its two helper functions do. That is tried on the test database first, and the defect's text then says what was found.",
+            "It is applied to the live database as migration 020 was: the tests first, then one transaction together with its row in the ledger, then a reading back."
+          ],
+          "tests": [
+            "On the PostgreSQL test database, after every migration no function of the public schema is without a search path, and the same test fails for a function added later without one. The rollback brings the earlier state back; applying twice changes nothing.",
+            "The old system's module tests pass on PostgreSQL with 021 applied (CI).",
+            "After it is applied: read back from the live database, no function is without a search path and the ledger has 21 rows; asked from outside, the shop still serves its products."
+          ],
+          "browser": [],
+          "against": "With one function left out of the migration, the first test names it.",
+          "back": "No row changes, and the rollback file is tested: that is the safe way back your condition asks for (DL-028). No backup is known to exist (T-187)."
+        },
+        {
+          "id": "T-175",
+          "size": "M",
+          "found": "Read from the live database on 17 November, 20:04 UTC: 73 tables. 72 of them are the tables of the old system's schema files, name for name; the 73rd is the ledger that the migration tool keeps. None is missing and none is unknown. Laravel's migrations create 118 tables.",
+          "build": [
+            "One file with a row for each old table: where it goes in Laravel, or that it is not moved and why; the module that owns it; its wave.",
+            "The same table as a document, written from the file.",
+            "The names of the live database's tables are read again when the map is written, reading only, and compared with the files."
+          ],
+          "tests": [
+            "A check fails when a table of the old schema files is missing from the file or named twice, when a target table is not created by any Laravel migration, or when a wave is not a wave of the list.",
+            "A table that the live database has and the map does not know is named by the comparison and listed in the round's report."
+          ],
+          "browser": [],
+          "against": "With one row taken out of the file, the check names the table.",
+          "back": "A document and a check. Nothing runs against any data."
+        }
+      ]
+    },
+    {
+      "name": "Packages, and the demo's housekeeping",
+      "why": "Small lines, P2 and P3, taken together. They stand here and not at the end because packages fall further behind with every week, and because every later merge then adds a reading of a cold start.",
+      "lines": [
+        {
+          "id": "T-071",
+          "size": "M",
+          "found": "By the audit of 17 November (defect D-028): Composer reports one low advisory (Laravel 13.39; corrected in 13.40) and npm eleven moderate ones in the shop's build tools. None fails the audit today, which stops at high. The sandbox cannot reach Composer's package index: on 17 November four packages were moved in the lock file itself, and CI proved the result on a clean machine.",
+          "build": [
+            "Laravel to 13.40 or newer, with what it then requires, and the other Composer packages to their newest corrected versions.",
+            "npm: the corrections that stay inside the same major version. For `react-router`, whose correction is a new major version, either the move with the shop's own tests, or a written reason to wait.",
+            "The audit gets a written list of accepted advisories, each with its reason. From then on an advisory of any severity that is not on the list fails the audit. Every Monday the audit also prints which packages have a newer version; that is read at the start of a round."
+          ],
+          "tests": [
+            "The whole Laravel suite on SQLite and on MySQL; both journeys and the crawl of every screen.",
+            "The React shop's gate: build, types, its API and row-level-security tests on PostgreSQL, its browser acceptance.",
+            "`composer audit` and `npm audit` report nothing that is not on the list of accepted advisories."
+          ],
+          "browser": [
+            "Both journeys and every screen on the new versions, as in every round."
+          ],
+          "against": "With the reason of one accepted advisory taken out of the list, the audit fails and names the advisory.",
+          "back": "Putting the lock files back. The React shop is built with other versions of its tools afterwards: the release report names every package that moves, before the merge.",
+          "unknown": "How Composer's own update is run where the sandbox cannot reach the package index: in the lock file itself, as on 17 November, or by a job in GitHub that commits the lock. It is decided when tried."
+        },
+        {
+          "id": "T-152",
+          "size": "S",
+          "found": "The stylesheet is sent with `max-age=0, must-revalidate` (read on the live demo on 17 November, 19:21 UTC), so a browser asks for it again on every page. The names of the built files carry a mark of their content: a changed file has a new name.",
+          "build": [
+            "In `platform/vercel.json` and its copy: one year and `immutable` for the files under `/build/assets/` only. The pages and the list of built files stay as they are."
+          ],
+          "tests": [
+            "A test reads `vercel.json`: the long life is on the files with a marked name only. The two copies stay the same byte for byte (CI checks that today).",
+            "The outside check, which prints the stylesheet's header today, requires one year after the merge."
+          ],
+          "browser": [],
+          "against": "With the header taken out of `vercel.json`, the test fails. On the branch the outside check still reads `max-age=0`, because the live site is the old one; after the merge it must read one year.",
+          "back": "A file with a marked name never changes under that name, so a long life cannot serve an old file. One line to put back."
+        },
+        {
+          "id": "T-153",
+          "size": "S",
+          "found": "By the measurement in document 13: the function Vercel runs holds 226 MB of the 250 MB allowed; 153 MB of it is Vercel's PHP runtime.",
+          "build": [
+            "The CI job that builds the demo as Vercel does prints the size of the function and fails above 240 MB."
+          ],
+          "tests": [
+            "The job itself, tried once with the limit set below today's size."
+          ],
+          "browser": [],
+          "against": "With the limit at 200 MB the job fails and names the size.",
+          "back": "A check only."
+        },
+        {
+          "id": "T-154",
+          "size": "S",
+          "found": "Warm, the sign-in page's first byte comes after 0.08 to 0.17 s from a GitHub runner, by the list; 0.13 s on 17 November, 19:21 UTC. A cold start has never been measured, and no answer says whether the function was started for it.",
+          "build": [
+            "The entry file marks an answer for which the function had to be started. It knows: its working folder under `/tmp` is not there yet. So a cold start is read, not guessed.",
+            "The outside check times its very first request by itself and prints whether it carried the mark."
+          ],
+          "tests": [
+            "On the rehearsal: the first answer after a start carries the mark, the second does not.",
+            "Three cold readings from the live demo, with their dates, are written into `13-VERCEL-DEPLOYMENT.md`."
+          ],
+          "browser": [],
+          "against": "With the mark taken out of the entry file, the rehearsal's test fails.",
+          "back": "One header on an answer, and a line of output."
+        },
+        {
+          "id": "T-142",
+          "size": "S",
+          "found": "No timed run has started: GitHub's list holds none. The timer has been on `main` since 17 November, 10:22 UTC, and the two times due since then (12:23 and 18:23 UTC) passed without a run. The workflow is active and was last changed under the owner's own GitHub name, so nothing visible stands in its way. The check after a merge has run every time. Starting the check by hand is refused to this session (HTTP 403, tried on 17 November, 19:54 UTC).",
+          "build": [
+            "GitHub's list of runs is read at the start of every round.",
+            "If no timed run has come by this round, the timer is written again on `main` at another minute, and the list is read after the next time due."
+          ],
+          "tests": [
+            "A run started by the timer is in GitHub's list, and it is green."
+          ],
+          "browser": [],
+          "against": "Done on 17 November: a forced failure opened issue #38, and the next proof closed it.",
+          "back": "Nothing changes on any site."
+        },
+        {
+          "id": "T-189",
+          "size": "S",
+          "found": "Pull request #29 of 9 November (deliveries in the old dashboard) is still open. Its work entered `main` eight minutes after it was opened, as commit `e82b386`. Its migration, its rollback file and its screen are in `main` byte for byte; what it adds to its other files is in `main` too, but for 26 lines in places `main` has rewritten since. GitHub reports it as conflicting.",
+          "build": [
+            "It is closed with a comment that says where its work is. Its branch is left as it is."
+          ],
+          "tests": [
+            "GitHub lists no open pull request but the round's own."
+          ],
+          "browser": [],
+          "against": "Nothing to take away: it is one action, read back from GitHub.",
+          "back": "A closed pull request can be opened again."
+        }
+      ]
+    },
+    {
+      "name": "The dashboard",
+      "why": "P1. The first screen every person sees. In the order you set for the design work it comes before the areas (DL-008).",
+      "lines": [
+        {
+          "id": "T-044",
+          "size": "L",
+          "found": "The dashboard is one component with one view: figures for a period, six live queues, what needs attention, the pipeline, new leads, recent activity.",
+          "build": [
+            "Each block becomes a widget under one contract: who may see it and with which module, its figure, its link, and its states: loading, empty, error, no access.",
+            "The missing widgets: the sales funnel with its conversion rate; overdue amounts by age and payables due; the health and milestones of projects. Every chart states its dates, its currency and its definition.",
+            "A widget whose module is switched off is absent, not empty."
+          ],
+          "tests": [
+            "For every widget with a figure: its link opens a list of exactly that many rows. The records are made in the test, some of them at the edges of the period in Pakistan time.",
+            "Every widget in every state. A widget that fails shows its own error, and the rest of the dashboard is still drawn.",
+            "As each role: only the widgets that role may see. With a module off, its widget is not in the page.",
+            "The number of database queries the dashboard makes is written down as a limit."
+          ],
+          "browser": [
+            "The crawl as four roles at both widths.",
+            "A journey step follows two figures to their lists and compares the numbers on the screen."
+          ],
+          "against": "With one widget's count changed to include one more state, the first test fails.",
+          "back": "Views and queries that only read. No record changes."
+        }
+      ]
+    },
+    {
+      "name": "Without a mouse; help, pinned and recent screens",
+      "why": "T-054 is P1, and the accessibility review of gate A waits for it. The new entries of the top bar get their keyboard tests from the first day.",
+      "lines": [
+        {
+          "id": "T-054",
+          "size": "M",
+          "found": "The search opens with Ctrl+K and answers to the arrow keys and Escape. The journeys press Ctrl+K once and Escape three times. No task is done by keyboard alone: the sidebar, the focus inside a dialog and the announcing of a refused field are untested.",
+          "build": [
+            "A third journey, done by keyboard only: sign in; the sidebar, a group opened and a link followed; the search opened, a screen found, chosen, and Escape giving the focus back; a dialog and a drawer that keep the focus inside and return it; a lead and a quotation made; a refused field announced where it stands.",
+            "What the journey finds is corrected in the same round."
+          ],
+          "tests": [
+            "The journey runs with the other two, in the sandbox and in CI.",
+            "A test reads every dialog for its name, and every field with an error for the link to its message."
+          ],
+          "browser": [
+            "The journey itself, at 1366 px."
+          ],
+          "against": "With the dialog no longer keeping the focus inside, the journey fails at that step.",
+          "back": "Tests, and small corrections to views.",
+          "yours": "After it, one person of your team does the same without a mouse, and with a screen reader if one is at hand. Gate A asks for that review."
+        },
+        {
+          "id": "T-046",
+          "size": "M",
+          "found": "The top bar has the search, \"Create new\", the colour theme, the notifications and the account. It has no help entry, and no pinned or recent screens. A person's record has no place for such preferences yet.",
+          "build": [
+            "A Help entry in the top bar: what this screen is for, the keyboard shortcuts, and the request number to give when asking for help.",
+            "A screen can be pinned from its heading; pinned screens stand at the head of the menu. The screens opened last are listed, for each person.",
+            "Both are kept with the person, in one small table added by a migration."
+          ],
+          "tests": [
+            "Pinned and recent screens are remembered for each person and are still there after signing out and in.",
+            "Nobody is shown another person's; a screen the person may no longer open is not offered.",
+            "All of it by keyboard, in the journey of T-054."
+          ],
+          "browser": [
+            "The crawl at both widths; the keyboard journey pins a screen and opens it from the menu."
+          ],
+          "against": "With the check of the person's rights taken out, \"is not offered\" fails.",
+          "back": "One migration that only adds; its way back removes the table."
+        }
+      ]
+    },
+    {
+      "name": "Lighter pages; nothing smaller than 12 px",
+      "why": "Both change the same shared parts: the menu, the top bar, the search.",
+      "lines": [
+        {
+          "id": "T-052",
+          "size": "M",
+          "found": "By the crawl's figures in the list (§17): a near-empty page is 144 KB of HTML, 15.6 KB compressed. About 110 KB of it is the menu, the search's templates and the icons, sent again with every page. The median page is 161 KB.",
+          "build": [
+            "First a measurement, part by part.",
+            "Then, as far as the measurement says: each icon drawn once and referred to; the search's list of screens fetched when the search is first opened; the phone's menu made of the same markup as the sidebar."
+          ],
+          "tests": [
+            "A test holds a near-empty page under 60 KB of HTML and prints the size of each part.",
+            "The crawl prints the median size of all pages.",
+            "The journeys that use the search, the menu and the phone's drawer pass."
+          ],
+          "browser": [
+            "Both journeys and the crawl at both widths."
+          ],
+          "against": "The size test fails on today's page.",
+          "back": "Views only."
+        },
+        {
+          "id": "T-049",
+          "size": "S",
+          "found": "19 places in 14 views, and 7 rules of the stylesheets, set text below 12 px: from 8 px (the line under the logo) to 11 px.",
+          "build": [
+            "Each is raised to 12 px. Where a label then no longer fits, the layout gives way, not the size."
+          ],
+          "tests": [
+            "A test reads every view and every rule of the stylesheets: none sets text below 12 px.",
+            "The crawl measures the text as it is drawn on every page at both widths and fails below 12 px."
+          ],
+          "browser": [
+            "The crawl, as above."
+          ],
+          "against": "One 10 px label put back fails both.",
+          "back": "Views and the stylesheets; the bundle is rebuilt and committed.",
+          "yours": "If a place cannot take 12 px, it is shown to you as a named exception to accept or refuse."
+        }
+      ]
+    },
+    {
+      "name": "The content policy without `eval`",
+      "why": "After the rounds that replace whole parts of the views (the table, the dashboard, the top bar, the menu), so that nothing is converted twice; and before the screen pass, which its test then holds to the strict form from the first view.",
+      "lines": [
+        {
+          "id": "T-072",
+          "size": "L",
+          "found": "About 200 Alpine expressions in the views: 21 `x-data`, 19 of them written out in the markup; 121 handlers of events; 30 `x-show`.",
+          "build": [
+            "Livewire's build for a strict policy is switched on, and every expression in the views is read against what it accepts.",
+            "The longer ones become named components in the admin's own script; the bundle is rebuilt and committed.",
+            "`'unsafe-eval'` leaves the policy."
+          ],
+          "tests": [
+            "The policy test pins the header word for word, without `'unsafe-eval'`.",
+            "A test reads every view and refuses an expression the strict build cannot read.",
+            "Both journeys and the crawl of every screen with the policy enforced: nothing refused.",
+            "The outside check requires the header without `'unsafe-eval'` after the merge."
+          ],
+          "browser": [
+            "Both journeys, and every screen as four roles at both widths. The scripts already fail on anything the browser refuses."
+          ],
+          "against": "With one arrow function left in a view, the crawl reports the refusal and fails.",
+          "back": "`SECURITY_CSP=report` or `off` on the site; or the strict build off and the word back in the policy, in one commit."
+        }
+      ]
+    },
+    {
+      "name": "The screen pass, area by area",
+      "why": "P1, and last all the same: it is the largest line, several rounds of its own, one for each area in the order you set (DL-008): E-commerce, CRM, Sales, then the others. Every round before it changes a part it builds on.",
+      "lines": [
+        {
+          "id": "T-045",
+          "size": "L",
+          "found": "3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.",
+          "build": [
+            "In each area: greys move to the theme's roles; what is selected takes the theme's green; each page follows the patterns of document 05 §8; its lists use the table of T-041.",
+            "The dark theme is looked at on every screen of the area."
+          ],
+          "tests": [
+            "A test holds the count of directly written greys for each area. It may only fall, and a finished area stays at none.",
+            "Pictures before and after of one screen of each area, at 1366 and 390 px, light and dark, kept in `docs/woodex-os/evidence/`.",
+            "The crawl: no sideways scrolling and no console error. The area's existing tests pass unchanged."
+          ],
+          "browser": [
+            "The crawl as four roles at both widths, and both journeys, after every area."
+          ],
+          "against": "A grey put back into a finished area fails the count.",
+          "back": "Views and the stylesheet only; one area in one pull request.",
+          "yours": "Your word on the design (T-005) can come before or after. Once the colours are roles, another tone is a change in one place."
+        }
+      ]
+    }
+  ],
+  "standing": [
+    {
+      "check": "The Laravel test suite",
+      "where": "In the sandbox on SQLite; in CI on MySQL 8.4 (`os-ci.yml`), on every push that touches `platform/`",
+      "today": "2,484 pass, 36 skipped, none fails: run in the sandbox on 17 November, 19:32 to 19:39 UTC, on `dfc8369`. Green on MySQL in CI on the same commit",
+      "catches": "A rule, a screen or a permission that no longer does what its test says"
+    },
+    {
+      "check": "Two journeys in a browser (`scripts/os-journeys.mjs`)",
+      "where": "On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's",
+      "today": "28 of 28 steps hold, both ways (CI, `dfc8369`)",
+      "catches": "A step of a working day or of a sale that a person can no longer do; anything the content policy refuses"
+    },
+    {
+      "check": "Every screen as four roles (`scripts/os-screens.mjs`)",
+      "where": "The same rehearsal, at 1366 px and at 390 px",
+      "today": "248 pages, none fails (CI, `dfc8369`)",
+      "catches": "A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch"
+    },
+    {
+      "check": "The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`)",
+      "where": "CI, job \"Vercel's PHP runtime: build the demo, sign in, open every screen\"",
+      "today": "passes (CI, `dfc8369`)",
+      "catches": "A site that starts without its settings, hands out a file, or loses the session"
+    },
+    {
+      "check": "The React shop's gate (`ci.yml`)",
+      "where": "CI, on every push",
+      "today": "passes (CI, `dfc8369`)",
+      "catches": "A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository"
+    },
+    {
+      "check": "Known weaknesses in the packages (`audit.yml`)",
+      "where": "CI, when a lock file changes and every Monday",
+      "today": "last run green on 17 November (`ef31589`); it reports one low and eleven moderate advisories (T-071)",
+      "catches": "A package with a known high or critical weakness"
+    },
+    {
+      "check": "The live sites from outside (`live-check-after-merge.yml`)",
+      "where": "GitHub, eight minutes after every merge into `main`",
+      "today": "the admin: 41 questions, all hold; the shop: 14, all hold (run 44156136251, 17 November, 19:21 UTC)",
+      "catches": "A live site that does not answer as it should after a merge. A failure opens an issue"
+    },
+    {
+      "check": "Each new test, tried once against its protection taken away",
+      "where": "By hand, when the test is written; recorded in the round's report",
+      "today": "done for the security, policy and request-number tests of 17 November",
+      "catches": "A test that would pass whatever the code does"
+    },
+    {
+      "check": "Before the merge: the files changed against `main` are read, and every check is green",
+      "where": "By hand; the release report is written first",
+      "today": "done for pull requests #37, #39 and #40",
+      "catches": "A change to the React shop that the report does not name; a merge with a check still red"
+    }
+  ]
+}

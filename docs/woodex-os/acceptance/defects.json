@@ -420,7 +420,7 @@
    "state": "open",
    "found": "2026-11-17",
    "title": "Ten functions of the shop's database have no fixed search path",
-   "detail": "The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today.",
+   "detail": "The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today. Read from the database itself on 17 November, 20:04 UTC: nine functions and one aggregate (`group_concat`) in the public schema, none with a search path, none belonging to an extension.",
    "lines": [
     "T-172"
    ]
@@ -469,6 +469,17 @@
     "on": "2026-11-17",
     "how": "Each writes a row with who did it and what changed; a secret setting is recorded as changed, never with its value (`ManageStaff`, `RecordSettingsChange`). `SensitiveActionsLeaveATraceTest.php` lists nineteen sensitive actions and fails when one is silent."
    }
+  },
+  {
+   "id": "D-033",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "The check of the live sites has never started by its timer",
+   "detail": "The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Two times due passed, 12:23 and 18:23 UTC, and at 20:07 UTC GitHub's list held no timed run of any workflow. The workflow is active and was last changed under the owner's own GitHub name. The agent's session may not start it by hand (HTTP 403, tried at 19:54 UTC). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges is not.",
+   "lines": [
+    "T-142"
+   ]
   }
  ]
 }

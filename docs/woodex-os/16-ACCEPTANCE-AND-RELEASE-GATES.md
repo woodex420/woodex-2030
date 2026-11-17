@@ -51,7 +51,12 @@ sentence ("2,484 tests") are readings of 17 November 2026; the four release repo
    screen under it with nothing refused (T-068, D-012 closed). Every answer and every error page carries a
    request number, and the same number finds the lines of that request in the log, which is now one JSON object
    a line (T-062). The check from outside asks for both on the live address from now on.
-6. **What only the owner can do now**, in this order: change the old dashboard's password (T-021) · look at the
+6. **What is still to do is in one place** (pull request #41; report 22). Every line of the list that is not done
+   is in [`21-PENDING-WORK-PLAN-AND-TESTS.md`](21-PENDING-WORK-PLAN-AND-TESTS.md): the lines that can start now in
+   rounds, in order, each with what is built and how it is tested; the lines that wait for the owner; the lines
+   that wait for an earlier line. A check in CI holds it to the list. Nothing was built in that round, and no
+   screen or site behaves differently.
+7. **What only the owner can do now**, in this order: change the old dashboard's password (T-021) · look at the
    React shop as the merge rebuilt it, and say whether it stays (T-026) · load the real products into the React
    shop and withdraw the sample ones (T-091) · look at the hosted workspace and approve or return the design
    (T-005) · read the sheets of §4 and approve or return each module's requirements · send the Hostinger details
@@ -377,9 +382,9 @@ may not.
 | **Critical** | Data loss, privilege bypass, financial corruption, site unavailable | Blocks release | 1 | 0 | 1 |
 | **High** | Core workflow broken, wrong totals or status, major security or privacy issue | Blocks the release it affects | 0 | 0 | 6 |
 | **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 6 | 0 | 12 |
-| **Low** | Cosmetic or a minor inconvenience | May be scheduled later | 3 | 0 | 3 |
+| **Low** | Cosmetic or a minor inconvenience | May be scheduled later | 4 | 0 | 3 |
 
-**Not closed (10)**
+**Not closed (11)**
 
 | # | Severity | Found | Defect | Closed by |
 |---|---|---|---|---|
@@ -392,7 +397,8 @@ may not.
 | D-014 | Medium | 2026-11-17 | **The merge made changes to the live shop that the release report had not listed.** The branch merged on 17 November also held the work done on the React shop between 11 and 13 November. With the merge it went live on `woodex-2030.vercel.app`: the Products menu is a plain list built from the category file shared with the admin, without its two picture tiles and with three more entries; a heading such as "Office Tables" lists the products of all its sub-categories; the connections to the Laravel admin and the second destination of the enquiry forms are in the build, switched off. The shop's gate passed on the merge commit and the outside check passed after it, so nothing is known to be broken; but the owner released the merge without this list. The report now carries it (`17-RELEASE-2026-11-17.md`), and the earlier build is kept by Vercel. | T-026 |
 | D-023 | Medium | 2026-11-17 | **The project that a Furniture sale opens is an Interior project.** Accepting a quotation opens a project. Its screen carries the Interior module's stages (Planning, Design, Procurement, Execution, Finishing, Handover), a hand-over checklist that speaks of "the studio list", and site updates. The word "Interior" does not appear, so the Furniture-only check passes; but none of it is how a furniture order is made, delivered and installed. The project is named after the quotation's title, which is "Quotation" when nobody typed one. | T-033, T-010 |
 | D-028 | Low | 2026-11-17 | **One low advisory in Laravel, and eleven moderate ones in the shop's build tools.** `laravel/framework` 13.39.0 carries CVE-2026-128083 (low; fixed in 13.40.0): text injected into the output of a task run through the Concurrency process driver, which this application does not use. `npm audit` reports eleven moderate advisories, in the linter, in `react-router` and in a Tailwind plugin; the fix npm offers for `react-router` is a change of major version. None fails the audit, which stops at high. | T-071 |
-| D-029 | Low | 2026-11-17 | **Ten functions of the shop's database have no fixed search path.** The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today. | T-172 |
+| D-029 | Low | 2026-11-17 | **Ten functions of the shop's database have no fixed search path.** The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today. Read from the database itself on 17 November, 20:04 UTC: nine functions and one aggregate (`group_concat`) in the public schema, none with a search path, none belonging to an extension. | T-172 |
+| D-033 | Low | 2026-11-17 | **The check of the live sites has never started by its timer.** The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Two times due passed, 12:23 and 18:23 UTC, and at 20:07 UTC GitHub's list held no timed run of any workflow. The workflow is active and was last changed under the owner's own GitHub name. The agent's session may not start it by hand (HTTP 403, tried at 19:54 UTC). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges is not. | T-142 |
 
 **Closed (22)**
 
@@ -471,5 +477,6 @@ write authority enabled · monitoring and rollback available · the owner accept
 
 The first report in this form is [`17-RELEASE-2026-11-17.md`](17-RELEASE-2026-11-17.md); the second is
 [`18-RELEASE-2026-11-17-SECOND.md`](18-RELEASE-2026-11-17-SECOND.md), written before its merge; the third,
-[`19-RELEASE-2026-11-17-THIRD.md`](19-RELEASE-2026-11-17-THIRD.md), and the fourth,
-[`20-RELEASE-2026-11-17-FOURTH.md`](20-RELEASE-2026-11-17-FOURTH.md), likewise.
+[`19-RELEASE-2026-11-17-THIRD.md`](19-RELEASE-2026-11-17-THIRD.md), the fourth,
+[`20-RELEASE-2026-11-17-FOURTH.md`](20-RELEASE-2026-11-17-FOURTH.md), and the fifth,
+[`22-RELEASE-2026-11-17-FIFTH.md`](22-RELEASE-2026-11-17-FIFTH.md), likewise.
