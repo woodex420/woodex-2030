@@ -96,6 +96,11 @@ jobs:
     # 019 was applied to the shop's database, so that the same check could be read before and after. Read before:
     # 148 published products (run 44051297292). The migration switches on product states, codes and the catalogue
     # import in the old dashboard; the last four checks ask that none of that is open to a visitor.
+    #
+    # The same day, at 16:07:45 UTC, migration 020 put row-level security on every table of that database. The
+    # shop's API connects as the owner of the tables and must read as before: 148 products in run 44121202276,
+    # five minutes earlier. If this job ever reads an empty catalogue after somebody changed the database's roles
+    # or policies, that lock has closed on the application itself: see scripts/migrations/020_row_level_security.sql.
     name: What a visitor gets from the live shop's API
     runs-on: ubuntu-24.04
     timeout-minutes: 5
