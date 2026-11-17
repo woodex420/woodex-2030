@@ -1,0 +1,254 @@
+{
+  "Paint work": [
+    [
+      "Putty, primer and 2 coats emulsion (walls)",
+      "sft"
+    ],
+    [
+      "Weather-shield exterior paint",
+      "sft"
+    ],
+    [
+      "Enamel paint on doors / grills",
+      "sft"
+    ],
+    [
+      "Texture / rustic paint feature wall",
+      "sft"
+    ],
+    [
+      "Polish on wood (matt / gloss lacquer)",
+      "sft"
+    ]
+  ],
+  "Wood work": [
+    [
+      "Wardrobe with laminated MDF and soft-close hardware",
+      "sft"
+    ],
+    [
+      "Kitchen base cabinets",
+      "rft"
+    ],
+    [
+      "Kitchen wall cabinets",
+      "rft"
+    ],
+    [
+      "Solid wood door with frame and hardware",
+      "nos"
+    ],
+    [
+      "Wall panelling / fluted panels",
+      "sft"
+    ],
+    [
+      "TV console / media wall",
+      "rft"
+    ],
+    [
+      "Vanity cabinet",
+      "rft"
+    ]
+  ],
+  "Glass work": [
+    [
+      "10 mm tempered glass partition",
+      "sft"
+    ],
+    [
+      "Shower glass enclosure with fittings",
+      "set"
+    ],
+    [
+      "Frosted / printed glass film",
+      "sft"
+    ],
+    [
+      "Mirror with bevelled edge",
+      "sft"
+    ],
+    [
+      "Glass railing with SS fittings",
+      "rft"
+    ]
+  ],
+  "Ceiling": [
+    [
+      "Gypsum board false ceiling",
+      "sft"
+    ],
+    [
+      "Cornice / cove profile",
+      "rft"
+    ],
+    [
+      "Grid / acoustic ceiling tiles",
+      "sft"
+    ],
+    [
+      "Wooden ceiling strips",
+      "sft"
+    ]
+  ],
+  "Flooring": [
+    [
+      "Porcelain tile flooring (24×48)",
+      "sft"
+    ],
+    [
+      "Marble flooring with polish",
+      "sft"
+    ],
+    [
+      "Laminate / wooden flooring",
+      "sft"
+    ],
+    [
+      "Vinyl / SPC flooring",
+      "sft"
+    ],
+    [
+      "Skirting",
+      "rft"
+    ]
+  ],
+  "Tiles": [
+    [
+      "Wall tiles (bathroom / kitchen)",
+      "sft"
+    ],
+    [
+      "Tile grouting with epoxy",
+      "sft"
+    ],
+    [
+      "Backsplash tiles",
+      "sft"
+    ]
+  ],
+  "Wallpaper": [
+    [
+      "Imported wallpaper supply and fixing",
+      "sft"
+    ],
+    [
+      "3D wall panels",
+      "sft"
+    ]
+  ],
+  "Curtains & blinds": [
+    [
+      "Curtains with lining and track",
+      "sft"
+    ],
+    [
+      "Roller / zebra blinds",
+      "sft"
+    ],
+    [
+      "Motorized curtain track",
+      "rft"
+    ]
+  ],
+  "Electrical": [
+    [
+      "Light point wiring",
+      "point"
+    ],
+    [
+      "Power socket point",
+      "point"
+    ],
+    [
+      "LED downlight",
+      "nos"
+    ],
+    [
+      "Chandelier installation",
+      "nos"
+    ],
+    [
+      "Distribution board with breakers",
+      "nos"
+    ]
+  ],
+  "Plumbing": [
+    [
+      "Hot and cold water point",
+      "point"
+    ],
+    [
+      "Drainage point",
+      "point"
+    ],
+    [
+      "Water heater installation",
+      "nos"
+    ]
+  ],
+  "Bath fittings": [
+    [
+      "WC (wall-hung / floor)",
+      "nos"
+    ],
+    [
+      "Basin with mixer",
+      "set"
+    ],
+    [
+      "Shower set (rain + hand)",
+      "set"
+    ],
+    [
+      "Accessories set",
+      "set"
+    ]
+  ],
+  "Marble & stone": [
+    [
+      "Kitchen countertop (quartz / granite)",
+      "rft"
+    ],
+    [
+      "Stair marble with nosing",
+      "rft"
+    ],
+    [
+      "Window sills",
+      "rft"
+    ]
+  ],
+  "Steel & metal": [
+    [
+      "SS railing",
+      "rft"
+    ],
+    [
+      "MS grill with paint",
+      "sft"
+    ],
+    [
+      "Metal cladding / profile",
+      "sft"
+    ]
+  ],
+  "Lighting & décor": [
+    [
+      "Hanging / pendant lights",
+      "nos"
+    ],
+    [
+      "Profile / strip light",
+      "rft"
+    ],
+    [
+      "Décor accessories and artwork",
+      "lumpsum"
+    ],
+    [
+      "Indoor plants with pots",
+      "nos"
+    ]
+  ]
+}

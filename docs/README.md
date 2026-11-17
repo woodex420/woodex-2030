@@ -11,7 +11,7 @@ touching code.
 ## Furniture 2030 launch — owner decisions and plan
 | Document | Status |
 |---|---|
-| [woodex-os/README.md](woodex-os/README.md) | **Current (2026-11-16).** WOODEX OS programme: the master plan to migrate the whole Agency OS into one Laravel admin, the decision log, and the owner's specification set |
+| [woodex-os/README.md](woodex-os/README.md) | **Current (2026-11-16). The direction.** WOODEX OS: one Laravel admin (`platform/`), with the whole Agency OS migrated into it. Master plan, decision log, the owner's specification set, and the report of the work done so far |
 | [furniture-2030/README.md](furniture-2030/README.md) | **Current (2026-11-16).** Owner decisions, independent audit with evidence, launch plan, Hostinger Business preflight |
 
 ## Engineering specifications — start here
@@ -57,6 +57,17 @@ touching code.
 | [VERCEL-RUNBOOK-2026-11-06.md](operations/VERCEL-RUNBOOK-2026-11-06.md) | Deployment, database and bootstrap-owner runbook |
 | [DATA-MIGRATION-RUNBOOK.md](operations/DATA-MIGRATION-RUNBOOK.md) | Copying a SQLite database into PostgreSQL: rehearsal, the real run, reading the output |
 
+## Laravel platform — on a branch, not merged
+The direction was approved by the owner step by step on 2026-11-11. The code lives in `platform/` on the working branch only.
+Nothing here overrides `agency-os/` until a merge is approved and the decision log is updated.
+
+| Document | Status |
+|---|---|
+| [laravel-os/00-REUSE-PROPOSAL-AND-ADMIN-MASTER-PLAN.md](laravel-os/00-REUSE-PROPOSAL-AND-ADMIN-MASTER-PLAN.md) | **Proposal** — reuse of the Laravel WOODEX OS source and the admin-upgrade master plan. Read-only inspection only; would reverse D-01 if approved |
+| [laravel-os/01-PHASE-1A-PREVIEW-EVIDENCE.md](laravel-os/01-PHASE-1A-PREVIEW-EVIDENCE.md) | **Evidence** — the synthetic SQLite preview of that source, run outside this repository on 2026-11-11. Not MySQL proof, not a browser test |
+| [laravel-os/02-PHASE-1B-FOUNDATION.md](laravel-os/02-PHASE-1B-FOUNDATION.md) | **Evidence** — the reviewed copy in `platform/` on this branch: import, module switches, test triage, MySQL results from CI, real-browser pass, the UTC audit, and what is still Interior-shaped |
+| [laravel-os/03-MIGRATION-REGISTER.md](laravel-os/03-MIGRATION-REGISTER.md) | **Review record** — all 72 migrations, 21 settings migrations and the 11 quarantined ones, each read before use |
+
 ## Archive — superseded, kept for traceability
 Nothing here is authoritative. Do not cite these as current.
 
@@ -66,3 +77,24 @@ Nothing here is authoritative. Do not cite these as current.
 | [AGENCY-OS-WOODEX-REIMAGINED-TWO-PHASE-PLAN.md](archive/AGENCY-OS-WOODEX-REIMAGINED-TWO-PHASE-PLAN.md) | Two-phase plan superseded by the monorepo delivery |
 | [WOODEX-REIMAGINED-FEATURE-GAP-MATRIX.md](archive/WOODEX-REIMAGINED-FEATURE-GAP-MATRIX.md) | Gap matrix for the imported reference app, which has been removed from the tree |
 | [storefront-blueprint/](archive/storefront-blueprint/) | 34-file Lovable-era design/IA blueprint for the storefront; the shipped UI is the source of truth now |
+
+- [Agency OS → Laravel gap register, Soon navigation and API v1 plan](laravel-os/05-GAP-REGISTER-AND-NEXT-UPGRADE.md)
+
+- [Storefront lead adapter rehearsal and cutover gates](laravel-os/06-STOREFRONT-LEAD-ADAPTER.md)
+
+- [Storefront v1 anti-spam implementation and provider gates](laravel-os/07-STOREFRONT-ANTISPAM.md)
+
+- [Secure v1 manual WhatsApp handoff](laravel-os/08-SECURE-WHATSAPP-HANDOFF.md)
+
+- [Basket quote-request foundation and catalogue gates](laravel-os/09-BASKET-QUOTE-REQUESTS.md)
+
+- [Commerce categories and catalogue audit](laravel-os/10-COMMERCE-CATEGORIES-AND-CATALOGUE-AUDIT.md)
+
+- [Office/Home taxonomy population and series correction](laravel-os/11-OFFICE-HOME-TAXONOMY-AND-SERIES.md)
+- [Category CMS: drafts, previews and native publication](laravel-os/12-CATEGORY-CMS.md)
+- [Category ordering and storefront sync](laravel-os/13-CATEGORY-ORDERING-AND-STOREFRONT-SYNC.md)
+- [Native Products review, import/export and full editor](laravel-os/14-NATIVE-PRODUCTS-REVIEW-IMPORT-AND-EDITOR.md)
+- [Paused work and next-session product UX handoff](laravel-os/15-NEXT-SESSION-HANDOFF.md)
+- [Central media reuse, replacement and React synchronization](laravel-os/16-CENTRAL-MEDIA-PLAN.md)
+- [Commerce workflow upgrade: audit, phases and acceptance](laravel-os/17-COMMERCE-WORKFLOW-UPGRADE.md)
+- [Commerce production-readiness gate and gallery delivery](laravel-os/18-PRODUCTION-READINESS.md)

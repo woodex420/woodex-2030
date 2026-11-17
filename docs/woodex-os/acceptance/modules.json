@@ -1,0 +1,694 @@
+{
+  "about": "One acceptance sheet per open module: the ten conditions of document 07 §15, the last being the owner's sign-off. Checked by scripts/verify-acceptance.mjs: ten conditions each, every named file must exist, every line must be a row of document 14, and a sheet counts as accepted only with a recorded decision of the owner.",
+  "source": "docs/woodex-os/spec/07-MODULE-SPECIFICATIONS.md",
+  "read_on": "2026-11-17",
+  "states": {
+    "met": "true today",
+    "partly": "part of it is true; the lines close the rest",
+    "open": "not true yet",
+    "na": "does not apply to this module, for the reason given"
+  },
+  "modules": [
+    {
+      "id": "customers",
+      "title": "Customers",
+      "destinations": [
+        "Leads",
+        "Contacts",
+        "Tasks & Visits"
+      ],
+      "section": "§4",
+      "signoff": null,
+      "conditions": [
+        {
+          "state": "partly",
+          "evidence": "Document 07 §4 is the requirement and document 05 its screens; where the build differs is in document 15 §8. Not approved as a module.",
+          "lines": [
+            "T-171"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Tables for leads, contacts, companies, tasks and visits exist and build on MySQL in CI. Who holds the records is not settled: an enquiry from the React shop is still written to the old database, which held 1 lead and 1 client on 17 November.",
+          "lines": [
+            "T-100",
+            "T-102"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "The enquiry address for the shop exists and is tested: validation, repeat enquiries, limits, a trap for robots (`Feature/PublicLeadApiTest.php`, `Feature/VersionedLeadApiTest.php`). The common rules of `/api/v1` — answer shape, error codes, a key against double sending — are not written.",
+          "lines": [
+            "T-063"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "No address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`). A sales person cannot open a colleague's lead, and only a manager reassigns one or merges contacts (`Feature/LeadShowTest.php`, `Feature/ContactsTest.php`). The roles are the inherited eight; the owner's matrix and its test are still to come.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Leads: list, board, page, create, edit, reassign, import from a sheet, export. Contacts: list, page, a duplicate refused, merge. Tasks and visits: list, add, book. The lead, its task, the search, the export and the import are also pressed in the browser journey.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "An empty list says so and offers the next step; a refusal and an error have their own pages (`Feature/ErrorPagesTest.php`). There is no placeholder while a list loads and no notice when the connection is lost, and the five states are not yet one standard.",
+          "lines": [
+            "T-041",
+            "T-051"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Pass in the suite of 17 November (2,280 tests; the same suite on MySQL 8.4 in CI): `Feature/LeadsIndexTest.php`, `Feature/LeadShowTest.php`, `Feature/ContactsTest.php`, `Feature/TasksAndVisitsTest.php`, `Feature/LeadCsvImportTest.php`, `Feature/Crm/LeadCsvExportTest.php`, `Feature/PipelineBoardTest.php`, `Unit/PhoneTest.php`.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "Pressed in a browser: create a lead, reopen it, add a task, find it by search, export, upload a sheet. Not pressed: reassigning a lead and turning it into a quotation.",
+          "lines": [
+            "T-165",
+            "T-080"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Planned, not built: the shop's forms write to Laravel, the old records are imported with a trial run and a comparison, and the old way in is closed.",
+          "lines": [
+            "T-100",
+            "T-101",
+            "T-102"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Described in document 07 §4 and in document 15 §8. No guide yet for the people who will use it. Not signed.",
+          "lines": [
+            "T-171",
+            "T-186"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sales",
+      "title": "Sales",
+      "destinations": [
+        "Quotations",
+        "Invoices",
+        "Payments",
+        "Documents"
+      ],
+      "section": "§5",
+      "signoff": null,
+      "conditions": [
+        {
+          "state": "partly",
+          "evidence": "Document 07 §5 is the requirement and document 05 its screens; where the build differs is in document 15 §8. Not approved as a module.",
+          "lines": [
+            "T-171"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Tables for quotations and their versions, invoices, payments and receipts exist; a document is frozen when it is sent. The old system has its own quotations and invoices — none recorded on 17 November — and one writer is still to be decided.",
+          "lines": [
+            "T-103"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "A quote request from the shop has its address and its tests (`Feature/StorefrontQuoteRequestApiTest.php`); the client's pages for a quotation and an invoice open on signed links (`Feature/QuotePortalTest.php`). The common rules of `/api/v1` are not written.",
+          "lines": [
+            "T-063"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "No address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`). Sending above a role's discount limit needs a manager (`Feature/QuoteSendingTest.php`); only accounts confirm a payment (`Feature/PaymentsTest.php`); a sales person cannot void an invoice (`Feature/Sales/InvoiceScreenTest.php`). The roles are the inherited eight; the owner's matrix and its test are still to come.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Quotations: list, create, builder, approval, send, revise, PDF, the client's page. Invoices: list, page, collect, void. Payments: list, record, confirm, send back. Documents: library and design. Issuing a document is blocked until the owner's terms and signers are confirmed, and Furniture has no template or price list yet.",
+          "lines": [
+            "T-084",
+            "T-003"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "An empty list says so and offers the next step; a refusal and an error have their own pages (`Feature/ErrorPagesTest.php`). There is no placeholder while a list loads and no notice when the connection is lost, and the five states are not yet one standard.",
+          "lines": [
+            "T-041",
+            "T-051"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Pass in the suite of 17 November (2,280 tests; the same suite on MySQL 8.4 in CI): `Feature/QuotesTest.php`, `Feature/QuoteSendingTest.php`, `Feature/QuotationSafetyTest.php`, `Feature/PaymentsTest.php`, `Feature/PaymentIntegrityTest.php`, `Feature/Sales/InvoiceScreenTest.php`, `Feature/DocumentLibraryTest.php`, `Unit/QuoteCalculatorTest.php`.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "Pressed in a browser: a draft quotation for a client, one priced line with its total, the quotation PDF, the client's statement PDF. Not pressed: approval, sending, the client's acceptance, the invoice, the payment.",
+          "lines": [
+            "T-080"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Planned, not built: quotations, invoices and payments of the two systems merged, with Furniture's templates.",
+          "lines": [
+            "T-103"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Described in document 07 §5 and in document 15 §8. No guide yet for the people who will use it. Not signed.",
+          "lines": [
+            "T-171",
+            "T-186"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "commerce",
+      "title": "Commerce",
+      "destinations": [
+        "E-commerce",
+        "Products",
+        "Categories",
+        "Series"
+      ],
+      "section": "§6",
+      "signoff": null,
+      "conditions": [
+        {
+          "state": "partly",
+          "evidence": "Document 07 §6 is the requirement and document 05 its screens; where the build differs is in document 15 §8. Not approved as a module.",
+          "lines": [
+            "T-171"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Products with their revisions, categories and series are in the Laravel database: the 170 products of woodexfurniture.pk and the category tree, as drafts. The React shop does not read them: it reads the old catalogue, which still holds 148 sample products.",
+          "lines": [
+            "T-105",
+            "T-091"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Categories and photographs reach the React shop through a bridge with tests (`Feature/CategoryStorefrontSyncTest.php`, `Feature/StorefrontMediaTest.php`). Products are not offered to the shop yet, and the common rules of `/api/v1` are not written.",
+          "lines": [
+            "T-105",
+            "T-063"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "No address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`). Seeing the catalogue and changing it are two permissions, asked on the address of every screen (`platform/routes/admin.php`). The roles are the inherited eight; the owner's matrix and its test are still to come.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Products: list with search by name or code, filters, actions on a selection, editor, preview, import and export. Categories: tree and editor. Series: manager and editor. The readiness command still lists work, among it video in galleries.",
+          "lines": [
+            "T-088"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "An empty list says so and offers the next step; a refusal and an error have their own pages (`Feature/ErrorPagesTest.php`). There is no placeholder while a list loads and no notice when the connection is lost, and the five states are not yet one standard.",
+          "lines": [
+            "T-041",
+            "T-051"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Pass in the suite of 17 November (2,280 tests; the same suite on MySQL 8.4 in CI): `Feature/NativeProductsTest.php`, `Feature/WoodexCatalogueImportTest.php`, `Feature/CommerceCategoriesTest.php`, `Feature/CommerceTaxonomyTest.php`, `Feature/SeriesRulesTest.php`, `Feature/CommerceWorkflowTest.php`, `Feature/CommerceReadinessTest.php`.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "Pressed in a browser: a product of the real catalogue is found by its code, is a draft, and its editor opens. Not pressed: publishing a product; an order, which does not exist in Laravel.",
+          "lines": [
+            "T-165",
+            "T-106"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Done for the catalogue: 170 products loaded from the capture of woodexfurniture.pk, with a report that accounts for every row and every change (`docs/furniture-2030/catalogue/IMPORT-REPORT.md`); the loading can be repeated and is tested (`Feature/WoodexCatalogueImportTest.php`). Open: the photographs, the owner's review of the points to check, and the shop reading from Laravel.",
+          "lines": [
+            "T-089",
+            "T-090",
+            "T-105"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Described in document 07 §6 and in document 15 §8. No guide yet for the people who will use it. Not signed.",
+          "lines": [
+            "T-171",
+            "T-186"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workspace",
+      "title": "Workspace",
+      "destinations": [
+        "Dashboard",
+        "Approvals",
+        "Reports"
+      ],
+      "section": "§1 to §3",
+      "signoff": null,
+      "conditions": [
+        {
+          "state": "partly",
+          "evidence": "Document 07 §1 to §3 is the requirement and document 05 its screens; where the build differs is in document 15 §8. Not approved as a module.",
+          "lines": [
+            "T-171"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "It keeps no records of its own: it reads what the other modules hold, and an approval is stored with the quotation it decides.",
+          "lines": []
+        },
+        {
+          "state": "na",
+          "evidence": "The screens are Livewire components: there is no API between screen and server, and nothing outside the admin reads this module.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "No address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`). Approvals opens only with a permission to approve (`platform/routes/admin.php`). The roles are the inherited eight; the owner's matrix and its test are still to come.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Dashboard: figures for a period, six live queues, what needs attention, pipeline, new leads, recent activity. Approvals: quotations only. Reports: a list of reports with exports. Missing: the dashboard sections of document 05 §7, one approval queue for every kind, a definition on each report.",
+          "lines": [
+            "T-044",
+            "T-081",
+            "T-082"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "An empty list says so and offers the next step; a refusal and an error have their own pages (`Feature/ErrorPagesTest.php`). There is no placeholder while a list loads and no notice when the connection is lost, and the five states are not yet one standard.",
+          "lines": [
+            "T-041",
+            "T-051"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Pass in the suite of 17 November (2,280 tests; the same suite on MySQL 8.4 in CI): `Feature/Overview/ControlCentreTest.php`, `Feature/Overview/ControlViewTest.php`, `Feature/ReportsKitTest.php`, `Feature/QuoteSendingTest.php`.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "The journey lands on the dashboard after signing in, and the crawl opens all three screens as each role that may see them. No journey decides an approval or reads a report's figures.",
+          "lines": [
+            "T-165",
+            "T-081"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "The reports of the old dashboard are to be merged and their figures compared with the records they come from. Not started.",
+          "lines": [
+            "T-114"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Described in document 07 §1 to §3 and in document 15 §8. No guide yet for the people who will use it. Not signed.",
+          "lines": [
+            "T-171",
+            "T-186"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "destinations": [
+        "Projects",
+        "Board",
+        "Vendors & costs",
+        "Handovers"
+      ],
+      "section": "§9",
+      "signoff": null,
+      "conditions": [
+        {
+          "state": "partly",
+          "evidence": "Document 07 §9 is the requirement and document 05 its screens; where the build differs is in document 15 §8. Not approved as a module.",
+          "lines": [
+            "T-171"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Projects, tasks, costs and handovers have their tables. The old system has its own projects; members and dependencies are to be merged.",
+          "lines": [
+            "T-112"
+          ]
+        },
+        {
+          "state": "na",
+          "evidence": "The screens are Livewire components: there is no API between screen and server, and nothing outside the admin reads this module. The client portal, which would read it, is switched off.",
+          "lines": [
+            "T-112"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "No address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`). The roles are the inherited eight; the owner's matrix and its test are still to come.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Projects, the board, costs and handovers open and are tested. Members and dependencies between tasks are missing.",
+          "lines": [
+            "T-112"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "An empty list says so and offers the next step; a refusal and an error have their own pages (`Feature/ErrorPagesTest.php`). There is no placeholder while a list loads and no notice when the connection is lost, and the five states are not yet one standard.",
+          "lines": [
+            "T-041",
+            "T-051"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Pass in the suite of 17 November (2,280 tests; the same suite on MySQL 8.4 in CI): `Feature/ProjectsTest.php`, `Feature/ProjectCostsTest.php`, `Feature/Projects/ProjectCostPostingTest.php`, `Feature/Projects/ProjectCostsScreenTest.php`.",
+          "lines": []
+        },
+        {
+          "state": "open",
+          "evidence": "Opened by the crawl; nothing in it is pressed in a browser.",
+          "lines": [
+            "T-165"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Planned, not built: projects of the two systems merged.",
+          "lines": [
+            "T-112"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Described in document 07 §9 and in document 15 §8. No guide yet for the people who will use it. Not signed.",
+          "lines": [
+            "T-171",
+            "T-186"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts",
+      "title": "Accounts",
+      "destinations": [
+        "Ledger & reports",
+        "Payables",
+        "Income & expenses"
+      ],
+      "section": "§8",
+      "signoff": null,
+      "conditions": [
+        {
+          "state": "partly",
+          "evidence": "Document 07 §8 is the requirement and document 05 its screens; where the build differs is in document 15 §8. Not approved as a module.",
+          "lines": [
+            "T-171"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "A double-entry ledger with periods, journal lines that cannot be edited, bills and expenses. The chart of accounts is a generic one until the person responsible for the accounts has reviewed it.",
+          "lines": [
+            "T-013",
+            "T-113"
+          ]
+        },
+        {
+          "state": "na",
+          "evidence": "The screens are Livewire components: there is no API between screen and server, and nothing outside the admin reads this module.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "No address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`). The accountant reads the books and cannot change them; sales and support cannot open them (`Feature/AccountantReadAccessTest.php`). The roles are the inherited eight; the owner's matrix and its test are still to come.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Journals, trial balance, bills and their payments, income and expenses: list, create, and void by a reversing entry instead of deletion.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "An empty list says so and offers the next step; a refusal and an error have their own pages (`Feature/ErrorPagesTest.php`). There is no placeholder while a list loads and no notice when the connection is lost, and the five states are not yet one standard.",
+          "lines": [
+            "T-041",
+            "T-051"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Pass in the suite of 17 November (2,280 tests; the same suite on MySQL 8.4 in CI): `Feature/Accounts/AccountsLedgerTest.php`, `Feature/Accounts/TrialBalanceTest.php`, `Feature/Accounts/PayablesTest.php`, `Feature/Accounts/ExpensesLedgerTest.php`, `Feature/Accounts/GlSalesPostingTest.php`.",
+          "lines": []
+        },
+        {
+          "state": "open",
+          "evidence": "Opened by the crawl; nothing in it is pressed in a browser.",
+          "lines": [
+            "T-080"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Planned, not built: expenses, credit notes and payment schedules of the old system merged, then reviewed by the person responsible for the accounts.",
+          "lines": [
+            "T-113"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Described in document 07 §8 and in document 15 §8. No guide yet for the people who will use it. Not signed.",
+          "lines": [
+            "T-171",
+            "T-186"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "website",
+      "title": "Website Studio — the two open screens",
+      "destinations": [
+        "Shop customization",
+        "Media"
+      ],
+      "section": "§13",
+      "signoff": null,
+      "conditions": [
+        {
+          "state": "partly",
+          "evidence": "Document 07 §13 is the requirement and document 05 its screens; where the build differs is in document 15 §8. Not approved as a module.",
+          "lines": [
+            "T-171"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "The shop's design settings and the media library are stored in Laravel. The React shop reads them only through the bridge between the two systems, which is switched off on the live shop. The photographs of the catalogue are not in the library yet.",
+          "lines": [
+            "T-105",
+            "T-089"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Photographs reach the React shop through a bridge with tests (`Feature/StorefrontMediaTest.php`). The common rules of `/api/v1` are not written.",
+          "lines": [
+            "T-063"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "No address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`). The roles are the inherited eight; the owner's matrix and its test are still to come.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Shop customization and the media library open and are tested. Every other screen of Website Studio is switched off or not built.",
+          "lines": [
+            "T-116"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "An empty list says so and offers the next step; a refusal and an error have their own pages (`Feature/ErrorPagesTest.php`). There is no placeholder while a list loads and no notice when the connection is lost, and the five states are not yet one standard.",
+          "lines": [
+            "T-041",
+            "T-051"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Pass in the suite of 17 November (2,280 tests; the same suite on MySQL 8.4 in CI): `Feature/ShopContentTest.php`, `Feature/MasterMediaTest.php`, `Feature/StorefrontMediaTest.php`, `Feature/CatalogImagesTest.php`.",
+          "lines": []
+        },
+        {
+          "state": "open",
+          "evidence": "Opened by the crawl; nothing in it is pressed in a browser.",
+          "lines": [
+            "T-116"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Planned, not built: today's pages and their media moved.",
+          "lines": [
+            "T-117"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Described in document 07 §13 and in document 15 §8. No guide yet for the people who will use it. Not signed.",
+          "lines": [
+            "T-171",
+            "T-186"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "title": "System",
+      "destinations": [
+        "Settings",
+        "Access & team",
+        "Connections",
+        "Platform",
+        "Audit & activity",
+        "Feature status"
+      ],
+      "section": "§14",
+      "signoff": null,
+      "conditions": [
+        {
+          "state": "partly",
+          "evidence": "Document 07 §14 is the requirement and document 05 its screens; where the build differs is in document 15 §8. Not approved as a module.",
+          "lines": [
+            "T-171"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Users, roles and permissions, settings, the audit log and the connections' settings are Laravel's own tables. The old system keeps its own users and five roles — 1 user on 17 November — and one matrix from the two is still to be made.",
+          "lines": [
+            "T-060"
+          ]
+        },
+        {
+          "state": "na",
+          "evidence": "The screens are Livewire components: there is no API between screen and server, and nothing outside the admin reads this module.",
+          "lines": []
+        },
+        {
+          "state": "partly",
+          "evidence": "No address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`). The audit log opens only for those who may audit (`Feature/AuditLogTest.php`). The roles are the inherited eight; the owner's matrix and its test are still to come.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "Settings, Access & team, Connections, Platform, Audit & activity and Feature status open and are tested. Missing: one screen for currency, time zone and tax; a screen for sign-in locks and open sessions; the two planned screens.",
+          "lines": [
+            "T-064",
+            "T-065",
+            "T-056"
+          ]
+        },
+        {
+          "state": "partly",
+          "evidence": "An empty list says so and offers the next step; a refusal and an error have their own pages (`Feature/ErrorPagesTest.php`). There is no placeholder while a list loads and no notice when the connection is lost, and the five states are not yet one standard.",
+          "lines": [
+            "T-041",
+            "T-051"
+          ]
+        },
+        {
+          "state": "met",
+          "evidence": "Pass in the suite of 17 November (2,280 tests; the same suite on MySQL 8.4 in CI): `Feature/UsersAndSettingsTest.php`, `Feature/SettingsAndRulesTest.php`, `Feature/AuditLogTest.php`, `Feature/SystemScreensTest.php`, `Feature/FeatureStatusTest.php`, `Feature/InstallerTest.php`, `Feature/SecurityHeadersTest.php`.",
+          "lines": []
+        },
+        {
+          "state": "met",
+          "evidence": "What document 10 asks of it in a browser is pressed: signing in, signing out, the admin's own page for an address that does not exist, and a plain refusal for a screen a role may not open.",
+          "lines": []
+        },
+        {
+          "state": "open",
+          "evidence": "The first installation on the real host and the merge of the two systems' users are not done.",
+          "lines": [
+            "T-133",
+            "T-060"
+          ]
+        },
+        {
+          "state": "open",
+          "evidence": "Described in document 07 §14 and in document 15 §8. No guide yet for the people who will use it. Not signed.",
+          "lines": [
+            "T-171",
+            "T-186"
+          ]
+        }
+      ]
+    }
+  ]
+}

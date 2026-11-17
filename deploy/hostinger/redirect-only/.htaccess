@@ -1,0 +1,18 @@
+# TEMPORARY STAGING LANDING ONLY — not a Laravel/admin deployment.
+# Apply only to the confirmed staging document root after backing up its .htaccess.
+# Requires Apache/LiteSpeed support for these directives. Do not use on production.
+Options -Indexes
+
+RewriteEngine On
+
+# Do not forward query strings (which might contain private codes/tokens).
+RewriteRule ^$ https://woodex-2030.vercel.app/ [R=302,L,QSD]
+
+# Never imply that an unconfigured admin/API is available.
+RewriteRule ^(?:admin|dashboard|api)(?:/|$) - [R=503,L,NC]
+
+# Do not serve the copied repository, including .git, .env, source or nested files.
+RewriteRule ^ - [R=404,L]
+
+ErrorDocument 404 "Staging route is not enabled."
+ErrorDocument 503 "Staging backend is not yet enabled."

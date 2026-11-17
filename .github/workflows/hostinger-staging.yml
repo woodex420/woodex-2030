@@ -1,0 +1,76 @@
+name: Hostinger staging release preparation
+run-name: Staging package — ${{ github.sha }}
+on:
+  push:
+    branches: ["arena/69363bda-woodex-2030"]
+    paths: [".github/workflows/hostinger-staging.yml", "deploy/hostinger/**", "platform/**", "index.php", ".htaccess", "scripts/test-laravel-entrypoint.mjs"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, intl, mbstring, bcmath, zip, gd, exif, dom, xml, xmlwriter, fileinfo, sodium
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test entrypoint and release validator in isolation
+        run: |
+          PHP_BINARY="$(command -v php)" node scripts/test-laravel-entrypoint.mjs
+          python3 deploy/hostinger/verify-release.py --self-test
+      - name: Install locked production PHP dependencies
+        working-directory: platform
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --optimize-autoloader
+          composer check-platform-reqs --no-dev
+          APP_ENV=production APP_DEBUG=false php artisan package:discover
+      - name: Build native Laravel admin assets
+        working-directory: platform
+        run: |
+          npm ci
+          npm run build
+          test -s public/build/manifest.json
+      - name: Prepare dependency-only repair (no application or environment replacement)
+        run: |
+          mkdir -p staging-repair/public
+          cp -a platform/vendor staging-repair/vendor
+          cp -a platform/public/build staging-repair/public/build
+          test -s staging-repair/vendor/autoload.php
+          test -s staging-repair/public/build/manifest.json
+          test ! -e staging-repair/.env
+      - uses: actions/upload-artifact@v4
+        with:
+          name: woodex-staging-dependencies
+          path: staging-repair/
+          retention-days: 7
+          if-no-files-found: error
+          include-hidden-files: true
+      - name: Assemble private application candidate (not a public-root upload)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          test ! -f platform/.env
+          test ! -f platform/bootstrap/cache/config.php
+          tar --exclude='./node_modules' --exclude='./.env*' --exclude='./public/hot' --exclude='./storage/logs/*' --exclude='./storage/framework/cache/data/*' --exclude='./storage/framework/sessions/*' --exclude='./storage/framework/views/*' --exclude='./database/*.sqlite*' --exclude='./tests' -czf release/woodex-laravel-private.tar.gz -C platform .
+          printf '%s\n' "$GITHUB_SHA" > release/source-commit.txt
+          printf '%s\n' 'PRIVATE application candidate. Never extract into public_html.' 'No .env, owner account, database writes, seed or migration execution included.' 'Requires a verified private app directory and a public root exposing public/ only.' 'Does not include the uncommitted local implementation. Verify source-commit.txt.' > release/README.txt
+          cd release && sha256sum woodex-laravel-private.tar.gz > SHA256SUMS
+      - name: Verify private package before publishing
+        run: python3 deploy/hostinger/verify-release.py release/woodex-laravel-private.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: woodex-laravel-private-${{ github.sha }}
+          path: release/
+          retention-days: 7
+          if-no-files-found: error

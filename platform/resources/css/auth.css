@@ -1,0 +1,58 @@
+/*
+ * Sign-in and the other account pages (layouts/auth): the store design of the admin, decision DL-013.
+ * A white card on the store's light grey page, the charcoal mark, the green for the one filled button.
+ * Every colour is a --wx-* role of admin.css, so the page follows the light and the dark theme like the
+ * admin does. (Until 2026-11-17 this was a dark "glass" card on a green gradient with beige accents.)
+ */
+.wx-auth { margin:0; min-height:100svh; background:var(--wx-page); color:var(--wx-text); font-family:var(--font-sans); }
+.wx-auth-shell { display:flex; flex-direction:column; min-height:100svh; max-width:1200px; margin:auto; padding:28px clamp(20px,5vw,64px) 24px; }
+.wx-auth-header { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.wx-auth-brand { color:var(--wx-text); text-decoration:none; }
+.wx-auth-brand svg { width:40px; height:40px; padding:5px; border-radius:4px; color:var(--wx-on-primary); background:var(--wx-primary); }
+.wx-auth-website { font-size:13px; color:var(--wx-muted); text-decoration:none; }
+.wx-auth-website:hover { color:var(--wx-text); text-decoration:underline; }
+.wx-auth-main { display:flex; justify-content:center; align-items:center; flex:1; min-width:0; padding:40px 0; }
+.wx-auth-card { width:100%; max-width:432px; min-width:0; padding:32px; border:1px solid var(--wx-border); border-radius:8px; background:var(--wx-surface); box-shadow:0 1px 2px rgb(0 0 0 / .04), 0 8px 24px rgb(0 0 0 / .05); }
+.wx-auth-card-eyebrow { margin:0 0 12px; color:var(--wx-primary); font-size:11px; font-weight:700; letter-spacing:.16em; }
+.wx-auth-heading { margin:0; font-size:28px; line-height:1.2; letter-spacing:-.02em; font-weight:600; color:var(--wx-text); }
+.wx-auth-subheading { margin:8px 0 0; font-size:14px; line-height:1.6; color:var(--wx-muted); }
+.wx-auth-content { margin-top:24px; }
+.wx-auth .wx-input { background:var(--wx-surface); border-color:var(--wx-control-border); color:var(--wx-text); border-radius:4px; }
+.wx-auth .wx-input:focus { border-color:var(--wx-focus); outline:2px solid color-mix(in srgb, var(--wx-focus) 35%, transparent); outline-offset:1px; }
+.wx-auth .wx-input::placeholder { color:var(--wx-muted); opacity:1; }
+.wx-auth-card label,.wx-auth-card .wx-label { color:var(--wx-text); }
+.wx-auth-card a,.wx-auth-card [data-show-password] { color:var(--wx-primary); }
+.wx-auth-card a:hover,.wx-auth-card [data-show-password]:hover { color:var(--wx-text); }
+.wx-auth-card a.h-11 { color:var(--wx-text); border-color:var(--wx-control-border); border-radius:4px; }
+.wx-auth-card a.h-11:hover { background:var(--wx-elevated); }
+.wx-auth-card input[type=checkbox] { accent-color:var(--wx-primary); }
+.wx-auth [data-sign-in-status] { color:var(--wx-text); border-color:var(--wx-border); background:var(--wx-elevated); border-radius:4px; }
+/* The preview notice is a flat section between two rules, not a second card inside the card. */
+.wx-auth-demo { padding:12px 0; margin:0 0 20px; border:0; border-top:1px solid var(--wx-border); border-bottom:1px solid var(--wx-border); border-radius:0; background:transparent; font-size:12px; line-height:1.6; color:var(--wx-text); }
+.wx-auth-demo-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; font-weight:700; }
+.wx-auth-demo-heading span { border:1px solid var(--wx-control-border); border-radius:4px; padding:1px 6px; color:var(--wx-text); font-size:10px; font-weight:600; letter-spacing:.06em; }
+.wx-auth-demo dl { display:grid; grid-template-columns:68px minmax(0,1fr); gap:3px 8px; margin:9px 0; }
+.wx-auth-demo dt { color:var(--wx-muted); }
+.wx-auth-demo dd { margin:0; overflow-wrap:anywhere; font-family:ui-monospace,monospace; font-size:12px; }
+.wx-auth-demo p { margin:6px 0 0; color:var(--wx-muted); }
+.wx-auth-demo p strong { color:var(--wx-text); }
+.wx-auth-demo button { font-size:12px; font-weight:600; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.wx-auth-card .wx-auth-submit,.wx-auth-card a.wx-auth-submit,.wx-auth-submit { background:var(--wx-primary); color:var(--wx-on-primary); border:1px solid var(--wx-primary); border-radius:4px; cursor:pointer; }
+.wx-auth-card .wx-auth-submit:hover,.wx-auth-card a.wx-auth-submit:hover,.wx-auth-submit:hover { background:var(--wx-primary-hover); border-color:var(--wx-primary-hover); color:var(--wx-on-primary); }
+.wx-auth-submit:disabled { cursor:wait; opacity:.7; }
+.wx-auth-fallback { margin:16px 0 0; color:var(--wx-muted); font-size:12px; line-height:1.7; }
+.wx-auth-fallback a { font-weight:600; text-decoration:underline; text-underline-offset:3px; }
+.wx-auth-footer { display:flex; justify-content:space-between; gap:16px; color:var(--wx-muted); font-size:12px; }
+.wx-auth a:focus-visible,.wx-auth button:focus-visible { outline:2px solid var(--wx-focus); outline-offset:3px; }
+@media(max-width:850px) {
+  .wx-auth-shell { padding:20px; }
+  .wx-auth-main { padding:28px 0; }
+  .wx-auth-header .font-heading { font-size:18px; }
+  .wx-auth-footer span:last-child { display:none; }
+}
+@media(max-width:400px) {
+  .wx-auth-shell { padding:16px; }
+  .wx-auth-card { padding:24px 20px; }
+  .wx-auth-website { font-size:12px; }
+}
+@media(prefers-reduced-motion:reduce) { .wx-auth *, .wx-auth *::before, .wx-auth *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }

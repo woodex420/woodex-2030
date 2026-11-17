@@ -1,0 +1,12 @@
+# Not needed to serve the admin on Vercel. Keeps the upload and the function small.
+# tools/vercel and the fixture script stay: the demo deployment is built with them (tools/vercel/build-demo.php).
+/tests
+/node_modules
+/tools/preview/sandbox
+/tools/preview/front.php
+/tools/preview/NativePreviewTransport.php
+/storage/logs
+/storage/framework
+/database/*.sqlite
+/.env
+/.env.*

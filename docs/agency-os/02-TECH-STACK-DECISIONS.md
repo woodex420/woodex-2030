@@ -1,3 +1,5 @@
+> **2026-11-11 update:** D-01 below is superseded for the future admin/backend direction by the owner-approved Laravel reuse plan and Phase 2 approval. The existing Express API/dashboard remain operational until module-by-module replacement is verified; React storefront stays. See [reuse plan](../laravel-os/00-REUSE-PROPOSAL-AND-ADMIN-MASTER-PLAN.md). This is not a deployment or cutover approval.
+
 # WOODEX OS — Technology Decisions and Deviation Record
 
 **Status:** proposed. Decisions here are recommendations for the owner to approve;

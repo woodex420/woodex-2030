@@ -1,0 +1,12 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+    # Level 6 from P1 (docs/07 D-28); aim for 7 by P9.
+    level: 6
+    treatPhpDocTypesAsCertain: false
+    # Models declare casts in a casts() method with a generic @return docblock; read the method body
+    # so dates and enums get their real types (otherwise every cast column is seen as a string).
+    parseModelCastsMethod: true

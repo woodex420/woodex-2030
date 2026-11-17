@@ -1,0 +1,81 @@
+# Woodex OS hardening (docs/06 §7)
+Options -Indexes
+
+# Locally bundled PDF.js ES-module worker; nosniff requires a JavaScript MIME type.
+<IfModule mod_mime.c>
+    AddType text/javascript .mjs
+</IfModule>
+
+# The original website is served as it is: its pages are real files in this folder (docs/11 §2), so a directory
+# request answers with the page's own index.html. Only when there is no file does the request reach the app.
+DirectoryIndex index.html index.php
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+
+# Block dotfiles (except /.well-known for SSL validation)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\.(?!well-known/) - [F,L]
+</IfModule>
+
+# Force HTTPS in production (uncomment on Hostinger once SSL is active)
+# <IfModule mod_rewrite.c>
+#     RewriteCond %{HTTPS} off
+#     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# </IfModule>
+
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Hostinger Git deploy: the repository root is the site folder and its /.htaccess routes every request here.
+    # Someone typing /platform/public/... goes to the clean address instead (docs/06 §2).
+    RewriteCond %{THE_REQUEST} \s/+platform/public/ [NC]
+    RewriteRule ^(.*)$ /$1 [R=301,L]
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Handle X-XSRF-Token Header
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Trailing slashes (P6 website cut-over, docs/07 D-26).
+    # The app's own paths are canonical WITHOUT one — /admin/, /install/ and friends are redirected to /admin,
+    # /install — while every public page is canonical WITH one, because the 142 legacy URLs end in a slash.
+    # Stripping the slash from public pages too (the rule this replaced) fought the SiteRouter, which puts it
+    # straight back: two redirects for every page, and a loop for anyone following them.
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} ^/(admin|install|up|api|livewire|build|media|q|i|p|portal)(/.*)?$
+    RewriteCond %{REQUEST_URI} ^/(.+)/$
+    RewriteRule ^ /%1 [L,R=301]
+
+    # The page builder's draft preview is always the app's, even for an address the original website still
+    # answers with a file: /?preview=1 and /about/?preview=1 must show the CMS draft the editor is working on.
+    # Without permission the app redirects to the same path without the query, so the static page answers.
+    RewriteCond %{QUERY_STRING} (^|&)preview=1(&|$)
+    RewriteRule ^ index.php [L]
+
+    # The site root is a page file like every other address since Woodex OS 1 (docs/audit/16.19): the home
+    # page is public/index.html, answered by DirectoryIndex below before the front controller is asked, and
+    # edited in the page builder like the rest of the site.
+
+    # robots.txt is answered by the app, per domain (D-95): Hostinger's Git deploy can leave a deleted static
+    # file behind on the server, and a stale "Disallow: /" is a whole website kept out of Google in silence.
+    RewriteRule ^robots\.txt$ index.php [L]
+
+    # Like robots.txt, theme.css belongs to the app even if Git deployment left the old static stub behind.
+    # Never reset saved theme tokens to work around a stale physical CSS file.
+    RewriteRule ^assets/theme\.css$ index.php [L]
+
+    # Send Requests To Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>

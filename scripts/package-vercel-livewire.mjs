@@ -1,0 +1,25 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync, copyFileSync, writeFileSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const destination = process.argv[2];
+if (!destination || !path.isAbsolute(destination)) throw new Error('Provide an absolute empty destination outside the checkout.');
+const output = path.resolve(destination);
+if (output === root || output.startsWith(root + path.sep)) throw new Error('Package outside the checkout.');
+if (existsSync(output) && readdirSync(output).length) throw new Error('Destination must be empty; existing files are never overwritten.');
+mkdirSync(output, { recursive: true });
+const archive = spawnSync('git', ['archive', 'HEAD:platform'], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+if (archive.status !== 0) throw new Error('Cannot archive committed Laravel source.');
+const extract = spawnSync('tar', ['-x', '-C', output], { input: archive.stdout });
+if (extract.status !== 0) throw new Error('Cannot extract Laravel source.');
+mkdirSync(path.join(output, 'api'), { recursive: true });
+copyFileSync(path.join(root, 'deploy/vercel-livewire/index.php'), path.join(output, 'api/index.php'));
+copyFileSync(path.join(root, 'deploy/vercel-livewire/vercel.json'), path.join(output, 'vercel.json'));
+// Never invoke the Composer setup script: it generates keys, migrates and seeds.
+const composer = JSON.parse(readFileSync(path.join(output, 'composer.json'), 'utf8'));
+composer.scripts = {};
+writeFileSync(path.join(output, 'composer.json'), JSON.stringify(composer, null, 2) + '\n');
+const sha = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+writeFileSync(path.join(output, 'VERCEL-SOURCE.json'), JSON.stringify({ commit: sha, source: 'committed platform only', composerScripts: 'disabled for packaging' }, null, 2));
+console.log(`Packaged committed Laravel source ${sha} at ${output}; no dependencies installed, migrations or seeds run.`);

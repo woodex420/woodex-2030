@@ -1,3 +1,4 @@
+import { useRuntimeRevision } from "@/lib/runtime";
 import { useParams, Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { getSeriesSeo } from "@/data/seoContent";
 import { img } from "@/assets/img";
 
 const seriesImages: Record<string, string> = {
+  "nova-series": img("series-nova.jpg"),
   "ek-series": img("series-eco.jpg"),
   "infinity-series": img("series-modern.jpg"),
   "woodex-series": img("series-executive.jpg"),
@@ -21,6 +23,7 @@ const seriesImages: Record<string, string> = {
 };
 
 const SeriesDetail = () => {
+  useRuntimeRevision();
   const { seriesId } = useParams<{ seriesId: string }>();
   const series = seriesList.find((s) => s.id === seriesId);
   const seriesProducts = getProductsBySeries(seriesId || "");

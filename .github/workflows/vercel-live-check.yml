@@ -1,0 +1,126 @@
+name: Vercel live check (WOODEX OS)
+# What a visitor gets from the deployed admin, asked from outside. It needs no secret: it opens the sign-in page,
+# tries a wrong password, reads the security headers and the marks on the session cookie, asks for a screen that
+# does not exist, and looks for files that must not be handed out. The findings are written as one notice on the
+# run, so they can be read without the log. It never signs in: what a signed-in person gets is checked on the
+# rehearsal (platform/tools/vercel/check-entry.sh, scripts/os-screens.mjs, scripts/os-journeys.mjs).
+on:
+  workflow_dispatch:
+  # Called by live-check-after-merge.yml a few minutes after every push to main, once Vercel has built it.
+  workflow_call:
+  # Every six hours. GitHub starts a timer only from the default branch, so this runs once the branch is merged.
+  schedule:
+    - cron: "23 */6 * * *"
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/vercel-live-check.yml"]
+permissions:
+  contents: read
+jobs:
+  live:
+    name: What a visitor gets from woodex-os.vercel.app
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Open the address, try a wrong password, look for leaks
+        env:
+          SITE: https://woodex-os.vercel.app
+        run: |
+          set -u
+          out="$(mktemp -d)"; jar="$out/jar"; fails=0; report=""
+          note() { report="$report | $1"; }
+          must() { if [ "$2" = "$3" ]; then note "ok $1"; else note "FAIL $1 (expected $3, got $2)"; fails=$((fails + 1)); fi; }
+          code() { curl -s -o "$out/body" -D "$out/head" -w '%{http_code}' -b "$jar" -c "$jar" --max-time 40 "$@"; }
+          header() { tr -d '\r' < "$out/head" | grep -i "^$1:" | head -1 | sed 's/^[^:]*: *//'; }
+
+          must "health /up" "$(code "$SITE/up")" 200
+          must "sign-in page" "$(code "$SITE/admin/login")" 200
+          cp "$out/body" "$out/login.html"
+          must "page starts as a page" "$(head -c 15 "$out/login.html")" "<!DOCTYPE html>"
+          must "says NOT PRODUCTION" "$(grep -c 'NOT PRODUCTION' "$out/login.html" | head -1)" 1
+          must "demo email filled in" "$(grep -c 'value="owner@woodex.test"' "$out/login.html")" 1
+          must "password not shown" "$(grep -c 'Test credentials are pre-filled' "$out/login.html")" 0
+          must "session cookie set" "$(tr -d '\r' < "$out/head" | grep -ci '^set-cookie: woodex_livewire_session=')" 1
+          must "form-token cookie set" "$(tr -d '\r' < "$out/head" | grep -ci '^set-cookie: XSRF-TOKEN=')" 1
+          token="$(grep -o 'name="_token" value="[^"]*"' "$out/login.html" | head -1 | sed 's/.*value="//;s/"$//')"
+          style="$(grep -o 'https://[^"]*/build/assets/admin-[A-Za-z0-9_-]*\.css' "$out/login.html" | head -1)"
+          note "stylesheet ${style:-none}"
+          must "stylesheet served" "$(code "${style:-$SITE/missing}")" 200
+          note "stylesheet type $(header content-type)"
+          must "icon /favicon.svg" "$(code "$SITE/favicon.svg")" 200
+          note "icon type $(header content-type)"
+          must "icon /favicon.ico" "$(code "$SITE/favicon.ico")" 200
+
+          must "wrong password refused" "$(code -X POST --data-urlencode "_token=$token" --data-urlencode "email=owner@woodex.test" --data-urlencode "password=not-the-password" "$SITE/admin/login")" 302
+          note "then sent to $(header location)"
+          must "form reopens" "$(code "$SITE/admin/login")" 200
+          must "form says the password is wrong" "$(grep -c 'do not match\|These credentials' "$out/body" | head -1)" 1
+          must "admin still asks for sign-in" "$(code "$SITE/admin")" 302
+
+          # What the answers carry besides the page: headers, cookie marks, the admin's own refusal pages.
+          code "$SITE/admin/login" > /dev/null
+          must "the answer names no software version (x-powered-by)" "$(tr -d '\r' < "$out/head" | grep -ci '^x-powered-by:')" 0
+          must "x-content-type-options" "$(header x-content-type-options)" "nosniff"
+          must "x-frame-options" "$(header x-frame-options)" "SAMEORIGIN"
+          must "kept out of search engines" "$(header x-robots-tag | grep -c 'noindex')" 1
+          must "sign-in page is never cached" "$(header cache-control | grep -c 'no-store')" 1
+          note "https-only header: $(header strict-transport-security)"
+          note "server header: $(header server)"
+          cookie="$(tr -d '\r' < "$out/head" | grep -i '^set-cookie: woodex_livewire_session=' | head -1 | tr 'A-Z' 'a-z')"
+          must "session cookie is Secure" "$(printf '%s' "$cookie" | grep -c '; secure')" 1
+          must "session cookie is HttpOnly" "$(printf '%s' "$cookie" | grep -c '; httponly')" 1
+          must "session cookie is SameSite=Lax" "$(printf '%s' "$cookie" | grep -c 'samesite=lax')" 1
+          must "a screen that does not exist: 404" "$(code "$SITE/admin/no-such-screen-live-check")" 404
+          must "…answered with the admin's own page" "$(grep -c 'data-error-page="404"' "$out/body")" 1
+          must "a form sent without its token is refused: 419" "$(code -X POST --data-urlencode "email=owner@woodex.test" "$SITE/admin/login")" 419
+          must "…answered with the admin's own page" "$(grep -c 'data-error-page="419"' "$out/body")" 1
+          code "${style:-$SITE/missing}" > /dev/null
+          note "stylesheet cache-control: $(header cache-control)"
+          # One request from this runner's network: an impression, not a measurement.
+          note "sign-in page first byte after $(curl -s -o /dev/null -w '%{time_starttransfer}' --max-time 40 "$SITE/admin/login") s"
+
+          for file in /install /composer.json /.env /index.php /api/index.php /vendor/autoload.php /database/woodex-synthetic-vercel-demo.sqlite /database/woodex-synthetic-vercel-demo.sqlite.key; do
+            status="$(code "$SITE$file")"
+            if { [ "$status" = 404 ] || [ "$status" = 403 ]; } && ! grep -q 'SQLite format\|<?php\|base64:' "$out/body"; then note "ok closed $file ($status)"; else note "FAIL $file answered $status"; fails=$((fails + 1)); fi
+          done
+
+          if [ "$fails" = 0 ]; then echo "::notice title=woodex-os.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-os.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
+  shop:
+    # The React shop and its API (Vercel project woodex-2030, Supabase). Asked from outside, without a secret:
+    # is it up, and does it still hand out its catalogue. Added on 17 November 2026, before catalogue migration
+    # 019 was applied to the shop's database, so that the same check could be read before and after. Read before:
+    # 148 published products (run 44051297292). The migration switches on product states, codes and the catalogue
+    # import in the old dashboard; the last four checks ask that none of that is open to a visitor.
+    name: What a visitor gets from the live shop's API
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Health and the published catalogue
+        env:
+          SHOP: https://woodex-2030.vercel.app
+        run: |
+          set -u
+          out="$(mktemp -d)"; fails=0; report=""
+          note() { report="$report | $1"; }
+          must() { if [ "$2" = "$3" ]; then note "ok $1"; else note "FAIL $1 (expected $3, got $2)"; fails=$((fails + 1)); fi; }
+          code() { curl -s -o "$out/body" -w '%{http_code}' --max-time 40 "$@"; }
+
+          must "shop home page" "$(code "$SHOP/")" 200
+          must "API health" "$(code "$SHOP/api/health")" 200
+          must "…says ok" "$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('ok'))" "$out/body" 2>/dev/null)" True
+          must "published catalogue" "$(code "$SHOP/api/products?limit=3")" 200
+          total="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('total'))" "$out/body" 2>/dev/null)"
+          items="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(len(d.get('items', [])))" "$out/body" 2>/dev/null)"
+          drafts="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(sum(1 for p in d.get('items', []) if p.get('status') not in (None, 'published')))" "$out/body" 2>/dev/null)"
+          note "published products: ${total:-?}"
+          if [ "${total:-0}" -ge 1 ] 2>/dev/null; then note "ok the catalogue is not empty"; else note "FAIL the catalogue is empty or unreadable"; fails=$((fails + 1)); fi
+          must "a page of three products" "${items:-?}" 3
+          must "nothing unpublished is handed to a visitor" "${drafts:-?}" 0
+          first="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['items'][0]['id'])" "$out/body" 2>/dev/null)"
+          must "an unpublished list is refused without a sign-in" "$(code "$SHOP/api/products?status=draft")" 401
+          must "one product read by its address" "$(code "$SHOP/api/products/${first:-missing}")" 200
+          must "an address that is no product" "$(code "$SHOP/api/products/no-such-product-$(date +%s)")" 404
+          must "the state of the catalogue is refused without a sign-in" "$(code "$SHOP/api/catalog/status")" 401
+          must "the catalogue import is refused without a sign-in" "$(code "$SHOP/api/catalog/import")" 401
+
+          if [ "$fails" = 0 ]; then echo "::notice title=woodex-2030.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-2030.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi

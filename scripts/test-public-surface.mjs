@@ -142,6 +142,32 @@ try {
     problems.push("sitemap mixes origins — canonical URLs must agree");
   }
 
+  /* The two bridges to the Laravel admin are read by the shop of a signed-out
+     visitor. With that connection off — as it is everywhere today — they must
+     say so ("disabled"), not ask the visitor to sign in. The category bridge
+     did ask: it had been registered without being added to the public list,
+     and only tests that called its handler directly ever ran. */
+  console.log("\n[public] bridges to the Laravel admin answer a visitor");
+  for (const p of ["/api/v1/catalogue/categories", "/api/v1/media", "/api/v1/catalogue/categories/office-furniture/hero/1", "/api/v1/media/3/4"]) {
+    const r = await get(p);
+    let disabled = false;
+    try { disabled = JSON.parse(r.body).disabled === true; } catch { /* not JSON: reported below */ }
+    if (r.status === 503 && disabled) console.log(`  ✓ ${p} → 503 "disabled" to a visitor, the connection being off`);
+    else {
+      problems.push(`${p} → ${r.status} ${r.body.slice(0, 80)} — expected 503 {"disabled":true} for a signed-out visitor`);
+      console.log(`  ✗ ${p} → ${r.status} ${r.body.slice(0, 80)}`);
+    }
+  }
+  /* …and nothing else under /api/v1 is opened by that. */
+  for (const p of ["/api/v1/catalogue", "/api/v1/catalogue/categories/office-furniture", "/api/v1/media/../users", "/api/v1/leads"]) {
+    const r = await get(p);
+    if (r.status === 401 || r.status === 403 || r.status === 404) console.log(`  ✓ ${p} → ${r.status}`);
+    else {
+      problems.push(`${p} → ${r.status} without a token — only the two bridges are public under /api/v1`);
+      console.log(`  ✗ ${p} → ${r.status} — EXPOSED`);
+    }
+  }
+
   console.log("\n[public] paths that must stay locked");
   for (const [p, why] of mustBePrivate) {
     const r = await get(p);

@@ -9,8 +9,12 @@ They are not opinions; each one below cost real debugging time.
 ## 1. Read order
 
 1. **This file.**
-2. `docs/product/MASTER-PLAN.md` — the only plan. If a doc disagrees with it, the plan wins.
-3. `docs/README.md` — the index. Anything under `docs/archive/` is history, not instruction.
+2. `docs/woodex-os/12-DECISION-LOG.md`, then `docs/woodex-os/00-MASTER-PLAN.md` — **the direction since
+   2026-11-16**: one Laravel admin (`platform/`), with this repository's React dashboard and Node API
+   migrated into it module by module. The owner's latest recorded decision wins over every document.
+3. `docs/product/MASTER-PLAN.md` — the plan the React/Node system was built to. Still the reference for how
+   that system works and is released; no longer the destination.
+4. `docs/README.md` — the index. Anything under `docs/archive/` is history, not instruction.
 
 Never start from a random doc you found by grepping. There are 56 markdown files and
 several are superseded.
@@ -229,7 +233,59 @@ server, and in the built bundle served from `dist/` (so run `vercel:build` first
 
 ---
 
-## 6. If you are stuck
+## 6. The Laravel application — `platform/`
+
+WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/laravel-os/`; the programme is
+`docs/woodex-os/`. Sections 2–5 above are about `apps/` and `scripts/` and still apply to every change there.
+
+- **What is open** is one list: `docs/woodex-os/14-PRODUCTION-TODO.md`, lines `T-001` onward, each with a
+  priority (P0 to P3), who acts, and what "done" means. Change a line's status in the same commit as the
+  work. Its sources are in `docs/woodex-os/15-SPECIFICATION-ANALYSIS.md`. The production host is Hostinger
+  shared hosting with MySQL (DL-020); Vercel carries a preview workspace only.
+- **Acceptance and release gates** are `docs/woodex-os/16-ACCEPTANCE-AND-RELEASE-GATES.md`. Its tables are
+  written from the five files in `docs/woodex-os/acceptance/` by `node scripts/verify-acceptance.mjs --write`;
+  CI runs the same script as a check. If you rename a test or a journey step that is named as proof there,
+  rename it there too. Enter every finding of your round in `acceptance/defects.json` with its severity, and
+  write a release report with the ten headings of document 10 §9 (`17-RELEASE-2026-11-17.md` is the model).
+- **Furniture only.** The code came from the Woodex Interior application. One setting names the lines an
+  installation sells: `WOODEX_BUSINESS_LINES`, default `furniture` (DL-021). With one line there is no line
+  chooser, filter or column, and a line that is not sold is refused. The test suite runs with all three lines;
+  a test of the Furniture-only admin calls `sellFurnitureAlone()`. Do not add Interior wording, defaults or
+  sample content to a screen that is open; what is left of it is lines T-033 and T-034.
+- **The real catalogue** (170 products, DL-022) is `platform/resources/data/woodex-catalogue.json`, built by
+  `node scripts/build-woodex-catalogue.mjs` and loaded by `php artisan commerce:import-catalogue`. It loads
+  drafts only: nothing in the code may publish a product by itself.
+- **Done, for a change under `platform/`:** its test suite passes **on MySQL in CI** (workflow
+  `os-ci.yml`, five jobs). That is the authority. In a sandbox it runs on SQLite with a static PHP build —
+  `platform/tools/preview/README.md` says how to get PHP and Composer where only GitHub and npm are
+  reachable. Nine tests cannot run there (they need `pdo_mysql` or `xmlwriter`); read a sandbox run with
+  `tools/preview/sandbox/suite-summary.py`, which excuses a failure only by its cause, never by its name.
+- **Never run it against a real database.** The preview refuses anything but a SQLite file named
+  `woodex-synthetic-*`. Trap 5 applies here too.
+- **One navigation registry:** `app/Support/AdminNavigation.php`. A new screen is added there, once, with an
+  id and a permission. The sidebar shows only what can be opened; what cannot is told on the Feature status
+  screen. Do not put a disabled or "Soon" entry in the sidebar. The registry tests assert exact counts on
+  purpose, and one test opens every sidebar screen for four roles.
+- **Colours are roles** (`--wx-*`) and scales in `resources/css/admin.css`; a view names a role or a scale
+  step, not a hex value. `tests/Unit/AdminDesignTokensTest.php` fails below WCAG AA. The logo green
+  `#4f9d21` carries no white text (3.4 : 1); `brand-500` does.
+- **`public/build` is committed** — the production host has no Node.js. After changing CSS or JavaScript run
+  `npm ci && npm run build` in `platform/` and commit the new files with the old ones removed.
+- **A changed requirement changes a test; it does not delete one.** When the roadmap left the sidebar, the
+  tests that expected "Soon" entries were rewritten to expect them on Feature status.
+- The root `index.php` and `.htaccess` are the Hostinger entry of this application. Vercel does not use them.
+- **Vercel** (`docs/woodex-os/13-VERCEL-DEPLOYMENT.md`): the entry is `platform/api/index.php`, and
+  `deploy/vercel-livewire/` holds byte-identical copies of it and of `vercel.json`. Today it serves a demo
+  with sample data (`WOODEX_DEMO=1` in the Vercel project, never in the repository). Before changing the
+  entry, `vercel.json`, the fixtures or anything in `platform/public`, run
+  `platform/tools/vercel/check-entry.sh`: it rehearses the deployment with Vercel's own PHP runtime and
+  launcher from npm. A new folder in `platform/public` needs a route in `vercel.json`, or its files answer 404
+  there. That same PHP (8.5, with `pdo_mysql`, `exif` and `xmlwriter`) also runs the nine tests the static
+  sandbox PHP cannot: `platform/tools/preview/README.md`.
+
+---
+
+## 7. If you are stuck
 
 1. Reproduce in `npm run smoke:render` before theorising.
 2. Check `git log --oneline -20` — the recent commits document what was just fixed.

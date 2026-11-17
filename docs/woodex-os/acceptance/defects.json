@@ -1,0 +1,190 @@
+{
+  "about": "The defect register asked for by document 10 §8: every finding of a round, with its severity and the release rule that follows from it. Checked by scripts/verify-acceptance.mjs: a severity is one of four, an open defect names the line that closes it, a closed one says how and when. Findings of the rounds before 17 November that were fixed at once are listed in document 14 §17.",
+  "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
+  "severities": {
+    "critical": {
+      "means": "Data loss, privilege bypass, financial corruption, site unavailable",
+      "rule": "blocks release"
+    },
+    "high": {
+      "means": "Core workflow broken, wrong totals or status, major security or privacy issue",
+      "rule": "blocks the release it affects"
+    },
+    "medium": {
+      "means": "A workaround exists; significant experience or non-core defect",
+      "rule": "needs the owner's acceptance"
+    },
+    "low": {
+      "means": "Cosmetic or a minor inconvenience",
+      "rule": "may be scheduled later"
+    }
+  },
+  "states": {
+    "open": "not fixed",
+    "accepted": "not fixed, and the owner has accepted it for a release",
+    "closed": "fixed and checked"
+  },
+  "defects": [
+    {
+      "id": "D-001",
+      "severity": "critical",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "The React shop's database could be read and changed through Supabase's Data API",
+      "detail": "None of its 72 tables had row-level security, and Supabase's two API roles held every privilege on all of them — users, sessions, password resets, orders and payments included. Anyone holding the project's publishable key could read and write every row. The shop itself never uses that API. Whether anybody did is not known from the database; Supabase's dashboard keeps a short log of API requests.",
+      "lines": [
+        "T-162"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Every privilege on tables and sequences taken from the two roles, also for tables created later (`deploy/supabase/2026-11-17-close-data-api.sql`, DL-024). Read back: the two roles hold a privilege on 0 of 73 tables and on no sequence, and the owner of the tables holds everything. Asked from outside afterwards, the shop serves its 148 products as before."
+      }
+    },
+    {
+      "id": "D-002",
+      "severity": "critical",
+      "state": "open",
+      "found": "2026-11-16",
+      "title": "The owner password of the old dashboard was printed in a public document",
+      "detail": "The repository is public, and so is its history. Whoever read that document can sign in to `woodex-2030.vercel.app/admin` as the owner — since 17 November also to load, publish and withdraw products. Only the owner can close it: sign in, Settings, Change password. Making the repository private does not close it; the password stays known.",
+      "lines": [
+        "T-021"
+      ]
+    },
+    {
+      "id": "D-003",
+      "severity": "high",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "A Furniture-only product showed and sent Interior's name",
+      "detail": "71 of the 241 screens opened by the four roles carried the word Interior; the WhatsApp greeting on a lead, a contact, a quotation and a visit and the staff invitation named Woodex Interior; the client's pages of a quotation and an invoice printed INTERIOR STUDIO under the mark.",
+      "lines": [
+        "T-030",
+        "T-031",
+        "T-032"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Commit `0d8ae53`: one setting names the lines on sale and the admin ships with Furniture alone. The crawl of all four roles finds the word on no screen; 25 tests pin it (`Feature/FurnitureOnlyTest.php`)."
+      }
+    },
+    {
+      "id": "D-004",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Two settings decided how a time is stored and how it is read",
+      "detail": "Had the application's time zone and the database session's time zone ever disagreed, every stored time would have shifted by five hours. They agreed, so no record was wrong.",
+      "lines": [
+        "T-061"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Commit `d7d6c29`: the session's zone is derived from the application's (DL-023); tests pin both, one of them on MySQL in CI (`Feature/TimeStorageTest.php`)."
+      }
+    },
+    {
+      "id": "D-005",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Three rows of the shop's migration ledger were written in another form than the migration runner writes",
+      "detail": "Rows 16, 17 and 18 carried names without `.sql` and checksums with a prefix, one of them cut short. The runner compares checksums and would have refused the live database as changed after the fact. The files had not changed: the recorded values were the beginnings of the files' real checksums.",
+      "lines": [
+        "T-163"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The three rows corrected to the runner's form, each guarded by its old value (DL-024). Read back: 19 rows, 19 migration files, every checksum equal."
+      }
+    },
+    {
+      "id": "D-006",
+      "severity": "high",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "Preview builds of the React shop use the production database",
+      "detail": "In the shop's Vercel project the database address is set for Production, Preview and Development alike. Vercel builds a preview of every branch that is pushed, so code that nobody has reviewed runs against the live data, and each preview address signs in to the same records. Harmless while the database holds sample products and one lead; not once it holds customers and orders.",
+      "lines": [
+        "T-164"
+      ]
+    },
+    {
+      "id": "D-007",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The React shop sells the sample catalogue it was first filled with",
+      "detail": "148 products are on sale on `woodex-2030.vercel.app`; none of them is Woodex's, none has a code. The real 170 are prepared in the shop's build. Since migration 019 the old dashboard can load them: Product Catalog, Catalogue import. Rehearsed on a copy filled like the live database: 170 arrive as drafts, a second run changes nothing, and after publishing and withdrawing the demo catalogue a visitor gets 170 real products.",
+      "lines": [
+        "T-091"
+      ]
+    },
+    {
+      "id": "D-008",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The catalogue's photographs are on woodexfurniture.pk, not in the system",
+      "detail": "Each of the 170 products links to its photograph on the present website, in the Laravel admin and in the catalogue prepared for the React shop. If that website is changed or switched off, every product loses its photograph.",
+      "lines": [
+        "T-089"
+      ]
+    },
+    {
+      "id": "D-009",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "116 of the 170 real products carry a point to check, and 33 have no price",
+      "detail": "The points are in the import report and on each product: a code made up for a product that had none, a name that differs from its page, a reduction that looks like a typing error (one product shows PKR 15,000 down from PKR 185,000).",
+      "lines": [
+        "T-090"
+      ]
+    },
+    {
+      "id": "D-010",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The shop's database has no row-level security",
+      "detail": "The second lock behind D-001. With the privileges gone the tables cannot be reached through the Data API; row-level security keeps it that way if a privilege is ever granted again by mistake.",
+      "lines": [
+        "T-163"
+      ]
+    },
+    {
+      "id": "D-011",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "No backup of the shop's database is known to exist",
+      "detail": "None was taken before the changes of 17 November, and whether the Supabase plan keeps any has not been checked. What the database held can be rebuilt today: its 148 products are the seed file's, and both changes have their undo. That stops being true with the first real order.",
+      "lines": [
+        "T-187"
+      ]
+    },
+    {
+      "id": "D-012",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-16",
+      "title": "The admin sends no Content-Security-Policy",
+      "detail": "The other security headers are sent and checked from outside. A policy is the remaining one.",
+      "lines": [
+        "T-068"
+      ]
+    },
+    {
+      "id": "D-013",
+      "severity": "low",
+      "state": "open",
+      "found": "2026-11-16",
+      "title": "The hosted workspace sends its stylesheet and scripts with no caching",
+      "detail": "`max-age=0`: every visit asks again. The files carry a fingerprint in their name and could be kept for a year.",
+      "lines": [
+        "T-152"
+      ]
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import { categorySegments, collectionList } from "@/lib/commerceTaxonomy";
+import { useRuntimeRevision } from "@/lib/runtime";
 import { useState } from "react";
 import { brand } from "@/config/brand";
 import { Link, useLocation } from "react-router-dom";
@@ -37,70 +39,12 @@ function ModeToggle() {
   );
 }
 
-const megaMenuProducts = {
-  office: {
-    title: "Office Furniture",
-    sections: [
-      {
-        heading: "Office Tables",
-        links: [
-          { label: "Executive Tables", href: "/shop?category=executive-tables" },
-          { label: "Manager Tables", href: "/shop?category=manager-tables" },
-          { label: "Staff Tables", href: "/shop?category=staff-tables" },
-          { label: "Meeting Tables", href: "/shop?category=meeting-tables" },
-          { label: "Reception Tables", href: "/shop?category=reception-tables" },
-        ],
-      },
-      {
-        heading: "Seating & More",
-        links: [
-          { label: "Office Chairs", href: "/shop?category=chairs" },
-          { label: "Workstations", href: "/shop?category=workstations" },
-          { label: "Cubicle Workstations", href: "/shop?category=cubicle-workstations" },
-          { label: "Office Sofas", href: "/shop?category=office-sofas" },
-          { label: "Office Storage", href: "/shop?category=storage" },
-          { label: "Cafe Furniture", href: "/shop?category=cafe" },
-          { label: "Public Sitting", href: "/shop?category=public" },
-        ],
-      },
-    ],
-  },
-  home: {
-    title: "Home Furniture",
-    sections: [
-      {
-        heading: "Bedroom",
-        links: [
-          { label: "Bed Sets", href: "/shop?category=bed-sets" },
-          { label: "Bedside Tables", href: "/shop?category=bedside-tables" },
-          { label: "Dressing Tables", href: "/shop?category=dressing-tables" },
-          { label: "Mirrors", href: "/shop?category=mirrors" },
-          { label: "Bench & Settee", href: "/shop?category=bench-settee" },
-        ],
-      },
-      {
-        heading: "Living Room",
-        links: [
-          { label: "Home Sofa", href: "/shop?category=home-sofa" },
-          { label: "Center & Side Tables", href: "/shop?category=center-side-tables" },
-          { label: "Coffee Tables", href: "/shop?category=coffee-tables" },
-          { label: "Console", href: "/shop?category=console" },
-          { label: "TV Units", href: "/shop?category=tv-units" },
-        ],
-      },
-      {
-        heading: "Dining",
-        links: [
-          { label: "Dining Sets", href: "/shop?category=dining-sets" },
-          { label: "Dining Chairs", href: "/shop?category=dining-chairs" },
-          { label: "Dining Tables", href: "/shop?category=dining-tables" },
-        ],
-      },
-    ],
-  },
-};
+const getMegaMenuProducts = () => Object.fromEntries(categorySegments().map(segment => [segment.id, {
+  title: segment.name,
+  sections: segment.groups.map(group => ({ heading: group.name, links: group.children.map(child => ({ label: child.name, href: `/shop?category=${child.id}` })) })),
+}]));
 
-const navItems = [
+const getNavItems = () => [
   {
     label: "Products",
     href: "/shop",
@@ -120,13 +64,7 @@ const navItems = [
   {
     label: "Series",
     href: "/series",
-    dropdown: [
-      { label: "Ek Series", href: "/series/ek-series" },
-      { label: "Infinity Series", href: "/series/infinity-series" },
-      { label: "Woodex Series", href: "/series/woodex-series" },
-      { label: "Cubicle Series", href: "/series/cubicle-series" },
-      { label: "Nova Series", href: "/series/nova-series" },
-    ],
+    dropdown: collectionList().map(series => ({ label: series.name, href: `/series/${series.id}` })),
   },
   { label: "Projects", href: "/projects" },
   { label: "Services", href: "/services" },
@@ -137,6 +75,9 @@ const navItems = [
 ];
 
 const Header = () => {
+  useRuntimeRevision();
+  const menus = getMegaMenuProducts();
+  const navItems = getNavItems();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -212,80 +153,16 @@ const Header = () => {
                     {/* Mega Menu — Products (wide, with featured imagery) */}
                     {item.megaMenu && activeDropdown === item.label && (
                       <div className="absolute top-full left-1/2 -translate-x-1/2 w-[980px] bg-background border shadow-2xl rounded-sm z-50 overflow-hidden">
-                        <div className="grid grid-cols-2">
-                          {/* OFFICE SEGMENT */}
-                          <div className="p-7 bg-background">
-                            <div className="flex items-center gap-2 mb-5">
-                              <div className="w-8 h-0.5 bg-accent" />
-                              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">{megaMenuProducts.office.title}</span>
+                        <div className="grid max-h-[65vh] grid-cols-2 overflow-auto">
+                          {categorySegments().map(segment => (
+                            <div className="border-r p-7" key={segment.slug}>
+                              <Link to={`/shop?category=${segment.slug}`} className="mb-4 block text-lg font-bold text-accent">{segment.name}</Link>
+                              {segment.groups.map(group => <div className="mb-4" key={group.id}>
+                                <Link className="font-semibold hover:underline" to={`/shop?category=${group.id}`}>{group.name}</Link>
+                                <ul className="mt-2 space-y-1">{group.children.map(child => <li key={child.id}><Link className="text-sm hover:text-accent" to={`/shop?category=${child.id}`}>{child.name}</Link></li>)}</ul>
+                              </div>)}
                             </div>
-                            <Link to="/shop?segment=office" className="block group mb-5">
-                              <div className="relative aspect-[16/8] overflow-hidden rounded-sm bg-muted">
-                                <img src={img("hero-slide-1.jpg")} alt="Office Furniture" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
-                                <div className="absolute bottom-3 left-3 right-3 text-primary-foreground">
-                                  <p className="text-[10px] uppercase tracking-widest text-accent font-bold mb-0.5">Featured Collection</p>
-                                  <p className="text-sm font-bold leading-tight">Make Your Workspace Work</p>
-                                </div>
-                              </div>
-                            </Link>
-                            <div className="grid grid-cols-2 gap-x-5 gap-y-1">
-                              {megaMenuProducts.office.sections.map((section) => (
-                                <div key={section.heading}>
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.14em] mb-2 border-b border-border pb-1">{section.heading}</p>
-                                  <ul className="space-y-0.5">
-                                    {section.links.map((link) => (
-                                      <li key={link.label}>
-                                        <Link
-                                          to={link.href}
-                                          className="block text-[13px] text-foreground hover:text-accent hover:bg-hon-green-pale px-2 py-1 rounded-sm transition-colors"
-                                        >
-                                          {link.label}
-                                        </Link>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* HOME SEGMENT */}
-                          <div className="p-7 bg-section-light border-l border-border">
-                            <div className="flex items-center gap-2 mb-5">
-                              <div className="w-8 h-0.5 bg-accent" />
-                              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">{megaMenuProducts.home.title}</span>
-                            </div>
-                            <Link to="/shop?segment=home" className="block group mb-5">
-                              <div className="relative aspect-[16/8] overflow-hidden rounded-sm bg-muted">
-                                <img src={img("hero-slide-3.jpg")} alt="Home Furniture" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
-                                <div className="absolute bottom-3 left-3 right-3 text-primary-foreground">
-                                  <p className="text-[10px] uppercase tracking-widest text-accent font-bold mb-0.5">New Arrivals</p>
-                                  <p className="text-sm font-bold leading-tight">WOODEX Home Collection</p>
-                                </div>
-                              </div>
-                            </Link>
-                            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
-                              {megaMenuProducts.home.sections.map((section) => (
-                                <div key={section.heading}>
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.14em] mb-2 border-b border-border pb-1">{section.heading}</p>
-                                  <ul className="space-y-0.5">
-                                    {section.links.map((link) => (
-                                      <li key={link.label}>
-                                        <Link
-                                          to={link.href}
-                                          className="block text-[13px] text-foreground hover:text-accent hover:bg-hon-green-pale px-2 py-1 rounded-sm transition-colors"
-                                        >
-                                          {link.label}
-                                        </Link>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                          ))}
                         </div>
 
                         {/* Footer bar */}
@@ -422,7 +299,7 @@ const Header = () => {
 
                   {mobileExpanded === item.label && item.megaMenu && (
                     <div className="ml-4 border-l-2 border-accent/30 pl-4 mt-1 space-y-3">
-                      {[...megaMenuProducts.office.sections, ...megaMenuProducts.home.sections].map((section) => (
+                      {Object.values(menus).flatMap(menu => menu.sections).map((section) => (
                         <div key={section.heading}>
                           <p className="text-xs font-bold text-accent uppercase tracking-widest mb-1">{section.heading}</p>
                           {section.links.map((link) => (

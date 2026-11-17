@@ -36,6 +36,23 @@ jobs:
         run: npm run secret-scan
       - name: Combined Vercel production-shape build
         run: npm run vercel:build
+      - name: Storefront lead adapter contract
+        run: |
+          node scripts/test-storefront-lead-adapter.mjs
+          node scripts/test-lead-challenge.mjs
+          node scripts/test-basket-adapter.mjs
+          node scripts/test-commerce-taxonomy.mjs
+          node scripts/test-native-category-sync.mjs
+          node scripts/test-media-sync.mjs
+          node scripts/test-vercel-livewire-root.mjs
+          node scripts/build-category-reference.mjs --check
+          node scripts/build-product-import.mjs --check
+          node scripts/build-woodex-catalogue.mjs --check
+      - name: Acceptance files agree with the tests, the journeys and the specification
+        # docs/woodex-os/acceptance/ names the test that proves each acceptance scenario of the owner's
+        # specification, the journey steps that press each browser flow, and the state of every release gate.
+        # Fails when a named test or step has gone, or when document 16 no longer shows what the files say.
+        run: node scripts/verify-acceptance.mjs
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps
