@@ -82,7 +82,19 @@ jobs:
           must "…answered with the admin's own page" "$(grep -c 'data-error-page="419"' "$out/body")" 1
           # Only the site's own domain is open. The address Vercel keeps for the main branch must ask for a sign-in
           # to Vercel (the project setting "Deployment Protection"); so must every preview build.
-          must "the main branch's other address asks for Vercel's sign-in" "$(curl -s -o /dev/null -w '%{http_code}' --max-time 40 "$SITE_BRANCH/admin/login")" 401
+          # An address that is not the site's own domain must send a visitor to Vercel's sign-in: 401, or a redirect
+          # to vercel.com. With "or-gone", a build that Vercel has deleted (404) is fine too.
+          wall() {
+            local got where
+            got="$(curl -s -o /dev/null -D "$out/wall" --max-time 40 -w '%{http_code}' "$2")"
+            where="$(tr -d '\r' < "$out/wall" | grep -i '^location:' | head -1 | sed -E 's/^[^:]*: *//; s#^(https?://[^/]+).*#\1#')"
+            if [ "$got" = 401 ] || { [ "$got" = 302 ] && [ "$where" = "https://vercel.com" ]; } || { [ "${3:-}" = or-gone ] && [ "$got" = 404 ]; }; then
+              note "ok $1 ($got${where:+ to $where})"
+            else
+              note "FAIL $1 (got $got${where:+ to $where}; expected Vercel's sign-in)"; fails=$((fails + 1))
+            fi
+          }
+          wall "the main branch's other address asks for Vercel's sign-in" "$SITE_BRANCH/admin/login"
           code "${style:-$SITE/missing}" > /dev/null
           note "stylesheet cache-control: $(header cache-control)"
           # One request from this runner's network: an impression, not a measurement.
@@ -143,11 +155,22 @@ jobs:
           # branch, one per build — must ask for a sign-in to Vercel (the project setting "Deployment Protection").
           # It matters here: until 17 November 2026, 16:05 UTC, every preview build was given the live database's
           # address, and those builds exist until Vercel deletes them, 30 days after they were made (defect D-006).
-          # The first address is the main branch's own and must answer 401. The second is one of those old builds
-          # (commit f8edfee): 401 while it exists, 404 once it is gone. Anything else means a stranger can open it.
-          must "the main branch's other address asks for Vercel's sign-in" "$(code "$SHOP_BRANCH/api/health")" 401
-          old="$(code "$SHOP_OLD_PREVIEW/api/health")"
-          case "$old" in 401|404) note "ok an old preview that held the database address is not open ($old)";; *) note "FAIL an old preview that held the database address is open (expected 401 or 404, got $old)"; fails=$((fails + 1));; esac
+          # The first address is the main branch's own. The second is one of those old builds (commit f8edfee):
+          # the sign-in while it exists, 404 once it is gone. Anything else means a stranger can open it.
+          # An address that is not the site's own domain must send a visitor to Vercel's sign-in: 401, or a redirect
+          # to vercel.com. With "or-gone", a build that Vercel has deleted (404) is fine too.
+          wall() {
+            local got where
+            got="$(curl -s -o /dev/null -D "$out/wall" --max-time 40 -w '%{http_code}' "$2")"
+            where="$(tr -d '\r' < "$out/wall" | grep -i '^location:' | head -1 | sed -E 's/^[^:]*: *//; s#^(https?://[^/]+).*#\1#')"
+            if [ "$got" = 401 ] || { [ "$got" = 302 ] && [ "$where" = "https://vercel.com" ]; } || { [ "${3:-}" = or-gone ] && [ "$got" = 404 ]; }; then
+              note "ok $1 ($got${where:+ to $where})"
+            else
+              note "FAIL $1 (got $got${where:+ to $where}; expected Vercel's sign-in)"; fails=$((fails + 1))
+            fi
+          }
+          wall "the main branch's other address asks for Vercel's sign-in" "$SHOP_BRANCH/api/health"
+          wall "an old preview that held the database address is not open" "$SHOP_OLD_PREVIEW/api/health" or-gone
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-2030.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-2030.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
 
