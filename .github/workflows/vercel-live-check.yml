@@ -30,6 +30,7 @@ jobs:
       - name: Open the address, try a wrong password, look for leaks
         env:
           SITE: https://woodex-os.vercel.app
+          SITE_BRANCH: https://woodex-os-git-main-woodexs-projects.vercel.app
         run: |
           set -u
           out="$(mktemp -d)"; jar="$out/jar"; fails=0; report=""
@@ -79,6 +80,9 @@ jobs:
           must "…answered with the admin's own page" "$(grep -c 'data-error-page="404"' "$out/body")" 1
           must "a form sent without its token is refused: 419" "$(code -X POST --data-urlencode "email=owner@woodex.test" "$SITE/admin/login")" 419
           must "…answered with the admin's own page" "$(grep -c 'data-error-page="419"' "$out/body")" 1
+          # Only the site's own domain is open. The address Vercel keeps for the main branch must ask for a sign-in
+          # to Vercel (the project setting "Deployment Protection"); so must every preview build.
+          must "the main branch's other address asks for Vercel's sign-in" "$(curl -s -o /dev/null -w '%{http_code}' --max-time 40 "$SITE_BRANCH/admin/login")" 401
           code "${style:-$SITE/missing}" > /dev/null
           note "stylesheet cache-control: $(header cache-control)"
           # One request from this runner's network: an impression, not a measurement.
@@ -108,6 +112,8 @@ jobs:
       - name: Health and the published catalogue
         env:
           SHOP: https://woodex-2030.vercel.app
+          SHOP_BRANCH: https://woodex-2030-git-main-woodexs-projects.vercel.app
+          SHOP_OLD_PREVIEW: https://woodex-2030-an6sftwa2-woodexs-projects.vercel.app
         run: |
           set -u
           out="$(mktemp -d)"; fails=0; report=""
@@ -132,6 +138,16 @@ jobs:
           must "an address that is no product" "$(code "$SHOP/api/products/no-such-product-$(date +%s)")" 404
           must "the state of the catalogue is refused without a sign-in" "$(code "$SHOP/api/catalog/status")" 401
           must "the catalogue import is refused without a sign-in" "$(code "$SHOP/api/catalog/import")" 401
+
+          # Only the shop's own domain is open to a visitor. Every other address Vercel gives the project — one per
+          # branch, one per build — must ask for a sign-in to Vercel (the project setting "Deployment Protection").
+          # It matters here: until 17 November 2026, 16:05 UTC, every preview build was given the live database's
+          # address, and those builds exist until Vercel deletes them, 30 days after they were made (defect D-006).
+          # The first address is the main branch's own and must answer 401. The second is one of those old builds
+          # (commit f8edfee): 401 while it exists, 404 once it is gone. Anything else means a stranger can open it.
+          must "the main branch's other address asks for Vercel's sign-in" "$(code "$SHOP_BRANCH/api/health")" 401
+          old="$(code "$SHOP_OLD_PREVIEW/api/health")"
+          case "$old" in 401|404) note "ok an old preview that held the database address is not open ($old)";; *) note "FAIL an old preview that held the database address is open (expected 401 or 404, got $old)"; fails=$((fails + 1));; esac
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-2030.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-2030.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
 
