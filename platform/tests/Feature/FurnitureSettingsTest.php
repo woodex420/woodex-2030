@@ -94,8 +94,12 @@ it('lets the owner fill in everything a document needs from the Settings screen,
         ->call('addSignatory')
         ->set('sales.signatories.0.name', 'Synthetic Signer')
         ->set('sales.signatories.0.title', 'Director')
+        // The other rules can be saved while the wording is still undecided; the notice keeps the point open.
         ->call('saveSales')
-        ->assertHasErrors('sales.invoice_terms')
+        ->assertHasNoErrors()
+        ->assertSee('Documents cannot be issued yet')
+        ->assertSee('Fill in the invoice terms under Settings → Sales rules.')
+        ->assertDontSee('Add a signatory')
         ->set('sales.invoice_terms', "Payment is due within the days stated on this invoice.\nGoods remain ours until paid in full.")
         ->call('saveSales')
         ->assertHasNoErrors()

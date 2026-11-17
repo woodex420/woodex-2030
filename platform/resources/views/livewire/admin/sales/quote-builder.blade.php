@@ -32,7 +32,7 @@
                 <x-admin.button icon="send" wire:click="openSend">Send</x-admin.button>
             @elseif ($portalUrl && $canSend)
                 <x-admin.button icon="link" wire:click="$set('showSend', true)">Share link</x-admin.button>
-            @elseif (! $clientPages && $sentPdfUrl && $canSend && ! $sendable)
+            @elseif (! $clientPages && $sentPdfUrl && $canSend && in_array($quote->status->value, ['sent', 'viewed'], true))
                 <x-admin.button variant="secondary" icon="send" wire:click="$set('showSend', true)">Give to client</x-admin.button>
             @endif
             @if ($editable && $quote->sent_at === null)
@@ -108,7 +108,8 @@
                 $billingLine = match (true) {
                     $firstInvoice !== null && ($quote->meta['furniture_billing'] ?? '') === 'full' => "Invoice {$firstInvoice->number} bills this sale in full.",
                     $firstInvoice !== null => 'The advance invoice was raised with the project.',
-                    $quote->business_line->value === 'furniture' => 'Use Create full invoice to bill this Furniture sale.',
+                    $quote->business_line->value === 'furniture' && $canInvoice => 'Use Create full invoice to bill this Furniture sale.',
+                    $quote->business_line->value === 'furniture' => 'Not billed yet: Accounts bills this sale in full from here, with Create full invoice.',
                     default => 'No payment stage falls due on acceptance, so no invoice was raised.',
                 };
             @endphp

@@ -163,7 +163,7 @@
                                     @endif
                                     @can('verify', $payment)
                                         @if ($payment->status === App\Domain\Sales\Enums\PaymentStatus::PendingVerification)
-                                            <button type="button" wire:click="verify({{ $payment->id }})" class="font-medium text-green-700 hover:underline dark:text-green-400">Confirm</button>
+                                            <button type="button" wire:click="verify({{ $payment->id }})" wire:confirm="Confirm this payment of {{ Money::ofMinor((int) $payment->amount_minor)->format($lakh) }} from {{ $payment->contact?->name ?? 'the client' }}? A receipt is numbered and the amount is booked in the ledger." class="font-medium text-green-700 hover:underline dark:text-green-400">Confirm</button>
                                             <button type="button" wire:click="openReject({{ $payment->id }})" class="font-medium text-error-600 hover:underline">Send back</button>
                                         @endif
                                     @endcan

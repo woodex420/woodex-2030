@@ -60,6 +60,9 @@ final class SubmitPaymentProof
                 $payment->addMedia($proof)->toMediaCollection('files');
             }
 
+            app(LogBillingActivity::class)->payment($payment, 'reported', null,
+                ($invoice->contact?->name ?? 'The client')." reported a payment against {$invoice->number}".($proof !== null ? ', with a slip' : '').'. Accounts confirm it or send it back.');
+
             return $payment;
         });
     }

@@ -63,6 +63,8 @@ final class VoidInvoice
                 $this->reverse->handle($journal, $actor, "Invoice {$fresh->number} was voided: {$reason}");
             }
 
+            app(LogBillingActivity::class)->invoice($fresh, 'voided', $actor, "Invoice {$fresh->number} voided: {$reason}");
+
             activity('billing')
                 ->causedBy($actor)
                 ->performedOn($fresh)

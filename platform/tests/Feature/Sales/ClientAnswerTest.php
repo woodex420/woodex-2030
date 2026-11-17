@@ -98,8 +98,14 @@ it('records a yes that came by phone: who said it, how, and who wrote it down', 
         ->assertSee('Bilal Khan (procurement)')
         ->assertSee('recorded by '.$this->sales->name)
         ->assertSee('Purchase order PO-7781 follows by e-mail.')
-        ->assertSee('Use Create full invoice to bill this Furniture sale.')
+        // A sales person has no such button: the banner names who does the billing.
+        ->assertSee('Not billed yet: Accounts bills this sale in full from here, with Create full invoice.')
+        ->assertDontSee('Use Create full invoice to bill this Furniture sale.')
         ->assertDontSee('Client accepted');
+
+    // The accountant, who holds the button, is told to use it.
+    Livewire::actingAs($this->userWithRole('accountant'))->test(QuoteBuilder::class, ['quote' => $quote->refresh()])
+        ->assertSee('Use Create full invoice to bill this Furniture sale.');
 
     $quote->refresh();
     $event = QuoteEvent::query()->where('quote_id', $quote->id)->where('type', 'accepted')->sole();

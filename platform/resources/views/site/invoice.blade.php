@@ -78,6 +78,27 @@
                     </li>
                 @endforeach
             </ul>
+
+            {{-- What lies between the lines and the total. Without it a discounted invoice showed lines of one sum
+                 and a total of another, with nothing to say why. --}}
+            @php
+                $between = array_filter([
+                    'Discount' => -1 * (int) $invoice->discount_minor,
+                    'Rent' => (int) $invoice->rent_minor,
+                    'Shipping / transport' => (int) $invoice->shipping_minor,
+                    'Sales tax' => (int) $invoice->tax_minor,
+                    'Rounding' => (int) ($invoice->commercial['rounding_minor'] ?? 0),
+                ]);
+            @endphp
+            @if ($between !== [])
+                <dl class="mt-1 space-y-2 border-t border-line pt-3 text-sm" data-invoice-sums>
+                    <div class="flex justify-between gap-4"><dt class="text-body">Subtotal</dt><dd class="text-ink">{{ $money((int) $invoice->subtotal_minor) }}</dd></div>
+                    @foreach ($between as $label => $minor)
+                        <div class="flex justify-between gap-4"><dt class="text-body">{{ $label }}</dt><dd class="text-ink">{{ $minor < 0 ? '− '.$money(-$minor) : $money($minor) }}</dd></div>
+                    @endforeach
+                    <div class="flex justify-between gap-4 font-medium"><dt class="text-ink">Invoice total</dt><dd class="text-ink">{{ $s['total'] }}</dd></div>
+                </dl>
+            @endif
         </div>
 
         @if (! empty($s['bank']) && ! $settled)

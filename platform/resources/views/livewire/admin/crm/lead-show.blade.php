@@ -9,7 +9,8 @@
     $flow = $stages->whereNotIn('key', ['on_hold', 'lost'])->values();
     $current = $lead->stage;
     $wa = Phone::whatsappUrl($contact->whatsappNumber(), "Assalam o Alaikum {$contact->firstName()}, this is {$me->name} from ".Brand::name($lead->business_line)." regarding your enquiry ({$lead->ref}).");
-    $value = $lead->expectedValue()?->format($lakh);
+    // Its own name: the loops further down use $value for their keys, and the Details card printed the last of them.
+    $expectedValue = $lead->expectedValue()?->format($lakh);
     $isClosed = $current->isClosed();
 @endphp
 <div class="wx-workspace wx-lead-detail">
@@ -382,7 +383,7 @@
                         'Size' => $lead->area_sqft ? number_format($lead->area_sqft).' sq ft' : null,
                         'Budget' => $lead->budget_band ? ($budgetBands[$lead->budget_band] ?? $lead->budget_band) : null,
                         'Timeline' => $lead->timeline ? ($timelines[$lead->timeline] ?? $lead->timeline) : null,
-                        'Value' => $value,
+                        'Value' => $expectedValue,
                         'Score' => $lead->score.' / 100',
                         'Referred by' => $lead->referrer_name,
                     ] as $label => $text)

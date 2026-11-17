@@ -49,7 +49,7 @@
                       :tone="(int) $invoice->balance_minor > 0 ? 'warning' : 'success'"
                       :hint="$invoice->due_date ? 'Due '.$invoice->due_date->format('j M Y') : null" />
         <x-admin.stat label="Status" :value="$invoice->status->label()" icon="check" :tone="$invoice->status->color()"
-                      :hint="$invoice->kind->label().' · issued '.($invoice->issue_date?->format('j M Y') ?? '—')" />
+                      :hint="$invoice->kind->label().($invoice->status === \App\Domain\Sales\Enums\InvoiceStatus::Draft ? ' · not issued yet, dated ' : ' · issued ').($invoice->issue_date?->format('j M Y') ?? '—')" />
     </div>
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">

@@ -26,6 +26,7 @@ use App\Domain\Sales\Exceptions\QuoteActionDenied;
 use App\Domain\Sales\Exceptions\QuoteLocked;
 use App\Domain\Sales\Models\CatalogItem;
 use App\Domain\Sales\Models\DescriptionTemplate;
+use App\Domain\Sales\Models\Invoice;
 use App\Domain\Sales\Models\Quote;
 use App\Domain\Sales\Models\QuoteEvent;
 use App\Domain\Sales\Models\QuoteItem;
@@ -668,7 +669,8 @@ class QuoteBuilder extends Component
         $invoice = $quote->invoices()->latest('id')->first();
         $this->toast("{$quote->label()} accepted. ".match (true) {
             $invoice !== null => "The project is open and invoice {$invoice->number} is raised.",
-            $quote->business_line->value === 'furniture' => 'The project is open. Use Create full invoice to bill this sale.',
+            $quote->business_line->value === 'furniture' && $this->user()->can('create', Invoice::class) => 'The project is open. Use Create full invoice to bill this sale.',
+            $quote->business_line->value === 'furniture' => 'The project is open. Accounts bills this sale with Create full invoice.',
             default => 'The project is open. No payment stage falls due on acceptance, so no invoice was raised.',
         });
     }
@@ -843,6 +845,7 @@ class QuoteBuilder extends Component
             // Whether the client has a page of their own. When not, the PDF of the last sent version is what the
             // team gives the client, and the screens say so instead of offering a link.
             'clientPages' => QuoteLinks::clientPagesOpen(),
+            'canInvoice' => $user->can('create', Invoice::class),
             'sentPdfUrl' => $versions->isNotEmpty() ? route('admin.quotes.pdf', ['quote' => $quote, 'revision' => $versions->first()->revision]) : null,
             'clientComment' => $quote->status === QuoteStatus::ChangesRequested
                 ? ($quote->events()->where('type', 'changes_requested')->latest('occurred_at')->first()?->data['comment'] ?? null)

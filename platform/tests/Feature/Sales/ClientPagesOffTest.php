@@ -146,10 +146,16 @@ it('says before sending that a PDF is frozen, and after it what to do with that 
 
     expect(clientPageAddresses($screen->html()))->toBe([]);
 
-    // The dialog can be opened again later: the header offers it in place of "Share link".
+    // The dialog can be opened again later: the header offers it in place of "Share link" …
     Livewire::actingAs($this->owner)->test(QuoteBuilder::class, ['quote' => $quote->refresh()])
         ->assertSee('Give to client')
         ->assertDontSee('Share link');
+
+    // … for as long as the quotation is with the client.
+    app(AcceptQuote::class)->handle($quote->refresh(), 'Ayesha Khan', null, null, null, $this->owner, null, AcceptanceChannel::Phone);
+
+    Livewire::actingAs($this->owner)->test(QuoteBuilder::class, ['quote' => $quote->refresh()])
+        ->assertDontSee('Give to client');
 });
 
 it('says on the timeline how the quotation went out', function () {

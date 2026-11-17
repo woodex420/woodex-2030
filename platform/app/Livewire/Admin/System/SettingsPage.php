@@ -246,7 +246,9 @@ class SettingsPage extends Component
             // brand neither shows nor asks for them, and what they hold is left as it is.
             'sales.execution_terms' => [$this->interiorTerms() ? 'required' : 'nullable', 'string', 'max:5000'],
             'sales.design_terms' => [$this->interiorTerms() ? 'required' : 'nullable', 'string', 'max:5000'],
-            'sales.invoice_terms' => ['required', 'string', 'max:5000'],
+            // May stay blank while the owner decides the wording: the other rules can be saved meanwhile, and
+            // the notice above the tabs keeps saying that no document can be issued until it is filled in.
+            'sales.invoice_terms' => ['nullable', 'string', 'max:5000'],
         ], [
             'sales.budget_bands.*.key.regex' => 'Keys use lowercase letters, numbers and dashes only (e.g. 3m-7m).',
         ], [
@@ -282,7 +284,7 @@ class SettingsPage extends Component
             $settings->execution_terms = trim((string) $data['execution_terms']);
             $settings->design_terms = trim((string) $data['design_terms']);
         }
-        $settings->invoice_terms = trim($data['invoice_terms']);
+        $settings->invoice_terms = trim((string) ($data['invoice_terms'] ?? ''));
         $settings->save();
 
         $this->sales['lost_reasons'] = implode("\n", $reasons);

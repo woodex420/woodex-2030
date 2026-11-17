@@ -58,6 +58,9 @@ final class IssueInvoice
             $this->freezer->freeze($invoice);
             $this->postToLedger->handle($invoice->refresh(), $by);
 
+            app(LogBillingActivity::class)->invoice($invoice, 'issued', $by,
+                "Invoice {$invoice->number} issued, due ".$invoice->due_date->format('j M Y').'.');
+
             $leadId = $invoice->quote?->lead_id;
 
             if ($leadId !== null && ($lead = Lead::query()->find($leadId)) !== null) {
