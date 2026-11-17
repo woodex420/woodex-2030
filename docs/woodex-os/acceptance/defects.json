@@ -175,13 +175,18 @@
   {
    "id": "D-012",
    "severity": "medium",
-   "state": "open",
+   "state": "closed",
    "found": "2026-11-16",
    "title": "The admin sends no Content-Security-Policy",
    "detail": "The other security headers are sent and checked from outside. A policy is the remaining one.",
    "lines": [
-    "T-068"
-   ]
+    "T-068",
+    "T-072"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Every page the product draws is sent with a policy: scripts only from the site itself, and a script written into a page only with the number made for that one answer (`app/Support/ContentPolicy.php`). Six screens that used a handler written into the markup use Alpine now. `tests/Feature/Security/ContentPolicyTest.php` pins the header and reads every screen and every view for what a browser would refuse; the journeys and the crawl of every screen fail on anything a browser refuses, and passed with the policy enforced. Left for T-072: the policy still allows `eval`, which Alpine needs. DL-030."
+   }
   },
   {
    "id": "D-013",

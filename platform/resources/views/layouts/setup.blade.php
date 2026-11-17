@@ -38,7 +38,7 @@
         </div>
     </main>
 
-    <script>
+    <script nonce="{{ Vite::cspNonce() }}">
         // Each form submits once: installing takes a few seconds and a second click must not start it again.
         document.addEventListener('submit', function (event) {
             var form = event.target;

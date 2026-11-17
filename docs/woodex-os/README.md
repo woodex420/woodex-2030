@@ -16,7 +16,8 @@ Read in this order:
 | 8 | [`17-RELEASE-2026-11-17.md`](17-RELEASE-2026-11-17.md) | The release report of 17 November 2026, in the ten points of document 10 §9: what went out, what was changed in the shop's database, the evidence, what was not done |
 | 9 | [`18-RELEASE-2026-11-17-SECOND.md`](18-RELEASE-2026-11-17-SECOND.md) | The release report of pull request #37, written before its merge: what the merge changes on each live site, what was changed by hand on Vercel and in the shop's database, the evidence |
 | 10 | [`19-RELEASE-2026-11-17-THIRD.md`](19-RELEASE-2026-11-17-THIRD.md) | The release report of pull request #39, written before its merge: the security tests and what they found, a trace for every sensitive action, a lead's value from its quotation |
-| 11 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
+| 11 | [`20-RELEASE-2026-11-17-FOURTH.md`](20-RELEASE-2026-11-17-FOURTH.md) | The release report of pull request #40, written before its merge: the Content-Security-Policy on every page, a request number on every answer, error page and log line |
+| 12 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
 
 Related, elsewhere in this repository:
 

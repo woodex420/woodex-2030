@@ -149,7 +149,7 @@ through the same parts until stopped. Two scripts in the repository's `scripts/`
 - `os-screens.mjs` signs in as each demo role and opens every screen it can reach, on a desktop and then on a
   390 px phone: status, console errors, links that lead nowhere, fields without a label, controls smaller than
   24 px, anything wider than the window, page size and time.
-- `os-journeys.mjs` presses through two journeys, 27 steps that write records. A working day: a lead, a task,
+- `os-journeys.mjs` presses through two journeys, 28 steps that write records. A working day: a lead, a task,
   the search, a draft quotation with a priced line, two PDFs, the CSV export, an upload, a product of the real
   catalogue, the 404 and 403 pages, sign-out. The sale, by the people who do each part: an enquiry handed to a
   sales person, a quotation above the discount limit, its approval, sending, the client's yes, the invoice, the
@@ -167,8 +167,9 @@ node scripts/os-journeys.mjs --out /tmp/journeys    # WX_PW_OWNER, WX_PW_SALES
 **What this cannot show:** Vercel's own network and build machines. After a deployment, read the build log for
 the `[demo] workspace ready` line, and run the workflow "Vercel live check (WOODEX OS)"
 (`vercel-live-check.yml`): from outside, without any secret, it opens the sign-in page of the deployed address,
-tries a wrong password, reads the security headers and the marks on the session cookie, asks for a screen that
-does not exist (the admin's own 404 page) and sends a form without its token (419), and asks for files that
+tries a wrong password, reads the security headers (the content policy among them) and the marks on the session
+cookie, asks for a screen that does not exist (the admin's own 404 page, with the request number that the
+answer's `X-Request-Id` header carries) and sends a form without its token (419), and asks for files that
 must stay closed. Its findings are one notice on the run. It never signs in: a signed-in check of the live
 address needs the demo password as a GitHub secret, which only the owner can add (line T-151 of
 [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)).

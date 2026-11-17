@@ -41,6 +41,14 @@ Both are acceptable only because the database is synthetic and disposable.
 
 ## In a sandbox that can reach only GitHub and npm
 
+**The short way, about one minute:** `bash platform/tools/preview/sandbox/setup.sh`. It builds everything described
+below outside the repository (default `~/.cache/woodex-os`): the complete PHP from npm, Composer, two work trees
+with the locked packages, and four small commands — `bin/wxsync` (copy the tree after an edit), `bin/wxtest` (Pest
+with the settings CI uses), `bin/wxrehearse` (serve the demo as Vercel does) and `bin/wxenv` (the rehearsal's
+passwords, made on that machine, and the browser for `scripts/os-journeys.mjs` and `scripts/os-screens.mjs`). Its
+first lines say what it leaves and how to run the suite and the code style. The rest of this section is what it
+does, step by step, and why.
+
 Measured in the agent sandbox used for this work: Packagist, getcomposer.org, php.net, Debian mirrors, container registries and GitHub release downloads are all blocked. PHP and Composer still arrive through the GitHub API. Keep everything outside the git tree.
 
 ```

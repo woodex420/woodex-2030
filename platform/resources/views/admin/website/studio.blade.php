@@ -13,7 +13,7 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/assets/admin-v21/wx-embed.css">
 <link rel="stylesheet" href="/assets/admin-v21/admin.css">
-<script>try{if(localStorage.getItem("wxaTheme")==="dark"||(!localStorage.getItem("wxaTheme")&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}</script>
+<script nonce="{{ Vite::cspNonce() }}">try{if(localStorage.getItem("wxaTheme")==="dark"||(!localStorage.getItem("wxaTheme")&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}</script>
 </head>
 <body class="wx21-embed">
 <div class="wx21-strip">
@@ -147,7 +147,7 @@
 
 <script src="/assets/admin-v21/vendor/icons.js"></script>
 <script src="/assets/admin-v21/vendor/chart.umd.js"></script>
-<script>window.WX_STUDIO = {screen: @json($screen), user: @json($user), csrf: @json(csrf_token()), api: @json(route('admin.website.studio.api', absolute: false)), builderApi: @json(route('admin.website.studio.builder-api', absolute: false))};</script>
+<script nonce="{{ Vite::cspNonce() }}">window.WX_STUDIO = {screen: @json($screen), user: @json($user), csrf: @json(csrf_token()), api: @json(route('admin.website.studio.api', absolute: false)), builderApi: @json(route('admin.website.studio.builder-api', absolute: false))};</script>
 <script src="/assets/admin-v21/wx-embed.js"></script>
 <script src="/assets/admin-v21/admin.js"></script>
 <script src="/assets/admin-v21/admin-pages.js"></script>

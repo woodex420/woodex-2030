@@ -59,11 +59,14 @@ use App\Integrations\WhatsApp\Contracts\WhatsAppGateway;
 use App\Integrations\WhatsApp\WhatsAppCredentials;
 use App\Models\User;
 use App\Support\DebugGuard;
+use Illuminate\Auth\Events\Authenticated;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -192,6 +195,18 @@ class AppServiceProvider extends ServiceProvider
 
         // Every saved setting leaves a row in the list of changes (T-067).
         Event::listen(SavingSettings::class, RecordSettingsChange::class);
+
+        // What every log line of a request says besides its number (App\Support\RequestNumber, T-062): which
+        // route answered — its pattern, never the address itself, which can carry a token — and who asked, by
+        // number. Both become known only after the request has begun.
+        Event::listen(RouteMatched::class, function (RouteMatched $event): void {
+            if (! $event->route->isFallback) {
+                Context::add(array_filter(['route' => $event->route->getName(), 'path' => $event->route->uri()]));
+            }
+        });
+        Event::listen([Authenticated::class, Login::class], function (Authenticated|Login $event): void {
+            Context::add('user_id', $event->user->getAuthIdentifier());
+        });
 
         Event::listen(LeadCaptured::class, SendNewLeadAlerts::class);
         // Slice C: an estimator enquiry arrives with the three facts the rate book needs, so its draft

@@ -226,7 +226,7 @@
 <input type="file" id="img-file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
 
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<script>
+<script nonce="{{ Vite::cspNonce() }}">
 window.WX_BUILDER_BOOT = {!! \Illuminate\Support\Js::from([
     'api' => route('admin.website.builder.api', absolute: false),
     'csrf' => csrf_token(),

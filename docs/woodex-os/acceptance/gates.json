@@ -67,7 +67,7 @@
         {
           "text": "Unit/API/browser tests pass.",
           "state": "partly",
-          "evidence": "Unit and feature tests pass: 2,434 on 17 November, and the same suite on MySQL 8.4 in CI. In a browser both journeys and a crawl of every screen as four roles pass, by hand and, since 17 November, in CI on every push that touches the admin (`.github/workflows/vercel-livewire.yml`); which of the eleven flows of document 10 they press is in §3.",
+          "evidence": "Unit and feature tests pass: 2,484 on 17 November, and the same suite on MySQL 8.4 in CI. In a browser both journeys and a crawl of every screen as four roles pass, by hand and, since 17 November, in CI on every push that touches the admin (`.github/workflows/vercel-livewire.yml`); which of the eleven flows of document 10 they press is in §3.",
           "lines": [
             "T-165",
             "T-080"
@@ -161,12 +161,12 @@
         },
         {
           "text": "Security and resource checks passed.",
-          "state": "open",
-          "evidence": "The outside security check exists and passes for the hosted workspace on Vercel (`.github/workflows/vercel-live-check.yml`); it has not been pointed at Hostinger, and nothing has been measured against the plan's limits. Published advisories for the packages are asked of npm and Composer when a lock file changes and every week (`.github/workflows/audit.yml`); none that blocks is open.",
+          "state": "partly",
+          "evidence": "Security, on the hosted workspace: the outside check passes for the address on Vercel (`.github/workflows/vercel-live-check.yml`) and asks, since 17 November, for the Content-Security-Policy and the request number too; inside, the security tests of document 10 §4 and the content policy are pinned by tests (`tests/Feature/Security/`). Published advisories for the packages are asked of npm and Composer when a lock file changes and every week (`.github/workflows/audit.yml`); none that blocks is open. Not done: the outside check has not been pointed at Hostinger, and nothing has been measured against the plan's limits.",
           "lines": [
             "T-139",
             "T-142",
-            "T-068"
+            "T-072"
           ]
         }
       ]
@@ -207,7 +207,7 @@
         {
           "text": "Monitoring and support plan.",
           "state": "partly",
-          "evidence": "Both sites are asked from outside after every merge, and a timer for every six hours is in the workflow (`.github/workflows/live-check-after-merge.yml`, `.github/workflows/vercel-live-check.yml`); a failure opens an issue, proved with issue #38 on 17 November. GitHub had not yet started the timer by the afternoon of 17 November. No error tracker, no runbook.",
+          "evidence": "Both sites are asked from outside after every merge, and a timer for every six hours is in the workflow (`.github/workflows/live-check-after-merge.yml`, `.github/workflows/vercel-live-check.yml`); a failure opens an issue, proved with issue #38 on 17 November. GitHub had not yet started the timer by the evening of 17 November. Since that day every answer and every error page carries a request number, and the same number is on the log lines of that request, so a reported error can be found in the log (`tests/Feature/Observability/RequestNumberTest.php`). No error tracker, no runbook.",
           "lines": [
             "T-138",
             "T-142",

@@ -73,7 +73,8 @@ function watch(target, whose = '') {
   target.on('console', (message) => {
     if (message.type() !== 'error') return;
     if (expected && message.text().includes(`status of ${expected}`)) return;
-    problems.push(`${whose}console: ${message.text().slice(0, 200)}`);
+    // The number in a page's content policy differs on every answer; without it the same message is one problem.
+    problems.push(`${whose}console: ${message.text().replace(/'nonce-[^']+'/g, "'nonce-…'").slice(0, 220)}`);
   });
   target.on('response', (response) => { if (response.status() >= 500) problems.push(`HTTP ${response.status()} ${new URL(response.url()).pathname}`); });
   target.on('dialog', (dialog) => { questions.push(dialog.message()); dialog.accept().catch(() => {}); });
@@ -281,6 +282,35 @@ if (signedIn) {
     return `${file.bytes} bytes`;
   });
 
+  await step('the same PDF is drawn on the screen (the preview: a worker, a later script, the fonts)', async () => {
+    // The preview draws the saved file with pdf.js: a script fetched when the button is pressed, a worker, the
+    // document's own fonts. It is the part of the admin a content policy breaks first (master list T-068), and
+    // when it breaks the page only says "could not be displayed".
+    if (!quotePath) return { leftOut: 'no quotation was written' };
+    await page.goto(`${base}${quotePath}`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await page.getByRole('link', { name: /^(Preview PDF|PDF)$/ }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Document preview' });
+    await shown(dialog, 15000, 'the preview');
+    const ready = dialog.getByText(/\d+ pages? ready · actual PDF/);
+    const refused = dialog.getByRole('alert');
+    await Promise.race([ready.waitFor({ timeout: 45000 }), refused.waitFor({ timeout: 45000 })]).catch(() => {});
+    if ((await refused.count()) > 0) throw new Error(`the preview says: ${(await refused.first().innerText({ timeout: 2000 }).catch(() => '')).replace(/\s+/g, ' ').slice(0, 120)}`);
+    if (!(await ready.isVisible())) throw new Error(`the preview never finished: "${(await dialog.locator('[role="status"]').first().innerText({ timeout: 2000 }).catch(() => '')).slice(0, 80)}"`);
+    const drawn = await dialog.locator('canvas').evaluateAll((sheets) => sheets.map((sheet) => {
+      const dots = sheet.getContext('2d').getImageData(0, 0, sheet.width, Math.min(sheet.height, 400)).data;
+      let ink = 0;
+      for (let at = 0; at < dots.length; at += 4) if (dots[at] < 200 || dots[at + 1] < 200 || dots[at + 2] < 200) ink += 1;
+      return { width: sheet.width, height: sheet.height, ink };
+    }));
+    must(drawn.length > 0 && drawn.every((sheet) => sheet.width > 200 && sheet.height > 200), `no page was drawn (${JSON.stringify(drawn).slice(0, 120)})`);
+    must(drawn[0].ink > 500, `the first page is blank (${drawn[0].ink} dark dots in its top part)`);
+    const said = (await ready.innerText()).trim();
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'detached', timeout: 10000 });
+    return `${said}; first page ${drawn[0].width} × ${drawn[0].height}, drawn`;
+  });
+
   await step('the client statement PDF', async () => {
     if (!contactId) return { leftOut: 'the lead page links no contact' };
     const file = await ask(`/admin/clients/${contactId}/statement.pdf`);
@@ -346,7 +376,12 @@ if (signedIn) {
     must(response.status() === 404, `answered ${response.status()}`);
     must((await page.locator('[data-error-page="404"]').count()) === 1, 'the framework\'s bare page was shown');
     must(!/Stack trace|vendor\/laravel/.test(await page.content()), 'the page shows internals');
-    return (await page.locator('h1').innerText()).trim();
+    // The number of the request (master list T-062): on the page, and the same one in the answer's header. With
+    // it, whoever is asked for help finds the lines the application wrote to its log while answering.
+    const number = ((await page.locator('[data-request-number]').first().textContent().catch(() => '')) || '').trim();
+    must(/^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(number), `the page shows no request number ("${number.slice(0, 40)}")`);
+    must(response.headers()['x-request-id'] === number, `the page says ${number}, the answer's header says ${response.headers()['x-request-id']}`);
+    return `${(await page.locator('h1').innerText()).trim()} · request number ${number}`;
   });
 
   await step('sign out; the admin asks for a sign-in again', async () => {
@@ -723,7 +758,11 @@ if (signedIn) {
 await browser.close();
 const failed = steps.filter((entry) => entry.result === 'FAILED');
 const serverErrors = problems.filter((problem) => problem.startsWith('HTTP 5'));
+// What the browser refused under a page's Content-Security-Policy (master list T-068). A step can hold while a
+// button beside it has stopped working, so a refusal anywhere on the way fails the run.
+const blocked = [...new Set(problems.filter((problem) => /Content[ -]Security[ -]Policy/i.test(problem)))];
 console.log(`\n${steps.filter((entry) => entry.result === 'ok').length} of ${steps.length} steps held, ${failed.length} failed, ${steps.filter((entry) => entry.result === 'left out').length} left out.`);
 if (problems.length) console.log(`Seen on the way (${problems.length}):\n  ${[...new Set(problems)].slice(0, 12).join('\n  ')}`);
 if (out) writeFileSync(path.join(out, 'journeys.json'), JSON.stringify({ base, at: new Date().toISOString(), steps, problems }, null, 1));
-process.exit(failed.length > 0 || serverErrors.length > 0 ? 1 : 0);
+if (blocked.length) console.log(`Blocked by the content policy (${blocked.length}):\n  ${blocked.slice(0, 8).join('\n  ')}`);
+process.exit(failed.length > 0 || serverErrors.length > 0 || blocked.length > 0 ? 1 : 0);

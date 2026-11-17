@@ -21,7 +21,9 @@ return [
 
     'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-Woodex-Key'],
 
-    'exposed_headers' => [],
+    // The request number (App\Support\RequestNumber): a form on another site may read it and show it with its
+    // own error message, so that a visitor can name the request.
+    'exposed_headers' => ['X-Request-Id'],
 
     'max_age' => 3600,
 

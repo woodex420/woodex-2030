@@ -25,7 +25,7 @@ jobs:
   live:
     name: What a visitor gets from woodex-os.vercel.app
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Open the address, try a wrong password, look for leaks
         env:
@@ -38,6 +38,10 @@ jobs:
           must() { if [ "$2" = "$3" ]; then note "ok $1"; else note "FAIL $1 (expected $3, got $2)"; fails=$((fails + 1)); fi; }
           code() { curl -s -o "$out/body" -D "$out/head" -w '%{http_code}' -b "$jar" -c "$jar" --max-time 40 "$@"; }
           header() { tr -d '\r' < "$out/head" | grep -i "^$1:" | head -1 | sed 's/^[^:]*: *//'; }
+          # A check for something a branch adds can hold on the live site only once that branch is merged and
+          # built: on main it must hold, on a branch it is only written down. (A push that changes this file runs
+          # it from the branch, against the live site.)
+          expect() { if [ "${GITHUB_REF_NAME:-}" = "main" ]; then must "$@"; else note "after the merge: $1 (now $2, then $3)"; fi; }
 
           must "health /up" "$(code "$SITE/up")" 200
           must "sign-in page" "$(code "$SITE/admin/login")" 200
@@ -76,8 +80,23 @@ jobs:
           must "session cookie is Secure" "$(printf '%s' "$cookie" | grep -c '; secure')" 1
           must "session cookie is HttpOnly" "$(printf '%s' "$cookie" | grep -c '; httponly')" 1
           must "session cookie is SameSite=Lax" "$(printf '%s' "$cookie" | grep -c 'samesite=lax')" 1
+          # What a page may run (master list T-068): scripts from the site itself, and those written into the page
+          # only with the number made for this one answer. After a merge the new build can be a little late, so
+          # on main the header is asked for up to three times.
+          policy="$(header content-security-policy)"
+          for again in 1 2; do
+            if [ -n "$policy" ] || [ "${GITHUB_REF_NAME:-}" != "main" ]; then break; fi
+            sleep 40; code "$SITE/admin/login" > /dev/null; policy="$(header content-security-policy)"
+          done
+          expect "a content policy is sent, and scripts need this answer's number" "$(printf '%s' "$policy" | grep -c "script-src 'self' 'nonce-[A-Za-z0-9]\{20,\}'")" 1
+          expect "the policy allows no script from elsewhere" "$(printf '%s' "$policy" | sed -n "s/.*script-src \([^;]*\).*/\1/p" | grep -c "unsafe-inline\|https:\|http:\|\*")" 0
+          expect "the policy refuses plug-in content" "$(printf '%s' "$policy" | grep -c "object-src 'none'")" 1
           must "a screen that does not exist: 404" "$(code "$SITE/admin/no-such-screen-live-check")" 404
           must "…answered with the admin's own page" "$(grep -c 'data-error-page="404"' "$out/body")" 1
+          # The number of the request (T-062): in the answer's header, and the same one on the error page.
+          number="$(header x-request-id)"
+          expect "the answer carries a request number" "$(printf '%s' "$number" | grep -c '^[0-9A-Z]\{4\}-[0-9A-Z]\{4\}-[0-9A-Z]\{4\}$')" 1
+          expect "…and the error page shows the same number" "$(grep -c "data-request-number>${number:-none}<" "$out/body")" 1
           must "a form sent without its token is refused: 419" "$(code -X POST --data-urlencode "email=owner@woodex.test" "$SITE/admin/login")" 419
           must "…answered with the admin's own page" "$(grep -c 'data-error-page="419"' "$out/body")" 1
           # Only the site's own domain is open. The address Vercel keeps for the main branch must ask for a sign-in

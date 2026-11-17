@@ -148,7 +148,14 @@ for (const role of roles) {
   const page = await context.newPage();
   let current = null;
   const listen = (target) => {
-    target.on('console', (message) => { if (message.type() === 'error' && current) current.console.push(message.text().slice(0, 240)); });
+    target.on('console', (message) => {
+      if (message.type() !== 'error' || !current) return;
+      current.console.push(message.text().slice(0, 240));
+      // What the browser refused under the page's Content-Security-Policy (master list T-068): a script, a style,
+      // a picture, a request, a frame. The page looks loaded; something on it does not work.
+      // The number in the policy differs on every page; without it the same refusal reads the same everywhere.
+      if (/Content[ -]Security[ -]Policy/i.test(message.text())) current.blocked.push(message.text().replace(/'nonce-[^']+'/g, "'nonce-…'").replace(/\s+/g, ' ').slice(0, 220));
+    });
     target.on('pageerror', (error) => { if (current) current.pageErrors.push(String(error.message).slice(0, 240)); });
     target.on('response', (response) => {
       const status = response.status();
@@ -195,7 +202,7 @@ for (const role of roles) {
       continue;
     }
 
-    current = { path, from, depth, requested: base + path, console: [], pageErrors: [], failedRequests: [] };
+    current = { path, from, depth, requested: base + path, console: [], pageErrors: [], failedRequests: [], blocked: [] };
     try {
       const response = await page.goto(base + path, { waitUntil: 'domcontentloaded', timeout: 30000 });
       current.status = response ? response.status() : 0;
@@ -219,7 +226,7 @@ for (const role of roles) {
       current.status = current.status ?? 0;
       current.failure = String(error.message).split('\n')[0].slice(0, 200);
     }
-    current.bad = Boolean(current.status !== 200 || current.failure || current.errorText || current.pageErrors.length > 0 || current.failedRequests.length > 0 || (current.watched?.length ?? 0) > 0);
+    current.bad = Boolean(current.status !== 200 || current.failure || current.errorText || current.pageErrors.length > 0 || current.failedRequests.length > 0 || current.blocked.length > 0 || (current.watched?.length ?? 0) > 0);
     if (current.bad) failures += 1;
     entry.pages.push(current);
     current = null;
@@ -232,7 +239,7 @@ for (const role of roles) {
   const small = await phone.newPage();
   listen(small);
   for (const opened of entry.pages.filter((item) => item.status === 200 && !item.failure)) {
-    current = { path: opened.path, requested: base + opened.path, console: [], pageErrors: [], failedRequests: [] };
+    current = { path: opened.path, requested: base + opened.path, console: [], pageErrors: [], failedRequests: [], blocked: [] };
     try {
       const response = await small.goto(base + opened.path, { waitUntil: 'domcontentloaded', timeout: 30000 });
       current.status = response ? response.status() : 0;
@@ -243,7 +250,7 @@ for (const role of roles) {
     } catch (error) {
       current.failure = String(error.message).split('\n')[0].slice(0, 200);
     }
-    current.bad = Boolean(current.status !== 200 || current.failure || current.pageErrors.length > 0 || current.failedRequests.length > 0);
+    current.bad = Boolean(current.status !== 200 || current.failure || current.pageErrors.length > 0 || current.failedRequests.length > 0 || current.blocked.length > 0);
     if (current.bad) failures += 1;
     entry.phone.push(current);
     current = null;
@@ -274,7 +281,7 @@ for (const [key, entry] of Object.entries(report.roles)) {
   const phone = entry.phone;
   console.log(`  phone (390 px): ${phone.length} pages, ${phone.filter((p) => p.bad).length} not fine; wider than the window: ${phone.filter((p) => p.overflow > 0).length}; top bar taller than 72 px: ${phone.filter((p) => (p.headerHeight ?? 0) > 72).length}; controls smaller than 24 px: ${phone.reduce((t, p) => t + (p.smallTargets ?? 0), 0)} on ${phone.filter((p) => p.smallTargets).length} pages`);
   for (const p of pages.filter((p) => p.bad)) {
-    console.log(`  NOT FINE ${p.path} (from ${p.from}) → ${p.status}${p.failure ? ` · ${p.failure}` : ''}${p.errorText ? ` · text: ${p.errorText.slice(0, 80)}` : ''}${p.pageErrors.length ? ` · page error: ${p.pageErrors[0]}` : ''}${p.failedRequests.length ? ` · requests: ${[...new Set(p.failedRequests)].slice(0, 3).join(', ')}` : ''}${p.watched?.length ? ` · watched word: ${p.watched.map((w) => `“${w.word}” in a ${w.place}: …${w.around}…`).slice(0, 3).join(' · ')}` : ''}`);
+    console.log(`  NOT FINE ${p.path} (from ${p.from}) → ${p.status}${p.failure ? ` · ${p.failure}` : ''}${p.errorText ? ` · text: ${p.errorText.slice(0, 80)}` : ''}${p.pageErrors.length ? ` · page error: ${p.pageErrors[0]}` : ''}${p.blocked?.length ? ` · blocked by the content policy: ${p.blocked[0]}` : ''}${p.failedRequests.length ? ` · requests: ${[...new Set(p.failedRequests)].slice(0, 3).join(', ')}` : ''}${p.watched?.length ? ` · watched word: ${p.watched.map((w) => `“${w.word}” in a ${w.place}: …${w.around}…`).slice(0, 3).join(' · ')}` : ''}`);
   }
   if (watch.length > 0) console.log(`  watched words (${watch.join(', ')}): on ${fine.filter((p) => p.watched?.length).length} of ${fine.length} pages`);
   for (const p of phone.filter((p) => p.overflow > 0)) console.log(`  PHONE WIDER ${p.path} by ${p.overflow} px — ${(p.sticking || []).slice(0, 2).join('; ')}`);

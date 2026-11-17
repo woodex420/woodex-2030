@@ -13,7 +13,7 @@
                          :breadcrumbs="['Reports' => null, 'Revenue & Collections' => null]">
         <x-slot:actions>
             <div class="flex flex-wrap items-center gap-2">
-                <button type="button" onclick="window.print()" class="rounded-lg border border-gray-200 px-3 py-2 text-theme-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5">Print</button>
+                <button type="button" x-data @click="window.print()" class="rounded-lg border border-gray-200 px-3 py-2 text-theme-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5">Print</button>
                 <x-admin.button icon="download" wire:click="export" wire:loading.attr="disabled">CSV</x-admin.button>
             </div>
         </x-slot:actions>
