@@ -20,7 +20,7 @@ wave in the master plan) · **Owner** (cannot move without the owner) · **Open*
 
 | | |
 |---|---|
-| Live demo | `https://woodex-os.vercel.app/admin` — the Laravel admin with **sample data only**. Vercel project `woodex-os`, Hobby plan, region `iad1` (US East). What is typed there is lost when Vercel starts a new instance. |
+| Live demo | `https://woodex-os.vercel.app/admin` — the Laravel admin with **sample data only**. Vercel project `woodex-os`, Hobby plan, region `iad1` (US East). Production shows commit `7e5fffc` (deployment `dpl_HgdHjPJjE7rTmexMTfErVxYDjyMT`, 17 November). What is typed there is lost when Vercel starts a new instance. |
 | Real admin | **Does not exist yet.** No database, no first owner account, no file storage, no timed jobs, no mail. Section 3 B. |
 | Screens | 68 destinations in 10 groups. For an owner today: **29 available**, 13 still done in the old React dashboard, 21 built but switched off (not adapted to Woodex Furniture), 5 not built. The *Feature status* screen under System shows the same list live. |
 | Tests | 2,244 pass, 34 skipped, 0 fail on PHP 8.5 with SQLite (sandbox, 2026-11-17); the same suite runs on MySQL 8.4 in CI on every push. |
@@ -49,12 +49,13 @@ listed at the end of this section.
 | Time to first byte on the rehearsal | same | median 50–59 ms, 95th percentile 72–93 ms (not Vercel's network) |
 | Fourteen journeys that press things and write records: sign in, create a lead, reload, add a task, search, draft quotation, price a line, quotation PDF, statement PDF, CSV export, upload a sheet, 404, sign out, a forbidden screen | `scripts/os-journeys.mjs` | **14 of 14 hold** |
 | The deployment itself: refuses to start without settings, hands out no file, signs in, every linked screen opens, cookie size, sign-out | `platform/tools/vercel/check-entry.sh` | **74 of 74** |
+| **The live address, from outside, without signing in**: sign-in page, wrong password refused, headers, cookie marks, own 404 and 419 pages, eight files that must stay closed | `vercel-live-check.yml` (GitHub) | **35 of 35** on 17 November (run 44029572727). It also reported: `strict-transport-security` is sent by Vercel (two years, preload); the stylesheet is sent with `max-age=0` (H-12); first byte of the sign-in page 0.17 s from the runner, warm |
 | Headers | curl, `SecurityHeadersTest` | `nosniff`, `SAMEORIGIN`, referrer policy, permissions policy, `noindex`; sign-in page `no-store`. `X-Powered-By` **removed** in this round. No Content-Security-Policy yet (S-1). |
 | Cookies | curl | session and form-token cookies are `Secure`, `HttpOnly` (session), `SameSite=Lax`, 2 hours; a form without its token gets 419 |
 | Error pages | `ErrorPagesTest` | own pages for 403, 404, 419, 429, 500, 503 (were the framework's bare pages) |
 | Page weight | crawl | HTML median 161 KB, largest 310 KB; a near-empty page is 144 KB (15.6 KB compressed), about 110 KB of it the menu and the search templates (U-8) |
 
-**Found and fixed in this round** (commit `493ce22` and the one after it): nine dead links; the two-row top bar;
+**Found and fixed in this round** (commits `493ce22` and `7e5fffc`): nine dead links; the two-row top bar;
 sideways scrolling on Users and Access (and on Due payments, which this round's own table headings had caused);
 thirty unlabelled fields; bare error pages; small touch
 targets; the quotation form that seemed to do nothing when a choice was missing; the PHP version in every
@@ -110,9 +111,9 @@ Written for Vercel, because that is where the demo runs. If O-1 is answered "Hos
 | H-7 | **Queue.** 14 queued classes; `QUEUE_CONNECTION=database` needs a worker (H-5) or `sync` for a small team | Agent | A queued notification is sent within a minute of its cause | Next |
 | H-8 | **Backups.** The built-in backup calls `mysqldump`, which is not in Vercel's PHP runtime package: use the database provider's backups, and export uploads | Owner (provider), agent documents | A backup has been restored once into an empty database and the admin opened on it | Owner |
 | H-9 | Domain and `APP_URL` (O-13); `ADMIN_DOMAIN` if the admin gets its own host | Owner, agent | The admin answers on its domain over https; the old address redirects | Owner |
-| H-10 | Measure a cold start and the distance to the database (the function runs in `iad1`; choose the region beside the database) | Agent | First byte after a cold start and warm, written into `13-VERCEL-DEPLOYMENT.md` | Next |
+| H-10 | Measure a cold start and the distance to the database (the function runs in `iad1`; choose the region beside the database). Known so far: 0.17 s to the first byte of the sign-in page, warm, one request from a GitHub runner | Agent | First byte after a cold start and warm, written into `13-VERCEL-DEPLOYMENT.md` | Next |
 | H-11 | Function size: 226 MB of 250 MB. Leave `tests/` and `tools/` out of the function | Agent | Size under 200 MB, rehearsal still 74 of 74 | Open |
-| H-12 | Long cache for fingerprinted files under `/build/assets/` (the live check prints what is sent today) | Agent | `cache-control` of the stylesheet is one year, immutable; the page still loads after a deployment | Open |
+| H-12 | Long cache for fingerprinted files under `/build/assets/`. Today the stylesheet is sent with `public, max-age=0, must-revalidate` (live check), so a browser asks again on every page | Agent | `cache-control` of the stylesheet is one year, immutable; the page still loads after a deployment | Open |
 | H-13 | Wave S of the master plan: Hostinger staging starts, a deploy job, a proven restore | Agent, owner (O-3) | The staging live test passes | Owner |
 
 ### C. Security
@@ -121,7 +122,7 @@ Written for Vercel, because that is where the demo runs. If O-1 is answered "Hos
 |---|---|---|---|---|
 | S-1 | **Content-Security-Policy** on every admin page. Proposed start: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'` — then tightened (Alpine and Livewire need the two `unsafe` words until their strict builds are used) | Agent | The crawl of all roles, with every module switched on, shows no blocked resource in the console; a test pins the header | Next |
 | S-2 | `X-Powered-By` removed on Vercel and on every other host | Agent | Rehearsal check and `SecurityHeadersTest` | **Done** `493ce22` |
-| S-3 | HSTS: the application sends it in production over https (tested); confirm on the real deployment | Agent | The live check prints the header on the real domain | Next (with H-9) |
+| S-3 | HSTS. On `woodex-os.vercel.app` Vercel sends it itself (`max-age=63072000; includeSubDomains; preload`, seen by the live check). The application sends its own in production over https (tested); confirm on the real domain | Agent | The live check prints the header on the real domain | Done for the Vercel address; the rest with H-9 |
 | S-4 | Dependency audit in CI: `composer audit` and `npm audit --omit=dev`; neither runs today | Agent | Both run on every push and fail on a known high-severity issue | Next |
 | S-5 | Two-factor sign-in required for owner and admin (`ENFORCE_2FA`, off by default) | Owner decides, agent sets | An owner without a second factor is sent to enrol | Open |
 | S-6 | Rotate the old system's owner password; private repository (O-10) | Owner | — | Owner (on hold) |
@@ -134,7 +135,7 @@ Written for Vercel, because that is where the demo runs. If O-1 is answered "Hos
 |---|---|---|---|---|
 | U-1 | Tokens, navigation registry, sidebar (slices 1.1–1.3) | Agent | — | **Done** `537d89a` |
 | U-2 | Top bar: one row, trail, search, "New", user menu with theme (slice 1.4) | Agent | `AdminTopBarTest`; 56 px on a phone | **Done** `493ce22` |
-| U-3 | **The Reimagined theme on the shared parts**: light sidebar with the current screen filled green, brand tile, bold tight headings, cards with 12 px corners and a hair of shadow, figures with upper-case labels and tinted icon tiles, status pills with an edge, the theme's arrow on selects, "nothing here" blocks. Charcoal sidebar kept as a setting. Five shared components carry it into every screen (305 cards, 143 pills, 97 page headers, 54 "nothing here" blocks, 51 figures), with the sidebar and the stylesheet | Agent | Contrast test for three tones; suite green; crawl clean; before-and-after screenshots in `evidence/` | **Done** (this round) |
+| U-3 | **The Reimagined theme on the shared parts**: light sidebar with the current screen filled green, brand tile, bold tight headings, cards with 12 px corners and a hair of shadow, figures with upper-case labels and tinted icon tiles, status pills with an edge, the theme's arrow on selects, "nothing here" blocks. Charcoal sidebar kept as a setting. Five shared components carry it into every screen (305 cards, 143 pills, 97 page headers, 54 "nothing here" blocks, 51 figures), with the sidebar and the stylesheet | Agent | Contrast test for three tones; suite green; crawl clean; before-and-after screenshots in `evidence/` | **Done** `7e5fffc` |
 | U-4 | Components, the rest of slice 1.5: tables (one component instead of hand-written markup), pagination, modal, toasts, and the five states (loading, empty, error, no permission, success) on every list | Agent | Each state can be seen on one list per area; a test renders each | Next |
 | U-5 | Dashboard to specification 05 §7 (slice 1.6): every figure links to its records; no section for a module that is not here. The period figures and the queue figures already use the theme | Agent | Each figure's link opens the same number of rows | Next |
 | U-6 | Screen pass, area by area (slice 1.7), in the order of DL-008: E-commerce, CRM, Sales first. Selected states that are still charcoal pills (stage steps, activity types, business line) move to the theme's green | Agent | Before-and-after screenshots of one screen per area at 1366 px and 390 px | Next |
@@ -174,7 +175,7 @@ The size column is the number of routes of the old Node API that the wave replac
 | # | Task | Who | Done when | Status |
 |---|---|---|---|---|
 | P-1 | Errors seen by someone: the function writes to Vercel's log only. An error tracker, or the built-in alert rules with mail (H-6) | Agent, owner chooses | A forced error reaches a person within five minutes | Open |
-| P-2 | The live check on a timer (it runs on request and on a change of its own file today) | Agent | It runs every hour and a failure opens an issue | Next |
+| P-2 | The live check on a timer. A timer (every six hours) is in the workflow since this round; GitHub runs timers only from `main`, so it starts with the merge of #36 (O-9). A failed run is mailed to the repository's owner by GitHub; it does not open an issue yet | Agent | It runs on its timer from `main`, and a failure opens an issue | Partly done; the rest after O-9 |
 | P-3 | A runbook: deploy, roll back, restore, rotate a password, add a staff account | Agent | Written, and each step done once | Later |
 | P-4 | Training and handover (Wave 11) | Agent, owner | — | Later |
 

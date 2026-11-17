@@ -60,7 +60,7 @@ With only the shipped modules on, an owner's Feature status reads: **29 availabl
 
 Screenshots: [`evidence/`](evidence/) — the shell before and after, Feature status, and the phone drawer.
 
-### Wave 1, slice 1.4, the findings of the analysis, and the Reimagined theme — commit `493ce22` and the one after it
+### Wave 1, slice 1.4, the findings of the analysis, and the Reimagined theme — commits `493ce22` and `7e5fffc`
 
 | What | What changed | Proof |
 |---|---|---|

@@ -6,6 +6,9 @@ name: Vercel live check (WOODEX OS)
 # rehearsal (platform/tools/vercel/check-entry.sh, scripts/os-screens.mjs, scripts/os-journeys.mjs).
 on:
   workflow_dispatch:
+  # Every six hours. GitHub starts a timer only from the default branch, so this runs once the branch is merged.
+  schedule:
+    - cron: "23 */6 * * *"
   push:
     branches: ["arena/**"]
     paths: [".github/workflows/vercel-live-check.yml"]
