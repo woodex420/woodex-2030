@@ -124,7 +124,7 @@
 
     {{-- Bulk actions --}}
     @if ($selected !== [])
-        <div class="sticky top-[80px] z-20 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-navy-200 bg-navy-50 px-4 py-2.5 text-theme-sm shadow-theme-xs dark:border-white/10 dark:bg-gray-900">
+        <div class="sticky top-[calc(var(--wx-topbar-h)+8px)] z-20 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-navy-200 bg-navy-50 px-4 py-2.5 text-theme-sm shadow-theme-xs dark:border-white/10 dark:bg-gray-900">
             <span class="font-medium text-navy-900 dark:text-white">{{ count($selected) }} selected</span>
             @if ($staff->isNotEmpty())
                 <select x-data x-on:change="if ($event.target.value) { $wire.bulkAssign($event.target.value); $event.target.value = '' }" class="wx-input h-8 w-auto text-theme-xs" aria-label="Assign selected leads">
@@ -174,13 +174,13 @@
                             @if (in_array('contact', $columns, true))
                                 <td class="px-5 py-3">
                                     <button type="button" wire:click="openLeadDrawer({{ $lead->id }})" class="block text-left font-medium text-gray-800 hover:text-brand-600 hover:underline dark:text-white/90">{{ $lead->contact->name }}</button>
-                                    <span class="mt-0.5 flex items-center gap-2 text-theme-xs text-gray-500">
+                                    <span class="flex items-center gap-1 text-theme-xs text-gray-500">
                                         {{ \App\Support\Phone::display($lead->contact->phone) ?: $lead->contact->email }}
                                         @if ($wa = \App\Support\Phone::whatsappUrl($lead->contact->whatsappNumber()))
-                                            <a href="{{ $wa }}" target="_blank" rel="noopener" class="text-success-600 hover:text-success-700" title="WhatsApp"><x-icon name="whatsapp" class="size-3.5" /></a>
+                                            <a href="{{ $wa }}" target="_blank" rel="noopener" class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-success-600 hover:bg-success-50 hover:text-success-700 dark:hover:bg-white/5" title="WhatsApp" aria-label="WhatsApp {{ $lead->contact->name }}"><x-icon name="whatsapp" class="size-4" /></a>
                                         @endif
                                         @if ($lead->contact->phone)
-                                            <a href="tel:{{ $lead->contact->phone }}" class="text-navy-600 hover:text-navy-800 dark:text-gray-300" title="Call"><x-icon name="phone" class="size-3.5" /></a>
+                                            <a href="tel:{{ $lead->contact->phone }}" class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-navy-600 hover:bg-gray-100 hover:text-navy-800 dark:text-gray-300 dark:hover:bg-white/5" title="Call" aria-label="Call {{ $lead->contact->name }}"><x-icon name="phone" class="size-4" /></a>
                                         @endif
                                     </span>
                                 </td>

@@ -51,8 +51,8 @@
                 </x-admin.field>
                 @error('targets')<p class="text-theme-xs text-error-600">{{ $message }}</p>@enderror
 
-                <x-admin.field label="Photographs" hint="From the shared media library — the same photographs the website uses.">
-                    <select multiple size="5" wire:model.blur="mediaIds" class="wx-input">
+                <x-admin.field label="Photographs" for="social-post-media" error="mediaIds" hint="From the shared media library — the same photographs the website uses.">
+                    <select id="social-post-media" multiple size="5" wire:model.blur="mediaIds" class="wx-input">
                         @foreach ($media as $image)
                             <option value="{{ $image->id }}">{{ $image->title ?: basename($image->path) }}</option>
                         @endforeach

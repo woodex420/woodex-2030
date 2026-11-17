@@ -8,6 +8,7 @@ use App\Domain\System\Actions\CollectSocialPostIdeas;
 use App\Domain\System\Alerts\AlertRouter;
 use App\Domain\System\Notifications\AgentReportNotification;
 use App\Models\User;
+use App\Support\Modules;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -51,7 +52,7 @@ class SocialAgent extends Command
             kind: 'agent.social',
             title: 'Social post ideas',
             lines: $lines,
-            url: route('admin.automation.index'),
+            url: Modules::url('admin.automation.index') ?? Modules::url('admin.marketing.index') ?? route('admin.dashboard'),
         ));
     }
 }

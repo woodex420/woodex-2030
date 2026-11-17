@@ -339,7 +339,13 @@
 
                 @if ($project->caseStudyPage)
                     <p class="mt-3 text-theme-sm text-gray-700 dark:text-gray-300">
-                        Draft page: <a href="{{ route('admin.website.pages.edit', $project->caseStudyPage) }}" wire:navigate class="font-medium text-navy-700 hover:underline">{{ $project->caseStudyPage->title }}</a>
+                        {{-- The page editor belongs to the Website module: a link only while it is on. --}}
+                        Draft page:
+                        @if (\App\Support\Modules::routeIsOpen('admin.website.pages.edit'))
+                            <a href="{{ route('admin.website.pages.edit', $project->caseStudyPage) }}" wire:navigate class="font-medium text-navy-700 hover:underline">{{ $project->caseStudyPage->title }}</a>
+                        @else
+                            <span class="font-medium">{{ $project->caseStudyPage->title }}</span>
+                        @endif
                     </p>
                     <p class="mt-1 text-theme-xs text-gray-500">{{ $project->caseStudyPage->status->label() }} · {{ $project->caseStudyPage->slug }}</p>
                 @endif

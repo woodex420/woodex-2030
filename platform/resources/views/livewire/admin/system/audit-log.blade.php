@@ -14,20 +14,20 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 @if ($tab === 'changes')
-                    <select wire:model.live="causerId" class="wx-input max-w-44">
+                    <select wire:model.live="causerId" class="wx-input max-w-44" aria-label="Changed by">
                         <option value="">Everyone</option>
                         @foreach ($this->causers() as $causer)
                             <option value="{{ $causer['value'] }}">{{ $causer['label'] }}</option>
                         @endforeach
                     </select>
-                    <select wire:model.live="subjectType" class="wx-input max-w-44">
+                    <select wire:model.live="subjectType" class="wx-input max-w-44" aria-label="Kind of record">
                         <option value="">Everything</option>
                         @foreach ($this->subjectTypes() as $type)
                             <option value="{{ $type['value'] }}">{{ $type['label'] }}</option>
                         @endforeach
                     </select>
                 @endif
-                <input type="search" wire:model.live.debounce.300ms="search" placeholder="Search…" class="wx-input max-w-56" />
+                <input type="search" wire:model.live.debounce.300ms="search" placeholder="Search…" class="wx-input max-w-56" aria-label="Search the log" />
             </div>
         </div>
     </x-admin.card>

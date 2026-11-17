@@ -72,4 +72,17 @@ final class Modules
 
         return true;
     }
+
+    /**
+     * The address of a named route, or null while its module is switched off.
+     *
+     * For links written inside a page, a notification or a message: a switched-off module answers 404, so a link
+     * to it must not be offered. The menu and the search ask routeIsOpen() themselves.
+     *
+     * @param  array<string, mixed>  $parameters
+     */
+    public static function url(string $name, array $parameters = []): ?string
+    {
+        return self::routeIsOpen($name) ? route($name, $parameters) : null;
+    }
 }

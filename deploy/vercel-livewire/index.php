@@ -18,6 +18,8 @@ declare(strict_types=1);
  *
  * Anything else answers 503 without detail.
  */
+// PHP announces itself and its version with every answer ("X-Powered-By: PHP/8.5.12"). Nobody needs to know.
+header_remove('X-Powered-By');
 $read = static fn (string $name): string => is_string($value = getenv($name)) ? $value : '';
 // Laravel reads $_SERVER and $_ENV before getenv(), so a value that must win is written to all three.
 $write = static function (string $name, string $value): void {

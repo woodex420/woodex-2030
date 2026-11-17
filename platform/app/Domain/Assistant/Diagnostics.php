@@ -10,6 +10,7 @@ use App\Domain\System\Models\AlertRule;
 use App\Domain\System\Models\Automation;
 use App\Domain\Website\Seo\SearchMetadataAudit;
 use App\Models\User;
+use App\Support\Modules;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -46,6 +47,8 @@ final class Diagnostics
     public function website(User $user): AssistantAnswer
     {
         abort_unless($user->can('website.edit'), 403);
+        // Every row of this answer links into the Website module's own screens.
+        abort_unless(Modules::enabled('website'), 404);
         $audit = app(SearchMetadataAudit::class)->handle();
         $url = route('admin.website.seo.overview', ['audit' => 'metadata']);
         $rows = [['label' => 'Published files inspected', 'detail' => (string) $audit['counts']['files'], 'url' => $url]];
@@ -73,7 +76,7 @@ final class Diagnostics
             ->whereIn('data->kind', ['lead.new', 'lead.returning'])->count();
         $rows = [
             ['label' => 'Visible website-form leads · last 7 days', 'detail' => ($count === null ? 'Not available to your role' : (string) $count).'. A zero count is not proof the live endpoint was tested; imports and chat are separate sources.', 'url' => route('admin.leads.index')],
-            ['label' => 'New-enquiry alerts', 'detail' => $enabled ? 'Automation switch on. Routing and transport can still prevent an alert.' : 'Automation switch paused. Lead capture can still succeed without an alert.', 'url' => route('admin.automation.index')],
+            ['label' => 'New-enquiry alerts', 'detail' => $enabled ? 'Automation switch on. Routing and transport can still prevent an alert.' : 'Automation switch paused. Lead capture can still succeed without an alert.', 'url' => Modules::url('admin.automation.index') ?? route('admin.system.health')],
             ['label' => 'Alert routing overrides', 'detail' => $overrides.' active rules. Rules may intentionally restrict recipients or channels; no routing changed.', 'url' => route('admin.system.alert-rules')],
             ['label' => 'Your in-app lead alerts · last 7 days', 'detail' => $alerts.'. This is only your own notification inbox, not proof of email or Telegram delivery.', 'url' => route('admin.notifications')],
             ['label' => 'Transport distinction', 'detail' => 'Lead alerts run after the HTTP response. Outbound webhook and automation jobs need a running worker. No test enquiry, job, email or provider message was sent.', 'url' => route('admin.system.health')],

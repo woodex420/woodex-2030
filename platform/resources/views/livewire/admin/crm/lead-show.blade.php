@@ -135,8 +135,9 @@
                 </x-admin.card>
             @endif
 
-            {{-- Estimations (P8.3): the enquiry's own priced record, linked both ways --}}
-            @can('estimates.view')
+            {{-- Estimations (P8.3): the enquiry's own priced record, linked both ways. The estimator is an optional
+                 module: while it is switched off its screens answer 404, so the card is not shown at all. --}}
+            @if (\App\Support\Modules::enabled('estimator') && auth()->user()->can('estimates.view'))
                 <x-admin.card title="Estimations">
                     <x-slot:actions>
                         @can('estimates.manage')
@@ -157,7 +158,7 @@
                         <p class="text-theme-sm text-gray-500 dark:text-gray-400">No estimate for this enquiry yet. Starting one fills the service and the size from the enquiry — check them, add the contingency, and the estimate is priced from the rate book.</p>
                     @endforelse
                 </x-admin.card>
-            @endcan
+            @endif
 
             {{-- Quotations (QUO-003/016) --}}
             @can('viewAny', \App\Domain\Sales\Models\Quote::class)
@@ -398,13 +399,13 @@
                 </x-slot:actions>
                 <dl class="space-y-2 text-theme-sm">
                     @if ($contact->phone)
-                        <div class="flex items-center gap-2"><x-icon name="phone" class="size-4 text-gray-400" /><a href="{{ Phone::telUrl($contact->phone) }}" class="text-gray-800 hover:underline dark:text-white/90">{{ Phone::display($contact->phone) }}</a></div>
+                        <div class="flex items-center gap-2"><x-icon name="phone" class="size-4 text-gray-400" /><a href="{{ Phone::telUrl($contact->phone) }}" class="inline-flex min-h-6 items-center text-gray-800 hover:underline dark:text-white/90">{{ Phone::display($contact->phone) }}</a></div>
                     @endif
                     @if ($contact->alt_phone)
                         <div class="flex items-center gap-2"><x-icon name="phone" class="size-4 text-gray-400" /><span class="text-gray-600 dark:text-gray-400">{{ Phone::display($contact->alt_phone) }} (alt)</span></div>
                     @endif
                     @if ($contact->email)
-                        <div class="flex items-center gap-2"><x-icon name="mail" class="size-4 text-gray-400" /><a href="mailto:{{ $contact->email }}" class="truncate text-gray-800 hover:underline dark:text-white/90">{{ $contact->email }}</a></div>
+                        <div class="flex items-center gap-2"><x-icon name="mail" class="size-4 text-gray-400" /><a href="mailto:{{ $contact->email }}" class="block min-h-6 truncate leading-6 text-gray-800 hover:underline dark:text-white/90">{{ $contact->email }}</a></div>
                     @endif
                     @if ($contact->is_client)
                         <x-admin.badge color="success">Client since {{ $contact->became_client_at?->format('M Y') ?? 'before' }}</x-admin.badge>

@@ -20,6 +20,6 @@
             <label for="password_confirmation" class="wx-label">Confirm new password</label>
             <input id="password_confirmation" type="password" name="password_confirmation" required autocomplete="new-password" class="wx-input h-11">
         </div>
-        <button type="submit" class="flex h-11 w-full items-center justify-center rounded-lg bg-navy-900 text-theme-sm font-medium text-white hover:bg-navy-800">Save password</button>
+        <button type="submit" class="wx-auth-submit flex h-11 w-full items-center justify-center rounded-lg text-theme-sm font-medium">Save password</button>
     </form>
 @endsection

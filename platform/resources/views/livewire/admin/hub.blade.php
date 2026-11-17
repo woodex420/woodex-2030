@@ -8,7 +8,8 @@
                 <a href="?tab={{ $tab['id'] }}" wire:navigate role="tab"
                    aria-selected="{{ $tab['id'] === $active['id'] ? 'true' : 'false' }}"
                    @class([
-                       'rounded-lg px-4 py-2 text-theme-sm font-medium whitespace-nowrap transition',
+                       // Narrower on a phone, so that the four tabs of the dashboard fit in 390 px.
+                       'rounded-lg px-2.5 py-2 text-theme-sm font-medium whitespace-nowrap transition sm:px-4',
                        'bg-white text-navy-900 shadow-sm dark:bg-gray-800 dark:text-white' => $tab['id'] === $active['id'],
                        'text-gray-500 hover:text-navy-900 dark:text-gray-400 dark:hover:text-white' => $tab['id'] !== $active['id'],
                    ])>

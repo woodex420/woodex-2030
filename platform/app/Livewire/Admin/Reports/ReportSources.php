@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Reports;
 
+use App\Support\Modules;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -27,7 +28,8 @@ final class ReportSources extends Component
         ];
         $sources = [];
         foreach ($definitions as [$permission, $title, $route, $definition]) {
-            if (auth()->user()->can($permission)) {
+            // A source in a switched-off module is left out: its screen answers 404.
+            if (auth()->user()->can($permission) && Modules::routeIsOpen($route)) {
                 $params = match ($route) {
                     'admin.payments.index' => ['tab' => 'receivables'],
                     'admin.marketing.index' => ['tab' => 'attribution'],

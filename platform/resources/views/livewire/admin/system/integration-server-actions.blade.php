@@ -12,7 +12,9 @@
                         @elseif ($provider['key'] === 'whatsapp')
                             <x-admin.button variant="secondary" size="sm" icon="settings" :href="route('admin.settings', ['tab' => 'whatsapp'])" wire:navigate>Set up</x-admin.button>
                             <x-admin.button variant="secondary" size="sm" icon="send" wire:click="testWhatsApp" wire:loading.attr="disabled">Test connection</x-admin.button>
-                            <x-admin.button variant="secondary" size="sm" icon="message" :href="route('admin.whatsapp.templates')" wire:navigate>Templates</x-admin.button>
+                            @if (\App\Support\Modules::routeIsOpen('admin.whatsapp.templates'))
+                                <x-admin.button variant="secondary" size="sm" icon="message" :href="route('admin.whatsapp.templates')" wire:navigate>Templates</x-admin.button>
+                            @endif
                         @elseif ($provider['key'] === 'mail')
                             <x-admin.button variant="secondary" size="sm" icon="mail" wire:click="testMail">Send me a test email</x-admin.button>
                         @elseif ($provider['key'] === 'legacy')

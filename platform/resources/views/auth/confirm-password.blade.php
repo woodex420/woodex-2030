@@ -11,6 +11,6 @@
             <label for="password" class="wx-label">Password</label>
             <input id="password" type="password" name="password" required autofocus autocomplete="current-password" class="wx-input h-11">
         </div>
-        <button type="submit" class="flex h-11 w-full items-center justify-center rounded-lg bg-navy-900 text-theme-sm font-medium text-white hover:bg-navy-800">Confirm</button>
+        <button type="submit" class="wx-auth-submit flex h-11 w-full items-center justify-center rounded-lg text-theme-sm font-medium">Confirm</button>
     </form>
 @endsection

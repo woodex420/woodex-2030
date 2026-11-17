@@ -114,6 +114,16 @@
                 </div>
             </x-admin.card>
             <x-admin.button type="submit" icon="check" class="w-full" wire:loading.attr="disabled" wire:target="create">Create draft quotation</x-admin.button>
+            {{-- What is still missing, said beside the button: the field it belongs to (the client, the template)
+                 is often above or below the part of the page that is in view, and the button then seemed to do
+                 nothing (found by scripts/os-journeys.mjs). --}}
+            @if ($errors->any())
+                <div role="alert" data-create-errors class="rounded-lg border border-error-500/30 bg-error-50 px-3 py-2 text-theme-xs text-error-700 dark:bg-error-500/10 dark:text-error-400">
+                    @foreach ($errors->all() as $message)
+                        <p>{{ $message }}</p>
+                    @endforeach
+                </div>
+            @endif
             <p class="text-center text-theme-xs text-gray-500">Drafts are not sent to anyone. You can delete a draft until it is sent.</p>
         </div>
     </form>

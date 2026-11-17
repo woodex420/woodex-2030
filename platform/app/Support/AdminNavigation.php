@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Domain\Crm\Models\Lead;
 use App\Domain\System\Control\OperationsSummary;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 /**
  * The one navigation registry of the admin (docs/woodex-os/spec/05-ADMIN-IA-AND-UX.md §2–3).
@@ -198,6 +201,60 @@ final class AdminNavigation
         }
 
         return $groups;
+    }
+
+    /**
+     * The "New" menu of the top bar: the records this person can start from any screen.
+     *
+     * Every entry is a screen that exists; the rule is the one its own route applies, and an entry of a
+     * switched-off module is left out. The letters are the keyboard shortcuts of the admin layout (GLB-016).
+     *
+     * @return list<array{id: string, label: string, icon: string, url: string, shortcut: string|null}>
+     */
+    public static function quickCreate(?User $user): array
+    {
+        if ($user === null) {
+            return [];
+        }
+
+        $entries = [
+            ['lead', 'New lead', 'users', 'admin.leads.index', ['tab' => 'list', 'new' => 1], $user->can('create', Lead::class), 'N'],
+            ['quotation', 'New quotation', 'quote', 'admin.quotes.create', [], $user->can('quotes.manage'), 'Q'],
+            ['estimate', 'New estimate', 'calculator', 'admin.estimations.create', [], $user->can('estimates.view') && $user->can('estimates.manage'), null],
+            ['invoice', 'New invoice', 'invoice', 'admin.invoices.create', [], $user->can('invoices.manage'), null],
+            ['product', 'New product', 'tag', 'admin.commerce.products.create', [], $user->can('commerce.catalog.view') && $user->can('commerce.catalog.manage'), null],
+        ];
+
+        $menu = [];
+        foreach ($entries as [$id, $label, $icon, $route, $parameters, $allowed, $shortcut]) {
+            if ($allowed && Route::has($route) && Modules::routeIsOpen($route)) {
+                $menu[] = ['id' => $id, 'label' => $label, 'icon' => $icon, 'url' => route($route, $parameters), 'shortcut' => $shortcut];
+            }
+        }
+
+        return $menu;
+    }
+
+    /**
+     * Where the current request is in the menu, for the top bar: the group and the destination.
+     *
+     * The match is the sidebar's own (the destination's route, or any route under it). Null on a screen that
+     * is no destination of the menu, such as the profile page.
+     *
+     * @return array{group: string, label: string, url: string, here: bool}|null
+     */
+    public static function location(?User $user, Request $request): ?array
+    {
+        foreach (self::for($user) as $group) {
+            foreach ($group['items'] as $item) {
+                $here = $request->routeIs($item['route']);
+                if ($here || $request->routeIs(Str::beforeLast($item['route'], '.index').'.*')) {
+                    return ['group' => $group['title'], 'label' => $item['label'], 'url' => route($item['route']), 'here' => $here];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

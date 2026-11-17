@@ -135,9 +135,16 @@
      sidebar store, so the layout never slides on page load or wire:navigate. */
   :root {
     --wx-sidebar-w: 280px;
+    /* Height of the top bar: one row at every width. Anything that sticks below the bar reads this. */
+    --wx-topbar-h: 3.5rem;
   }
   :root[data-sidebar='collapsed'] {
     --wx-sidebar-w: 88px;
+  }
+  @media (min-width: 640px) {
+    :root {
+      --wx-topbar-h: 4rem;
+    }
   }
 
   *,
@@ -164,6 +171,38 @@
 
   [x-cloak] {
     display: none !important;
+  }
+
+  /* A scrolling box holds its own hidden labels. `.sr-only` is absolutely positioned: inside a wide table its
+     containing block was the page, so a label sat 250 px to the right of a phone's window and the whole page
+     scrolled sideways (Users and Access, found by scripts/os-screens.mjs). In the base layer, so that a
+     positioning utility on the same element still wins. */
+  .overflow-x-auto {
+    position: relative;
+  }
+
+  /* Touch targets (WCAG 2.2, 2.5.8): nothing a finger has to hit is smaller than 24 px. Found by
+     scripts/os-screens.mjs on a phone: "Move up" arrows of 20 x 14 px, text buttons 20 px high, 13 px
+     checkboxes. In the base layer, so a larger min-h-* utility on a control still wins. A hidden control
+     (.sr-only) is left alone: its label is what is touched. */
+  .wx-admin :is(button, [role='button'], select, summary):not(.sr-only) {
+    min-height: 1.5rem;
+    min-width: 1.5rem;
+  }
+  .wx-admin :is(input[type='checkbox'], input[type='radio']):not(.sr-only) {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: none;
+    accent-color: var(--wx-primary);
+  }
+}
+
+/* Outside the layers on purpose: on a touch screen a size utility on the box (size-4) must not make it
+   smaller than a finger needs. */
+@media (pointer: coarse) {
+  .wx-admin :is(input[type='checkbox'], input[type='radio']):not(.sr-only) {
+    width: 1.5rem;
+    height: 1.5rem;
   }
 }
 
@@ -241,7 +280,7 @@
 /* Quotation workbench: preview occupies its own column, never covers editable controls. */
 .quotation-workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .quotation-editor { min-width: 0; }
-.quotation-preview { position: sticky; top: 88px; height: calc(100dvh - 108px); min-height: 480px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e5e5e5; border-radius: 12px; background: #e9e7e2; }
+.quotation-preview { position: sticky; top: calc(var(--wx-topbar-h) + 16px); height: calc(100dvh - var(--wx-topbar-h) - 36px); min-height: 480px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e5e5e5; border-radius: 12px; background: #e9e7e2; }
 .quotation-editor .sticky { z-index: 10; }
 @media (max-width: 1023px) {
   .quotation-workbench { grid-template-columns: minmax(0, 1fr); }
@@ -358,8 +397,6 @@ button.wx-sidebar-heading:hover { color:var(--wx-sidebar-strong); }
 .wx-sidebar-badge { background:var(--wx-sidebar-accent); color:var(--wx-sidebar-bg); }
 /* Drawn inside the element: the list scrolls, and a ring outside it would be cut off at both sides. */
 .wx-admin .wx-admin-sidebar :focus-visible { outline:2px solid var(--wx-sidebar-focus); outline-offset:-2px; }
-.wx-theme-picker select { color:var(--wx-text); }
-.wx-theme-picker option { background:var(--wx-surface); color:var(--wx-text); }
 .wx-admin .wx-input { background:var(--wx-surface); border-color:var(--wx-control-border); color:var(--wx-text); }
 .wx-admin .wx-input::placeholder { color:var(--wx-muted); opacity:1; }
 .wx-primary-button,.wx-primary-bubble { background:var(--wx-primary); color:var(--wx-on-primary); }
@@ -382,6 +419,34 @@ button.wx-summary-card:hover { background:var(--wx-elevated); border-color:var(-
 .dark .wx-admin .bg-warning-50 { background:#3d301c; }
 @media (prefers-reduced-motion:reduce) { .wx-admin *, .wx-admin *::before, .wx-admin *::after { scroll-behavior:auto !important; transition-duration:0.01ms !important; animation-duration:0.01ms !important; } }
 
+/* ---- Top bar (master plan §7.2, slice 1.4): one row at every width; colours are --wx-* roles only ---- */
+.wx-topbar-button { position:relative; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:2.5rem; height:2.5rem; border-radius:var(--radius-lg); color:var(--wx-muted); }
+.wx-topbar-button:hover { background:var(--wx-elevated); color:var(--wx-text); }
+.wx-topbar-search { display:flex; align-items:center; gap:.625rem; width:100%; height:2.5rem; padding:0 .75rem; border:1px solid var(--wx-border); border-radius:var(--radius-lg); background:var(--wx-page); color:var(--wx-muted); font-size:14px; text-align:left; }
+.wx-topbar-search:hover { border-color:var(--wx-control-border); background:var(--wx-surface); }
+.wx-topbar-trail { color:var(--wx-muted); }
+.wx-topbar-crumb { max-width:16rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wx-muted); }
+a.wx-topbar-crumb:hover { color:var(--wx-text); text-decoration:underline; text-underline-offset:3px; }
+.wx-topbar-crumb.is-current { color:var(--wx-text); font-weight:500; }
+.wx-topbar-new { display:inline-flex; align-items:center; justify-content:center; gap:.375rem; flex-shrink:0; width:2.5rem; height:2.5rem; border-radius:var(--radius-lg); background:var(--wx-primary); color:var(--wx-on-primary); font-size:14px; font-weight:500; }
+.wx-topbar-new:hover { background:var(--wx-primary-hover); }
+@media (min-width:768px) { .wx-topbar-new { width:auto; padding:0 .875rem 0 .625rem; } }
+.wx-topbar-user { display:inline-flex; align-items:center; gap:.5rem; flex-shrink:0; height:2.5rem; padding:0 .25rem; border-radius:var(--radius-lg); color:var(--wx-text); }
+.wx-topbar-user:hover { background:var(--wx-elevated); }
+.wx-topbar-avatar { display:flex; align-items:center; justify-content:center; width:2.25rem; height:2.25rem; border-radius:var(--radius-lg); background:var(--wx-sidebar-bg); color:var(--wx-sidebar-strong); font-size:12px; font-weight:600; }
+.dark .wx-topbar-avatar { background:var(--wx-elevated); }
+.wx-topbar-role,.wx-page-back { color:var(--wx-muted); }
+.wx-page-back:hover { color:var(--wx-text); }
+.wx-topbar-menu { padding:.375rem; border:1px solid var(--wx-border); border-radius:var(--radius-2xl); background:var(--wx-surface); color:var(--wx-text); box-shadow:0 12px 32px rgb(0 0 0 / .12); }
+.wx-topbar-menu-head { margin-bottom:.25rem; padding:.25rem .75rem .625rem; border-bottom:1px solid var(--wx-border); }
+.wx-topbar-menu-item { display:flex; align-items:center; gap:.75rem; padding:.5rem .75rem; border-radius:var(--radius-lg); color:var(--wx-text); font-size:14px; text-align:left; }
+.wx-topbar-menu-item:hover,.wx-topbar-menu-item:focus-visible { background:var(--wx-elevated); }
+.wx-topbar-menu-item svg { color:var(--wx-muted); }
+.wx-kbd { padding:0 .375rem; border:1px solid var(--wx-border); border-radius:var(--radius-lg); background:var(--wx-surface); color:var(--wx-muted); font-family:inherit; font-size:11px; line-height:1.5; }
+.wx-theme-choice { display:inline-flex; align-items:center; justify-content:center; gap:.25rem; height:1.875rem; border-radius:3px; color:var(--wx-muted); font-size:12px; }
+.wx-theme-choice:hover { color:var(--wx-text); }
+.wx-theme-choice[aria-pressed=true] { background:var(--wx-elevated); box-shadow:inset 0 0 0 1px var(--wx-control-border); color:var(--wx-text); font-weight:600; }
+
 /* Compact Preline-style operational surfaces; existing tokens/routes/plugins remain authoritative. */
 .wx-stat { box-shadow:0 1px 2px rgb(0 0 0 / .025); }
 a.wx-stat:hover { border-color:var(--wx-control-border); transform:translateY(-1px); }
@@ -397,5 +462,6 @@ a.wx-stat:hover { border-color:var(--wx-control-border); transform:translateY(-1
 .wx-category-picker { max-height: 340px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
 @media (min-width: 1100px) {
     .wx-product-layout { grid-template-columns: minmax(0, 1fr) 340px; }
-    .wx-product-sidebar { position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow: auto; }
+    /* Below the top bar, which is sticky too: at top: 24px the summary slid under it. */
+    .wx-product-sidebar { position: sticky; top: calc(var(--wx-topbar-h) + 16px); max-height: calc(100vh - var(--wx-topbar-h) - 32px); overflow: auto; }
 }

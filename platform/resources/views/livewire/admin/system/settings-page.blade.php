@@ -146,7 +146,9 @@
                     <input id="whatsapp.probe_number" type="text" wire:model="whatsapp.probe_number" class="wx-input" inputmode="tel" autocomplete="off">
                 </x-admin.field>
                 <x-admin.button variant="secondary" icon="send" wire:click="testWhatsAppConnection" wire:loading.attr="disabled">Test connection</x-admin.button>
-                <x-admin.button variant="secondary" icon="message" :href="route('admin.whatsapp.templates')" wire:navigate>Templates</x-admin.button>
+                @if (\App\Support\Modules::routeIsOpen('admin.whatsapp.templates'))
+                    <x-admin.button variant="secondary" icon="message" :href="route('admin.whatsapp.templates')" wire:navigate>Templates</x-admin.button>
+                @endif
             </div>
 
             @if ($whatsappStatus !== null)

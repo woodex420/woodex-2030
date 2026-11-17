@@ -1,7 +1,9 @@
 <div class="wx-workspace" wire:poll.15s.visible>
     <x-admin.page-header title="Web Chat Leads" description="Every website conversation, including unfinished enquiries. Contact details save before the service question."
         :breadcrumbs="['CRM' => null, 'Leads' => route('admin.leads.index'), 'Web Chat' => null]">
-        <x-slot:actions><x-admin.button variant="secondary" :href="route('admin.inbox', ['channel' => 'web_chat'])" wire:navigate icon="inbox">Website inbox</x-admin.button></x-slot:actions>
+        @if (\App\Support\Modules::routeIsOpen('admin.inbox'))
+            <x-slot:actions><x-admin.button variant="secondary" :href="route('admin.inbox', ['channel' => 'web_chat'])" wire:navigate icon="inbox">Website inbox</x-admin.button></x-slot:actions>
+        @endif
     </x-admin.page-header>
     <div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Website chat summary">
         @foreach (['total' => 'All conversations', 'anonymous' => 'Contact not linked', 'qualify' => 'Needs service details', 'unread' => 'Unread conversations'] as $key => $label)

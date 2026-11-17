@@ -2,7 +2,7 @@
      x-on:keydown.escape.window="open = false"
      x-on:open-assistant.window="open = true; $nextTick(() => $refs.question?.focus())">
     <button type="button" @click="open = true; $nextTick(() => $refs.question?.focus())"
-            class="flex size-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/5"
+            class="wx-topbar-button"
             aria-label="Open the assistant" title="Assistant — records and safe diagnostics">
         <x-icon name="sparkles" class="size-5" />
     </button>

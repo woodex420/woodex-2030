@@ -8,6 +8,7 @@ use App\Domain\System\Alerts\AlertRouter;
 use App\Domain\System\Notifications\AgentReportNotification;
 use App\Domain\Website\Actions\CheckSeoHealth;
 use App\Models\User;
+use App\Support\Modules;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -51,7 +52,7 @@ class SeoAgent extends Command
             kind: 'agent.seo',
             title: 'SEO health check',
             lines: $lines,
-            url: route('admin.website.pages'),
+            url: Modules::url('admin.website.pages') ?? route('admin.dashboard'),
         ));
     }
 }

@@ -14,6 +14,7 @@ use App\Domain\System\Models\Approval;
 use App\Domain\System\Models\ScheduledTaskRun;
 use App\Models\User;
 use App\Settings\SalesSettings;
+use App\Support\Modules;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -220,7 +221,9 @@ final class ControlPanel
             ];
         }
 
-        if ($user->can('system.health') || $user->can('automation.manage')) {
+        // Shown to the people who can open the screen that explains it (see automationHref).
+        $automationHref = $this->automationHref($user);
+        if ($automationHref !== null) {
             $failing = $this->automationsFailing();
 
             $cards[] = [
@@ -230,7 +233,7 @@ final class ControlPanel
                 'hint' => $failing['total'] === 0
                     ? 'last run of every task was clean'
                     : $failing['failed_runs'].' scheduled · '.$failing['failed_jobs'].' queued job'.($failing['failed_jobs'] === 1 ? '' : 's'),
-                'href' => $this->automationHref($user),
+                'href' => $automationHref,
                 'icon' => 'bot',
                 'tone' => $failing['total'] > 0 ? 'error' : 'success',
                 'count' => $failing['total'],
@@ -302,7 +305,10 @@ final class ControlPanel
             }
         }
 
-        if ($user->can('system.health') || $user->can('automation.manage')) {
+        // Shown to the people who can open the screen that explains it: Health, or the Automation screen while
+        // that module is on. Anyone else would get an alert with a link that does not open.
+        $automationHref = $this->automationHref($user);
+        if ($automationHref !== null) {
             $failing = $this->automationsFailing();
 
             if ($failing['total'] > 0) {
@@ -311,7 +317,7 @@ final class ControlPanel
                     'title' => $failing['total'] === 1 ? 'One automation failed' : $failing['total'].' automations failed',
                     'detail' => $failing['failed_runs'].' scheduled run'.($failing['failed_runs'] === 1 ? '' : 's').' ended in error · '.$failing['failed_jobs'].' job'.($failing['failed_jobs'] === 1 ? '' : 's').' in the failed queue.',
                     'count' => $failing['total'],
-                    'href' => $this->automationHref($user),
+                    'href' => $automationHref,
                     'action' => 'See what failed',
                     'icon' => 'bot',
                     'tone' => 'error',
@@ -326,7 +332,7 @@ final class ControlPanel
                     'title' => $stopped === 1 ? 'One scheduled task has stopped reporting' : $stopped.' scheduled tasks have stopped reporting',
                     'detail' => 'No run in the last '.self::STALE_HOURS.' hours: '.implode(', ', array_slice($failing['stale'], 0, 3)).($stopped > 3 ? '…' : '').'. Check the cron entry and the queue worker.',
                     'count' => $stopped,
-                    'href' => $this->automationHref($user),
+                    'href' => $automationHref,
                     'action' => 'Check the schedule',
                     'icon' => 'refresh',
                     'tone' => 'warning',
@@ -337,11 +343,16 @@ final class ControlPanel
         return $items;
     }
 
-    /** Health is the screen that shows why; without it, the Automation page is the next best door. */
-    private function automationHref(User $user): string
+    /**
+     * Health is the screen that shows why; without it, the Automation page is the next best door. Null when
+     * this person can open neither (no permission, or the Automation module is switched off and answers 404).
+     */
+    private function automationHref(User $user): ?string
     {
-        return $user->can('system.health')
-            ? route('admin.system.platform', ['tab' => 'health'])
-            : route('admin.automation.index');
+        if ($user->can('system.health')) {
+            return route('admin.system.platform', ['tab' => 'health']);
+        }
+
+        return $user->can('automation.manage') ? Modules::url('admin.automation.index') : null;
     }
 }

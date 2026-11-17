@@ -79,8 +79,8 @@
                 </x-admin.field>
                 @error('roles')<p class="text-theme-xs text-error-600">{{ $message }}</p>@enderror
 
-                <x-admin.field label="Who hears it — named people" hint="Optional: specific teammates, role or no role.">
-                    <select multiple size="4" wire:model.blur="users" class="wx-input">
+                <x-admin.field label="Who hears it — named people" for="alert-rule-users" error="users" hint="Optional: specific teammates, role or no role.">
+                    <select id="alert-rule-users" multiple size="4" wire:model.blur="users" class="wx-input">
                         @foreach ($staff as $member)
                             <option value="{{ $member->id }}">{{ $member->name }}</option>
                         @endforeach

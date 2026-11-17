@@ -1,19 +1,26 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full" data-auth-glass="glass">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <meta name="theme-color" content="#242424">
+    <meta name="theme-color" content="#f7f7f7">
     <title>@yield('title', 'Sign in') · WOODEX OS</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <script>
-        try { document.documentElement.dataset.authGlass = localStorage.getItem('wx.auth.glass') === 'solid' ? 'solid' : 'glass'; if (localStorage.getItem('wx.theme') === 'dark') { document.documentElement.classList.add('dark'); } } catch (e) {}
+        // The same theme as the admin (wx.theme: light, dark or system), set before the first paint.
+        (() => {
+            let mode = 'system';
+            try { mode = localStorage.getItem('wx.theme') || 'system'; } catch (e) {}
+            const dark = mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.classList.toggle('dark', dark);
+            document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+            document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#17191c' : '#f7f7f7');
+        })();
     </script>
     @vite(['resources/css/admin.css', 'resources/js/auth.js'])
 </head>
 <body class="wx-auth">
-    <div class="wx-auth-backdrop" aria-hidden="true"></div>
     <div class="wx-auth-shell">
         <header class="wx-auth-header">
             <a href="{{ route('login') }}" class="wx-auth-brand" aria-label="WOODEX OS sign in">
@@ -23,14 +30,14 @@
         </header>
         <main class="wx-auth-main">
             <section class="wx-auth-card" aria-labelledby="auth-heading">
-                <div class="wx-auth-card-tools"><p class="wx-auth-card-eyebrow">WOODEX OS</p><button type="button" data-auth-glass-toggle aria-pressed="true" title="Switch between transparent glass and solid contrast">Glass appearance</button></div>
+                <p class="wx-auth-card-eyebrow">WOODEX OS</p>
                 <h1 id="auth-heading" class="wx-auth-heading">@yield('heading')</h1>
                 <p class="wx-auth-subheading">@yield('subheading')</p>
                 @if (session('status'))
-                    <div class="mt-5 rounded-lg border border-success-500/30 bg-success-50 p-3 text-theme-sm text-success-700" role="status">{{ session('status') }}</div>
+                    <div class="mt-5 rounded border border-success-500/30 bg-success-50 p-3 text-theme-sm text-success-700" role="status">{{ session('status') }}</div>
                 @endif
                 @if ($errors->any())
-                    <div class="mt-5 rounded-lg border border-error-500/30 bg-error-50 p-3 text-theme-sm text-error-700" role="alert">
+                    <div class="mt-5 rounded border border-error-500/30 bg-error-50 p-3 text-theme-sm text-error-700" role="alert">
                         @foreach ($errors->all() as $error)
                             <p>{{ $error }}</p>
                         @endforeach

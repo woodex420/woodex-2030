@@ -26,8 +26,8 @@
     x-trap.noscroll="$store.sidebar.mobileOpen"
     class="wx-admin-sidebar fixed inset-y-0 left-0 z-50 flex h-screen w-[280px] -translate-x-full flex-col border-r px-4 transition-all duration-300 ease-in-out xl:w-(--wx-sidebar-w) xl:translate-x-0"
     :class="$store.sidebar.mobileOpen && 'translate-x-0!'"
-    aria-label="Main navigation">
-    <div class="wx-sidebar-brand flex h-[72px] shrink-0 items-center px-2">
+    id="wx-sidebar" aria-label="Main navigation">
+    <div class="wx-sidebar-brand flex h-(--wx-topbar-h) shrink-0 items-center px-2">
         <a href="{{ route('admin.dashboard') }}" wire:navigate class="flex items-center rounded-lg">
             <x-brand-logo subtitle="OPERATING SYSTEM" x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen" />
             <x-brand-logo compact x-cloak x-show="!$store.sidebar.expanded && !$store.sidebar.mobileOpen" />

@@ -11,9 +11,9 @@
     </x-admin.card>
 
     <x-admin.card title="Add images" description="JPG, PNG, WebP or AVIF, up to 5 MB each. Large photographs slow a page down: keep them under 300 KB where you can.">
-        <div class="flex flex-wrap items-end gap-3"><x-admin.field label="Upload folder" hint="Use website/products, website/banners, website/categories or your own folder."><input wire:model="uploadFolder" class="wx-input" placeholder="website/products">@error('uploadFolder')<p>{{ $message }}</p>@enderror</x-admin.field>
-            <x-admin.field label="Choose images" class="grow">
-                <input type="file" wire:model="uploads" multiple accept="image/jpeg,image/png,image/webp,image/avif" class="wx-input">
+        <div class="flex flex-wrap items-end gap-3"><x-admin.field label="Upload folder" for="media-upload-folder" hint="Use website/products, website/banners, website/categories or your own folder."><input id="media-upload-folder" wire:model="uploadFolder" class="wx-input" placeholder="website/products">@error('uploadFolder')<p>{{ $message }}</p>@enderror</x-admin.field>
+            <x-admin.field label="Choose images" for="media-uploads" class="grow">
+                <input id="media-uploads" type="file" wire:model="uploads" multiple accept="image/jpeg,image/png,image/webp,image/avif" class="wx-input">
                 @error('uploads.*') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
             </x-admin.field>
             <x-admin.button icon="upload" wire:click="save" :disabled="$uploads === []">Upload</x-admin.button>
@@ -40,13 +40,13 @@
                     <img src="{{ route('admin.website.media.image', $image, false) }}" alt="{{ $image->alt }}" loading="lazy" class="aspect-[4/3] w-full bg-gray-50 object-cover">
                 </a>
                 <div class="space-y-2 p-4">
-                    <x-admin.field label="Alt text" hint="{{ strlen($alt[$image->id] ?? '') }} characters · describe what the photo shows, then press Save to write it into the pages.">
-                        <input type="text" wire:model.blur="alt.{{ $image->id }}" class="wx-input @if (trim($alt[$image->id] ?? '') === '') border-warning-400 @endif" placeholder="Warm living room with timber panelling and linen seating">
+                    <x-admin.field label="Alt text" :for="'media-alt-'.$image->id" hint="{{ strlen($alt[$image->id] ?? '') }} characters · describe what the photo shows, then press Save to write it into the pages.">
+                        <input id="media-alt-{{ $image->id }}" type="text" wire:model.blur="alt.{{ $image->id }}" class="wx-input @if (trim($alt[$image->id] ?? '') === '') border-warning-400 @endif" placeholder="Warm living room with timber panelling and linen seating">
                     </x-admin.field>
-                    <x-admin.field label="Name (for the picker)">
-                        <input type="text" wire:model.blur="titles.{{ $image->id }}" class="wx-input">
+                    <x-admin.field label="Name (for the picker)" :for="'media-title-'.$image->id">
+                        <input id="media-title-{{ $image->id }}" type="text" wire:model.blur="titles.{{ $image->id }}" class="wx-input">
                     </x-admin.field>
-                    <x-admin.field label="Folder (organization only)"><input wire:model="folders.{{ $image->id }}" class="wx-input">@error('folders.'.$image->id)<p>{{ $message }}</p>@enderror</x-admin.field><p class="text-theme-xs text-gray-500">{{ $image->width }}×{{ $image->height }} · {{ basename($image->path) }}
+                    <x-admin.field label="Folder (organization only)" :for="'media-folder-'.$image->id"><input id="media-folder-{{ $image->id }}" wire:model="folders.{{ $image->id }}" class="wx-input">@error('folders.'.$image->id)<p>{{ $message }}</p>@enderror</x-admin.field><p class="text-theme-xs text-gray-500">{{ $image->width }}×{{ $image->height }} · {{ basename($image->path) }}
                         @if ($image->disk === 'site') <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-white/10">theme file</span> @endif
                     </p>
                     @if($image->storefront_key)<p class="text-xs text-gray-500">React: {{ $image->storefront_key }} · {{ $image->storefront_version_id ? 'Replacement published to connected storefronts' : 'Original unchanged' }}</p>@endif
@@ -72,8 +72,8 @@
       <p class="mb-3">{{ $replacementMedia->title }} · {{ $replacementMedia->storefront_key ?: 'Library image' }}</p>
       <p class="mb-3 text-sm text-gray-500">This updates this library image identity and CMS uses by ID. Static legacy page files are not rewritten. Product snapshots remain pinned. For one product slot only, use Replace in the product editor.</p>
       @if($replacementMedia->storefront_key)<details class="mb-3 rounded border p-3"><summary>{{ count($sourceReferences) }} source-catalogue products reference this key</summary><p class="text-xs text-gray-500">Snapshot references only, not a live usage audit. All current React uses of this shared key can change, including website sections.</p><ul class="text-sm">@foreach($sourceReferences as $reference)<li>{{ $reference }}</li>@endforeach</ul></details>@endif
-      <x-admin.field label="Upload replacement"><input type="file" wire:model="replacementUpload" accept="image/jpeg,image/png,image/webp" class="wx-input" /></x-admin.field>
-      <x-admin.field label="Or reuse an existing library image"><select wire:model="reuseId" class="wx-input"><option value="">Use uploaded file</option>@foreach($reuseImages as $reuse)<option value="{{ $reuse->id }}">#{{ $reuse->id }} {{ $reuse->title ?: basename($reuse->path) }}</option>@endforeach</select></x-admin.field>
+      <x-admin.field label="Upload replacement" for="media-replacement-upload"><input id="media-replacement-upload" type="file" wire:model="replacementUpload" accept="image/jpeg,image/png,image/webp" class="wx-input" /></x-admin.field>
+      <x-admin.field label="Or reuse an existing library image" for="media-reuse"><select id="media-reuse" wire:model="reuseId" class="wx-input"><option value="">Use uploaded file</option>@foreach($reuseImages as $reuse)<option value="{{ $reuse->id }}">#{{ $reuse->id }} {{ $reuse->title ?: basename($reuse->path) }}</option>@endforeach</select></x-admin.field>
       @if($replacementMedia->storefront_key)@can('website.publish')<label class="mt-3 flex gap-2"><input type="checkbox" wire:model="publishReplacement">Also replace all React uses of {{ $replacementMedia->storefront_key }}</label>@endcan @endif
       <label class="mt-3 flex gap-2"><input type="checkbox" wire:model="confirmReplacement">I confirm this replacement and the selected affected uses.</label>
       @foreach(['replacement', 'replacementUpload', 'confirmReplacement', 'reuseId'] as $errorKey)@error($errorKey)<p class="text-red-600">{{ $message }}</p>@enderror @endforeach

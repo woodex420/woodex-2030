@@ -1,7 +1,7 @@
 <div x-data="{ drawer: $wire.entangle('drawer') }" x-on:focus.window="$wire.poll()" x-on:visibilitychange.document="if (!document.hidden) $wire.poll()" x-on:keydown.escape.window="if ($wire.drawer) $wire.closeDrawer()" @if ($canUse) wire:poll.10s.visible="poll" @endif>
     @if ($canUse)
         <div class="relative">
-            <button type="button" x-ref="trigger" wire:click="openDrawer" class="relative flex size-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-800 dark:text-gray-400" aria-haspopup="dialog" aria-expanded="{{ $drawer ? 'true' : 'false' }}" aria-label="Website chat{{ $unread > 0 ? " ({$unread} unread)" : '' }}">
+            <button type="button" x-ref="trigger" wire:click="openDrawer" class="wx-topbar-button" aria-haspopup="dialog" aria-expanded="{{ $drawer ? 'true' : 'false' }}" aria-label="Website chat{{ $unread > 0 ? " ({$unread} unread)" : '' }}">
                 <x-icon name="message" />
                 @if ($unread > 0)<span class="absolute -top-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-wood-500 text-[10px] font-semibold text-white">{{ min($unread, 9) }}{{ $unread > 9 ? '+' : '' }}</span>@endif
                 @if ($visitorActive)<span class="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-white bg-success-500 dark:border-gray-900" title="A visitor is chatting right now"></span>@endif

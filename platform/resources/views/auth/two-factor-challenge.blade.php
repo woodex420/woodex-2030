@@ -18,6 +18,6 @@
                 <input id="recovery_code" type="text" name="recovery_code" autocomplete="off" class="wx-input h-11">
             </div>
         </details>
-        <button type="submit" class="flex h-11 w-full items-center justify-center rounded-lg bg-navy-900 text-theme-sm font-medium text-white hover:bg-navy-800">Verify</button>
+        <button type="submit" class="wx-auth-submit flex h-11 w-full items-center justify-center rounded-lg text-theme-sm font-medium">Verify</button>
     </form>
 @endsection

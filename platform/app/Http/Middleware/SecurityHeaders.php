@@ -18,6 +18,13 @@ final class SecurityHeaders
     {
         $response = $next($request);
 
+        // PHP adds "X-Powered-By: PHP/<version>" itself when expose_php is on (the default of most hosts). A
+        // version number helps only someone looking for a known weakness.
+        if (! headers_sent()) {
+            header_remove('X-Powered-By');
+        }
+        $response->headers->remove('X-Powered-By');
+
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $frameOptions = (string) config('woodex.security.frame_options', 'SAMEORIGIN');
 

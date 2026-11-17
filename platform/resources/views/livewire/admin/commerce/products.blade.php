@@ -31,18 +31,18 @@ $image = $product->draft['images'][0] ?? null;
 <x-admin.modal name="showQuickEdit" title="Quick edit product" description="Draft changes only. Existing descriptions, photos, variants and published snapshots are preserved." width="max-w-3xl">
 @if($errors->any())<div role="alert" class="mb-4">@foreach($errors->all() as $error)<p class="text-red-600">{{ $error }}</p>@endforeach</div>@endif
 <div class="grid gap-4 md:grid-cols-2">
-<x-admin.field label="Product name"><input wire:model="quick.name" class="wx-input"></x-admin.field>
-<x-admin.field label="Regular price (PKR)"><input wire:model="quick.price" inputmode="decimal" class="wx-input"></x-admin.field>
-<x-admin.field label="Sale price (PKR)"><input wire:model="quick.sale_price" inputmode="decimal" class="wx-input"></x-admin.field>
-<x-admin.field label="Availability"><select wire:model="quick.availability" class="wx-input"><option value="on_request">Confirm on request</option><option value="available">Available</option><option value="unavailable">Unavailable</option></select></x-admin.field>
-<x-admin.field label="Sale starts (UTC)"><input type="datetime-local" wire:model="quick.sale_start" class="wx-input"></x-admin.field>
-<x-admin.field label="Sale ends (UTC, exclusive)"><input type="datetime-local" wire:model="quick.sale_end" class="wx-input"></x-admin.field>
+<x-admin.field label="Product name" for="quick.name"><input id="quick.name" wire:model="quick.name" class="wx-input"></x-admin.field>
+<x-admin.field label="Regular price (PKR)" for="quick.price"><input id="quick.price" wire:model="quick.price" inputmode="decimal" class="wx-input"></x-admin.field>
+<x-admin.field label="Sale price (PKR)" for="quick.sale_price"><input id="quick.sale_price" wire:model="quick.sale_price" inputmode="decimal" class="wx-input"></x-admin.field>
+<x-admin.field label="Availability" for="quick.availability"><select id="quick.availability" wire:model="quick.availability" class="wx-input"><option value="on_request">Confirm on request</option><option value="available">Available</option><option value="unavailable">Unavailable</option></select></x-admin.field>
+<x-admin.field label="Sale starts (UTC)" for="quick.sale_start"><input id="quick.sale_start" type="datetime-local" wire:model="quick.sale_start" class="wx-input"></x-admin.field>
+<x-admin.field label="Sale ends (UTC, exclusive)" for="quick.sale_end"><input id="quick.sale_end" type="datetime-local" wire:model="quick.sale_end" class="wx-input"></x-admin.field>
 </div>
 <fieldset class="mt-4"><legend class="font-semibold">Categories · select multiple</legend><div class="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">@foreach($categories as $category)<label class="flex gap-2"><input type="checkbox" wire:model="quick.category_ids" value="{{ $category->id }}">{{ $categoryPaths[$category->id] }}</label>@endforeach</div></fieldset>
-<x-admin.field label="Primary category (must be selected above)"><select wire:model="quick.primary_category_id" class="wx-input"><option value="">No primary category</option>@foreach($categories as $category)<option value="{{ $category->id }}">{{ $categoryPaths[$category->id] }}</option>@endforeach</select></x-admin.field>
+<x-admin.field label="Primary category (must be selected above)" for="quick.primary_category_id"><select id="quick.primary_category_id" wire:model="quick.primary_category_id" class="wx-input"><option value="">No primary category</option>@foreach($categories as $category)<option value="{{ $category->id }}">{{ $categoryPaths[$category->id] }}</option>@endforeach</select></x-admin.field>
 <fieldset class="mt-4"><legend class="font-semibold">Series · separate collections</legend><div class="mt-2 flex flex-wrap gap-3">@foreach($series as $collection)<label class="flex gap-2"><input type="checkbox" wire:model="quick.series_ids" value="{{ $collection->id }}">{{ $collection->name }}</label>@endforeach</div></fieldset>
 <div class="mt-4 flex flex-wrap gap-4"><label class="flex gap-2"><input type="checkbox" wire:model="quick.is_hot">Hot · manual selection, not a sales claim</label><label class="flex gap-2"><input type="checkbox" wire:model="quick.is_featured">Featured</label></div>
-<x-admin.field label="Featured order (0 first)"><input type="number" min="0" max="99999" wire:model="quick.featured_position" class="wx-input"></x-admin.field>
+<x-admin.field label="Featured order (0 first)" for="quick.featured_position"><input id="quick.featured_position" type="number" min="0" max="99999" wire:model="quick.featured_position" class="wx-input"></x-admin.field>
 <p class="mt-3 text-sm text-gray-500">Sale dates use UTC. Blank dates mean an immediate/open-ended sale. Variant sale prices are edited explicitly in the full editor; the base sale does not discount variants automatically.</p>
 <x-slot:footer><x-admin.button wire:click="saveQuickEdit" wire:loading.attr="disabled">Save draft changes</x-admin.button></x-slot:footer>
 </x-admin.modal>

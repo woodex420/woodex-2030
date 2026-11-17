@@ -55,6 +55,9 @@ it('starts a quotation from an enquiry with the client and line filled in', func
         ->assertSet('contactId', $this->lead->contact_id)
         ->call('create')
         ->assertHasErrors('templateId')
+        // …and says so beside the button, where the person is looking.
+        ->assertSeeHtml('data-create-errors')
+        ->assertSee('Choose a template or start blank.')
         ->call('chooseTemplate', QuoteTemplate::query()->where('slug', 'interior')->value('id'))
         ->set('title', 'Office interior')
         ->call('create')

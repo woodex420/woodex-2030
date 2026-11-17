@@ -24,7 +24,7 @@
                             <td class="px-3 py-2.5 font-medium">{{ $method->label() }}</td>
                             <td class="px-3 py-2.5">
                                 @if ($canManage)
-                                    <select wire:model="map.{{ $method->value }}" class="wx-input">
+                                    <select wire:model="map.{{ $method->value }}" class="wx-input" aria-label="Ledger account for {{ $method->label() }}">
                                         <option value="">— choose an account —</option>
                                         @foreach ($accounts as $account)
                                             <option value="{{ $account->id }}">{{ $account->code }} · {{ $account->name }}</option>

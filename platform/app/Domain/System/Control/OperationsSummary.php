@@ -19,9 +19,13 @@ use App\Domain\System\Enums\ChangeRequestStatus;
 use App\Domain\System\Models\ChangeRequest;
 use App\Models\User;
 use App\Settings\SalesSettings;
+use App\Support\Modules;
 use App\Support\Money;
 
-/** Read-only cross-module summaries. Each query is gated before execution, not hidden after rendering. */
+/**
+ * Read-only cross-module summaries. Each query is gated before execution, not hidden after rendering: by the
+ * person's permission and, for an optional module, by its switch (a row would otherwise link to a closed screen).
+ */
 final class OperationsSummary
 {
     public const REVIEW_PERMISSIONS = ['quotes.approve', 'payments.verify', 'social.manage', 'system.change_requests'];
@@ -51,17 +55,17 @@ final class OperationsSummary
             $active = Project::query()->where('status', ProjectStatus::Active);
             $rows[] = $this->row('Projects', (clone $active)->count().' active · '.(clone $active)->whereDate('target_date', '<', today())->count().' past target date', 'admin.projects.index', 'hammer');
         }
-        if ($user->can('inbox.view')) {
+        if ($user->can('inbox.view') && Modules::routeIsOpen('admin.inbox')) {
             $rows[] = $this->row('Inbox', Conversation::query()->where('unread_count', '>', 0)->count().' conversations with unread messages. This counts threads, not individual messages.', 'admin.inbox', 'inbox');
         }
-        if ($user->can('automation.manage')) {
+        if ($user->can('automation.manage') && Modules::routeIsOpen('admin.automation.index')) {
             $failed = $panel->automationsFailing();
             $rows[] = $this->row('Automation', $failed['total'].' recorded failures · '.count($failed['stale']).' stale task reports. No recorded run is not proof of delivery.', 'admin.automation.index', 'zap');
         }
-        if ($user->can('social.manage')) {
+        if ($user->can('social.manage') && Modules::routeIsOpen('admin.marketing.index')) {
             $rows[] = $this->row('Marketing', SocialPost::query()->where('status', SocialPost::SCHEDULED)->count().' scheduled posts · '.SocialPost::query()->where('status', SocialPost::FAILED)->count().' failed. External publishing needs verified provider access.', 'admin.marketing.index', 'megaphone');
         }
-        if ($user->can('website.edit')) {
+        if ($user->can('website.edit') && Modules::routeIsOpen('admin.website.health')) {
             $rows[] = $this->row('Website', 'Audit the actual v1 page files, forms, assets and published output. A saved editor screen is not publishing proof.', 'admin.website.health', 'globe');
         }
 
@@ -77,7 +81,7 @@ final class OperationsSummary
         if ($user->can('payments.verify') && $user->can('invoices.view')) {
             $rows[] = $this->row('Payment verification', Payment::query()->where('status', PaymentStatus::PendingVerification)->count().' reported payments awaiting verification. Review in Payments; this is not money received until verified.', 'admin.payments.index', 'wallet');
         }
-        if ($user->can('social.manage')) {
+        if ($user->can('social.manage') && Modules::routeIsOpen('admin.marketing.index')) {
             $rows[] = $this->row('Publishing review', SocialPost::query()->where('status', SocialPost::IN_REVIEW)->where('created_by', '!=', $user->id)->count().' posts awaiting their existing publishing decision.', 'admin.marketing.index', 'megaphone');
         }
         if ($user->can('system.change_requests')) {

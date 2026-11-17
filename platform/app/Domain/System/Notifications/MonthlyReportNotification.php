@@ -9,6 +9,7 @@ use App\Integrations\Telegram\TelegramChannel;
 use App\Integrations\Telegram\TelegramMessage;
 use App\Models\User;
 use App\Settings\SalesSettings;
+use App\Support\Modules;
 use App\Support\Money;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -50,8 +51,14 @@ final class MonthlyReportNotification extends Notification
             'kind' => 'report.monthly',
             'title' => 'Monthly report · '.$this->report->periodLabel(),
             'body' => $this->digest(),
-            'url' => route('admin.automation.index'),
+            'url' => $this->archiveUrl(),
         ];
+    }
+
+    /** The archive is kept on the Automation screen; while that module is switched off, the Reports screen. */
+    private function archiveUrl(): string
+    {
+        return Modules::url('admin.automation.index') ?? route('admin.reports.index');
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -61,7 +68,7 @@ final class MonthlyReportNotification extends Notification
             ->greeting($this->report->periodLabel())
             ->lines($this->lines());
 
-        $url = route('admin.automation.index');
+        $url = $this->archiveUrl();
         if (str_starts_with($url, 'https://')) {
             $mail->action('Open the archive', $url);
         }
@@ -79,7 +86,7 @@ final class MonthlyReportNotification extends Notification
         ));
 
         $buttons = [];
-        $url = route('admin.automation.index');
+        $url = $this->archiveUrl();
         if (str_starts_with($url, 'https://')) {
             $buttons[] = [['text' => 'Open the archive', 'url' => $url]];
         }

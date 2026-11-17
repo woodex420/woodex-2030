@@ -218,6 +218,7 @@ has "…to /admin" '^[Ll]ocation: /admin' "$OUT/head"
 check "/admin sends a visitor to sign in: 302" "$(get /admin)" 302
 has "…on https, on the host the visitor used" '^[Ll]ocation: https://demo.woodex.test/admin/login' "$OUT/head"
 check "the installer is closed: 404" "$(get /install)" 404
+has "…answered with the admin's own page, not the framework's bare one" 'data-error-page="404"' "$OUT/body"
 check "health address: 200" "$(get /up)" 200
 for file in /composer.json /vendor/autoload.php "/$DEMO_DB" "/$DEMO_DB.key" /artisan /api/index.php /config/app.php /storage/logs/laravel.log /.env /tools/vercel/build-demo.php \
   /public/index.php /index.php /build/../index.php /assets/uploads/.htaccess /.htaccess /public/.htaccess; do
@@ -228,6 +229,7 @@ check "sign-in page: 200" "$(visit /admin/login)" 200
 cp "$OUT/body" "$OUT/login.html"
 check "the page starts as a page (no PHP notice printed before it)" "$(head -c 15 "$OUT/login.html")" "<!DOCTYPE html>"
 has "the sign-in page sets the session cookie, marked Secure" '^[Ss]et-[Cc]ookie: woodex_livewire_session=.*; [Ss]ecure' "$OUT/head"
+hasnt "the answer does not name the software or its version (no X-Powered-By)" '^[Xx]-[Pp]owered-[Bb]y:' "$OUT/head"
 has "…and the form-token cookie" '^[Ss]et-[Cc]ookie: XSRF-TOKEN=' "$OUT/head"
 has "sign-in page says it is not production" 'NOT PRODUCTION' "$OUT/login.html"
 has "sign-in page names the demo account" 'owner@woodex.test' "$OUT/login.html"

@@ -18,6 +18,7 @@ use App\Domain\Sales\Models\Payment;
 use App\Domain\Sales\Models\Quote;
 use App\Models\User;
 use App\Settings\SalesSettings;
+use App\Support\Modules;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -29,7 +30,7 @@ use Illuminate\Support\Str;
  * product, and a question outside the whitelist says so instead of guessing. No external provider is
  * integrated. Any future provider must satisfy the approved aggregate/model/budget/retention gates.
  *
- * @phpstan-type Question array{id: string, label: string, permission: string, keywords: list<string>}
+ * @phpstan-type Question array{id: string, label: string, permission: string, keywords: list<string>, module?: string}
  */
 final class Assistant
 {
@@ -43,7 +44,7 @@ final class Assistant
      */
     public const QUESTIONS = [
         ['id' => 'enquiry_diagnostics', 'label' => 'Check enquiry capture and alerts', 'permission' => 'system.health', 'keywords' => ['enquiry health', 'enquiry diagnostics', 'contact form', 'send enquiry', 'lead capture', 'missing enquiry', 'lead notification']],
-        ['id' => 'website_diagnostics', 'label' => 'Check website search metadata', 'permission' => 'website.edit', 'keywords' => ['website diagnostics', 'seo diagnostics', 'search metadata', 'website seo', 'canonical health']],
+        ['id' => 'website_diagnostics', 'label' => 'Check website search metadata', 'permission' => 'website.edit', 'module' => 'website', 'keywords' => ['website diagnostics', 'seo diagnostics', 'search metadata', 'website seo', 'canonical health']],
         ['id' => 'runtime_diagnostics', 'label' => 'Check PHP, database and sign-in health', 'permission' => 'system.health', 'keywords' => ['runtime diagnostics', 'diagnose runtime', 'php engine', 'database engine', 'system health']],
         ['id' => 'connection_diagnostics', 'label' => 'Check connection setup safely', 'permission' => 'integrations.manage', 'keywords' => ['connectivity', 'connection status', 'connection setup', 'telegram status', 'provider status']],
         ['id' => 'bills_to_pay', 'label' => 'What do we owe suppliers?', 'permission' => 'accounts.view', 'keywords' => ['bill', 'payable', 'supplier', 'we owe', 'to pay']],
@@ -64,7 +65,7 @@ final class Assistant
      */
     public static function questionsFor(User $user): array
     {
-        return array_values(array_filter(self::QUESTIONS, static fn (array $q): bool => $user->can($q['permission'])));
+        return array_values(array_filter(self::QUESTIONS, static fn (array $q): bool => $user->can($q['permission']) && self::moduleIsOn($q)));
     }
 
     public function ask(string $text, User $user): AssistantAnswer
@@ -77,6 +78,10 @@ final class Assistant
 
         if (! $user->can($question['permission'])) {
             return AssistantAnswer::refusal("That answer needs the {$question['permission']} permission, which your account doesn't have — I won't show records your pages can't either.");
+        }
+
+        if (! self::moduleIsOn($question)) {
+            return AssistantAnswer::refusal('That check belongs to a module that is switched off here, so there is nothing to read. Feature status, under System, lists every module.');
         }
 
         return match ($question['id']) {
@@ -95,6 +100,17 @@ final class Assistant
             'milestones_due' => $this->milestonesDue(),
             default => AssistantAnswer::refusal("I don't have a query for that yet."),
         };
+    }
+
+    /**
+     * A question that reads an optional module's records is asked only while that module is on: its answer
+     * links into the module's screens, which answer 404 otherwise.
+     *
+     * @param  Question  $question
+     */
+    private static function moduleIsOn(array $question): bool
+    {
+        return ! isset($question['module']) || Modules::enabled($question['module']);
     }
 
     /**

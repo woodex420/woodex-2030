@@ -4,13 +4,13 @@
      x-on:keydown.window.meta.k.prevent="open = true; $nextTick(() => $refs.term.focus())"
      x-on:focus-global-search.window="open = true; $nextTick(() => $refs.term.focus())"
      x-on:open-search.window="open = true; $nextTick(() => $refs.term.focus())"
-     class="max-w-md flex-1">
+     class="min-w-10 flex-1 sm:max-w-md">
     <button type="button" x-ref="trigger" x-on:click="open = true; $nextTick(() => $refs.term.focus())"
-            class="flex h-10 w-full items-center gap-2.5 rounded-lg border border-gray-200 bg-gray-50 px-3.5 text-left text-theme-sm text-gray-400 transition hover:border-gray-300 hover:bg-white dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-gray-700"
-            aria-label="Search (Ctrl K)">
-        <x-icon name="search" class="size-4" />
-        <span class="hidden flex-1 truncate md:block">Search screens, names or references…</span>
-        <kbd class="ml-auto hidden rounded border border-gray-200 bg-white px-1.5 py-0.5 font-sans text-[11px] text-gray-500 md:inline dark:border-gray-700 dark:bg-gray-800">Ctrl K</kbd>
+            class="wx-topbar-search" aria-label="Search (Ctrl K)">
+        <x-icon name="search" class="size-4 shrink-0" />
+        <span class="min-w-0 flex-1 truncate md:hidden">Search</span>
+        <span class="hidden min-w-0 flex-1 truncate md:block">Search screens, names or references…</span>
+        <kbd class="wx-kbd ml-auto hidden md:inline">Ctrl K</kbd>
     </button>
 
     @teleport('body')

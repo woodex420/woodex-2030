@@ -94,7 +94,9 @@ it('says on every admin screen that a demo is a demo, and says nothing on a real
     $demo = $this->actingAs($owner)->get(route('admin.dashboard'))->assertOk();
     if ($isSqlite) {
         $demo->assertSee('data-demo-notice', false)->assertSee('Demo workspace — sample data.')
-            ->assertSee('Do not enter real customer details or passwords.');
+            ->assertSee('Do not enter real customer details or passwords.')
+            // The user menu names the environment too: a demo is not called a "local preview".
+            ->assertSee('data-environment="demo"', false)->assertDontSee('Non-production environment');
         $this->get(route('admin.system.features'))->assertOk()->assertSee('data-demo-notice', false);
     } else {
         // MySQL is never a demo, whatever the switch says.
@@ -102,5 +104,6 @@ it('says on every admin screen that a demo is a demo, and says nothing on a real
     }
 
     config(['preview.synthetic' => false]);
-    $this->get(route('admin.dashboard'))->assertOk()->assertDontSee('data-demo-notice', false)->assertDontSee('Demo workspace');
+    $this->get(route('admin.dashboard'))->assertOk()->assertDontSee('data-demo-notice', false)->assertDontSee('Demo workspace')
+        ->assertSee('data-environment="non-production"', false);
 });

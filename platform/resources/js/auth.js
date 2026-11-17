@@ -120,10 +120,4 @@ export function installSignIn(form) {
 
 if (typeof document !== 'undefined') {
     document.querySelectorAll('form[data-sign-in]').forEach(installSignIn);
-    const glass = document.querySelector('[data-auth-glass-toggle]');
-    if (glass) {
-        const render = () => { const transparent = document.documentElement.dataset.authGlass !== 'solid'; glass.textContent = transparent ? 'Glass appearance' : 'Solid contrast'; glass.setAttribute('aria-pressed', transparent ? 'true' : 'false'); };
-        glass.addEventListener('click', () => { const value = document.documentElement.dataset.authGlass === 'solid' ? 'glass' : 'solid'; document.documentElement.dataset.authGlass = value; try { localStorage.setItem('wx.auth.glass', value); } catch {} render(); });
-        render();
-    }
 }

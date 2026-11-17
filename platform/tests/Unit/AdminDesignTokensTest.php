@@ -143,3 +143,20 @@ it('takes its charcoal, green, text and border colours from the storefront\'s ow
     expect(wxAdminCss())->toContain('--radius-lg: 0.25rem;');
     expect(file_get_contents($storefront))->toContain('--radius: 0.25rem;');
 });
+
+it('draws the sign-in page from the admin\'s own roles: no colour of its own', function () {
+    // Until 2026-11-17 the sign-in page was a dark glass card on a green gradient, with 30 colours of its own.
+    // It is part of the one design now (DL-013): every colour in auth.css is a --wx-* role, so the page follows
+    // the light and the dark theme, and the contrast checks above cover it.
+    $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/auth.css');
+    $rules = preg_replace('#/\*.*?\*/#s', '', $css);
+
+    expect($rules)->not->toMatch('/#[0-9a-fA-F]{3,8}\b/')
+        ->and($rules)->not->toContain('backdrop-filter')
+        ->and($rules)->not->toContain('gradient')
+        ->and($rules)->toContain('var(--wx-primary)')
+        ->and($rules)->toContain('var(--wx-surface)');
+
+    $layout = (string) file_get_contents(dirname(__DIR__, 2).'/resources/views/layouts/auth.blade.php');
+    expect($layout)->not->toContain('auth-glass')->and($layout)->not->toContain('wx-auth-backdrop');
+});

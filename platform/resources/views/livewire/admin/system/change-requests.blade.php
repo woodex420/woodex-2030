@@ -13,7 +13,7 @@
                 @endforeach
             </div>
             <input type="search" wire:model.live.debounce.300ms="search" placeholder="Search title or CR-0001…"
-                   class="wx-input sm:max-w-xs" />
+                   class="wx-input sm:max-w-xs" aria-label="Search change requests" />
         </div>
     </x-admin.card>
 
