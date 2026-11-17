@@ -29,6 +29,7 @@ use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Livewire\Concerns\ManagesAttachments;
 use App\Models\User;
 use App\Settings\SalesSettings;
+use App\Support\Modules;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -121,6 +122,8 @@ class LeadShow extends Component
     /** One click from the website's estimate to a priced draft quotation (QUO-017). */
     public function startQuoteFromEstimate(): void
     {
+        // The estimator is an optional module; its card is not on the page while it is off, and neither is this.
+        abort_unless(Modules::enabled('estimator'), 404);
         $this->authorize('update', $this->lead);
 
         $creator = app(CreateQuoteFromEstimate::class);

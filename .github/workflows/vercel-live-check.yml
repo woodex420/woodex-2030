@@ -6,6 +6,11 @@ name: Vercel live check (WOODEX OS)
 # rehearsal (platform/tools/vercel/check-entry.sh, scripts/os-screens.mjs, scripts/os-journeys.mjs).
 on:
   workflow_dispatch:
+    inputs:
+      pretend_failure:
+        description: "Fail on purpose, to prove that a failure opens an issue (master list T-142)"
+        type: boolean
+        default: false
   # Called by live-check-after-merge.yml a few minutes after every push to main, once Vercel has built it.
   workflow_call:
   # Every six hours. GitHub starts a timer only from the default branch, so this runs once the branch is merged.
@@ -124,3 +129,59 @@ jobs:
           must "the catalogue import is refused without a sign-in" "$(code "$SHOP/api/catalog/import")" 401
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-2030.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-2030.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
+
+  # A failed check must reach a person. GitHub mails only the owner of the repository about a failed timer; an
+  # issue is seen by everybody who works on it, and stays open until somebody has looked (master list T-142).
+  # Only for runs on main: the timer, the check after a merge, and a run started by hand there. One issue is kept
+  # open and added to, so that a site that stays down for a day does not open four.
+  #
+  # Two ways to prove it without waiting for a site to fail: start the workflow by hand on main with "Fail on
+  # purpose" ticked, or push a commit that changes this file to an arena/** branch with [prove-the-issue] in its
+  # message. Either way the issue says that the failure was asked for.
+  tell:
+    name: A failed check opens an issue
+    needs: [live, shop]
+    if: >-
+      ${{ always() && (
+        (github.ref == 'refs/heads/main' && (needs.live.result == 'failure' || needs.shop.result == 'failure' || inputs.pretend_failure == true))
+        || (github.event_name == 'push' && contains(github.event.head_commit.message, '[prove-the-issue]'))
+      ) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open an issue, or add to the one that is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ADMIN: ${{ needs.live.result }}
+          SHOP: ${{ needs.shop.result }}
+          PRETENDED: ${{ (inputs.pretend_failure == true || (github.event_name == 'push' && contains(github.event.head_commit.message, '[prove-the-issue]'))) && 'yes' || 'no' }}
+        run: |
+          when="$(date -u +'%Y-%m-%d %H:%M UTC')"
+          if [ "$PRETENDED" = yes ]; then
+            title="Proof: a failed live check opens an issue"
+            first="This issue was asked for on purpose on $when, to prove that a failed live check opens one. Nothing is wrong unless a line below says failure. It can be closed."
+          else
+            title="The live check failed"
+            first="The check that asks the two live sites from outside failed on $when."
+          fi
+          {
+            echo "$first"
+            echo
+            echo "- the hosted admin (woodex-os.vercel.app): $ADMIN"
+            echo "- the shop's API (woodex-2030.vercel.app): $SHOP"
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo "Open the run and read the notice of each job: it says what a visitor got. Close this issue when the next run passes."
+          } > "$RUNNER_TEMP/body.md"
+          # One issue per title is kept open and added to. The list is read directly, not searched: a search
+          # does not find an issue that was opened a moment ago.
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 200 --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi

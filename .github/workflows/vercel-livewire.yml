@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main, "arena/**"]
-    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", "scripts/os-screens.mjs", "scripts/os-journeys.mjs", "scripts/lib/browser.mjs", ".github/workflows/vercel-livewire.yml"]
+    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", "scripts/os-screens.mjs", "scripts/os-notice.mjs", "scripts/os-journeys.mjs", "scripts/lib/browser.mjs", ".github/workflows/vercel-livewire.yml"]
   pull_request:
-    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", "scripts/os-screens.mjs", "scripts/os-journeys.mjs", "scripts/lib/browser.mjs", ".github/workflows/vercel-livewire.yml"]
+    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", "scripts/os-screens.mjs", "scripts/os-notice.mjs", "scripts/os-journeys.mjs", "scripts/lib/browser.mjs", ".github/workflows/vercel-livewire.yml"]
 permissions:
   contents: read
 jobs:
@@ -116,11 +116,16 @@ jobs:
             kill -0 "$(cat "$RUNNER_TEMP/demo.pid")" 2>/dev/null || { echo "The rehearsal stopped:"; tail -30 "$RUNNER_TEMP/demo.log"; exit 1; }
             sleep 3
           done
-          node ../scripts/os-screens.mjs --out "$RUNNER_TEMP/screens"
-          node ../scripts/os-journeys.mjs --out "$RUNNER_TEMP/journeys-demo"
-          grep -q 'the client gets a page of their own' "$RUNNER_TEMP/journeys-demo/journeys.json" || { echo "The demo did not give the client a page of their own."; exit 1; }
+          # Both scripts run even when the first one fails, and the result is written on the run page as one line
+          # (scripts/os-notice.mjs): a failed run then says what failed without its log.
+          failed=0
+          node ../scripts/os-screens.mjs --out "$RUNNER_TEMP/screens" || failed=1
+          node ../scripts/os-journeys.mjs --out "$RUNNER_TEMP/journeys-demo" || failed=1
+          node ../scripts/os-notice.mjs "The demo as it is deployed" "$RUNNER_TEMP/screens" "$RUNNER_TEMP/journeys-demo"
+          grep -q 'the client gets a page of their own' "$RUNNER_TEMP/journeys-demo/journeys.json" || { echo "::error title=The demo as it is deployed::the client did not get a page of their own"; failed=1; }
           kill -- "-$(cat "$RUNNER_TEMP/demo.pid")" 2>/dev/null || true
           sleep 2
+          exit "$failed"
       - name: "The product as it ships: both journeys again, with the client's pages off"
         working-directory: platform
         run: |
@@ -132,9 +137,12 @@ jobs:
             kill -0 "$(cat "$RUNNER_TEMP/shipped.pid")" 2>/dev/null || { echo "The rehearsal stopped:"; tail -30 "$RUNNER_TEMP/shipped.log"; exit 1; }
             sleep 3
           done
-          node ../scripts/os-journeys.mjs --out "$RUNNER_TEMP/journeys-shipped"
-          grep -q 'the client pages are off here' "$RUNNER_TEMP/journeys-shipped/journeys.json" || { echo "The client's pages were not off in this run."; exit 1; }
+          failed=0
+          node ../scripts/os-journeys.mjs --out "$RUNNER_TEMP/journeys-shipped" || failed=1
+          node ../scripts/os-notice.mjs "The product as it ships" "$RUNNER_TEMP/journeys-shipped"
+          grep -q 'the client pages are off here' "$RUNNER_TEMP/journeys-shipped/journeys.json" || { echo "::error title=The product as it ships::the client's pages were not off in this run"; failed=1; }
           kill -- "-$(cat "$RUNNER_TEMP/shipped.pid")" 2>/dev/null || true
+          exit "$failed"
       - name: Keep what the browser saw
         if: always()
         uses: actions/upload-artifact@v4

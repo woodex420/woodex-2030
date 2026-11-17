@@ -17,6 +17,7 @@ use App\Settings\BusinessSettings;
 use App\Settings\IntegrationSettings;
 use App\Settings\NotificationSettings;
 use App\Settings\SalesSettings;
+use App\Support\Modules;
 use App\Support\Phone;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
@@ -347,6 +348,7 @@ class SettingsPage extends Component
      */
     public function saveWhatsApp(IntegrationSettings $settings): void
     {
+        $this->sectionMustBeOpen('whatsapp');
         abort_unless($this->user()->can('settings.manage') || $this->user()->can('integrations.manage'), 403);
 
         $data = $this->validate([
@@ -394,6 +396,7 @@ class SettingsPage extends Component
     /** Ask Meta what it knows about this number, and — with a number — send one real message to it (WAP-001). */
     public function testWhatsAppConnection(TestWhatsAppConnection $test): void
     {
+        $this->sectionMustBeOpen('whatsapp');
         abort_unless($this->user()->can('settings.manage') || $this->user()->can('integrations.manage'), 403);
 
         $this->validate(['whatsapp.probe_number' => ['nullable', 'string', 'max:32']]);
@@ -411,6 +414,7 @@ class SettingsPage extends Component
     /** Forget the credentials saved here, so the server .env is used again. The .env itself is untouched. */
     public function forgetWhatsApp(IntegrationSettings $settings): void
     {
+        $this->sectionMustBeOpen('whatsapp');
         abort_unless($this->user()->can('settings.manage') || $this->user()->can('integrations.manage'), 403);
 
         $settings->whatsapp_waba_id = null;
@@ -435,8 +439,39 @@ class SettingsPage extends Component
         return in_array(BusinessLine::Interior, BusinessLine::offeredBrands(), true);
     }
 
+    /**
+     * The sections of Settings, in their order. The two that belong to an optional module are there only while
+     * that module is switched on: the WhatsApp Cloud API (keys, costs) and the chat bot (its prompt and what it
+     * knows, written for the Interior studio). A closed section is not a tab, and its actions answer "not found"
+     * (list line T-034).
+     *
+     * @return array<string, string>
+     */
+    public function sections(): array
+    {
+        return array_filter([
+            'business' => 'Business',
+            'sales' => 'Sales rules',
+            'leads' => 'Lead rules',
+            'notifications' => 'Notifications',
+            'whatsapp' => Modules::enabled('whatsapp') ? 'WhatsApp' : null,
+            'bot' => Modules::enabled('inbox') || Modules::enabled('whatsapp') ? 'Bot' : null,
+        ]);
+    }
+
+    /** Stops an action of a section whose module is switched off. */
+    private function sectionMustBeOpen(string $section): void
+    {
+        abort_unless(array_key_exists($section, $this->sections()), 404);
+    }
+
     public function render(): View
     {
+        // An address that names a closed section opens the first one instead.
+        if (! array_key_exists($this->tab, $this->sections())) {
+            $this->tab = 'business';
+        }
+
         $credentials = app(WhatsAppCredentials::class);
         $saved = [
             'token' => (string) ($credentials->token() ?? ''),
@@ -445,6 +480,7 @@ class SettingsPage extends Component
         ];
 
         return view('livewire.admin.system.settings-page', [
+            'sections' => $this->sections(),
             'whatsappSaved' => array_map(fn (string $value): string => $this->mask($value), $saved),
             'whatsappHints' => [
                 'token' => $saved['token'] !== ''
@@ -522,6 +558,7 @@ class SettingsPage extends Component
      */
     public function saveBot(): void
     {
+        $this->sectionMustBeOpen('bot');
         abort_unless($this->user()->can('settings.manage'), 403);
 
         $data = $this->validate([
@@ -557,6 +594,7 @@ class SettingsPage extends Component
     /** BOT-003: pull the published pages' words into the assistant's knowledge. */
     public function syncBotKnowledge(): void
     {
+        $this->sectionMustBeOpen('bot');
         abort_unless($this->user()->can('settings.manage'), 403);
 
         $result = app(SyncBotKnowledge::class)->handle();
@@ -566,6 +604,7 @@ class SettingsPage extends Component
 
     public function addBotKnowledge(): void
     {
+        $this->sectionMustBeOpen('bot');
         abort_unless($this->user()->can('settings.manage'), 403);
 
         $data = $this->validate([
@@ -587,6 +626,7 @@ class SettingsPage extends Component
 
     public function deleteBotKnowledge(int $id): void
     {
+        $this->sectionMustBeOpen('bot');
         abort_unless($this->user()->can('settings.manage'), 403);
 
         BotKnowledge::query()->whereKey($id)->where('source', 'manual')->delete();

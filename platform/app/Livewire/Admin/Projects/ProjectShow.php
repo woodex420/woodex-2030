@@ -417,6 +417,7 @@ class ProjectShow extends Component
 
     public function toggleConsent(bool $consent): void
     {
+        abort_unless(Modules::enabled('website'), 404);
         $this->authorize('update', $this->project);
 
         $this->project->forceFill(['case_study_consent' => $consent])->save();
@@ -426,6 +427,8 @@ class ProjectShow extends Component
     /** A finished job becomes a draft portfolio page for a person to write up (PRJ-008). */
     public function draftCaseStudy(): void
     {
+        // A page of the public website: there is none to write while that module is switched off.
+        abort_unless(Modules::enabled('website'), 404);
         $this->authorize('update', $this->project);
         abort_unless($this->user()->can('website.edit'), 403);
 

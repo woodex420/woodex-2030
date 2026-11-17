@@ -332,7 +332,10 @@
                 @endif
             </x-admin.card>
 
-            {{-- With the client's consent, a finished job becomes a portfolio page for a person to write (PRJ-008) --}}
+            {{-- With the client's consent, a finished job becomes a portfolio page for a person to write (PRJ-008).
+                 A case study is a page of the public website: while that module is off there is no site to carry
+                 it, and the draft would be written from the Interior studio's template (list line T-034). --}}
+            @if (\App\Support\Modules::enabled('website'))
             <x-admin.card title="Case study">
                 @can('update', $project)
                     <label class="flex items-start gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
@@ -365,6 +368,7 @@
                     @endcan
                 @endcan
             </x-admin.card>
+            @endif
 
             {{-- Invoices against this project --}}
             <x-admin.card title="Invoices ({{ $project->invoices->count() }})" :padding="false">

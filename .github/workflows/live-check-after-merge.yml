@@ -12,6 +12,8 @@ on:
     branches: ["main"]
 permissions:
   contents: read
+  # The check that is called opens an issue when it fails; a called workflow gets no more than its caller has.
+  issues: write
 jobs:
   wait:
     name: Give Vercel time to build

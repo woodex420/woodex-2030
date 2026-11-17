@@ -399,7 +399,13 @@ try {
     const target = await openPglite(path.join(oldRoot, "pglite"));
     const applied = await applyFullSchema(target);
     await target.close();
-    same(applied.applied, ["019_catalogue.sql"], "migration 019 applies to the database that holds data");
+    /* Everything after 018 is applied, in order. 019 is the one this suite is
+       about; what follows it — 020 locks every table with row-level security —
+       is applied to the same database, so the lines below also say that the
+       API still serves its catalogue as the owner of locked tables. */
+    const after018 = fs.readdirSync(path.join(ROOT, "scripts", "migrations")).filter((name) => /^\d{3}_.+\.sql$/.test(name) && Number(name.slice(0, 3)) > 18).sort();
+    same(applied.applied, after018, "migration 019, and each one after it, applies to the database that holds data");
+    same(applied.applied[0], "019_catalogue.sql", "…and 019 is the first of them");
     old = await spawnApi({ tempRoot: oldRoot });
     children.push(old);
     oldApi = client(await baseUrlOf(old));
