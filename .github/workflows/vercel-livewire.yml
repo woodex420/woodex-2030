@@ -77,7 +77,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
-      VERCEL_PHP: ${{ runner.temp }}/vercel-php/node_modules
       COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
       E2E_REQUIRED: '1'
       OS_STRICT: '1'
@@ -109,6 +108,7 @@ jobs:
       - name: "The demo as it is deployed: every screen, then both journeys (the client has a page of their own)"
         working-directory: platform
         run: |
+          export VERCEL_PHP="$RUNNER_TEMP/vercel-php/node_modules"
           WOODEX_INSTALL=1 setsid bash tools/vercel/serve-demo.sh 8191 > "$RUNNER_TEMP/demo.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/demo.pid"
           for attempt in $(seq 1 120); do
@@ -124,6 +124,7 @@ jobs:
       - name: "The product as it ships: both journeys again, with the client's pages off"
         working-directory: platform
         run: |
+          export VERCEL_PHP="$RUNNER_TEMP/vercel-php/node_modules"
           WOODEX_MODULES=lead_api setsid bash tools/vercel/serve-demo.sh 8191 > "$RUNNER_TEMP/shipped.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/shipped.pid"
           for attempt in $(seq 1 120); do
