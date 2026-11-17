@@ -227,6 +227,9 @@ class SettingsPage extends Component
 
         $data = $this->validate([
             'sales.quote_validity_days' => ['required', 'integer', 'between:1,365'],
+            // Without a rule a field is not among the checked values, and the box was then saved as "off" every
+            // time this screen was saved, ticked or not (defect D-030).
+            'sales.quote_follow_ups_enabled' => ['boolean'],
             'sales.quote_follow_up_days' => ['required', 'integer', 'between:1,60'],
             'sales.quote_expiry_warning_days' => ['required', 'integer', 'between:1,60'],
             'sales.round_totals_to_rupee' => ['boolean'],

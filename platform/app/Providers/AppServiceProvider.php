@@ -45,6 +45,7 @@ use App\Domain\Sales\Models\RecurringInvoice;
 use App\Domain\Sales\Policies\InvoicePolicy;
 use App\Domain\Sales\Policies\PaymentPolicy;
 use App\Domain\Sales\Policies\QuotePolicy;
+use App\Domain\System\Actions\RecordSettingsChange;
 use App\Domain\System\Models\ChangeRequest;
 use App\Domain\Website\Models\Media;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -70,6 +71,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
+use Spatie\LaravelSettings\Events\SavingSettings;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -187,6 +189,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Re-applied on every Livewire update request, not only on the first page load.
         Livewire::addPersistentMiddleware([EnsureUserIsActive::class]);
+
+        // Every saved setting leaves a row in the list of changes (T-067).
+        Event::listen(SavingSettings::class, RecordSettingsChange::class);
 
         Event::listen(LeadCaptured::class, SendNewLeadAlerts::class);
         // Slice C: an estimator enquiry arrives with the three facts the rate book needs, so its draft
