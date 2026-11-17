@@ -33,6 +33,7 @@ use App\Integrations\WhatsApp\Actions\TestWhatsAppConnection;
 use App\Integrations\WhatsApp\WhatsAppCredentials;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Settings\IntegrationSettings;
+use App\Support\Modules;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -63,6 +64,25 @@ class Integrations extends Component
         'social' => 'Social',
         'data' => 'Data',
         'automation' => 'Automation',
+    ];
+
+    /**
+     * The optional module, or modules, a card serves. A card that is not named here belongs to the core (mail,
+     * outgoing webhooks, the plain connectors). A card whose every module is switched off is not listed, and
+     * what it could do answers "not found": this screen is open, the module is not (list line T-034).
+     * `google_workspace` is the connection behind the two Workspace cards.
+     */
+    private const MODULES_OF = [
+        'telegram' => ['telegram'],
+        'whatsapp' => ['whatsapp'],
+        'google_account' => ['google'],
+        'gmail' => ['google'],
+        'google_drive' => ['google'],
+        'google_workspace' => ['google'],
+        'facebook_page' => ['marketing'],
+        'website' => ['lead_api'],
+        'turnstile' => ['lead_api', 'quote_requests', 'legacy_bridge'],
+        'mcp' => ['mcp_bridge'],
     ];
 
     #[Url(except: '')]
@@ -97,12 +117,14 @@ class Integrations extends Component
 
     public function checkTelegramConfiguration(): void
     {
+        $this->mustBeOffered('telegram');
         abort_unless($this->user()->canUseTelegram() && $this->user()->can('integrations.manage'), 403);
         $this->showTelegramConfiguration = true;
     }
 
     public function reloadTelegramConfiguration(): void
     {
+        $this->mustBeOffered('telegram');
         abort_unless($this->user()->canUseTelegram() && $this->user()->can('integrations.manage'), 403);
 
         try {
@@ -128,6 +150,7 @@ class Integrations extends Component
 
     public function checkTelegramConnection(TelegramGateway $telegram): void
     {
+        $this->mustBeOffered('telegram');
         abort_unless($this->user()->canUseTelegram() && $this->user()->can('integrations.manage'), 403);
 
         if (! $telegram->isConfigured() || blank(config('services.telegram.webhook_secret'))) {
@@ -153,6 +176,7 @@ class Integrations extends Component
 
     public function openGoogleSetup(): void
     {
+        $this->mustBeOffered('google_account');
         abort_unless($this->user()->can('integrations.manage'), 403);
         $this->showGoogleSetup = true;
     }
@@ -199,6 +223,7 @@ class Integrations extends Component
 
     public function openConnector(string $key, ConnectorManager $manager): void
     {
+        $this->mustBeOffered($key);
         abort_unless($this->user()->can('integrations.manage'), 403);
         abort_unless($this->user()->hasRole('owner'), 403);
         $connector = $manager->connector($key);
@@ -219,6 +244,7 @@ class Integrations extends Component
 
     public function connectConnector(ConnectorManager $manager): void
     {
+        $this->mustBeOffered($this->connectorKey);
         abort_unless($this->user()->hasRole('owner') && $this->user()->can('integrations.manage'), 403);
         abort_unless($manager->connector($this->connectorKey)->mode() === 'token', 404);
 
@@ -238,6 +264,7 @@ class Integrations extends Component
 
     public function checkConnector(string $key, ConnectorManager $manager): void
     {
+        $this->mustBeOffered($key);
         abort_unless($this->user()->can('integrations.manage'), 403);
         $result = $manager->check($key);
         $this->connectorResult = ['key' => $key, ...$result];
@@ -253,7 +280,7 @@ class Integrations extends Component
         $failed = 0;
 
         foreach ($manager->connectors() as $connector) {
-            if ($manager->connection($connector->key()) === null) {
+            if (! $this->offered($connector->key()) || $manager->connection($connector->key()) === null) {
                 continue;
             }
 
@@ -282,12 +309,14 @@ class Integrations extends Component
 
     public function openMcpSetup(): void
     {
+        $this->mustBeOffered('mcp');
         abort_unless($this->user()->can('integrations.manage'), 403);
         $this->showMcpSetup = true;
     }
 
     public function createBridgeKey(IssueMcpToken $issue): void
     {
+        $this->mustBeOffered('mcp');
         try {
             $this->newBridgeToken = $issue->handle($this->user(), $this->bridgePassword,
                 $this->bridgeName, $this->bridgeAbilities, $this->bridgeDays);
@@ -306,6 +335,7 @@ class Integrations extends Component
 
     public function openDetails(string $key): void
     {
+        $this->mustBeOffered($key);
         abort_unless($this->user()->can('integrations.manage'), 403);
         abort_if($key === 'telegram' && ! $this->user()->canUseTelegram(), 403);
         $this->detailKey = $key;
@@ -407,6 +437,7 @@ class Integrations extends Component
 
     public function testTelegram(TelegramGateway $telegram): void
     {
+        $this->mustBeOffered('telegram');
         abort_unless($this->user()->canUseTelegram() && $this->user()->can('integrations.manage'), 403);
         $chatId = $this->user()->routeNotificationForTelegram();
 
@@ -428,6 +459,7 @@ class Integrations extends Component
 
     public function setTelegramWebhook(TelegramGateway $telegram): void
     {
+        $this->mustBeOffered('telegram');
         abort_unless($this->user()->canUseTelegram() && $this->user()->can('integrations.manage'), 403);
         $secret = (string) config('services.telegram.webhook_secret');
 
@@ -445,6 +477,7 @@ class Integrations extends Component
     /** Does Meta recognise this token and number? (WAP-001) */
     public function testWhatsApp(TestWhatsAppConnection $test): void
     {
+        $this->mustBeOffered('whatsapp');
         abort_unless($this->user()->can('integrations.manage'), 403);
 
         $this->whatsappStatus = $test->handle();
@@ -796,6 +829,20 @@ class Integrations extends Component
         ];
     }
 
+    /** Whether the card, or the connection, of this key belongs to something that is switched on. */
+    private function offered(string $key): bool
+    {
+        $modules = self::MODULES_OF[$key] ?? null;
+
+        return $modules === null || array_filter($modules, Modules::enabled(...)) !== [];
+    }
+
+    /** Stops an action that belongs to a switched-off module, as its routes are stopped. */
+    private function mustBeOffered(string $key): void
+    {
+        abort_unless($this->offered($key), 404);
+    }
+
     public function render(): View
     {
         $manager = app(ConnectorManager::class);
@@ -812,14 +859,16 @@ class Integrations extends Component
         $activeBridgeCount = McpAccessToken::query()->whereNull('revoked_at')->where('expires_at', '>', now())->count();
         $providers = $this->providers($manager, $credentials, $connections, $googleConnection, $activeBridgeCount);
         $telegramAllowed = $this->user()->canUseTelegram();
-        $providers = array_values(array_filter($providers, fn (array $provider): bool => $provider['key'] !== 'telegram' || $telegramAllowed));
+        $providers = array_values(array_filter($providers, fn (array $provider): bool => $this->offered($provider['key'])
+            && ($provider['key'] !== 'telegram' || $telegramAllowed)));
         $detail = collect($providers)->firstWhere('key', $this->detailKey);
         $filtered = array_values(array_filter($providers, fn (array $provider): bool => ($this->appCategory === 'all' || $provider['group'] === $this->appCategory)
             && ($this->appSearch === '' || str_contains(strtolower($provider['name'].' '.$provider['benefit']), strtolower($this->appSearch)))));
 
         return view('livewire.admin.system.integrations', [
             'providers' => $filtered,
-            'groups' => self::GROUPS,
+            // A group is named only while one of its cards is offered.
+            'groups' => array_intersect_key(self::GROUPS, array_flip(array_column($providers, 'group'))),
             'detail' => $detail,
             'connectorForm' => collect($connectors)->firstWhere('key', $this->connectorKey),
             'googleConnection' => $googleConnection,

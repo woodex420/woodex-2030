@@ -67,7 +67,7 @@
         {
           "text": "Unit/API/browser tests pass.",
           "state": "partly",
-          "evidence": "Unit and feature tests pass: 2,280 on 17 November, and the same suite on MySQL 8.4 in CI. In a browser the journeys and a crawl of every screen pass; which of the eleven flows of document 10 they press is in §3.",
+          "evidence": "Unit and feature tests pass: 2,359 on 17 November, and the same suite on MySQL 8.4 in CI. In a browser both journeys and a crawl of every screen as four roles pass, by hand and, since 17 November, in CI on every push that touches the admin (`.github/workflows/vercel-livewire.yml`); which of the eleven flows of document 10 they press is in §3.",
           "lines": [
             "T-165",
             "T-080"
@@ -162,7 +162,7 @@
         {
           "text": "Security and resource checks passed.",
           "state": "open",
-          "evidence": "The outside security check exists and passes for the hosted workspace on Vercel (`.github/workflows/vercel-live-check.yml`); it has not been pointed at Hostinger, and nothing has been measured against the plan's limits.",
+          "evidence": "The outside security check exists and passes for the hosted workspace on Vercel (`.github/workflows/vercel-live-check.yml`); it has not been pointed at Hostinger, and nothing has been measured against the plan's limits. Published advisories for the packages are asked of npm and Composer when a lock file changes and every week (`.github/workflows/audit.yml`); none that blocks is open.",
           "lines": [
             "T-139",
             "T-142",
@@ -190,9 +190,9 @@
         {
           "text": "Migration snapshot.",
           "state": "open",
-          "evidence": "No snapshot has been taken for a move. What the old database held on 17 November was read and is written down: 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment.",
+          "evidence": "No snapshot has been taken for a move. What the old database held on 17 November was read and is written down: 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment. Since 17 November a new preview of the shop no longer reaches that database; the previews built before still do, until they are deleted.",
           "lines": [
-            "T-164",
+            "T-188",
             "T-180"
           ]
         },
@@ -208,7 +208,7 @@
         {
           "text": "Monitoring and support plan.",
           "state": "partly",
-          "evidence": "Both sites are asked from outside after every merge and every six hours (`.github/workflows/live-check-after-merge.yml`, `.github/workflows/vercel-live-check.yml`); a failure mails the repository's owner. No error tracker, no runbook.",
+          "evidence": "Both sites are asked from outside after every merge, and a timer for every six hours is in the workflow (`.github/workflows/live-check-after-merge.yml`, `.github/workflows/vercel-live-check.yml`); a failure opens an issue, proved with issue #38 on 17 November. GitHub had not yet started the timer by the afternoon of 17 November. No error tracker, no runbook.",
           "lines": [
             "T-138",
             "T-142",

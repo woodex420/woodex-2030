@@ -12,9 +12,11 @@
                     <x-admin.button variant="secondary" icon="document">PDF</x-admin.button>
                 </a>
             @endif
-            <a href="{{ $portal }}" target="_blank" rel="noopener">
-                <x-admin.button variant="secondary" icon="link">Client link</x-admin.button>
-            </a>
+            @if ($portal)
+                <a href="{{ $portal }}" target="_blank" rel="noopener">
+                    <x-admin.button variant="secondary" icon="link">Client link</x-admin.button>
+                </a>
+            @endif
             @if ($whatsapp)
                 <a href="{{ $whatsapp }}" target="_blank" rel="noopener">
                     <x-admin.button variant="secondary" icon="chat">Send on WhatsApp</x-admin.button>
@@ -47,7 +49,7 @@
                       :tone="(int) $invoice->balance_minor > 0 ? 'warning' : 'success'"
                       :hint="$invoice->due_date ? 'Due '.$invoice->due_date->format('j M Y') : null" />
         <x-admin.stat label="Status" :value="$invoice->status->label()" icon="check" :tone="$invoice->status->color()"
-                      :hint="$invoice->kind->label().' · issued '.($invoice->issue_date?->format('j M Y') ?? '—')" />
+                      :hint="$invoice->kind->label().($invoice->status === \App\Domain\Sales\Enums\InvoiceStatus::Draft ? ' · not issued yet, dated ' : ' · issued ').($invoice->issue_date?->format('j M Y') ?? '—')" />
     </div>
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -253,10 +255,17 @@
                             <dd class="truncate">{{ $invoice->contact->email }}</dd>
                         </div>
                     @endif
-                    <div>
-                        <dt class="text-gray-500">Client link</dt>
-                        <dd><a href="{{ $portal }}" target="_blank" rel="noopener" class="break-all text-brand-600 hover:underline dark:text-brand-400">{{ $portal }}</a></dd>
-                    </div>
+                    @if ($portal)
+                        <div>
+                            <dt class="text-gray-500">Client link</dt>
+                            <dd><a href="{{ $portal }}" target="_blank" rel="noopener" class="break-all text-brand-600 hover:underline dark:text-brand-400">{{ $portal }}</a></dd>
+                        </div>
+                    @elseif ($invoice->status !== \App\Domain\Sales\Enums\InvoiceStatus::Draft)
+                        <div>
+                            <dt class="text-gray-500">Reaching the client</dt>
+                            <dd>The client pages are switched off on this site: give the client the PDF.</dd>
+                        </div>
+                    @endif
                     @if ($invoice->quote)
                         <div>
                             <dt class="text-gray-500">Quotation</dt>

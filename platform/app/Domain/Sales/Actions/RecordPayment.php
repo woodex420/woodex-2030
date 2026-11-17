@@ -129,6 +129,9 @@ final class RecordPayment
 
             $payment->forceFill(['receipt_pdf_path' => $path])->save();
 
+            $billing = app(LogBillingActivity::class);
+            $billing->payment($payment, 'received', $by, "Payment received: receipt {$payment->receipt_number}, ".$billing->against($payment).'.');
+
             $payment->loadMissing('contact');
 
             if (filled($payment->contact?->email)) {

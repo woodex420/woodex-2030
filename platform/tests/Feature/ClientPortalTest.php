@@ -25,6 +25,7 @@ use App\Domain\Sales\Services\QuoteLinks;
 use App\Domain\Website\Enums\PageStatus;
 use App\Domain\Website\Models\Media;
 use App\Domain\Website\Models\Page;
+use App\Livewire\Admin\Projects\ClientPortalIndex;
 use App\Livewire\Admin\Projects\ProjectShow;
 use App\Models\User;
 use App\Settings\BusinessSettings;
@@ -272,4 +273,57 @@ it('asks for a code only for people who have a project with us', function () {
 it('keeps the review request quiet until the client has signed', function () {
     expect(app(RequestClientReviews::class)->handle())->toBe([])
         ->and($this->project->fresh()->review_requested_at)->toBeNull();
+});
+
+it('lists each job with its portal link, and a Copy button whose script a browser can read', function () {
+    $html = Livewire::actingAs($this->pm)->test(ClientPortalIndex::class)
+        ->assertOk()
+        ->assertSee($this->project->code)
+        ->html();
+
+    // The button once carried `@js($links[$project->id])` as text: a directive is not compiled inside the tag of
+    // a component. A browser reported "Invalid or unexpected token" and the button did nothing.
+    expect($html)->not->toContain('@js(')
+        ->not->toContain('$links[')
+        ->toContain('navigator.clipboard?.writeText($el.dataset.link)');
+
+    preg_match('/data-link="([^"]+)"/', $html, $found);
+    $link = html_entity_decode($found[1] ?? '');
+
+    expect($link)->toStartWith('http')->toContain('/p/'.$this->project->public_id);
+    $this->get($link)->assertOk()->assertSee($this->project->name);
+});
+
+it('gives the client a link that opens: on the project, in the e-mail, on WhatsApp and with the review request', function () {
+    // The page checks a signature made over the path. These links were signed over the whole address, so each
+    // of them answered "No access" to the client it was sent to.
+    $absolute = PortalLinks::absolute($this->project);
+    expect($absolute)->toStartWith('http');
+    $this->get($absolute)->assertOk();
+
+    // What the project page shows, and the "Open" link of the portal screen.
+    $shown = Livewire::actingAs($this->pm)->test(ProjectShow::class, ['project' => $this->project])->viewData('portalUrl');
+    $this->get($shown)->assertOk();
+
+    // The e-mail.
+    Livewire::actingAs($this->pm)->test(ProjectShow::class, ['project' => $this->project])->call('sendPortalLink');
+    $mailed = null;
+    Mail::assertQueued(ProjectMail::class, function (ProjectMail $mail) use (&$mailed): bool {
+        $mailed = $mail->url;
+
+        return true;
+    });
+    $this->get((string) $mailed)->assertOk();
+
+    // The WhatsApp message carries the same kind of link.
+    parse_str((string) parse_url(PortalLinks::whatsappShare($this->project), PHP_URL_QUERY), $share);
+    preg_match('~https?://\S+~', (string) ($share['text'] ?? ''), $inMessage);
+    $this->get($inMessage[0] ?? '/missing')->assertOk();
+
+    // The link in the review request.
+    $this->get(app(RequestClientReviews::class)->portalLink($this->project))->assertOk();
+
+    // A link that somebody changed is still refused: another expiry date, or another signature.
+    $this->get(preg_replace('/expires=\d+/', 'expires=4102444800', $absolute))->assertForbidden();
+    $this->get(substr($absolute, 0, -1).(str_ends_with($absolute, '0') ? '1' : '0'))->assertForbidden();
 });

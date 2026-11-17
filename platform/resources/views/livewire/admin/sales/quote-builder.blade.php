@@ -32,6 +32,8 @@
                 <x-admin.button icon="send" wire:click="openSend">Send</x-admin.button>
             @elseif ($portalUrl && $canSend)
                 <x-admin.button icon="link" wire:click="$set('showSend', true)">Share link</x-admin.button>
+            @elseif (! $clientPages && $sentPdfUrl && $canSend && in_array($quote->status->value, ['sent', 'viewed'], true))
+                <x-admin.button variant="secondary" icon="send" wire:click="$set('showSend', true)">Give to client</x-admin.button>
             @endif
             @if ($editable && $quote->sent_at === null)
             @can('delete', $quote)
@@ -101,13 +103,45 @@
         </div>
     @elseif ($status === \App\Domain\Sales\Enums\QuoteStatus::Accepted)
         <div class="mb-5 rounded-xl border border-success-500/30 bg-success-50 px-4 py-3 text-theme-sm text-success-800 dark:bg-success-500/10 dark:text-success-300" role="status">
-            Accepted online by <strong>{{ $quote->accepted_name }}</strong> on {{ $quote->accepted_at?->timezone('Asia/Karachi')->format('j M Y, g:i a') }}. {{ ($quote->meta['furniture_billing'] ?? '') === 'full' ? 'Use Create full invoice to bill this Furniture sale.' : 'The advance invoice was raised with the project.' }}
+            @php
+                $firstInvoice = $invoices->last();
+                $billingLine = match (true) {
+                    $firstInvoice !== null && ($quote->meta['furniture_billing'] ?? '') === 'full' => "Invoice {$firstInvoice->number} bills this sale in full.",
+                    $firstInvoice !== null => 'The advance invoice was raised with the project.',
+                    $quote->business_line->value === 'furniture' && $canInvoice => 'Use Create full invoice to bill this Furniture sale.',
+                    $quote->business_line->value === 'furniture' => 'Not billed yet: Accounts bills this sale in full from here, with Create full invoice.',
+                    default => 'No payment stage falls due on acceptance, so no invoice was raised.',
+                };
+            @endphp
+            Accepted {{ $answer['how'] ?? 'online' }} by <strong>{{ $quote->accepted_name }}</strong> on {{ $quote->accepted_at?->timezone('Asia/Karachi')->format('j M Y, g:i a') }}@if (($answer['by'] ?? null) !== null), recorded by {{ $answer['by'] }}@endif. {{ $billingLine }}
+            @if (($answer['note'] ?? null) !== null)<span class="mt-1 block italic">“{{ $answer['note'] }}”</span>@endif
+        </div>
+    @elseif ($status === \App\Domain\Sales\Enums\QuoteStatus::Declined)
+        <div class="mb-5 rounded-xl border border-error-500/30 bg-error-50 px-4 py-3 text-theme-sm text-error-700 dark:bg-error-500/10 dark:text-error-300" role="status">
+            <p class="font-medium">The client declined this quotation{{ $quote->declined_at ? ' on '.$quote->declined_at->timezone('Asia/Karachi')->format('j M Y') : '' }}@if (($answer['by'] ?? null) !== null) · recorded by {{ $answer['by'] }}@endif</p>
+            @if (($answer['reason'] ?? null) !== null)<p class="italic">“{{ $answer['reason'] }}”</p>@endif
+            <p class="mt-1">{{ $canRevise ? 'Use “Revise” to prepare a changed offer; the client keeps this one until the new one is sent.' : 'It can no longer be edited.' }}</p>
         </div>
     @elseif ($status === \App\Domain\Sales\Enums\QuoteStatus::ChangesRequested && $clientComment)
         <div class="mb-5 rounded-xl border border-warning-500/30 bg-warning-50 px-4 py-3 text-theme-sm text-warning-800 dark:bg-warning-500/10 dark:text-warning-300" role="status">
             <p class="font-medium">The client asked for changes:</p>
             <p class="italic">“{{ $clientComment }}”</p>
             <p class="mt-1">Edit the lines below, then Send: the client gets the next revision on the same link.</p>
+            @if ($canAnswer)
+                <p class="mt-2"><x-admin.button variant="secondary" size="sm" wire:click="openAnswer('declined')">Client declined</x-admin.button></p>
+            @endif
+        </div>
+    @elseif ($canAnswer && ! $quote->acceptance_hint_at && in_array($status, [\App\Domain\Sales\Enums\QuoteStatus::Sent, \App\Domain\Sales\Enums\QuoteStatus::Viewed], true))
+        {{-- With the client: the next thing that happens is the client's answer, and somebody has to write it down. --}}
+        <div class="mb-5 flex flex-col gap-3 rounded-xl border border-info-500/30 bg-info-50 px-4 py-3 text-theme-sm text-info-700 md:flex-row md:items-center md:justify-between dark:bg-info-500/10" role="status">
+            <div>
+                <p class="font-medium">With the client{{ $quote->sent_at ? ' since '.$quote->sent_at->timezone('Asia/Karachi')->format('j M Y') : '' }}: record the answer when it comes</p>
+                <p>It can no longer be edited.{{ $canRevise ? ' Use “Revise” to prepare a changed version.' : '' }}</p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+                <x-admin.button variant="secondary" size="sm" wire:click="openAnswer('declined')">Client declined</x-admin.button>
+                <x-admin.button size="sm" icon="check-circle" wire:click="openAnswer('accepted')">Client accepted</x-admin.button>
+            </div>
         </div>
     @elseif ($ro)
         <div class="mb-5 rounded-xl border border-info-500/30 bg-info-50 px-4 py-3 text-theme-sm text-info-700 dark:bg-info-500/10">
@@ -613,7 +647,9 @@
                                     @can('view', $invoice)
                                         <a href="{{ route('admin.invoices.pdf', $invoice) }}" x-on:click.prevent="$dispatch('document-preview', { url: $el.href })" class="text-theme-xs text-brand-600 hover:underline dark:text-brand-400">PDF</a>
                                         @if ($invoice->status !== \App\Domain\Sales\Enums\InvoiceStatus::Draft)
-                                            <a href="{{ \App\Domain\Sales\Services\InvoiceLinks::portal($invoice) }}" target="_blank" rel="noopener" class="text-theme-xs text-brand-600 hover:underline dark:text-brand-400">Client link</a>
+                                            @if ($clientPage = \App\Domain\Sales\Services\InvoiceLinks::clientPage($invoice))
+                                                <a href="{{ $clientPage }}" target="_blank" rel="noopener" class="text-theme-xs text-brand-600 hover:underline dark:text-brand-400">Client link</a>
+                                            @endif
                                             @if ($share = \App\Domain\Sales\Services\InvoiceLinks::whatsappShare($invoice))
                                                 <a href="{{ $share }}" target="_blank" rel="noopener" class="text-theme-xs text-brand-600 hover:underline dark:text-brand-400">WhatsApp</a>
                                             @endif
@@ -765,8 +801,13 @@
     @endif
 
     @if ($showSend)
-        <x-admin.modal name="showSend" :title="$sendable ? 'Send '.$quote->label() : 'Share '.$quote->label()" width="max-w-xl"
-                       :description="$sendable ? 'A frozen copy (PDF + client page) is made now; later changes become the next revision.' : 'The link always shows the latest sent version.'">
+        <x-admin.modal name="showSend" :title="$sendable ? 'Send '.$quote->label() : ($clientPages ? 'Share '.$quote->label() : 'Give '.$quote->label().' to the client')" width="max-w-xl"
+                       :description="match (true) {
+                           $sendable && $clientPages => 'A frozen copy (PDF + client page) is made now; later changes become the next revision.',
+                           $sendable => 'A frozen copy (PDF) is made now; later changes become the next revision.',
+                           $clientPages => 'The link always shows the latest sent version.',
+                           default => 'The client pages are switched off on this site, so there is no link: the PDF is what the client gets.',
+                       }">
             @if ($sendable)
                 @if ($sendProblems !== [])
                     <div class="rounded-xl border border-error-500/30 bg-error-50 px-4 py-3 text-theme-sm text-error-700" role="alert">
@@ -790,13 +831,17 @@
                     </dl>
                     <label class="mt-4 flex items-start gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
                         <input type="checkbox" wire:model="sendEmail" @disabled(blank($contact->email)) class="mt-0.5 size-4 rounded border-gray-300">
-                        <span>Also email the PDF and link{{ $contact->email ? ' to '.$contact->email : ' (the client has no email address)' }}</span>
+                        <span>Also email the PDF{{ $clientPages ? ' and link' : '' }}{{ $contact->email ? ' to '.$contact->email : ' (the client has no email address)' }}</span>
                     </label>
                     <label class="mt-2 flex items-start gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
                         <input type="checkbox" wire:model="sendWhatsapp" @disabled(! $this->whatsappReady()) class="mt-0.5 size-4 rounded border-gray-300">
-                        <span>Send the link on WhatsApp{{ $this->whatsappReady() ? ' to '.$contact->whatsappNumber() : ' (no WhatsApp number, or the API is not connected)' }}</span>
+                        <span>Send the link on WhatsApp{{ $this->whatsappReady() ? ' to '.$contact->whatsappNumber() : ($clientPages ? ' (no WhatsApp number, or the API is not connected)' : ' (there is no link while the client pages are switched off)') }}</span>
                     </label>
-                    <p class="mt-2 text-theme-xs text-gray-500">The link always opens the latest version, so the client can accept, ask for a change or ask a question from the same page. Inside 24 hours of the client's last message it is sent as a normal message; after that WhatsApp only allows an approved template.</p>
+                    @if ($clientPages)
+                        <p class="mt-2 text-theme-xs text-gray-500">The link always opens the latest version, so the client can accept, ask for a change or ask a question from the same page. Inside 24 hours of the client's last message it is sent as a normal message; after that WhatsApp only allows an approved template.</p>
+                    @else
+                        <p class="mt-2 text-theme-xs text-gray-500">Nothing reaches the client by itself unless the e-mail is ticked. After this, download the PDF, give it to the client, and record their answer on this quotation.</p>
+                    @endif
                 @endif
                 @error('send')
                     <div class="mt-4 rounded-xl border border-error-500/30 bg-error-50 px-4 py-3 text-theme-sm text-error-700" role="alert">
@@ -805,6 +850,21 @@
                 @enderror
             @elseif ($portalUrl)
                 <x-admin.quote-share-links :portal-url="$portalUrl" :pdf-url="$sharedPdfUrl" :whatsapp-share="$whatsappShare" />
+            @elseif ($sentPdfUrl)
+                {{-- No client page: the frozen PDF is the document, and a person carries it. --}}
+                <ol class="list-decimal space-y-3 pl-5 text-theme-sm text-gray-700 dark:text-gray-300">
+                    <li>
+                        <p>Download the PDF of {{ $versions->first()->snapshot['label'] ?? $quote->label() }}, exactly as it was frozen.</p>
+                        <p class="mt-1.5"><x-admin.button variant="secondary" size="sm" icon="file" :href="$sentPdfUrl" download>Download the PDF</x-admin.button></p>
+                    </li>
+                    <li>
+                        <p>Give it to the client{{ $whatsappShare ? ': WhatsApp opens with a message ready, and you attach the PDF.' : ' by e-mail or by hand.' }}</p>
+                        @if ($whatsappShare)
+                            <p class="mt-1.5"><x-admin.button variant="secondary" size="sm" icon="whatsapp" :href="$whatsappShare" target="_blank" rel="noopener">Open WhatsApp</x-admin.button></p>
+                        @endif
+                    </li>
+                    <li>When the client answers, record it on this quotation: “Client accepted” or “Client declined”.</li>
+                </ol>
             @endif
             <x-slot:footer>
                 <x-admin.button variant="secondary" wire:click="$set('showSend', false)">{{ $sendable ? 'Cancel' : 'Close' }}</x-admin.button>
@@ -815,6 +875,49 @@
                         <x-admin.button icon="send" wire:click="send" wire:loading.attr="disabled">Send now</x-admin.button>
                     @endif
                 @endif
+            </x-slot:footer>
+        </x-admin.modal>
+    @endif
+
+    @if ($showAnswer)
+        <x-admin.modal name="showAnswer" submit="recordAnswer" width="max-w-xl"
+                       :title="($answerKind === 'declined' ? 'The client declined ' : 'The client accepted ').$quote->label()"
+                       description="Write down what the client told you. It goes on the client's timeline with your name.">
+            @if ($answerKind === 'declined')
+                <label for="answer-reason" class="wx-label">The reason the client gave</label>
+                <textarea id="answer-reason" wire:model="answerReason" rows="3" class="wx-input h-auto py-2" placeholder="For example: chose another supplier; the budget was cut."></textarea>
+                @error('answerReason')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror
+                <p class="mt-3 text-theme-xs text-gray-500">The quotation is marked Declined and can be revised and sent again. The lead stays where it is: mark it lost from the lead, with its own reason, if the client is gone.</p>
+            @else
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="answer-name" class="wx-label">Who accepted</label>
+                        <input id="answer-name" type="text" wire:model="answerName" class="wx-input" maxlength="160" autocomplete="off">
+                        @error('answerName')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label for="answer-channel" class="wx-label">How</label>
+                        <select id="answer-channel" wire:model="answerChannel" class="wx-input">
+                            @foreach ($answerChannels as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
+                        </select>
+                        @error('answerChannel')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+                <label for="answer-note" class="wx-label mt-4">Note (optional)</label>
+                <textarea id="answer-note" wire:model="answerNote" rows="2" class="wx-input h-auto py-2" placeholder="For example: the purchase order number, or what was agreed about delivery."></textarea>
+                @error('answerNote')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror
+                <dl class="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-4 text-theme-sm dark:bg-white/5">
+                    <div><dt class="text-theme-xs text-gray-500">Client</dt><dd class="font-medium">{{ $contact->name }}</dd></div>
+                    <div><dt class="text-theme-xs text-gray-500">Accepted total</dt><dd class="font-medium tabular-nums">{{ $money($quote->total_minor) }}</dd></div>
+                </dl>
+                <p class="mt-3 text-theme-xs text-gray-500">This cannot be undone. The quotation is frozen as accepted, the lead moves to Won, the contact becomes a client and a project is opened. {{ $quote->business_line->value === 'furniture' ? 'Billing stays a separate step: Create full invoice.' : 'A payment stage that falls due on acceptance is invoiced now.' }}</p>
+            @endif
+            @error('answer')
+                <div class="mt-4 rounded-xl border border-error-500/30 bg-error-50 px-4 py-3 text-theme-sm text-error-700" role="alert">{{ $message }}</div>
+            @enderror
+            <x-slot:footer>
+                <x-admin.button variant="secondary" type="button" wire:click="$set('showAnswer', false)">Cancel</x-admin.button>
+                <x-admin.button type="submit" :icon="$answerKind === 'declined' ? null : 'check-circle'" wire:loading.attr="disabled">{{ $answerKind === 'declined' ? 'Record as declined' : 'Record acceptance' }}</x-admin.button>
             </x-slot:footer>
         </x-admin.modal>
     @endif

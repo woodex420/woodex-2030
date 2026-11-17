@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main, "arena/**"]
-    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", ".github/workflows/vercel-livewire.yml"]
+    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", "scripts/os-screens.mjs", "scripts/os-notice.mjs", "scripts/os-journeys.mjs", "scripts/lib/browser.mjs", ".github/workflows/vercel-livewire.yml"]
   pull_request:
-    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", ".github/workflows/vercel-livewire.yml"]
+    paths: ["platform/**", "deploy/vercel-livewire/**", "scripts/package-vercel-livewire.mjs", "scripts/test-vercel-livewire-root.mjs", "scripts/os-screens.mjs", "scripts/os-notice.mjs", "scripts/os-journeys.mjs", "scripts/lib/browser.mjs", ".github/workflows/vercel-livewire.yml"]
 permissions:
   contents: read
 jobs:
@@ -67,3 +67,95 @@ jobs:
           COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
         run: bash tools/vercel/check-entry.sh --build --read-only
 
+  # What the two jobs above cannot see: whether the work gets done. A browser opens every screen as each of the four
+  # roles, then presses two journeys through: a working day, and the sale from the enquiry to the receipt, each part
+  # by the person who does it (master list T-167, T-080). Twice: on the demo as it is deployed, where the client
+  # has a page of their own, and on the product as it ships, where staff write the client's answer down.
+  # A step that is left out fails the run (OS_STRICT), and so does a missing browser (E2E_REQUIRED).
+  browser-on-vercel-runtime:
+    name: "A browser does the work on the rehearsal: every screen, a working day, the sale"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+      E2E_REQUIRED: '1'
+      OS_STRICT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: The scripts' packages and a browser
+        run: |
+          npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Fetch the builder that vercel.json names (PHP runtime and launcher)
+        run: |
+          builder="$(node -p "require('./platform/vercel.json').builds.find((build) => build.src === 'api/index.php').use")"
+          echo "Builder: $builder"
+          npm install --prefix "$RUNNER_TEMP/vercel-php" --no-audit --no-fund "$builder"
+      - name: Make /var/task writable (the function's folder on Vercel)
+        run: sudo mkdir -p /var/task && sudo chown "$(id -u):$(id -g)" /var/task
+      - name: Passwords for this run only
+        run: |
+          for name in WX_PW_OWNER WX_PW_MANAGER WX_PW_SALES WX_PW_ACCOUNTS; do
+            value="$(openssl rand -hex 16)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+      - name: "The demo as it is deployed: both journeys (the client has a page of their own), then every screen"
+        working-directory: platform
+        run: |
+          export VERCEL_PHP="$RUNNER_TEMP/vercel-php/node_modules"
+          WOODEX_INSTALL=1 setsid bash tools/vercel/serve-demo.sh 8191 > "$RUNNER_TEMP/demo.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/demo.pid"
+          for attempt in $(seq 1 120); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8191/admin/login)" = 200 ] && break
+            kill -0 "$(cat "$RUNNER_TEMP/demo.pid")" 2>/dev/null || { echo "The rehearsal stopped:"; tail -30 "$RUNNER_TEMP/demo.log"; exit 1; }
+            sleep 3
+          done
+          # The journeys go first, so that every screen is then opened with the records of a sale in it: a lead
+          # that was won, a quotation, an invoice, a payment, a project. Opened on the bare seed, the client portal
+          # screen passed although its "Copy" button broke the page as soon as one project existed (D-025).
+          # Both scripts run even when the first one fails, and the result is written on the run page as one line
+          # (scripts/os-notice.mjs): a failed run then says what failed without its log.
+          failed=0
+          node ../scripts/os-journeys.mjs --out "$RUNNER_TEMP/journeys-demo" || failed=1
+          node ../scripts/os-screens.mjs --out "$RUNNER_TEMP/screens" || failed=1
+          node ../scripts/os-notice.mjs "The demo as it is deployed" "$RUNNER_TEMP/journeys-demo" "$RUNNER_TEMP/screens"
+          grep -q 'the client gets a page of their own' "$RUNNER_TEMP/journeys-demo/journeys.json" || { echo "::error title=The demo as it is deployed::the client did not get a page of their own"; failed=1; }
+          kill -- "-$(cat "$RUNNER_TEMP/demo.pid")" 2>/dev/null || true
+          sleep 2
+          exit "$failed"
+      - name: "The product as it ships: both journeys again, with the client's pages off"
+        working-directory: platform
+        run: |
+          export VERCEL_PHP="$RUNNER_TEMP/vercel-php/node_modules"
+          WOODEX_MODULES=lead_api setsid bash tools/vercel/serve-demo.sh 8191 > "$RUNNER_TEMP/shipped.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/shipped.pid"
+          for attempt in $(seq 1 120); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8191/admin/login)" = 200 ] && break
+            kill -0 "$(cat "$RUNNER_TEMP/shipped.pid")" 2>/dev/null || { echo "The rehearsal stopped:"; tail -30 "$RUNNER_TEMP/shipped.log"; exit 1; }
+            sleep 3
+          done
+          failed=0
+          node ../scripts/os-journeys.mjs --out "$RUNNER_TEMP/journeys-shipped" || failed=1
+          node ../scripts/os-notice.mjs "The product as it ships" "$RUNNER_TEMP/journeys-shipped"
+          grep -q 'the client pages are off here' "$RUNNER_TEMP/journeys-shipped/journeys.json" || { echo "::error title=The product as it ships::the client's pages were not off in this run"; failed=1; }
+          kill -- "-$(cat "$RUNNER_TEMP/shipped.pid")" 2>/dev/null || true
+          exit "$failed"
+      - name: Keep what the browser saw
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-on-the-rehearsal
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/journeys-demo
+            ${{ runner.temp }}/journeys-shipped
+            ${{ runner.temp }}/screens/*.json
+            ${{ runner.temp }}/demo.log
+            ${{ runner.temp }}/shipped.log

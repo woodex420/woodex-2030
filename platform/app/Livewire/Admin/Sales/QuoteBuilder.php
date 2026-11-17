@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\Sales;
 use App\Domain\Sales\Actions\AcceptQuote;
 use App\Domain\Sales\Actions\CreateFurnitureInvoice;
 use App\Domain\Sales\Actions\DecideQuoteApproval;
+use App\Domain\Sales\Actions\DeclineQuote;
 use App\Domain\Sales\Actions\DeleteQuote;
 use App\Domain\Sales\Actions\DuplicateQuote;
 use App\Domain\Sales\Actions\LogQuoteEvent;
@@ -16,6 +17,7 @@ use App\Domain\Sales\Actions\ReviseQuote;
 use App\Domain\Sales\Actions\SaveQuoteAsTemplate;
 use App\Domain\Sales\Actions\SendQuote;
 use App\Domain\Sales\Actions\SendQuoteByWhatsApp;
+use App\Domain\Sales\Enums\AcceptanceChannel;
 use App\Domain\Sales\Enums\DiscountType;
 use App\Domain\Sales\Enums\MilestonePlanKey;
 use App\Domain\Sales\Enums\QuoteStatus;
@@ -24,7 +26,9 @@ use App\Domain\Sales\Exceptions\QuoteActionDenied;
 use App\Domain\Sales\Exceptions\QuoteLocked;
 use App\Domain\Sales\Models\CatalogItem;
 use App\Domain\Sales\Models\DescriptionTemplate;
+use App\Domain\Sales\Models\Invoice;
 use App\Domain\Sales\Models\Quote;
+use App\Domain\Sales\Models\QuoteEvent;
 use App\Domain\Sales\Models\QuoteItem;
 use App\Domain\Sales\Models\QuoteMilestone;
 use App\Domain\Sales\Models\QuoteSection;
@@ -131,6 +135,19 @@ class QuoteBuilder extends Component
     public bool $showReject = false;
 
     public string $rejectReason = '';
+
+    // The client's answer, recorded by a member of staff: a yes or a no that came by phone, in person, by e-mail…
+    public bool $showAnswer = false;
+
+    public string $answerKind = 'accepted';
+
+    public string $answerName = '';
+
+    public string $answerChannel = 'phone';
+
+    public string $answerNote = '';
+
+    public string $answerReason = '';
 
     public function mount(Quote $quote): void
     {
@@ -549,9 +566,13 @@ class QuoteBuilder extends Component
 
         unset($this->quote);
         $this->fillForm();
-        $this->toast($delivery === null
-            ? "{$version->snapshot['label']} sent. Share the link with the client."
-            : $delivery->summary((string) $version->snapshot['label']));
+        $this->toast(match (true) {
+            $delivery !== null => $delivery->summary((string) $version->snapshot['label']),
+            QuoteLinks::clientPagesOpen() => "{$version->snapshot['label']} sent. Share the link with the client.",
+            // Nothing left this system by itself, unless the e-mail was ticked: say what there is to do.
+            $this->sendEmail && filled($this->quote->contact?->email) => "{$version->snapshot['label']} is issued and its PDF is on its way by e-mail.",
+            default => "{$version->snapshot['label']} is issued. Give the client the PDF, then record the answer here.",
+        });
     }
 
     /** The client's reply sounded like a yes, and the team confirms it (D-112). */
@@ -579,6 +600,81 @@ class QuoteBuilder extends Component
         $this->toast(($quote->meta['furniture_billing'] ?? '') === 'full' ? "{$quote->label()} accepted. Use Create full invoice to bill this Furniture sale." : "{$quote->label()} accepted. The project is open and the advance invoice is raised.");
     }
 
+    /**
+     * The client answered some other way than on their own page — a call, a visit, an e-mail, a signed copy — and
+     * a member of staff records it. While the client's page is switched off this is the only way a sent quotation
+     * becomes accepted or declined.
+     */
+    public function openAnswer(string $kind = 'accepted'): void
+    {
+        $this->authorize('accept', $this->quote);
+
+        $this->resetValidation();
+        $this->answerKind = $kind === 'declined' ? 'declined' : 'accepted';
+        $this->answerName = (string) $this->quote->contact->name;
+        $this->answerChannel = AcceptanceChannel::Phone->value;
+        $this->answerNote = '';
+        $this->answerReason = '';
+        $this->showAnswer = true;
+    }
+
+    public function recordAnswer(): void
+    {
+        $this->authorize('accept', $this->quote);
+
+        $declined = $this->answerKind === 'declined';
+        $data = $this->validate($declined
+            ? ['answerReason' => ['required', 'string', 'min:4', 'max:500']]
+            : [
+                'answerName' => ['required', 'string', 'min:2', 'max:160'],
+                'answerChannel' => ['required', 'string', 'in:'.implode(',', AcceptanceChannel::values())],
+                'answerNote' => ['nullable', 'string', 'max:500'],
+            ], [
+                'answerReason.required' => 'Give the reason the client gave, in a few words.',
+                'answerReason.min' => 'Give the reason the client gave, in a few words.',
+                'answerName.required' => 'Name the person who accepted.',
+                'answerName.min' => 'Name the person who accepted.',
+            ]);
+
+        try {
+            $quote = $declined
+                ? app(DeclineQuote::class)->handle($this->quote->refresh(), $this->user(), $data['answerReason'])
+                : app(AcceptQuote::class)->handle(
+                    $this->quote->refresh(),
+                    $data['answerName'],
+                    $this->quote->contact->whatsappNumber(),
+                    null,
+                    null,
+                    $this->user(),
+                    null,
+                    AcceptanceChannel::from($data['answerChannel']),
+                    $data['answerNote'] ?? null,
+                );
+        } catch (QuoteActionDenied $exception) {
+            $this->addError('answer', $exception->getMessage());
+
+            return;
+        }
+
+        $this->showAnswer = false;
+        unset($this->quote);
+        $this->fillForm();
+
+        if ($declined) {
+            $this->toast("{$quote->label()} is marked as declined. Use Revise to prepare a changed offer.");
+
+            return;
+        }
+
+        $invoice = $quote->invoices()->latest('id')->first();
+        $this->toast("{$quote->label()} accepted. ".match (true) {
+            $invoice !== null => "The project is open and invoice {$invoice->number} is raised.",
+            $quote->business_line->value === 'furniture' && $this->user()->can('create', Invoice::class) => 'The project is open. Use Create full invoice to bill this sale.',
+            $quote->business_line->value === 'furniture' => 'The project is open. Accounts bills this sale with Create full invoice.',
+            default => 'The project is open. No payment stage falls due on acceptance, so no invoice was raised.',
+        });
+    }
+
     /** It was not a yes: clear the hint so the banner stops asking. */
     public function dismissAcceptanceHint(): void
     {
@@ -600,9 +696,11 @@ class QuoteBuilder extends Component
     }
 
     /** Whether the client can be reached on WhatsApp at all: a number, and the API connected. */
+    /** The WhatsApp message carries the link to the client's page and nothing else: no page, no message. */
     public function whatsappReady(): bool
     {
-        return filled($this->quote->contact?->whatsappNumber())
+        return QuoteLinks::clientPagesOpen()
+            && filled($this->quote->contact?->whatsappNumber())
             && app(WhatsAppGateway::class)->isConfigured();
     }
 
@@ -744,9 +842,52 @@ class QuoteBuilder extends Component
             'portalUrl' => $versions->isNotEmpty() && Modules::enabled('client_portal') ? QuoteLinks::signed('quotes.portal', $quote) : null,
             'sharedPdfUrl' => $versions->isNotEmpty() && Modules::enabled('client_portal') ? QuoteLinks::signed('quotes.portal.pdf', $quote) : null,
             'whatsappShare' => $versions->isNotEmpty() ? QuoteLinks::whatsappShare($quote) : null,
+            // Whether the client has a page of their own. When not, the PDF of the last sent version is what the
+            // team gives the client, and the screens say so instead of offering a link.
+            'clientPages' => QuoteLinks::clientPagesOpen(),
+            'canInvoice' => $user->can('create', Invoice::class),
+            'sentPdfUrl' => $versions->isNotEmpty() ? route('admin.quotes.pdf', ['quote' => $quote, 'revision' => $versions->first()->revision]) : null,
             'clientComment' => $quote->status === QuoteStatus::ChangesRequested
                 ? ($quote->events()->where('type', 'changes_requested')->latest('occurred_at')->first()?->data['comment'] ?? null)
                 : null,
+            // The client's answer: who may record one now, and — once there is one — how it reached the business.
+            'canAnswer' => in_array($quote->status, [QuoteStatus::Sent, QuoteStatus::Viewed, QuoteStatus::ChangesRequested], true) && $user->can('accept', $quote),
+            'answerChannels' => AcceptanceChannel::options(),
+            'answer' => $this->answerOnRecord($quote),
+        ];
+    }
+
+    /**
+     * The answer the quotation carries, for the banner: an acceptance or a refusal, how it came and who recorded it.
+     *
+     * @return array{how: string, by: string|null, reason: string|null, note: string|null}|null
+     */
+    private function answerOnRecord(Quote $quote): ?array
+    {
+        $type = match ($quote->status) {
+            QuoteStatus::Accepted => 'accepted',
+            QuoteStatus::Declined => 'declined',
+            default => null,
+        };
+
+        if ($type === null) {
+            return null;
+        }
+
+        /** @var QuoteEvent|null $event */
+        $event = $quote->events()->where('type', $type)->with('actor:id,name')->latest('occurred_at')->latest('id')->first();
+        $data = (array) ($event?->data ?? []);
+        $channel = AcceptanceChannel::tryFrom((string) $event?->channel);
+
+        return [
+            'how' => match (true) {
+                $event === null || $event->channel === 'link' => 'online',
+                $channel !== null => $channel->phrase(),
+                default => '',
+            },
+            'by' => $event?->actor?->name,
+            'reason' => isset($data['reason']) ? (string) $data['reason'] : null,
+            'note' => isset($data['note']) ? (string) $data['note'] : null,
         ];
     }
 

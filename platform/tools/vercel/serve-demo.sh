@@ -9,9 +9,17 @@
 # and for a full rehearsal). The four demo passwords need 16 characters or more. The site answers on
 # http://127.0.0.1:<port> (default 8191) until the script is stopped; PHP itself listens on port 3000, as the
 # launcher always does. Everything is fictional and lives in /tmp.
+#
+# The demo opens the client's own pages and lets documents be issued with its sample terms and sample signer
+# (api/index.php; the owner's word of 17 November 2026, decision DL-026). Two settings are handed on to the
+# running site when they are set, to rehearse another configuration on this machine:
+#   WOODEX_MODULES=lead_api          the product as it ships: the client's pages are off, and staff write down
+#                                    the client's answer and take the payment (scripts/os-journeys.mjs presses
+#                                    whichever of the two ways the site offers).
+#   DOCUMENTS_OWNER_CONFIRMED=false  a site whose owner has not confirmed terms and signers: nothing is issued.
 set -u
 PORT="${1:-8191}"
-[ -f api/index.php ] && [ -f vercel.json ] && [ -f vendor/autoload.php ] || { echo "Run from platform/, with vendor/ installed."; exit 2; }
+[ -f api/index.php ] && [ -f vercel.json ] || { echo "Run from platform/."; exit 2; }
 [ ! -e .env ] || { echo "platform/.env exists: Vercel has none. Run this in a tree without it."; exit 2; }
 PACKAGE="${VERCEL_PHP:-}/vercel-php"
 NATIVE="$(ls -d "${VERCEL_PHP:-}"/@libphp/*/native 2>/dev/null | head -1)"
@@ -22,8 +30,16 @@ PASSWORDS=(WX_PW_OWNER="$WX_PW_OWNER" WX_PW_MANAGER="$WX_PW_MANAGER" WX_PW_SALES
 # PHP as Vercel's builder runs it:   builder NAME=value ... -- command
 builder() {
   local settings=(); while [ "$1" != "--" ]; do settings+=("$1"); shift; done; shift
-  env -i HOME="$HOME_DIR" "${settings[@]}" PATH="$PHP_DIR:$PATH" COMPOSER_HOME=/tmp PHP_INI_EXTENSION_DIR="$PHP_DIR/modules" PHP_INI_SCAN_DIR=":$PACKAGE/conf" LD_LIBRARY_PATH="$LIB_DIR:/usr/lib64:/lib64" "$@"
+  env -i HOME="$HOME_DIR" ${COMPOSER_AUTH:+COMPOSER_AUTH="$COMPOSER_AUTH"} "${settings[@]}" PATH="$PHP_DIR:$PATH" COMPOSER_HOME=/tmp PHP_INI_EXTENSION_DIR="$PHP_DIR/modules" PHP_INI_SCAN_DIR=":$PACKAGE/conf" LD_LIBRARY_PATH="$LIB_DIR:/usr/lib64:/lib64" "$@"
 }
+
+# The packages. In a fresh checkout (CI) WOODEX_INSTALL=1 installs them first, as Vercel's builder does; it leaves
+# no development package in vendor/, so use it in a throwaway tree.
+if [ ! -f vendor/autoload.php ] && [ "${WOODEX_INSTALL:-}" = 1 ]; then
+  builder -- php "$PHP_DIR/composer" install --no-dev --no-interaction --no-scripts --ignore-platform-reqs --no-progress > "${TMPDIR:-/tmp}/woodex-demo-install.log" 2>&1 \
+    || { echo "The packages could not be installed:"; tail -15 "${TMPDIR:-/tmp}/woodex-demo-install.log"; exit 1; }
+fi
+[ -f vendor/autoload.php ] || { echo "vendor/ is missing: install the packages, or set WOODEX_INSTALL=1 in a throwaway tree."; exit 2; }
 
 # A new instance: nothing of an earlier one in /tmp (see fresh_instance in check-entry.sh).
 rm -rf /tmp/woodex-synthetic-vercel-demo.sqlite* /tmp/woodex-livewire /tmp/woodex-config.php /tmp/woodex-events.php /tmp/woodex-packages.php /tmp/woodex-routes.php /tmp/woodex-services.php
@@ -40,5 +56,6 @@ TASK="$(mktemp -d)"; ln -s "$PWD" "$TASK/user"; ln -s "$PHP_DIR" "$TASK/php"; ln
 trap 'rm -rf "$TASK"' EXIT
 echo "The demo answers on http://127.0.0.1:$PORT/admin (stop with Ctrl+C)."
 env -i PATH="$PATH" HOME="$HOME_DIR" "${BLOCK[@]}" WOODEX_DEMO=1 "${PASSWORDS[@]}" ${WOODEX_DEMO_SHOW_PASSWORD:+WOODEX_DEMO_SHOW_PASSWORD="$WOODEX_DEMO_SHOW_PASSWORD"} \
+  ${DOCUMENTS_OWNER_CONFIRMED:+DOCUMENTS_OWNER_CONFIRMED="$DOCUMENTS_OWNER_CONFIRMED"} ${WOODEX_MODULES:+WOODEX_MODULES="$WOODEX_MODULES"} \
   LAMBDA_TASK_ROOT="$TASK" NOW_ENTRYPOINT=api/index.php NOW_PHP_DEV=0 VERCEL_PHP_PACKAGE="$PACKAGE" STAND_IN_PORT="$PORT" STAND_IN_ROUTES="$ROUTES" \
   LD_LIBRARY_PATH="$LIB_DIR" PHP_INI_EXTENSION_DIR="$PHP_DIR/modules" PHP_INI_SCAN_DIR=":$PACKAGE/conf" node tools/vercel/launcher-stand-in.cjs

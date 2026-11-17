@@ -1,0 +1,80 @@
+name: Known vulnerabilities in the packages
+# npm and Composer are asked whether a package this repository installs has a published security advisory
+# (master list T-069). A high or critical one fails the run; lower ones are written on the run as a notice,
+# so that they can be read without the log. Nothing is installed and no secret is needed: both read the lock
+# files.
+#
+# It runs when a lock file changes and once a week, because an advisory can be published for a package that
+# has not changed here.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 5 * * 1"
+  push:
+    branches: [main, "arena/**"]
+    paths: ["package-lock.json", "platform/composer.lock", ".github/workflows/audit.yml"]
+  pull_request:
+    paths: ["package-lock.json", "platform/composer.lock", ".github/workflows/audit.yml"]
+permissions:
+  contents: read
+jobs:
+  npm:
+    name: "npm: the shop, its API and the scripts"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Fail on a known high or critical advisory
+        run: |
+          npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
+          node -e '
+            const report = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            if (!report.metadata) { console.log("::error title=npm audit::no answer from the advisory database: " + JSON.stringify(report).slice(0, 300)); process.exit(1); }
+            const counts = report.metadata.vulnerabilities;
+            const named = Object.values(report.vulnerabilities || {}).map((entry) => `${entry.name} (${entry.severity})`).sort();
+            const line = `critical ${counts.critical}, high ${counts.high}, moderate ${counts.moderate}, low ${counts.low}` + (named.length ? ` — ${named.join(", ")}` : "");
+            const blocking = counts.critical + counts.high;
+            console.log(`::${blocking ? "error" : "notice"} title=npm: ${blocking ? "a high or critical advisory" : "no high or critical advisory"}::${line}`);
+            process.exit(blocking ? 1 : 0);
+          ' "$RUNNER_TEMP/npm-audit.json"
+  composer:
+    name: "Composer: the Laravel admin"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          coverage: none
+      - name: Fail on a known high or critical advisory
+        working-directory: platform
+        run: |
+          composer audit --locked --format=json > "$RUNNER_TEMP/composer-audit.json" 2> "$RUNNER_TEMP/composer-audit.err" || true
+          php -r '
+            $raw = (string) file_get_contents($argv[1]);
+            $report = json_decode($raw, true);
+            if (! is_array($report) || ! array_key_exists("advisories", $report)) {
+                echo "::error title=composer audit::no answer from the advisory database: ", substr(trim($raw."\n".file_get_contents($argv[2])), 0, 300), PHP_EOL;
+                exit(1);
+            }
+            $blocking = []; $others = [];
+            foreach ($report["advisories"] as $package => $advisories) {
+                foreach ($advisories as $advisory) {
+                    // An advisory that names no severity is treated as a blocking one.
+                    $severity = strtolower((string) ($advisory["severity"] ?? "")) ?: "unknown";
+                    $entry = $package." (".$severity.": ".($advisory["cve"] ?? $advisory["advisoryId"] ?? "no id").")";
+                    if (in_array($severity, ["low", "medium", "moderate"], true)) { $others[] = $entry; } else { $blocking[] = $entry; }
+                }
+            }
+            $abandoned = array_keys(array_filter($report["abandoned"] ?? [], static fn ($value): bool => $value !== false));
+            $line = "blocking ".count($blocking).", lower ".count($others)
+                .($blocking ? " — ".implode(", ", $blocking) : "").($others ? " — lower: ".implode(", ", $others) : "")
+                .($abandoned ? " — no longer maintained: ".implode(", ", $abandoned) : "");
+            echo "::", ($blocking ? "error" : "notice"), " title=Composer: ", ($blocking ? "a high or critical advisory" : "no high or critical advisory"), "::", $line, PHP_EOL;
+            exit($blocking ? 1 : 0);
+          ' "$RUNNER_TEMP/composer-audit.json" "$RUNNER_TEMP/composer-audit.err"

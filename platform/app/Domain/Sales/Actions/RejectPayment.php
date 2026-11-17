@@ -43,6 +43,8 @@ final class RejectPayment
                 'verified_at' => now(),
             ])->save();
 
+            app(LogBillingActivity::class)->payment($payment, 'sent_back', $by, 'The reported payment was sent back to the client: '.trim($reason));
+
             $payment->loadMissing('contact');
 
             if (filled($payment->contact?->email)) {

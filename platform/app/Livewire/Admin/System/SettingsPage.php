@@ -6,6 +6,8 @@ namespace App\Livewire\Admin\System;
 
 use App\Domain\Bot\Actions\SyncBotKnowledge;
 use App\Domain\Bot\Models\BotKnowledge;
+use App\Domain\Crm\Enums\BusinessLine;
+use App\Domain\Sales\Services\DocumentReadiness;
 use App\Integrations\WhatsApp\Actions\TestWhatsAppConnection;
 use App\Integrations\WhatsApp\WhatsAppCredentials;
 use App\Livewire\Admin\Crm\ContactsIndex;
@@ -15,6 +17,7 @@ use App\Settings\BusinessSettings;
 use App\Settings\IntegrationSettings;
 use App\Settings\NotificationSettings;
 use App\Settings\SalesSettings;
+use App\Support\Modules;
 use App\Support\Phone;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
@@ -119,6 +122,7 @@ class SettingsPage extends Component
             'signatories' => array_values($sales->signatories),
             'execution_terms' => $sales->execution_terms,
             'design_terms' => $sales->design_terms,
+            'invoice_terms' => $sales->invoice_terms,
         ];
 
         $bot = app(BotSettings::class);
@@ -239,14 +243,21 @@ class SettingsPage extends Component
             'sales.signatories' => ['array', 'max:4'],
             'sales.signatories.*.name' => ['required', 'string', 'max:80'],
             'sales.signatories.*.title' => ['required', 'string', 'max:80'],
-            'sales.execution_terms' => ['required', 'string', 'max:5000'],
-            'sales.design_terms' => ['required', 'string', 'max:5000'],
+            // The execution and design terms are the Interior brand's. An installation that does not sell that
+            // brand neither shows nor asks for them, and what they hold is left as it is.
+            'sales.execution_terms' => [$this->interiorTerms() ? 'required' : 'nullable', 'string', 'max:5000'],
+            'sales.design_terms' => [$this->interiorTerms() ? 'required' : 'nullable', 'string', 'max:5000'],
+            // May stay blank while the owner decides the wording: the other rules can be saved meanwhile, and
+            // the notice above the tabs keeps saying that no document can be issued until it is filled in.
+            'sales.invoice_terms' => ['nullable', 'string', 'max:5000'],
         ], [
             'sales.budget_bands.*.key.regex' => 'Keys use lowercase letters, numbers and dashes only (e.g. 3m-7m).',
         ], [
             'sales.sla_first_response_minutes' => 'response target', 'sales.discount_limits.*' => 'discount limit',
             'sales.budget_bands.*.key' => 'key', 'sales.budget_bands.*.label' => 'label',
             'sales.signatories.*.name' => 'name', 'sales.signatories.*.title' => 'title',
+            'sales.execution_terms' => 'execution terms', 'sales.design_terms' => 'design terms',
+            'sales.invoice_terms' => 'invoice terms',
         ])['sales'];
 
         $reasons = collect(preg_split('/\R/', (string) $data['lost_reasons']) ?: [])->map(fn ($r) => trim((string) $r))->filter()->unique()->values()->all();
@@ -270,8 +281,11 @@ class SettingsPage extends Component
         $settings->lost_reasons = $reasons;
         $settings->budget_bands = collect((array) $data['budget_bands'])->mapWithKeys(fn ($b) => [trim($b['key']) => trim($b['label'])])->all();
         $settings->signatories = array_values(array_map(fn ($s) => ['name' => trim($s['name']), 'title' => trim($s['title'])], $data['signatories'] ?? []));
-        $settings->execution_terms = trim($data['execution_terms']);
-        $settings->design_terms = trim($data['design_terms']);
+        if ($this->interiorTerms()) {
+            $settings->execution_terms = trim((string) $data['execution_terms']);
+            $settings->design_terms = trim((string) $data['design_terms']);
+        }
+        $settings->invoice_terms = trim((string) ($data['invoice_terms'] ?? ''));
         $settings->save();
 
         $this->sales['lost_reasons'] = implode("\n", $reasons);
@@ -334,6 +348,7 @@ class SettingsPage extends Component
      */
     public function saveWhatsApp(IntegrationSettings $settings): void
     {
+        $this->sectionMustBeOpen('whatsapp');
         abort_unless($this->user()->can('settings.manage') || $this->user()->can('integrations.manage'), 403);
 
         $data = $this->validate([
@@ -381,6 +396,7 @@ class SettingsPage extends Component
     /** Ask Meta what it knows about this number, and — with a number — send one real message to it (WAP-001). */
     public function testWhatsAppConnection(TestWhatsAppConnection $test): void
     {
+        $this->sectionMustBeOpen('whatsapp');
         abort_unless($this->user()->can('settings.manage') || $this->user()->can('integrations.manage'), 403);
 
         $this->validate(['whatsapp.probe_number' => ['nullable', 'string', 'max:32']]);
@@ -398,6 +414,7 @@ class SettingsPage extends Component
     /** Forget the credentials saved here, so the server .env is used again. The .env itself is untouched. */
     public function forgetWhatsApp(IntegrationSettings $settings): void
     {
+        $this->sectionMustBeOpen('whatsapp');
         abort_unless($this->user()->can('settings.manage') || $this->user()->can('integrations.manage'), 403);
 
         $settings->whatsapp_waba_id = null;
@@ -416,8 +433,45 @@ class SettingsPage extends Component
         $this->toast('Saved credentials removed. The server .env is used again if it holds any.');
     }
 
+    /** Whether this installation sells the Interior brand, whose quotations print the execution and design terms. */
+    private function interiorTerms(): bool
+    {
+        return in_array(BusinessLine::Interior, BusinessLine::offeredBrands(), true);
+    }
+
+    /**
+     * The sections of Settings, in their order. The two that belong to an optional module are there only while
+     * that module is switched on: the WhatsApp Cloud API (keys, costs) and the chat bot (its prompt and what it
+     * knows, written for the Interior studio). A closed section is not a tab, and its actions answer "not found"
+     * (list line T-034).
+     *
+     * @return array<string, string>
+     */
+    public function sections(): array
+    {
+        return array_filter([
+            'business' => 'Business',
+            'sales' => 'Sales rules',
+            'leads' => 'Lead rules',
+            'notifications' => 'Notifications',
+            'whatsapp' => Modules::enabled('whatsapp') ? 'WhatsApp' : null,
+            'bot' => Modules::enabled('inbox') || Modules::enabled('whatsapp') ? 'Bot' : null,
+        ]);
+    }
+
+    /** Stops an action of a section whose module is switched off. */
+    private function sectionMustBeOpen(string $section): void
+    {
+        abort_unless(array_key_exists($section, $this->sections()), 404);
+    }
+
     public function render(): View
     {
+        // An address that names a closed section opens the first one instead.
+        if (! array_key_exists($this->tab, $this->sections())) {
+            $this->tab = 'business';
+        }
+
         $credentials = app(WhatsAppCredentials::class);
         $saved = [
             'token' => (string) ($credentials->token() ?? ''),
@@ -426,6 +480,7 @@ class SettingsPage extends Component
         ];
 
         return view('livewire.admin.system.settings-page', [
+            'sections' => $this->sections(),
             'whatsappSaved' => array_map(fn (string $value): string => $this->mask($value), $saved),
             'whatsappHints' => [
                 'token' => $saved['token'] !== ''
@@ -441,6 +496,9 @@ class SettingsPage extends Component
             'whatsappSource' => $credentials->isConfigured() ? $credentials->source() : null,
             'days' => [1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun'],
             'roles' => UsersIndex::ROLES,
+            'interiorTerms' => $this->interiorTerms(),
+            // What still stops a quotation or an invoice from being issued, point by point.
+            'documentProblems' => app(DocumentReadiness::class)->problems(),
         ]);
     }
 
@@ -500,6 +558,7 @@ class SettingsPage extends Component
      */
     public function saveBot(): void
     {
+        $this->sectionMustBeOpen('bot');
         abort_unless($this->user()->can('settings.manage'), 403);
 
         $data = $this->validate([
@@ -535,6 +594,7 @@ class SettingsPage extends Component
     /** BOT-003: pull the published pages' words into the assistant's knowledge. */
     public function syncBotKnowledge(): void
     {
+        $this->sectionMustBeOpen('bot');
         abort_unless($this->user()->can('settings.manage'), 403);
 
         $result = app(SyncBotKnowledge::class)->handle();
@@ -544,6 +604,7 @@ class SettingsPage extends Component
 
     public function addBotKnowledge(): void
     {
+        $this->sectionMustBeOpen('bot');
         abort_unless($this->user()->can('settings.manage'), 403);
 
         $data = $this->validate([
@@ -565,6 +626,7 @@ class SettingsPage extends Component
 
     public function deleteBotKnowledge(int $id): void
     {
+        $this->sectionMustBeOpen('bot');
         abort_unless($this->user()->can('settings.manage'), 403);
 
         BotKnowledge::query()->whereKey($id)->where('source', 'manual')->delete();

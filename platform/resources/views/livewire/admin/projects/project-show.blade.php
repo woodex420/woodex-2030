@@ -304,6 +304,10 @@
         <div class="space-y-4">
             {{-- The client's own page (PRJ-006): a signed link, or a code by email. No client password exists. --}}
             <x-admin.card title="Client portal">
+                @if (! $clientPages)
+                    {{-- The client pages are an optional module. Switched off, the link answers 404: none is offered. --}}
+                    <p class="text-theme-sm text-gray-500">The client pages are switched off on this site, so this project has no client link to share.</p>
+                @else
                 <label class="sr-only" for="portal-link">Client link</label>
                 <div class="flex items-center gap-2">
                     <input id="portal-link" type="text" readonly value="{{ $portalUrl }}" class="wx-input text-theme-xs">
@@ -319,6 +323,7 @@
                     @endcan
                 </div>
                 <p class="mt-2 text-theme-xs text-gray-500">If a client loses the link, they ask for a code at <span class="font-medium">/portal</span>.</p>
+                @endif
 
                 @if ($project->client_ok_at && $project->review_requested_at === null && $reviewDueOn)
                     <p class="mt-3 text-theme-xs text-gray-500">Review request due {{ $reviewDueOn->format('j M Y') }} (<span class="font-medium">woodex:review-requests</span>, daily).</p>
@@ -327,7 +332,10 @@
                 @endif
             </x-admin.card>
 
-            {{-- With the client's consent, a finished job becomes a portfolio page for a person to write (PRJ-008) --}}
+            {{-- With the client's consent, a finished job becomes a portfolio page for a person to write (PRJ-008).
+                 A case study is a page of the public website: while that module is off there is no site to carry
+                 it, and the draft would be written from the Interior studio's template (list line T-034). --}}
+            @if (\App\Support\Modules::enabled('website'))
             <x-admin.card title="Case study">
                 @can('update', $project)
                     <label class="flex items-start gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
@@ -360,6 +368,7 @@
                     @endcan
                 @endcan
             </x-admin.card>
+            @endif
 
             {{-- Invoices against this project --}}
             <x-admin.card title="Invoices ({{ $project->invoices->count() }})" :padding="false">

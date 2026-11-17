@@ -1,126 +1,135 @@
 {
-  "about": "The eleven browser flows of document 10 §2, each with the steps of scripts/os-journeys.mjs that press it. Checked by scripts/verify-acceptance.mjs: the wording must be the specification's and every named step must exist in the script.",
-  "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
-  "journeys": "scripts/os-journeys.mjs",
-  "states": {
-    "covered": "the whole flow is pressed in a browser",
-    "partly": "some of its steps are pressed",
-    "none": "no step is pressed"
+ "about": "The eleven browser flows of document 10 §2, each with the steps of scripts/os-journeys.mjs that press it. Checked by scripts/verify-acceptance.mjs: the wording must be the specification's and every named step must exist in the script.",
+ "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
+ "journeys": "scripts/os-journeys.mjs",
+ "states": {
+  "covered": "the whole flow is pressed in a browser",
+  "partly": "some of its steps are pressed",
+  "none": "no step is pressed"
+ },
+ "flows": [
+  {
+   "text": "Lead capture.",
+   "state": "partly",
+   "steps": [
+    "create a lead from the New menu",
+    "the lead is still there after a reload, and its page opens"
+   ],
+   "note": "A member of staff creates the lead, in both journeys. The shop's public form is not in a journey: the React shop does not write to Laravel yet.",
+   "lines": [
+    "T-100",
+    "T-165"
+   ]
   },
-  "flows": [
-    {
-      "text": "Lead capture.",
-      "state": "partly",
-      "steps": [
-        "create a lead from the New menu",
-        "the lead is still there after a reload, and its page opens"
-      ],
-      "note": "A member of staff creates the lead. The shop's public form is not in a journey: the React shop does not write to Laravel yet.",
-      "lines": [
-        "T-100",
-        "T-165"
-      ]
-    },
-    {
-      "text": "Lead assignment and conversion.",
-      "state": "none",
-      "steps": [],
-      "note": "",
-      "lines": [
-        "T-165",
-        "T-080"
-      ]
-    },
-    {
-      "text": "Estimate to quotation.",
-      "state": "none",
-      "steps": [],
-      "note": "Estimations is switched off.",
-      "lines": [
-        "T-085"
-      ]
-    },
-    {
-      "text": "Quotation approval and issue.",
-      "state": "partly",
-      "steps": [
-        "write a draft quotation for that client",
-        "price one line; the total follows",
-        "the quotation PDF"
-      ],
-      "note": "Draft, price and PDF are pressed. Approval above a limit and sending are not; issuing is blocked until the owner's terms and signers are confirmed.",
-      "lines": [
-        "T-080",
-        "T-084"
-      ]
-    },
-    {
-      "text": "Invoice and payment allocation.",
-      "state": "none",
-      "steps": [],
-      "note": "",
-      "lines": [
-        "T-080"
-      ]
-    },
-    {
-      "text": "Product browse and order creation.",
-      "state": "partly",
-      "steps": [
-        "find a product of the real catalogue by its code, and open it"
-      ],
-      "note": "Browsing only, on the real catalogue. Orders do not exist in Laravel.",
-      "lines": [
-        "T-106"
-      ]
-    },
-    {
-      "text": "Purchase order and goods receipt.",
-      "state": "none",
-      "steps": [],
-      "note": "No module.",
-      "lines": [
-        "T-110"
-      ]
-    },
-    {
-      "text": "Stock transfer/reservation.",
-      "state": "none",
-      "steps": [],
-      "note": "No module.",
-      "lines": [
-        "T-109"
-      ]
-    },
-    {
-      "text": "Project task and handover.",
-      "state": "none",
-      "steps": [],
-      "note": "The journey adds a task to a lead, not to a project.",
-      "lines": [
-        "T-165"
-      ]
-    },
-    {
-      "text": "Page edit, preview, approval and publish.",
-      "state": "none",
-      "steps": [],
-      "note": "No Puck editor.",
-      "lines": [
-        "T-115",
-        "T-116"
-      ]
-    },
-    {
-      "text": "Permission-denied scenarios.",
-      "state": "covered",
-      "steps": [
-        "a sales person is told plainly what they may not open",
-        "a page that does not exist gets the admin's own 404",
-        "sign out; the admin asks for a sign-in again"
-      ],
-      "note": "",
-      "lines": []
-    }
-  ]
+  {
+   "text": "Lead assignment and conversion.",
+   "state": "covered",
+   "steps": [
+    "an enquiry is taken and handed to a sales person, with the reason on record",
+    "the sales person finds the enquiry among their own leads",
+    "the lead is won and the contact has become a client"
+   ],
+   "note": "The assignment rule gives a new enquiry to somebody; the owner hands it on, is asked why, and the reason is on the timeline. The client's yes moves the lead to Won and makes the contact a client.",
+   "lines": []
+  },
+  {
+   "text": "Estimate to quotation.",
+   "state": "none",
+   "steps": [],
+   "note": "Estimations is switched off.",
+   "lines": [
+    "T-085"
+   ]
+  },
+  {
+   "text": "Quotation approval and issue.",
+   "state": "covered",
+   "steps": [
+    "write a draft quotation for that client",
+    "price one line; the total follows",
+    "the quotation PDF",
+    "documents can be issued here: terms and a signer are in place",
+    "a quotation above the discount limit cannot be sent: approval is asked for",
+    "the approver finds the request in the queue and approves it",
+    "the approved quotation is sent: frozen, with its PDF",
+    "the client says yes"
+   ],
+   "note": "Pressed on the rehearsal both ways: with the client's own pages open (the demo) the client accepts on a phone without a sign-in; with them off (the product as it ships) the sales person writes the answer down. On a site whose owner has not confirmed terms and signers nothing can be sent, and the journey reports the site's reason instead of failing (T-084).",
+   "lines": [
+    "T-084"
+   ]
+  },
+  {
+   "text": "Invoice and payment allocation.",
+   "state": "covered",
+   "steps": [
+    "accounts bill the sale in full and issue the invoice; the ledger has it",
+    "the advance is paid and confirmed against the invoice",
+    "the receipt is a numbered PDF",
+    "the sales person sees on the lead that the invoice went out and the money came in"
+   ],
+   "note": "One invoice of 496,800 and one payment of 372,600 set against it: balance 124,200, status Partially Paid, receipt as a PDF. With the client's pages open the client reports the payment with a bank slip and accounts confirm it; with them off accounts take it on the invoice. A payment spread over several invoices is proven by tests (AS-08, AS-09), not pressed.",
+   "lines": []
+  },
+  {
+   "text": "Product browse and order creation.",
+   "state": "partly",
+   "steps": [
+    "find a product of the real catalogue by its code, and open it"
+   ],
+   "note": "Browsing only, on the real catalogue. Orders do not exist in Laravel.",
+   "lines": [
+    "T-106"
+   ]
+  },
+  {
+   "text": "Purchase order and goods receipt.",
+   "state": "none",
+   "steps": [],
+   "note": "No module.",
+   "lines": [
+    "T-110"
+   ]
+  },
+  {
+   "text": "Stock transfer/reservation.",
+   "state": "none",
+   "steps": [],
+   "note": "No module.",
+   "lines": [
+    "T-109"
+   ]
+  },
+  {
+   "text": "Project task and handover.",
+   "state": "none",
+   "steps": [],
+   "note": "A Furniture sale opens a project, but the project screen still carries the stages, the hand-over checklist and the site updates of the Interior module. A journey waits for Furniture's own job steps (T-010, T-033).",
+   "lines": [
+    "T-165",
+    "T-033"
+   ]
+  },
+  {
+   "text": "Page edit, preview, approval and publish.",
+   "state": "none",
+   "steps": [],
+   "note": "No Puck editor.",
+   "lines": [
+    "T-115",
+    "T-116"
+   ]
+  },
+  {
+   "text": "Permission-denied scenarios.",
+   "state": "covered",
+   "steps": [
+    "a sales person is told plainly what they may not open",
+    "a page that does not exist gets the admin's own 404",
+    "sign out; the admin asks for a sign-in again"
+   ],
+   "note": "",
+   "lines": []
+  }
+ ]
 }

@@ -6,6 +6,7 @@ namespace App\Domain\Sales\Services;
 
 use App\Domain\Sales\Models\Quote;
 use App\Models\User;
+use App\Support\Modules;
 use App\Support\Money;
 use App\Support\Phone;
 use Carbon\CarbonImmutable;
@@ -27,10 +28,28 @@ final class QuoteLinks
         return $valid->max(CarbonImmutable::now())->addDays(60);
     }
 
-    /** Absolute link to share with the client. */
+    /**
+     * Absolute link to the client's page. The page answers only while the client pages are switched on: anything
+     * that hands a link to a person — a screen, a message, an e-mail — asks {@see clientPage()} instead.
+     */
     public static function portal(Quote $quote): string
     {
         return url(self::signed('quotes.portal', $quote));
+    }
+
+    /** Whether clients have pages of their own to open: an optional module, off by default (config/modules.php). */
+    public static function clientPagesOpen(): bool
+    {
+        return Modules::enabled('client_portal');
+    }
+
+    /**
+     * The link to give the client, or null while the client pages are switched off. They answer 404 then, so a
+     * link to one must not be shown, copied, sent on WhatsApp or written into an e-mail.
+     */
+    public static function clientPage(Quote $quote): ?string
+    {
+        return self::clientPagesOpen() ? self::portal($quote) : null;
     }
 
     public static function signed(string $route, Quote $quote): string
@@ -48,19 +67,24 @@ final class QuoteLinks
      * The message that carries a quotation to the client (QUO-008, D-111).
      *
      * The link, not the PDF: a link always opens the latest revision, keeps working after a revision, and lets the
-     * client accept, ask for changes or ask a question from the same place.
+     * client accept, ask for changes or ask a question from the same place. While the client pages are switched
+     * off there is no link: the message then says that the PDF comes with it, and the person sending attaches it.
      */
     public static function whatsappBody(Quote $quote): string
     {
         $total = Money::ofMinor((int) $quote->total_minor)->format(lakhGrouping: true);
         $valid = $quote->valid_until !== null ? CarbonImmutable::parse($quote->valid_until)->format('j M Y') : null;
 
+        $page = self::clientPage($quote);
+
         return implode("\n", array_filter([
             "Assalam o Alaikum {$quote->contact->firstName()}, here is your quotation {$quote->label()} from Woodex"
                 ." for \"{$quote->title}\".",
             'Total: '.$total.($valid !== null ? ", valid until {$valid}." : '.'),
-            self::portal($quote),
-            'Open it to see the details, download the PDF and accept — or reply here with any question.',
+            $page,
+            $page !== null
+                ? 'Open it to see the details, download the PDF and accept — or reply here with any question.'
+                : 'The PDF comes with this message. Reply here to confirm the order, or with any question.',
         ]));
     }
 

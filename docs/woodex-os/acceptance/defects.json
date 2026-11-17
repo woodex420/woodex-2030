@@ -1,190 +1,416 @@
 {
-  "about": "The defect register asked for by document 10 §8: every finding of a round, with its severity and the release rule that follows from it. Checked by scripts/verify-acceptance.mjs: a severity is one of four, an open defect names the line that closes it, a closed one says how and when. Findings of the rounds before 17 November that were fixed at once are listed in document 14 §17.",
-  "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
-  "severities": {
-    "critical": {
-      "means": "Data loss, privilege bypass, financial corruption, site unavailable",
-      "rule": "blocks release"
-    },
-    "high": {
-      "means": "Core workflow broken, wrong totals or status, major security or privacy issue",
-      "rule": "blocks the release it affects"
-    },
-    "medium": {
-      "means": "A workaround exists; significant experience or non-core defect",
-      "rule": "needs the owner's acceptance"
-    },
-    "low": {
-      "means": "Cosmetic or a minor inconvenience",
-      "rule": "may be scheduled later"
-    }
+ "about": "The defect register asked for by document 10 §8: every finding of a round, with its severity and the release rule that follows from it. Checked by scripts/verify-acceptance.mjs: a severity is one of four, an open defect names the line that closes it, a closed one says how and when. Findings of the rounds before 17 November that were fixed at once are listed in document 14 §17.",
+ "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
+ "severities": {
+  "critical": {
+   "means": "Data loss, privilege bypass, financial corruption, site unavailable",
+   "rule": "blocks release"
   },
-  "states": {
-    "open": "not fixed",
-    "accepted": "not fixed, and the owner has accepted it for a release",
-    "closed": "fixed and checked"
+  "high": {
+   "means": "Core workflow broken, wrong totals or status, major security or privacy issue",
+   "rule": "blocks the release it affects"
   },
-  "defects": [
-    {
-      "id": "D-001",
-      "severity": "critical",
-      "state": "closed",
-      "found": "2026-11-17",
-      "title": "The React shop's database could be read and changed through Supabase's Data API",
-      "detail": "None of its 72 tables had row-level security, and Supabase's two API roles held every privilege on all of them — users, sessions, password resets, orders and payments included. Anyone holding the project's publishable key could read and write every row. The shop itself never uses that API. Whether anybody did is not known from the database; Supabase's dashboard keeps a short log of API requests.",
-      "lines": [
-        "T-162"
-      ],
-      "closed": {
-        "on": "2026-11-17",
-        "how": "Every privilege on tables and sequences taken from the two roles, also for tables created later (`deploy/supabase/2026-11-17-close-data-api.sql`, DL-024). Read back: the two roles hold a privilege on 0 of 73 tables and on no sequence, and the owner of the tables holds everything. Asked from outside afterwards, the shop serves its 148 products as before."
-      }
-    },
-    {
-      "id": "D-002",
-      "severity": "critical",
-      "state": "open",
-      "found": "2026-11-16",
-      "title": "The owner password of the old dashboard was printed in a public document",
-      "detail": "The repository is public, and so is its history. Whoever read that document can sign in to `woodex-2030.vercel.app/admin` as the owner — since 17 November also to load, publish and withdraw products. Only the owner can close it: sign in, Settings, Change password. Making the repository private does not close it; the password stays known.",
-      "lines": [
-        "T-021"
-      ]
-    },
-    {
-      "id": "D-003",
-      "severity": "high",
-      "state": "closed",
-      "found": "2026-11-17",
-      "title": "A Furniture-only product showed and sent Interior's name",
-      "detail": "71 of the 241 screens opened by the four roles carried the word Interior; the WhatsApp greeting on a lead, a contact, a quotation and a visit and the staff invitation named Woodex Interior; the client's pages of a quotation and an invoice printed INTERIOR STUDIO under the mark.",
-      "lines": [
-        "T-030",
-        "T-031",
-        "T-032"
-      ],
-      "closed": {
-        "on": "2026-11-17",
-        "how": "Commit `0d8ae53`: one setting names the lines on sale and the admin ships with Furniture alone. The crawl of all four roles finds the word on no screen; 25 tests pin it (`Feature/FurnitureOnlyTest.php`)."
-      }
-    },
-    {
-      "id": "D-004",
-      "severity": "medium",
-      "state": "closed",
-      "found": "2026-11-17",
-      "title": "Two settings decided how a time is stored and how it is read",
-      "detail": "Had the application's time zone and the database session's time zone ever disagreed, every stored time would have shifted by five hours. They agreed, so no record was wrong.",
-      "lines": [
-        "T-061"
-      ],
-      "closed": {
-        "on": "2026-11-17",
-        "how": "Commit `d7d6c29`: the session's zone is derived from the application's (DL-023); tests pin both, one of them on MySQL in CI (`Feature/TimeStorageTest.php`)."
-      }
-    },
-    {
-      "id": "D-005",
-      "severity": "medium",
-      "state": "closed",
-      "found": "2026-11-17",
-      "title": "Three rows of the shop's migration ledger were written in another form than the migration runner writes",
-      "detail": "Rows 16, 17 and 18 carried names without `.sql` and checksums with a prefix, one of them cut short. The runner compares checksums and would have refused the live database as changed after the fact. The files had not changed: the recorded values were the beginnings of the files' real checksums.",
-      "lines": [
-        "T-163"
-      ],
-      "closed": {
-        "on": "2026-11-17",
-        "how": "The three rows corrected to the runner's form, each guarded by its old value (DL-024). Read back: 19 rows, 19 migration files, every checksum equal."
-      }
-    },
-    {
-      "id": "D-006",
-      "severity": "high",
-      "state": "open",
-      "found": "2026-11-17",
-      "title": "Preview builds of the React shop use the production database",
-      "detail": "In the shop's Vercel project the database address is set for Production, Preview and Development alike. Vercel builds a preview of every branch that is pushed, so code that nobody has reviewed runs against the live data, and each preview address signs in to the same records. Harmless while the database holds sample products and one lead; not once it holds customers and orders.",
-      "lines": [
-        "T-164"
-      ]
-    },
-    {
-      "id": "D-007",
-      "severity": "medium",
-      "state": "open",
-      "found": "2026-11-17",
-      "title": "The React shop sells the sample catalogue it was first filled with",
-      "detail": "148 products are on sale on `woodex-2030.vercel.app`; none of them is Woodex's, none has a code. The real 170 are prepared in the shop's build. Since migration 019 the old dashboard can load them: Product Catalog, Catalogue import. Rehearsed on a copy filled like the live database: 170 arrive as drafts, a second run changes nothing, and after publishing and withdrawing the demo catalogue a visitor gets 170 real products.",
-      "lines": [
-        "T-091"
-      ]
-    },
-    {
-      "id": "D-008",
-      "severity": "medium",
-      "state": "open",
-      "found": "2026-11-17",
-      "title": "The catalogue's photographs are on woodexfurniture.pk, not in the system",
-      "detail": "Each of the 170 products links to its photograph on the present website, in the Laravel admin and in the catalogue prepared for the React shop. If that website is changed or switched off, every product loses its photograph.",
-      "lines": [
-        "T-089"
-      ]
-    },
-    {
-      "id": "D-009",
-      "severity": "medium",
-      "state": "open",
-      "found": "2026-11-17",
-      "title": "116 of the 170 real products carry a point to check, and 33 have no price",
-      "detail": "The points are in the import report and on each product: a code made up for a product that had none, a name that differs from its page, a reduction that looks like a typing error (one product shows PKR 15,000 down from PKR 185,000).",
-      "lines": [
-        "T-090"
-      ]
-    },
-    {
-      "id": "D-010",
-      "severity": "medium",
-      "state": "open",
-      "found": "2026-11-17",
-      "title": "The shop's database has no row-level security",
-      "detail": "The second lock behind D-001. With the privileges gone the tables cannot be reached through the Data API; row-level security keeps it that way if a privilege is ever granted again by mistake.",
-      "lines": [
-        "T-163"
-      ]
-    },
-    {
-      "id": "D-011",
-      "severity": "medium",
-      "state": "open",
-      "found": "2026-11-17",
-      "title": "No backup of the shop's database is known to exist",
-      "detail": "None was taken before the changes of 17 November, and whether the Supabase plan keeps any has not been checked. What the database held can be rebuilt today: its 148 products are the seed file's, and both changes have their undo. That stops being true with the first real order.",
-      "lines": [
-        "T-187"
-      ]
-    },
-    {
-      "id": "D-012",
-      "severity": "medium",
-      "state": "open",
-      "found": "2026-11-16",
-      "title": "The admin sends no Content-Security-Policy",
-      "detail": "The other security headers are sent and checked from outside. A policy is the remaining one.",
-      "lines": [
-        "T-068"
-      ]
-    },
-    {
-      "id": "D-013",
-      "severity": "low",
-      "state": "open",
-      "found": "2026-11-16",
-      "title": "The hosted workspace sends its stylesheet and scripts with no caching",
-      "detail": "`max-age=0`: every visit asks again. The files carry a fingerprint in their name and could be kept for a year.",
-      "lines": [
-        "T-152"
-      ]
-    }
-  ]
+  "medium": {
+   "means": "A workaround exists; significant experience or non-core defect",
+   "rule": "needs the owner's acceptance"
+  },
+  "low": {
+   "means": "Cosmetic or a minor inconvenience",
+   "rule": "may be scheduled later"
+  }
+ },
+ "states": {
+  "open": "not fixed",
+  "accepted": "not fixed, and the owner has accepted it for a release",
+  "closed": "fixed and checked"
+ },
+ "defects": [
+  {
+   "id": "D-001",
+   "severity": "critical",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "The React shop's database could be read and changed through Supabase's Data API",
+   "detail": "None of its 72 tables had row-level security, and Supabase's two API roles held every privilege on all of them — users, sessions, password resets, orders and payments included. Anyone holding the project's publishable key could read and write every row. The shop itself never uses that API. Whether anybody did is not known from the database; Supabase's dashboard keeps a short log of API requests.",
+   "lines": [
+    "T-162"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Every privilege on tables and sequences taken from the two roles, also for tables created later (`deploy/supabase/2026-11-17-close-data-api.sql`, DL-024). Read back: the two roles hold a privilege on 0 of 73 tables and on no sequence, and the owner of the tables holds everything. Asked from outside afterwards, the shop serves its 148 products as before."
+   }
+  },
+  {
+   "id": "D-002",
+   "severity": "critical",
+   "state": "open",
+   "found": "2026-11-16",
+   "title": "The owner password of the old dashboard was printed in a public document",
+   "detail": "The repository is public, and so is its history. Whoever read that document can sign in to `woodex-2030.vercel.app/admin` as the owner — since 17 November also to load, publish and withdraw products. Only the owner can close it: sign in, Settings, Change password. Making the repository private does not close it; the password stays known.",
+   "lines": [
+    "T-021"
+   ]
+  },
+  {
+   "id": "D-003",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "A Furniture-only product showed and sent Interior's name",
+   "detail": "71 of the 241 screens opened by the four roles carried the word Interior; the WhatsApp greeting on a lead, a contact, a quotation and a visit and the staff invitation named Woodex Interior; the client's pages of a quotation and an invoice printed INTERIOR STUDIO under the mark.",
+   "lines": [
+    "T-030",
+    "T-031",
+    "T-032"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Commit `0d8ae53`: one setting names the lines on sale and the admin ships with Furniture alone. The crawl of all four roles finds the word on no screen; 25 tests pin it (`Feature/FurnitureOnlyTest.php`)."
+   }
+  },
+  {
+   "id": "D-004",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Two settings decided how a time is stored and how it is read",
+   "detail": "Had the application's time zone and the database session's time zone ever disagreed, every stored time would have shifted by five hours. They agreed, so no record was wrong.",
+   "lines": [
+    "T-061"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Commit `d7d6c29`: the session's zone is derived from the application's (DL-023); tests pin both, one of them on MySQL in CI (`Feature/TimeStorageTest.php`)."
+   }
+  },
+  {
+   "id": "D-005",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Three rows of the shop's migration ledger were written in another form than the migration runner writes",
+   "detail": "Rows 16, 17 and 18 carried names without `.sql` and checksums with a prefix, one of them cut short. The runner compares checksums and would have refused the live database as changed after the fact. The files had not changed: the recorded values were the beginnings of the files' real checksums.",
+   "lines": [
+    "T-163"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The three rows corrected to the runner's form, each guarded by its old value (DL-024). Read back: 19 rows, 19 migration files, every checksum equal."
+   }
+  },
+  {
+   "id": "D-006",
+   "severity": "high",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "Preview builds of the React shop use the production database",
+   "detail": "In the shop's Vercel project the database address is set for Production, Preview and Development alike. Vercel builds a preview of every branch that is pushed, so code that nobody has reviewed runs against the live data, and each preview address signs in to the same records. Harmless while the database holds sample products and one lead; not once it holds customers and orders. On 17 November the owner chose the repair (DL-026): take the database address out of Preview and Development. It is made as soon as the Vercel app is switched on again. Since 17 November, 16:05 UTC, the address is set for Production only (T-164): a preview built from then on has no database. Every preview that Vercel built before keeps the address until it is deleted, so this stays open for them.",
+   "lines": [
+    "T-188"
+   ]
+  },
+  {
+   "id": "D-007",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "The React shop sells the sample catalogue it was first filled with",
+   "detail": "148 products are on sale on `woodex-2030.vercel.app`; none of them is Woodex's, none has a code. The real 170 are prepared in the shop's build. Since migration 019 the old dashboard can load them: Product Catalog, Catalogue import. Rehearsed on a copy filled like the live database: 170 arrive as drafts, a second run changes nothing, and after publishing and withdrawing the demo catalogue a visitor gets 170 real products.",
+   "lines": [
+    "T-091"
+   ]
+  },
+  {
+   "id": "D-008",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "The catalogue's photographs are on woodexfurniture.pk, not in the system",
+   "detail": "Each of the 170 products links to its photograph on the present website, in the Laravel admin and in the catalogue prepared for the React shop. If that website is changed or switched off, every product loses its photograph.",
+   "lines": [
+    "T-089"
+   ]
+  },
+  {
+   "id": "D-009",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "116 of the 170 real products carry a point to check, and 33 have no price",
+   "detail": "The points are in the import report and on each product: a code made up for a product that had none, a name that differs from its page, a reduction that looks like a typing error (one product shows PKR 15,000 down from PKR 185,000).",
+   "lines": [
+    "T-090"
+   ]
+  },
+  {
+   "id": "D-010",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "The shop's database has no row-level security",
+   "detail": "The second lock behind D-001. With the privileges gone the tables cannot be reached through the Data API; row-level security keeps it that way if a privilege is ever granted again by mistake. Migration 020 is written and tested (`scripts/migrations/020_row_level_security.sql`, `scripts/test-rls.mjs`); by the owner's word of 17 November (DL-026) it is applied to the live database once a backup or a safe way back is confirmed, which needs the Supabase app switched on.",
+   "lines": [
+    "T-163"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Migration 020 was applied to the live database at 16:07:45 UTC, in one transaction with its ledger row: all 73 tables carry row-level security and the policy `no_access_through_the_data_api`, none forced. The shop's API connects as the owner of the tables and reads as before: asked from outside 67 seconds later, the shop served its 148 products (run 44122391808). The text that was run is kept in `deploy/supabase/2026-11-17-apply-020-row-level-security.sql`. DL-028."
+   }
+  },
+  {
+   "id": "D-011",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "No backup of the shop's database is known to exist",
+   "detail": "None was taken before the changes of 17 November, and whether the Supabase plan keeps any has not been checked. What the database held can be rebuilt today: its 148 products are the seed file's, and both changes have their undo. That stops being true with the first real order. On 17 November the agent looked again before applying migration 020: its connection to Supabase shows neither the plan nor any backup, so this could not be settled. That migration changes no row and has a tested rollback (DL-028).",
+   "lines": [
+    "T-187"
+   ]
+  },
+  {
+   "id": "D-012",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-16",
+   "title": "The admin sends no Content-Security-Policy",
+   "detail": "The other security headers are sent and checked from outside. A policy is the remaining one.",
+   "lines": [
+    "T-068"
+   ]
+  },
+  {
+   "id": "D-013",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-16",
+   "title": "The hosted workspace sends its stylesheet and scripts with no caching",
+   "detail": "`max-age=0`: every visit asks again. The files carry a fingerprint in their name and could be kept for a year.",
+   "lines": [
+    "T-152"
+   ]
+  },
+  {
+   "id": "D-014",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "The merge made changes to the live shop that the release report had not listed",
+   "detail": "The branch merged on 17 November also held the work done on the React shop between 11 and 13 November. With the merge it went live on `woodex-2030.vercel.app`: the Products menu is a plain list built from the category file shared with the admin, without its two picture tiles and with three more entries; a heading such as \"Office Tables\" lists the products of all its sub-categories; the connections to the Laravel admin and the second destination of the enquiry forms are in the build, switched off. The shop's gate passed on the merge commit and the outside check passed after it, so nothing is known to be broken; but the owner released the merge without this list. The report now carries it (`17-RELEASE-2026-11-17.md`), and the earlier build is kept by Vercel.",
+   "lines": [
+    "T-026"
+   ]
+  },
+  {
+   "id": "D-015",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "A quotation that had been sent could never become Accepted or Declined",
+   "detail": "Found by pressing the sale through in a browser. The client's own page records a yes, but that page is an optional module and the product ships with it off. The only other route needed a WhatsApp reply, and WhatsApp is not connected. No code could set a quotation to Declined at all. So the ordinary case — the client says yes on the telephone — left the quotation \"Sent\" for ever: no won lead, no project, no invoice.",
+   "lines": [
+    "T-080"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "A member of staff who may send quotations records the client's answer: accepted (who, how: telephone, in person, WhatsApp, e-mail or a signed copy, with a note) or declined (with the reason). The record names who wrote it down. A recorded yes does exactly what the client's page does. `92f90f9`; `tests/Feature/Sales/ClientAnswerTest.php`; pressed in the sale journey (DL-025)."
+   }
+  },
+  {
+   "id": "D-016",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "With the client pages off, the admin handed out links to pages that do not open",
+   "detail": "After \"Send now\" the admin showed an empty \"Share\" dialog and the message \"Share the link with the client\"; the WhatsApp text and the e-mail carried a link; every invoice, drafts too, offered a \"Client link\"; the project showed a portal card. Each link answered \"not found\", because the client pages are switched off. A client would have received a dead link in place of the quotation.",
+   "lines": [
+    "T-080"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "One answer to \"is there a client page?\" for quotations and one for invoices; while there is none the PDF is the document and each screen and message says what to do with it. `92f90f9`; `tests/Feature/Sales/ClientPagesOffTest.php`; pressed in the sale journey with the pages off."
+   }
+  },
+  {
+   "id": "D-017",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "A new installation could never issue a document: Settings had no field for the invoice terms",
+   "detail": "A document cannot be issued without invoice terms, and a new installation starts with none. Settings offered no field to write them, and asked for the Interior brand's two sets of terms although that brand is not on sale. The notice said only that something was missing.",
+   "lines": [
+    "T-080",
+    "T-084"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Settings → Sales rules has the field; the Interior terms are asked for only where that brand is on sale; the notice lists point by point what is missing; the other rules can be saved while the wording is undecided. `92f90f9`, `6b3a1ea`; `tests/Feature/FurnitureSettingsTest.php`."
+   }
+  },
+  {
+   "id": "D-018",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Invoices and payments never reached the client's timeline",
+   "detail": "The timeline of a lead and of a contact offers \"Invoice\" and \"Payment\" as filters, but nothing wrote either kind. The record of a sale stopped at \"accepted\": the sales person who won the order could not see on their lead whether the invoice had gone out or the advance had come in.",
+   "lines": [
+    "T-080"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The issue and the voiding of an invoice, a payment the client reported, its confirmation with the receipt number, and a claim that was sent back are written to the timeline. Without amounts: a lead is read by everybody who may open it, the figures by those who may open the invoice. `6b3a1ea`; `tests/Feature/Sales/BillingTimelineTest.php`; read by the sales person in the last step of the sale journey."
+   }
+  },
+  {
+   "id": "D-019",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "The details of a lead showed a leftover of the screen in place of the lead's value",
+   "detail": "The \"Value\" row of every lead's Details card printed the last key of a list further up the page (\"call_back\") instead of the expected value typed for the lead.",
+   "lines": [
+    "T-080"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The row shows the value. `6b3a1ea`; test \"shows the value typed for a lead in its details, not a leftover of the screen\" (it fails on the old view)."
+   }
+  },
+  {
+   "id": "D-020",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "The client's page of a discounted invoice did not add up",
+   "detail": "The page listed the lines (540,000) and the total (496,800) with nothing between them. Discount, rent, transport, tax and rounding were on the PDF only.",
+   "lines": [
+    "T-080"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The page shows subtotal, each adjustment and the total when there is any adjustment. `6b3a1ea`; two tests in `BillingTimelineTest.php`; read on the client's page in the sale journey."
+   }
+  },
+  {
+   "id": "D-021",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Confirming a payment the client reported asked nothing",
+   "detail": "\"Confirm\", a small link beside \"Send back\" in the list of payments, numbers a receipt and books the amount in the ledger with one click. Neither can be taken back.",
+   "lines": [
+    "T-080"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The link asks first, naming the amount and the client. `6b3a1ea`; the sale journey checks that the question was asked."
+   }
+  },
+  {
+   "id": "D-022",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Small things on the quotation, invoice and lead screens",
+   "detail": "A sales person, who has no \"Create full invoice\" button, was told to use it. \"Give to client\" stayed on a quotation that was already answered. A draft invoice said \"issued\" with a date. The record that an invoice was raised lost the number of its project. Choosing the person who already has a lead wrote a second \"Assigned to …\" on the timeline and told them again.",
+   "lines": [
+    "T-080"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Each corrected. `92f90f9`, `6b3a1ea` and the commit that closes T-080; tests in `ClientAnswerTest.php`, `ClientPagesOffTest.php` and `LeadShowTest.php`."
+   }
+  },
+  {
+   "id": "D-023",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "The project that a Furniture sale opens is an Interior project",
+   "detail": "Accepting a quotation opens a project. Its screen carries the Interior module's stages (Planning, Design, Procurement, Execution, Finishing, Handover), a hand-over checklist that speaks of \"the studio list\", and site updates. The word \"Interior\" does not appear, so the Furniture-only check passes; but none of it is how a furniture order is made, delivered and installed. The project is named after the quotation's title, which is \"Quotation\" when nobody typed one.",
+   "lines": [
+    "T-033",
+    "T-010"
+   ]
+  },
+  {
+   "id": "D-024",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "A lead's value does not follow its quotation",
+   "detail": "The expected value of a lead is typed by hand. Sending or accepting a quotation does not set it, so the pipeline board and the \"Expected value\" order count a sale won for 496,800 as nothing unless somebody typed the figure.",
+   "lines": [
+    "T-092"
+   ]
+  },
+  {
+   "id": "D-025",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Every link to a client's project page was refused, and the portal screen carried a script no browser could read",
+   "detail": "Where the client's pages are switched on (the demo; a site that turns the module on), the link to a client's project page answered \"No access\" wherever the admin gave it: on the project, on the Client portal screen, in the e-mail \"Open my project\", in the WhatsApp message and in the review request. The link was signed over the whole address; the page checks the path only. On the Client portal screen the \"Copy\" button also carried a Blade directive as plain text, so the browser reported a script error as soon as one project existed. No test had ever opened the screen or one of its links; the crawl missed it because it ran on a site without a project. The product as it ships has these pages off and showed no link.",
+   "lines": [
+    "T-167"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The link is signed over the path and the site's address is put in front (`app/Domain/Projects/Services/PortalLinks.php`); the button reads the link from the element. `ClientPortalTest.php` opens each of the five links and the screen. In CI the journeys now run before the crawl, so every screen is opened with the records of a sale in it."
+   }
+  },
+  {
+   "id": "D-026",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Open screens still offered what belongs to switched-off modules",
+   "detail": "A switched-off module is closed at its own addresses, but three open screens offered its things. The project that a sale opens had \"Case study\": a draft page for the public website, written from the Interior studio's template, while the website is off. Settings showed \"WhatsApp\" (the Cloud API's keys and costs) and \"Bot\" (the chat bot's prompt, written for the Interior studio). Integrations listed Telegram, WhatsApp, Google, Gmail, Drive, the Facebook page and the AI bridge with their buttons; one of them makes an access key for an endpoint that is closed. A lead could also be asked to price an estimate while the estimator is off.",
+   "lines": [
+    "T-034"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "Each is offered only while its module is on, and answers \"not found\" when asked for anyway: `SwitchedOffModulesTest.php`, 43 tests, which also ask for the two Interior quotation designs and every address of the estimator. Removing a stored connection and revoking a bridge key stay possible, because they only take away. DL-027."
+   }
+  },
+  {
+   "id": "D-027",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-17",
+   "title": "Four packages of the admin had published security advisories",
+   "detail": "The first run of the new audit (T-069) reported nine advisories in `symfony/http-foundation`, `symfony/http-kernel`, `symfony/routing` and `symfony/serializer` 8.1.10, among them CVE-2026-118516 (a host placeholder of a route could match the path) and CVE-2026-118515 (file objects built from untrusted data). Packagist states no severity for them; the audit treats an advisory without one as blocking. The fixed versions were published on 4 November.",
+   "lines": [
+    "T-069"
+   ],
+   "closed": {
+    "on": "2026-11-17",
+    "how": "The four packages are at 8.1.11 in `platform/composer.lock`, with no other requirement changed; the whole suite passes on them and the audit in CI reports no blocking advisory. What is left is D-028."
+   }
+  },
+  {
+   "id": "D-028",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "One low advisory in Laravel, and eleven moderate ones in the shop's build tools",
+   "detail": "`laravel/framework` 13.39.0 carries CVE-2026-128083 (low; fixed in 13.40.0): text injected into the output of a task run through the Concurrency process driver, which this application does not use. `npm audit` reports eleven moderate advisories, in the linter, in `react-router` and in a Tailwind plugin; the fix npm offers for `react-router` is a change of major version. None fails the audit, which stops at high.",
+   "lines": [
+    "T-071"
+   ]
+  },
+  {
+   "id": "D-029",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-17",
+   "title": "Ten functions of the shop's database have no fixed search path",
+   "detail": "The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today.",
+   "lines": [
+    "T-172"
+   ]
+  }
+ ]
 }

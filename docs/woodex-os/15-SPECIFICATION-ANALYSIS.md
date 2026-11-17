@@ -385,7 +385,7 @@ changes are recorded in [`12-DECISION-LOG.md`](12-DECISION-LOG.md), which names 
 |---|---|---|
 | §2 The PRD is the second source of truth | Not supplied | T-023 |
 | §4 No Interior content (with D-008) | Present in open screens | T-030 to T-035 |
-| §10 Browser smoke and visual checks "where available" | Available, run by hand; not in CI | T-167 |
+| §10 Browser smoke and visual checks "where available" | In CI since 17 November: both journeys and every screen as four roles, on the rehearsal, on every push that touches the admin. Pictures of the screens are still compared by eye | T-167 (done) |
 
 **Document 09.**
 

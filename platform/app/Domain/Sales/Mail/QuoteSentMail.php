@@ -17,7 +17,8 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * The quotation by email (QUO-008, before the WhatsApp API in P4): link + the sent version's PDF.
+ * The quotation by email (QUO-008, before the WhatsApp API in P4): the sent version's PDF, and the link to the
+ * client's page while the client pages are switched on.
  */
 final class QuoteSentMail extends Mailable implements ShouldQueue
 {
@@ -41,7 +42,7 @@ final class QuoteSentMail extends Mailable implements ShouldQueue
 
         return new Content(view: 'mail.quote-sent', with: [
             's' => $this->version()->snapshot,
-            'link' => QuoteLinks::portal($quote),
+            'link' => QuoteLinks::clientPage($quote),
         ]);
     }
 

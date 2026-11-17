@@ -163,8 +163,10 @@ class InvoiceShow extends Component
             'previewHtml' => $this->showPreview && $invoice->status === InvoiceStatus::Draft
                 ? app(InvoicePdf::class)->html(app(InvoiceSnapshot::class)->build($invoice))
                 : null,
-            'portal' => InvoiceLinks::portal($invoice),
-            'whatsapp' => InvoiceLinks::whatsappShare($invoice),
+            // Nothing goes to the client before the invoice is issued: a draft has no PDF and its client page
+            // answers 404. And the client page exists only while the client pages are switched on.
+            'portal' => $invoice->status === InvoiceStatus::Draft ? null : InvoiceLinks::clientPage($invoice),
+            'whatsapp' => $invoice->status === InvoiceStatus::Draft ? null : InvoiceLinks::whatsappShare($invoice),
             'methods' => PaymentMethod::cases(),
             'lakh' => app(SalesSettings::class)->lakh_grouping,
         ]);

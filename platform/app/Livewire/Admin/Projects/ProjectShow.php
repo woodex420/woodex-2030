@@ -26,6 +26,7 @@ use App\Domain\Projects\Services\PortalLinks;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Models\User;
 use App\Settings\SalesSettings;
+use App\Support\Modules;
 use App\Support\Money;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -323,6 +324,12 @@ class ProjectShow extends Component
     {
         $this->authorize('update', $this->project);
 
+        if (! Modules::enabled('client_portal')) {
+            $this->toast('The client pages are switched off on this site: there is no link to send.', 'error');
+
+            return;
+        }
+
         $email = $this->project->contact?->email;
 
         if ($email === null || $email === '') {
@@ -410,6 +417,7 @@ class ProjectShow extends Component
 
     public function toggleConsent(bool $consent): void
     {
+        abort_unless(Modules::enabled('website'), 404);
         $this->authorize('update', $this->project);
 
         $this->project->forceFill(['case_study_consent' => $consent])->save();
@@ -419,6 +427,8 @@ class ProjectShow extends Component
     /** A finished job becomes a draft portfolio page for a person to write up (PRJ-008). */
     public function draftCaseStudy(): void
     {
+        // A page of the public website: there is none to write while that module is switched off.
+        abort_unless(Modules::enabled('website'), 404);
         $this->authorize('update', $this->project);
         abort_unless($this->user()->can('website.edit'), 403);
 
@@ -476,6 +486,7 @@ class ProjectShow extends Component
             'stages' => ProjectStage::cases(),
             'statuses' => ProjectStatus::cases(),
             'staff' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'clientPages' => Modules::enabled('client_portal'),
             'portalUrl' => PortalLinks::absolute($this->project),
             'portalRelative' => PortalLinks::portal($this->project),
             'whatsappShare' => PortalLinks::whatsappShare($this->project),

@@ -55,6 +55,12 @@ final class SendQuoteByWhatsApp
             return $this->record($quote, $version, $by, WhatsAppDelivery::failed('WhatsApp is not connected in Settings yet.'));
         }
 
+        // This message is the link and nothing else. With the client pages switched off the link answers 404.
+        $link = QuoteLinks::clientPage($quote);
+        if ($link === null) {
+            return $this->record($quote, $version, $by, WhatsAppDelivery::failed('the client pages are switched off, so there is no link to send. Give the client the PDF.'));
+        }
+
         $conversation = Conversation::query()->firstOrCreate(
             ['contact_id' => $quote->contact_id, 'channel' => Channel::Whatsapp->value],
             ['external_number' => $number, 'status' => ConversationStatus::Open, 'window_expires_at' => now()->addHours(24), 'unread_count' => 0],
@@ -66,7 +72,7 @@ final class SendQuoteByWhatsApp
             $message = $conversation->isInWindow()
                 ? $this->send->handle($conversation, QuoteLinks::whatsappBody($quote), $by)
                 : $this->send->template($conversation, $template['name'], [['type' => 'body', 'parameters' => [
-                    ['type' => 'text', 'text' => QuoteLinks::portal($quote)],
+                    ['type' => 'text', 'text' => $link],
                 ]]], $template['language'], $by);
         } catch (Throwable $exception) {
             return $this->record($quote, $version, $by, WhatsAppDelivery::failed($exception->getMessage()));
