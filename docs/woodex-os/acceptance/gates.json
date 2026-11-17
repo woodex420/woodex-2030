@@ -1,0 +1,228 @@
+{
+  "about": "The five release gates of document 10 §7 and where each criterion stands. Checked by scripts/verify-acceptance.mjs: the criteria must be the specification's; a gate may be marked passed only when every criterion is met and the owner's decision is recorded; the criterion on critical defects is worked out from defects.json.",
+  "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
+  "read_on": "2026-11-17",
+  "states": {
+    "met": "true today, with the evidence named",
+    "partly": "part of it is true; the lines close the rest",
+    "open": "not true yet"
+  },
+  "gates": [
+    {
+      "id": "A",
+      "title": "Design foundation",
+      "passed": false,
+      "owner_decision": null,
+      "needs": "The owner's approval of the design on the hosted workspace (T-005). The two other open points are the agent's work.",
+      "criteria": [
+        {
+          "text": "Approved design tokens.",
+          "state": "partly",
+          "evidence": "Tokens, shell and the Reimagined theme the owner asked for (DL-017) are built and pinned by tests (`Unit/AdminDesignTokensTest.php`, `Feature/ThemeTokensTest.php`). The approval itself has not been given.",
+          "lines": [
+            "T-005"
+          ]
+        },
+        {
+          "text": "Shared component examples.",
+          "state": "open",
+          "evidence": "No screen shows the shared components and their states side by side.",
+          "lines": [
+            "T-050",
+            "T-041"
+          ]
+        },
+        {
+          "text": "Responsive shell prototype.",
+          "state": "met",
+          "evidence": "Sidebar, top bar and phone drawer are built. On 17 November a browser opened 241 screens as four roles at 1366 px and at 390 px; none was wider than the window (`scripts/os-screens.mjs`).",
+          "lines": []
+        },
+        {
+          "text": "Accessibility review.",
+          "state": "partly",
+          "evidence": "Counted by tools on every screen: labels, names, one main heading, 24 px targets. No review by keyboard and by screen reader.",
+          "lines": [
+            "T-054"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "title": "Module readiness",
+      "passed": false,
+      "owner_decision": null,
+      "needs": "Passed module by module. Each open module has its sheet in §4; the owner signs or returns it (T-171).",
+      "criteria": [
+        {
+          "text": "Requirements, API and schema approved.",
+          "state": "open",
+          "evidence": "Documents 05 and 07 are the requirements, and the schema is 106 migrations that build an empty MySQL 8.4 in CI on every push. No module has had its requirements, its addresses and its schema approved as a set.",
+          "lines": [
+            "T-171",
+            "T-063"
+          ]
+        },
+        {
+          "text": "Unit/API/browser tests pass.",
+          "state": "partly",
+          "evidence": "Unit and feature tests pass: 2,280 on 17 November, and the same suite on MySQL 8.4 in CI. In a browser the journeys and a crawl of every screen pass; which of the eleven flows of document 10 they press is in §3.",
+          "lines": [
+            "T-165",
+            "T-080"
+          ]
+        },
+        {
+          "text": "Permission matrix tested.",
+          "state": "partly",
+          "evidence": "No admin address opens without a sign-in, and one role is checked against every address (`Feature/AdminRouteAccessTest.php`); the other roles are tested module by module (§4). The roles are the inherited eight, not yet the owner's matrix.",
+          "lines": [
+            "T-060",
+            "T-004"
+          ]
+        },
+        {
+          "text": "Data reconciliation ready.",
+          "state": "partly",
+          "evidence": "Ready for the catalogue only: 170 products, with a report that accounts for every row and every change (`docs/furniture-2030/catalogue/IMPORT-REPORT.md`). No other record has an importer. The old database holds little to move: on 17 November 1 lead, 1 client, no order, quotation or invoice.",
+          "lines": [
+            "T-101",
+            "T-178",
+            "T-179"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "title": "Puck readiness",
+      "passed": false,
+      "owner_decision": null,
+      "needs": "The prototype of T-115. Not started; it is wave 10.",
+      "criteria": [
+        {
+          "text": "Compatibility prototype accepted.",
+          "state": "open",
+          "evidence": "Not started. The Website Studio in the code is the HTML builder inherited from Interior; it is switched off.",
+          "lines": [
+            "T-115"
+          ]
+        },
+        {
+          "text": "Round-trip editing and renderer parity.",
+          "state": "open",
+          "evidence": "Not started.",
+          "lines": [
+            "T-115"
+          ]
+        },
+        {
+          "text": "Draft security, publish and rollback tested.",
+          "state": "open",
+          "evidence": "Not started.",
+          "lines": [
+            "T-115"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "title": "Hostinger readiness",
+      "passed": false,
+      "owner_decision": null,
+      "needs": "The owner's Hostinger details and the two SSH secrets entered in GitHub (T-006). Nothing on the host can be proven before that.",
+      "criteria": [
+        {
+          "text": "PHP/MySQL compatibility verified.",
+          "state": "partly",
+          "evidence": "Verified away from the host: every migration from an empty database and the whole suite run on MySQL 8.4 in CI on every push (`.github/workflows/os-ci.yml`). Not verified on the account: its PHP version and extensions, MySQL or MariaDB.",
+          "lines": [
+            "T-131",
+            "T-006"
+          ]
+        },
+        {
+          "text": "Cron/queue strategy proven.",
+          "state": "open",
+          "evidence": "Designed — one cron line calls the scheduler, two timed jobs drain the queue — and never run on the host.",
+          "lines": [
+            "T-134"
+          ]
+        },
+        {
+          "text": "Backup and restore tested.",
+          "state": "open",
+          "evidence": "The Laravel admin holds no real record yet, and no backup of it has been taken or restored.",
+          "lines": [
+            "T-137"
+          ]
+        },
+        {
+          "text": "Security and resource checks passed.",
+          "state": "open",
+          "evidence": "The outside security check exists and passes for the hosted workspace on Vercel (`.github/workflows/vercel-live-check.yml`); it has not been pointed at Hostinger, and nothing has been measured against the plan's limits.",
+          "lines": [
+            "T-139",
+            "T-142",
+            "T-068"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E",
+      "title": "Production cutover",
+      "passed": false,
+      "owner_decision": null,
+      "needs": "The owner changes the old dashboard's password (T-021): the one open critical defect. Then gate D, and the owner's written approval of each module's move (T-181).",
+      "criteria": [
+        {
+          "text": "Owner approval.",
+          "state": "partly",
+          "evidence": "Given in general on 17 November: the owner lifted the holds to start a production-ready deployment (DL-022). The move of each module is approved in writing on its sheet.",
+          "lines": [
+            "T-181",
+            "T-171"
+          ]
+        },
+        {
+          "text": "Migration snapshot.",
+          "state": "open",
+          "evidence": "No snapshot has been taken for a move. What the old database held on 17 November was read and is written down: 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment.",
+          "lines": [
+            "T-164",
+            "T-180"
+          ]
+        },
+        {
+          "text": "Rollback plan.",
+          "state": "partly",
+          "evidence": "Each change of 17 November has its own way back: the undo in `deploy/supabase/2026-11-17-close-data-api.sql`, the rollback file `scripts/migrations/rollback/019_catalogue.rollback.sql`, the earlier deployment kept by Vercel. A written plan for going back after a module has moved does not exist.",
+          "lines": [
+            "T-180",
+            "T-185"
+          ]
+        },
+        {
+          "text": "Monitoring and support plan.",
+          "state": "partly",
+          "evidence": "Both sites are asked from outside after every merge and every six hours (`.github/workflows/live-check-after-merge.yml`, `.github/workflows/vercel-live-check.yml`); a failure mails the repository's owner. No error tracker, no runbook.",
+          "lines": [
+            "T-138",
+            "T-142",
+            "T-185"
+          ]
+        },
+        {
+          "text": "No unresolved critical defects.",
+          "state": "computed",
+          "evidence": "",
+          "lines": [],
+          "computed": "no_open_critical"
+        }
+      ]
+    }
+  ]
+}

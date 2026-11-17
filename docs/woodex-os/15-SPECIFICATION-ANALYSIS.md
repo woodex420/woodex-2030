@@ -13,6 +13,12 @@ for each acceptance scenario, and the rule behind a scenario was read in the cod
 "Tested" below means a test exists and passes in the suite (2,244 passed on 17 November); it does not mean the
 owner has accepted the module.
 
+**This is the reading at that commit, and it is not rewritten.** Later the same day the admin became
+Furniture-only, the real catalogue was loaded, and times were settled (commits `0d8ae53`, `d7d6c29`, `f489a36`).
+Where this document and the code now differ — the "Furniture-clean" column of §8, the scenarios and gates of §9 —
+the current state is [`16-ACCEPTANCE-AND-RELEASE-GATES.md`](16-ACCEPTANCE-AND-RELEASE-GATES.md), which is checked
+against the tests on every push. Test files are named there with their folder; a few are named here without it.
+
 ---
 
 ## 1. What was attached

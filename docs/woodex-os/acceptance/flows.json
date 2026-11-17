@@ -1,0 +1,126 @@
+{
+  "about": "The eleven browser flows of document 10 §2, each with the steps of scripts/os-journeys.mjs that press it. Checked by scripts/verify-acceptance.mjs: the wording must be the specification's and every named step must exist in the script.",
+  "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
+  "journeys": "scripts/os-journeys.mjs",
+  "states": {
+    "covered": "the whole flow is pressed in a browser",
+    "partly": "some of its steps are pressed",
+    "none": "no step is pressed"
+  },
+  "flows": [
+    {
+      "text": "Lead capture.",
+      "state": "partly",
+      "steps": [
+        "create a lead from the New menu",
+        "the lead is still there after a reload, and its page opens"
+      ],
+      "note": "A member of staff creates the lead. The shop's public form is not in a journey: the React shop does not write to Laravel yet.",
+      "lines": [
+        "T-100",
+        "T-165"
+      ]
+    },
+    {
+      "text": "Lead assignment and conversion.",
+      "state": "none",
+      "steps": [],
+      "note": "",
+      "lines": [
+        "T-165",
+        "T-080"
+      ]
+    },
+    {
+      "text": "Estimate to quotation.",
+      "state": "none",
+      "steps": [],
+      "note": "Estimations is switched off.",
+      "lines": [
+        "T-085"
+      ]
+    },
+    {
+      "text": "Quotation approval and issue.",
+      "state": "partly",
+      "steps": [
+        "write a draft quotation for that client",
+        "price one line; the total follows",
+        "the quotation PDF"
+      ],
+      "note": "Draft, price and PDF are pressed. Approval above a limit and sending are not; issuing is blocked until the owner's terms and signers are confirmed.",
+      "lines": [
+        "T-080",
+        "T-084"
+      ]
+    },
+    {
+      "text": "Invoice and payment allocation.",
+      "state": "none",
+      "steps": [],
+      "note": "",
+      "lines": [
+        "T-080"
+      ]
+    },
+    {
+      "text": "Product browse and order creation.",
+      "state": "partly",
+      "steps": [
+        "find a product of the real catalogue by its code, and open it"
+      ],
+      "note": "Browsing only, on the real catalogue. Orders do not exist in Laravel.",
+      "lines": [
+        "T-106"
+      ]
+    },
+    {
+      "text": "Purchase order and goods receipt.",
+      "state": "none",
+      "steps": [],
+      "note": "No module.",
+      "lines": [
+        "T-110"
+      ]
+    },
+    {
+      "text": "Stock transfer/reservation.",
+      "state": "none",
+      "steps": [],
+      "note": "No module.",
+      "lines": [
+        "T-109"
+      ]
+    },
+    {
+      "text": "Project task and handover.",
+      "state": "none",
+      "steps": [],
+      "note": "The journey adds a task to a lead, not to a project.",
+      "lines": [
+        "T-165"
+      ]
+    },
+    {
+      "text": "Page edit, preview, approval and publish.",
+      "state": "none",
+      "steps": [],
+      "note": "No Puck editor.",
+      "lines": [
+        "T-115",
+        "T-116"
+      ]
+    },
+    {
+      "text": "Permission-denied scenarios.",
+      "state": "covered",
+      "steps": [
+        "a sales person is told plainly what they may not open",
+        "a page that does not exist gets the admin's own 404",
+        "sign out; the admin asks for a sign-in again"
+      ],
+      "note": "",
+      "lines": []
+    }
+  ]
+}

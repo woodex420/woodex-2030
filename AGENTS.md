@@ -241,9 +241,20 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
 - **What is open** is one list: `docs/woodex-os/14-PRODUCTION-TODO.md`, lines `T-001` onward, each with a
   priority (P0 to P3), who acts, and what "done" means. Change a line's status in the same commit as the
   work. Its sources are in `docs/woodex-os/15-SPECIFICATION-ANALYSIS.md`. The production host is Hostinger
-  shared hosting with MySQL (DL-020); Vercel carries a demo only.
-- **Furniture only.** The code came from the Woodex Interior application. Do not add Interior wording,
-  defaults or sample content to a screen that is open; removing what is there is lines T-030 to T-035.
+  shared hosting with MySQL (DL-020); Vercel carries a preview workspace only.
+- **Acceptance and release gates** are `docs/woodex-os/16-ACCEPTANCE-AND-RELEASE-GATES.md`. Its tables are
+  written from the five files in `docs/woodex-os/acceptance/` by `node scripts/verify-acceptance.mjs --write`;
+  CI runs the same script as a check. If you rename a test or a journey step that is named as proof there,
+  rename it there too. Enter every finding of your round in `acceptance/defects.json` with its severity, and
+  write a release report with the ten headings of document 10 §9 (`17-RELEASE-2026-11-17.md` is the model).
+- **Furniture only.** The code came from the Woodex Interior application. One setting names the lines an
+  installation sells: `WOODEX_BUSINESS_LINES`, default `furniture` (DL-021). With one line there is no line
+  chooser, filter or column, and a line that is not sold is refused. The test suite runs with all three lines;
+  a test of the Furniture-only admin calls `sellFurnitureAlone()`. Do not add Interior wording, defaults or
+  sample content to a screen that is open; what is left of it is lines T-033 and T-034.
+- **The real catalogue** (170 products, DL-022) is `platform/resources/data/woodex-catalogue.json`, built by
+  `node scripts/build-woodex-catalogue.mjs` and loaded by `php artisan commerce:import-catalogue`. It loads
+  drafts only: nothing in the code may publish a product by itself.
 - **Done, for a change under `platform/`:** its test suite passes **on MySQL in CI** (workflow
   `os-ci.yml`, five jobs). That is the authority. In a sandbox it runs on SQLite with a static PHP build —
   `platform/tools/preview/README.md` says how to get PHP and Composer where only GitHub and npm are

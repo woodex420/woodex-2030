@@ -1,0 +1,444 @@
+{
+  "about": "The 25 critical acceptance scenarios of document 10 §3, each with the tests that prove it. Checked by scripts/verify-acceptance.mjs: the wording must be the specification's, every named test must exist under platform/tests, every line must be a row of document 14.",
+  "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
+  "states": {
+    "proven": "the rule is in the code and the named tests prove it",
+    "partly": "part of it is proven; the note says what is not, and the lines close it",
+    "not_built": "the module does not exist in the Laravel admin"
+  },
+  "scenarios": [
+    {
+      "id": "AS-01",
+      "group": "CRM and sales",
+      "text": "A public enquiry creates one lead.",
+      "state": "proven",
+      "tests": [
+        {
+          "file": "Feature/PublicLeadApiTest.php",
+          "name": "captures a web enquiry as contact + lead with normalised phone and attribution"
+        },
+        {
+          "file": "Feature/PublicLeadApiTest.php",
+          "name": "joins a repeat enquiry from the same phone to the open lead instead of duplicating it"
+        }
+      ],
+      "note": "Proven on the Laravel enquiry address. The React shop's forms still write to the old API, so no public enquiry reaches Laravel yet.",
+      "lines": [
+        "T-100"
+      ]
+    },
+    {
+      "id": "AS-02",
+      "group": "CRM and sales",
+      "text": "Duplicate detection identifies likely existing contact.",
+      "state": "proven",
+      "tests": [
+        {
+          "file": "Feature/ContactsTest.php",
+          "name": "refuses a duplicate phone in any format and points to the existing contact"
+        },
+        {
+          "file": "Feature/ContactsTest.php",
+          "name": "merges a duplicate contact and moves its leads and timeline"
+        }
+      ],
+      "note": "By phone number, however it is written. Several numbers and e-mail addresses per person come later.",
+      "lines": [
+        "T-083"
+      ]
+    },
+    {
+      "id": "AS-03",
+      "group": "CRM and sales",
+      "text": "Lead assignment is permission checked and audited.",
+      "state": "proven",
+      "tests": [
+        {
+          "file": "Feature/LeadShowTest.php",
+          "name": "lets a manager reassign the lead"
+        },
+        {
+          "file": "Feature/LeadShowTest.php",
+          "name": "does not let a sales user act on another person's lead"
+        },
+        {
+          "file": "Feature/LeadsIndexTest.php",
+          "name": "bulk assigns, moves and deletes selected leads within permissions"
+        }
+      ],
+      "note": "A reassignment asks for a reason and writes it into the lead's history. Not yet pressed in a browser.",
+      "lines": [
+        "T-165"
+      ]
+    },
+    {
+      "id": "AS-04",
+      "group": "CRM and sales",
+      "text": "Estimate totals are calculated server-side.",
+      "state": "partly",
+      "tests": [
+        {
+          "file": "Feature/Sales/EstimatesTest.php",
+          "name": "prices an estimate from the rate book with an honest essential-to-premium band"
+        },
+        {
+          "file": "Feature/Sales/EstimatesTest.php",
+          "name": "prices rate book lines at today's rates inside the same computation"
+        },
+        {
+          "file": "Unit/QuoteCalculatorTest.php",
+          "name": "applies line discounts, quote discount, other charges, tax and rounding in order"
+        }
+      ],
+      "note": "The arithmetic runs on the server and is tested. The Estimations screen is switched off: its rate book is Interior's, and Furniture's rates are not in yet.",
+      "lines": [
+        "T-085",
+        "T-003"
+      ]
+    },
+    {
+      "id": "AS-05",
+      "group": "CRM and sales",
+      "text": "Quote approval is required for configured roles/thresholds.",
+      "state": "proven",
+      "tests": [
+        {
+          "file": "Feature/QuoteSendingTest.php",
+          "name": "measures the discount against the sender's role limit and the minimum margin"
+        },
+        {
+          "file": "Feature/QuoteSendingTest.php",
+          "name": "blocks sending above the limit until a manager approves exactly those figures"
+        },
+        {
+          "file": "Feature/QuoteSendingTest.php",
+          "name": "lists pending approvals for managers and lets them decide"
+        }
+      ],
+      "note": "The limits in force are defaults. The owner's own limit for each role is still to come.",
+      "lines": [
+        "T-004"
+      ]
+    },
+    {
+      "id": "AS-06",
+      "group": "CRM and sales",
+      "text": "A rejected quote cannot be converted.",
+      "state": "proven",
+      "tests": [
+        {
+          "file": "Feature/QuotationSafetyTest.php",
+          "name": "rechecks the persisted acceptability of a stale sent quotation"
+        },
+        {
+          "file": "Feature/QuotationSafetyTest.php",
+          "name": "does not open projects or advances from unaccepted quotes"
+        }
+      ],
+      "note": "A declined, expired, void or draft quotation cannot be accepted, and no project or invoice is created from it.",
+      "lines": []
+    },
+    {
+      "id": "AS-07",
+      "group": "CRM and sales",
+      "text": "Issued document snapshot remains stable after product price changes.",
+      "state": "partly",
+      "tests": [
+        {
+          "file": "Feature/QuotesTest.php",
+          "name": "copies rate book items into the quote so later rate changes do not alter it"
+        },
+        {
+          "file": "Feature/DocumentLibraryTest.php",
+          "name": "serves the exact frozen quote PDF by default after sending"
+        },
+        {
+          "file": "Feature/QuotationSafetyTest.php",
+          "name": "returns the same advance and never re-freezes an existing issued PDF"
+        }
+      ],
+      "note": "Proven for rate-book lines and for the frozen PDF. A quotation line cannot yet be chosen from the product catalogue, so a product's price change is not tested.",
+      "lines": [
+        "T-086"
+      ]
+    },
+    {
+      "id": "AS-08",
+      "group": "Finance",
+      "text": "Payment amount cannot exceed allowed allocation unless overpayment policy is defined.",
+      "state": "proven",
+      "tests": [
+        {
+          "file": "Feature/Sales/InvoiceScreenTest.php",
+          "name": "refuses to collect more than is outstanding"
+        },
+        {
+          "file": "Feature/PaymentsTest.php",
+          "name": "spreads a payment over the oldest invoices first and keeps the rest as credit"
+        },
+        {
+          "file": "Feature/PaymentIntegrityTest.php",
+          "name": "validates the whole explicit map before retaining any allocation or receipt"
+        },
+        {
+          "file": "Feature/Accounts/PayablesTest.php",
+          "name": "refuses a payment larger than the balance"
+        }
+      ],
+      "note": "The policy in force: from an invoice no more than is outstanding can be collected; money received beyond the invoices it settles is kept as the client's credit.",
+      "lines": []
+    },
+    {
+      "id": "AS-09",
+      "group": "Finance",
+      "text": "Partial payments calculate outstanding balance correctly.",
+      "state": "proven",
+      "tests": [
+        {
+          "file": "Feature/PaymentsTest.php",
+          "name": "spreads a payment over the oldest invoices first and keeps the rest as credit"
+        },
+        {
+          "file": "Feature/PaymentIntegrityTest.php",
+          "name": "pays the preferred invoice before older debt and retains only the final excess as credit"
+        },
+        {
+          "file": "Feature/PaymentIntegrityTest.php",
+          "name": "preserves paisa exactly and refuses scientific or overprecise amounts on the staff form"
+        },
+        {
+          "file": "Feature/Accounts/GlSalesPostingTest.php",
+          "name": "splits a part-settled receipt between receivables and client credit"
+        }
+      ],
+      "note": "",
+      "lines": []
+    },
+    {
+      "id": "AS-10",
+      "group": "Finance",
+      "text": "Reversal requires permission and reason.",
+      "state": "proven",
+      "tests": [
+        {
+          "file": "Feature/Sales/InvoiceScreenTest.php",
+          "name": "voids an issued invoice with a reason and reverses its ledger entry instead of deleting it"
+        },
+        {
+          "file": "Feature/Sales/InvoiceScreenTest.php",
+          "name": "requires a reason before voiding"
+        },
+        {
+          "file": "Feature/Sales/InvoiceScreenTest.php",
+          "name": "does not offer the void to a sales user, and refuses it if called"
+        },
+        {
+          "file": "Feature/Accounts/AccountsLedgerTest.php",
+          "name": "lets the owner post and reverse a manual entry from the journals screen, and blocks the admin"
+        }
+      ],
+      "note": "",
+      "lines": []
+    },
+    {
+      "id": "AS-11",
+      "group": "Finance",
+      "text": "Financial reports reconcile to source transactions.",
+      "state": "partly",
+      "tests": [
+        {
+          "file": "Feature/Accounts/PayablesTest.php",
+          "name": "leaves the trial balance balanced after bills and payments"
+        },
+        {
+          "file": "Feature/Accounts/TrialBalanceTest.php",
+          "name": "shows the posted accounts with their debits, credits and a balanced total"
+        },
+        {
+          "file": "Feature/Overview/ControlCentreTest.php",
+          "name": "reconciles today and business-line collections without counting unallocated cash twice"
+        }
+      ],
+      "note": "The books balance after every tested posting, and the day's collections reconcile. Not every report states its definition and is tested against its source records.",
+      "lines": [
+        "T-082",
+        "T-114"
+      ]
+    },
+    {
+      "id": "AS-12",
+      "group": "Finance",
+      "text": "Currency and tax behavior are explicit.",
+      "state": "partly",
+      "tests": [
+        {
+          "file": "Feature/PaymentIntegrityTest.php",
+          "name": "never allocates to non-payable or foreign-currency invoice targets"
+        },
+        {
+          "file": "Feature/AdvanceInvoiceTest.php",
+          "name": "keeps the tax rate of the quotation on the advance"
+        },
+        {
+          "file": "Feature/Accounts/GlSalesPostingTest.php",
+          "name": "splits sales tax to taxes payable when the quotation carries it"
+        }
+      ],
+      "note": "Quotations and invoices carry their currency and their tax rate. There are no tax rules and no currency setting: PKR is written into the code and tax is a rate typed per document.",
+      "lines": [
+        "T-008",
+        "T-064",
+        "T-087"
+      ]
+    },
+    {
+      "id": "AS-13",
+      "group": "Inventory and production",
+      "text": "Goods receipt posts stock once only.",
+      "state": "not_built",
+      "tests": [],
+      "note": "No purchasing or stock module in Laravel. The rule and its test exist in the Node system (`scripts/test-stock-ledger.mjs`) and are ported first.",
+      "lines": [
+        "T-110"
+      ]
+    },
+    {
+      "id": "AS-14",
+      "group": "Inventory and production",
+      "text": "Duplicate receipt submission is idempotent.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-110"
+      ]
+    },
+    {
+      "id": "AS-15",
+      "group": "Inventory and production",
+      "text": "Transfer creates matched source and destination ledger movements.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-109"
+      ]
+    },
+    {
+      "id": "AS-16",
+      "group": "Inventory and production",
+      "text": "Reservation reduces available stock but does not corrupt physical stock.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-109"
+      ]
+    },
+    {
+      "id": "AS-17",
+      "group": "Inventory and production",
+      "text": "Adjustment requires reason and appropriate approval.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-109"
+      ]
+    },
+    {
+      "id": "AS-18",
+      "group": "Puck / Website Studio",
+      "text": "Unauthorized user cannot access editor or draft preview.",
+      "state": "not_built",
+      "tests": [],
+      "note": "No Puck editor exists. The Website Studio in the code is the HTML builder inherited from Interior, and it is switched off.",
+      "lines": [
+        "T-115"
+      ]
+    },
+    {
+      "id": "AS-19",
+      "group": "Puck / Website Studio",
+      "text": "Unsupported component types are rejected by server.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-115"
+      ]
+    },
+    {
+      "id": "AS-20",
+      "group": "Puck / Website Studio",
+      "text": "Draft save creates a new revision.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-115"
+      ]
+    },
+    {
+      "id": "AS-21",
+      "group": "Puck / Website Studio",
+      "text": "Preview uses same renderer as published page.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-115"
+      ]
+    },
+    {
+      "id": "AS-22",
+      "group": "Puck / Website Studio",
+      "text": "Publish requires appropriate role/approval.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-115"
+      ]
+    },
+    {
+      "id": "AS-23",
+      "group": "Puck / Website Studio",
+      "text": "Rollback restores previous valid revision.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-115"
+      ]
+    },
+    {
+      "id": "AS-24",
+      "group": "Puck / Website Studio",
+      "text": "Product block uses canonical catalogue data.",
+      "state": "not_built",
+      "tests": [],
+      "note": "As above.",
+      "lines": [
+        "T-115",
+        "T-105"
+      ]
+    },
+    {
+      "id": "AS-25",
+      "group": "Puck / Website Studio",
+      "text": "Media deletion is blocked or warns when referenced.",
+      "state": "partly",
+      "tests": [
+        {
+          "file": "Feature/StorefrontMediaTest.php",
+          "name": "reuses an existing library image and blocks deleting connected images"
+        }
+      ],
+      "note": "Proven in the media library for images that the catalogue uses. Pages cannot refer to media yet: there is no Puck editor.",
+      "lines": [
+        "T-115"
+      ]
+    }
+  ]
+}

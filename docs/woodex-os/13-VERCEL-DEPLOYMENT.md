@@ -1,7 +1,8 @@
 # WOODEX OS on Vercel
 
 The Laravel admin (`platform/`) deployed as its own Vercel project, separate from the shop.
-Decision: DL-014 (deploy on Vercel), DL-015 (a demo with sample data until a database exists).
+Decisions: DL-014 (deploy on Vercel), DL-015 (a demo until a database exists), DL-022 (the catalogue it shows is
+Woodex's real one).
 
 ## 1. What is deployed
 
@@ -11,10 +12,11 @@ Decision: DL-014 (deploy on Vercel), DL-015 (a demo with sample data until a dat
 | Address | `https://woodex-os.vercel.app` (public). Addresses of single deployments ask for a Vercel login |
 | Shop project | `woodex-2030`. Untouched: another project, another address, another database |
 | Runtime | `vercel-php@0.9.0` (PHP 8.5), a community runtime. Vercel has no official PHP support |
-| Mode today | **Demo**: sample data only (section 2) |
+| Mode today | **Preview workspace**: Woodex's real catalogue as drafts; sample customers, leads and documents (section 2) |
 
-A push to a branch builds a preview of `woodex-os`. Production is updated on purpose (section 6), because the
-project's production branch is `main` and `main` has no `platform/` folder until DL-011 is lifted.
+A push to a branch builds a preview of `woodex-os`. The project's production branch is `main`, and `main` has a
+`platform/` folder only from the merge of pull request #36 on (DL-022 lifted DL-011): from then a push to `main`
+updates production by itself. Before it, and for any other commit, production is updated on purpose (section 6).
 
 ## 2. The two modes
 
@@ -25,9 +27,14 @@ The entry point `platform/api/index.php` decides. Anything else answers `503 Adm
 For looking at the admin. It is not the business system.
 
 - The deployment builds a small SQLite workspace (`composer run vercel` → `tools/vercel/build-demo.php`):
-  all tables, the reference data, four staff accounts on the reserved domain `woodex.test`, ten contacts, ten
-  leads and five catalogue lines, all named `SYNTHETIC`.
-- Every screen carries the notice "Demo workspace — sample data", and the sign-in page says "NOT PRODUCTION".
+  all tables, the reference data, four staff accounts on the reserved domain `woodex.test`, ten contacts and ten
+  leads named `SYNTHETIC` — and, since 17 November 2026, **Woodex's real catalogue**: the 170 products captured
+  from woodexfurniture.pk with their codes, prices and categories, every one a draft. The build stops unless it
+  counts 170 drafts and no published product. Their photographs are not copied: each product links to its
+  photograph on woodexfurniture.pk (line T-089).
+- Every screen carries a notice. With the catalogue loaded it reads "Preview workspace — real catalogue, sample
+  records" and says that nothing typed is kept; without it, "Demo workspace — sample data". The sign-in page says
+  "NOT PRODUCTION".
 - It cannot use anything real. The entry empties every setting that names a server or holds a key (database,
   legacy database, mailbox, WhatsApp, Telegram, Google, Turnstile, AWS) before Laravel starts, also when the
   project carries such settings for another environment. Mail is written to the log.
@@ -109,7 +116,7 @@ every screen" (workflow `vercel-livewire.yml`), on every change under `platform/
 It uses Vercel's own parts, fetched from npm: the PHP 8.5 runtime of `vercel-php@0.9.0` with its `php.ini`, and
 its launcher. It installs the packages with the builder's own Composer command, runs `composer run vercel`, makes
 the tree read-only, and serves it from `/var/task` through the `routes` and `env` of `vercel.json`. Only
-Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 74 checks, among them:
+Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 79 checks, among them:
 
 - without settings, with half the settings, or with a database that is not MySQL: 503;
 - a real deployment's build touches nothing; a demo without passwords fails the build;
@@ -165,6 +172,9 @@ address needs the demo password as a GitHub secret, which only the owner can add
 
 - A push to any branch builds a preview (`woodex-os-git-<branch>-woodexs-projects.vercel.app`, Vercel login
   needed).
+- A push to `main` updates production, once `main` holds `platform/` (section 1). Eight minutes later the
+  workflow "Live check after a merge" asks the deployed address, and the React shop, from outside
+  (`live-check-after-merge.yml`).
 - Production (`woodex-os.vercel.app`) is updated by creating a production deployment of a chosen commit, in
   Vercel's dashboard ("Promote to Production" on a preview) or through the API.
 - A change of a project setting takes effect at the next deployment.

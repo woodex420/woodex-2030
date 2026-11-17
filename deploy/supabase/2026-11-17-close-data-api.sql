@@ -15,9 +15,16 @@
 -- and stops objects created later from being granted to them. It changes nothing for the owner of the tables,
 -- and so nothing for the shop. The secret ("service_role") key is left as it is: it is a secret.
 --
--- APPLIED to the live database on 17 November 2026 with the owner's word (decision log DL-022, DL-024).
--- Row-level security is the second lock and is not part of this file: it belongs in a numbered migration with
--- its test (master list, line T-163).
+-- APPLIED to the live database on 17 November 2026 with the owner's word (decision log DL-022; what was done:
+-- DL-024; master list, line T-162). Read back straight after: of 72 tables the two API roles hold a privilege
+-- on 0; the owner of the tables holds everything on all 72; 148 products, as before. The table that catalogue
+-- migration 019 created afterwards (product_variants) was not granted to them either.
+--
+-- NOT PART OF THIS FILE
+--   · Row-level security, the second lock. It belongs in a numbered migration with its test (line T-163).
+--   · The ten functions of the public schema, which the two roles may still execute. They were read: six are
+--     trigger functions, which cannot be called from outside; four are text helpers (datetime, group_concat and
+--     its two parts) that touch no table. None runs with its owner's rights. Nothing to close there.
 --
 -- TO UNDO (only if a Supabase client is ever introduced, and then with policies instead):
 --   GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;

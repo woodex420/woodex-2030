@@ -6,6 +6,8 @@ name: Vercel live check (WOODEX OS)
 # rehearsal (platform/tools/vercel/check-entry.sh, scripts/os-screens.mjs, scripts/os-journeys.mjs).
 on:
   workflow_dispatch:
+  # Called by live-check-after-merge.yml a few minutes after every push to main, once Vercel has built it.
+  workflow_call:
   # Every six hours. GitHub starts a timer only from the default branch, so this runs once the branch is merged.
   schedule:
     - cron: "23 */6 * * *"
@@ -84,9 +86,11 @@ jobs:
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-os.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-os.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
   shop:
-    # The live shop and its API (Vercel project woodex-2030, Supabase). Asked from outside, without a secret:
+    # The React shop and its API (Vercel project woodex-2030, Supabase). Asked from outside, without a secret:
     # is it up, and does it still hand out its catalogue. Added on 17 November 2026, before catalogue migration
-    # 019 was applied to the shop's database, so that the same check could be read before and after.
+    # 019 was applied to the shop's database, so that the same check could be read before and after. Read before:
+    # 148 published products (run 44051297292). The migration switches on product states, codes and the catalogue
+    # import in the old dashboard; the last four checks ask that none of that is open to a visitor.
     name: What a visitor gets from the live shop's API
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -112,6 +116,11 @@ jobs:
           if [ "${total:-0}" -ge 1 ] 2>/dev/null; then note "ok the catalogue is not empty"; else note "FAIL the catalogue is empty or unreadable"; fails=$((fails + 1)); fi
           must "a page of three products" "${items:-?}" 3
           must "nothing unpublished is handed to a visitor" "${drafts:-?}" 0
+          first="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['items'][0]['id'])" "$out/body" 2>/dev/null)"
           must "an unpublished list is refused without a sign-in" "$(code "$SHOP/api/products?status=draft")" 401
+          must "one product read by its address" "$(code "$SHOP/api/products/${first:-missing}")" 200
+          must "an address that is no product" "$(code "$SHOP/api/products/no-such-product-$(date +%s)")" 404
+          must "the state of the catalogue is refused without a sign-in" "$(code "$SHOP/api/catalog/status")" 401
+          must "the catalogue import is refused without a sign-in" "$(code "$SHOP/api/catalog/import")" 401
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-2030.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-2030.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi

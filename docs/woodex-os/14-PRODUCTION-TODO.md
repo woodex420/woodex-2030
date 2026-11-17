@@ -1,6 +1,6 @@
 # WOODEX OS — master to-do list to complete the Laravel admin
 
-**Version 2 · written 2026-11-17** · Branch `arena/7ecb4f83-woodex-2030` (pull request #36) · Replaces version 1 of the same morning.
+**Version 2 · written 2026-11-17 · updated the same day, after the owner lifted the holds (DL-022)** · Branch `arena/7ecb4f83-woodex-2030` (pull request #36) · Replaces version 1 of the same morning.
 
 This is the one list of everything between today and a complete, production Laravel admin. It holds **every
 task that was already pending and every new one** found by analysing the owner's specification set, including
@@ -25,16 +25,16 @@ with real, backed-up data; the old dashboard is no longer needed.
 
 | | |
 |---|---|
-| Live demo | `https://woodex-os.vercel.app/admin`, commit `7e5fffc`, **sample data only**. One account per role. Checked from outside by a GitHub workflow: 35 of 35 |
+| Hosted workspace | `https://woodex-os.vercel.app/admin`, commit `42995d3`. **The catalogue is the real one** — 170 products of woodexfurniture.pk, as drafts. Customers, leads and documents are samples, and nothing typed there is kept: the site has no permanent database. One account per role. Checked from outside by a GitHub workflow: 35 of 35 |
 | Destinations | 68. For an owner: **29 open**, 13 still in the old React dashboard, 21 built but switched off, 5 not built |
-| Accepted modules | **0.** A module is accepted only with browser acceptance, a migration plan and the owner's sign-off (document 07 §15; T-171) |
-| Release gates | A design: built, not approved · B modules: none · C page builder: not started · D Hostinger: not started · E cutover: not started |
-| Tests | 2,244 pass, 34 skipped, 0 fail (PHP 8.5, SQLite); the same suite on MySQL 8.4 in CI. 14 browser steps pass on the rehearsal |
+| Accepted modules | **0.** A module is accepted only with browser acceptance, a migration plan and the owner's sign-off (document 07 §15). Each open module has its sheet: document 16 §4 |
+| Release gates | None passed. A design: built, not approved · B modules: none accepted · C page builder: not started · D Hostinger: not started · E cutover: blocked by one open critical defect, the old dashboard's password. Criterion by criterion: [`16-ACCEPTANCE-AND-RELEASE-GATES.md`](16-ACCEPTANCE-AND-RELEASE-GATES.md) §1 |
+| Tests | 2,280 pass, 35 skipped, 0 fail (PHP 8.5, SQLite); the same suite on MySQL 8.4 in CI. A browser opens 241 screens as four roles, on a desktop and a phone: none fails, and none carries the word "Interior" (71 did). 15 browser steps and 79 rehearsal checks pass |
 | Production host | **Hostinger shared hosting ("Business") with MySQL** — the owner's decision (D-004, D-005, OD-3). Its staging site has never started (two failed checks, 13 November) |
-| Real data | None in Laravel. The live business runs on the React shop, the React dashboard and the Node API (Vercel + Supabase) |
+| Real data | In Laravel: the catalogue only (170 draft products, 8 added categories). The React shop and its Node API (Vercel + Supabase) hold almost none: read on 17 November, 148 sample products, 1 lead, 1 client, 1 user, no order, quotation, invoice or payment. That database received catalogue migration 019 and lost an open door the same day (DL-024) |
 | The other admin | `woodex-2030.vercel.app/admin` — the sign-in titled "Woodex Workspace", with a username — is the **old React dashboard**, a different system. The Laravel admin is `woodex-os.vercel.app/admin` — "Welcome back", with an e-mail address. The old one stays in use for its 13 destinations until each is moved (T-025) |
 
-**This list in numbers:** 128 lines — 3 done, 28 can start now, 70 wait for an earlier line or wave, 27 wait for the owner. 55 are new since version 1. By priority: 29 P0, 68 P1, 24 P2, 7 P3.
+**This list in numbers:** 136 lines — 17 done, 25 can start now, 66 wait for an earlier line or wave, 28 wait for the owner. 63 are new since version 1. By priority: 32 P0, 73 P1, 24 P2, 7 P3.
 
 ---
 
@@ -48,6 +48,8 @@ with real, backed-up data; the old dashboard is no longer needed.
 6. **Document 11 adds deliverables and exit rules** that were not on the list: the dashboard as a widget framework, the sales flow proven end to end on staging, the Interior cleanup, keyboard tests, and your approval of the design before the shell counts as finished.
 7. **Times are stored in Pakistan time, not UTC** as document 03 requires. This must be changed before real data is entered, because changing it afterwards means converting every stored time (T-061).
 
+**Later on 17 November**, after the owner lifted the holds (DL-022): point 2 is answered — the Laravel admin is confirmed (T-001). Point 4 is done (T-030 to T-032). Point 5 is now counted by a check instead of by hand, and read more strictly: of the twelve sales and finance scenarios eight are proven and four partly (document 16 §2). Point 7 was a wrong finding: on MySQL the times were held in UTC already; what was missing was one setting instead of two (DL-023, T-061).
+
 ---
 
 ## 3. Decisions and inputs only the owner can give
@@ -56,8 +58,8 @@ IDs in brackets are the owner's own log (document 12) or earlier records.
 
 | # | Pri | What is needed | Default in force until answered | Blocks | Status |
 |---|---|---|---|---|---|
-| T-001 | P0 | **NEW** Confirm: the admin is the Laravel admin; the React dashboard is retired module by module. This changes D-003 and D-009 of your log for the dashboard (not for the shop) | Yes — your decision of 16 November (DL-001, DL-005) | everything | Owner |
-| T-002 | P0 | Merge pull request #36 into `main`. The shop redeploys from `main`; its test gate is green on the branch | Not merged (DL-011) | one code line; the timed live check | Owner |
+| T-001 | P0 | **NEW** Confirm: the admin is the Laravel admin; the React dashboard is retired module by module. This changes D-003 and D-009 of your log for the dashboard (not for the shop) | Yes — your decision of 16 November (DL-001, DL-005) | everything | **Done** — confirmed by you on 17 November (DL-022) |
+| T-002 | P0 | Merge pull request #36 into `main`. The shop redeploys from `main`; its test gate is green on the branch | Not merged (DL-011) | one code line; the timed live check | Next — released by you (DL-022); merged by the agent as the last step of the round of 17 November: see pull request #36 |
 | T-003 | P0 | Furniture's own price list, terms, quotation wording and signers (D-8) | No template or rate is installed; issuing documents is blocked | T-084, T-085, T-103 | Owner |
 | T-004 | P0 | **NEW** Who may approve quotations, discounts, expenses, purchase orders and publishing, and the discount limit of each role (O-010). Which staff roles exist and how many people in each (Q-6) | Quotations: by permission, with a limit per role set in Settings; the owner may approve anything | T-060, T-081 | Owner |
 | T-005 | P1 | **NEW** Approve the design foundation: sidebar, colours, top bar, cards — on the live demo (gate A; document 11, phase 1). Includes the sidebar's tone: light, as in the Reimagined theme, or charcoal | Light sidebar (DL-017) | gate A | Owner |
@@ -74,9 +76,9 @@ IDs in brackets are the owner's own log (document 12) or earlier records.
 | T-016 | P2 | **NEW** Keep today's shop addresses; approve the list of redirects before cutover (P-008) | Keep | T-121 | Owner |
 | T-017 | P1 | Which existing customer and order records may be moved (D-9, OD-7) | None | T-101 | Owner |
 | T-018 | P1 | One person and one document for the business facts: warranty, delivery areas and charges, returns, company facts (Q-4) | — | T-106 to T-108, invoices | Owner |
-| T-019 | P1 | Sign `docs/furniture-2030/catalogue/IMPORT-REPORT.md` (the real catalogue, 170 products) | Not signed | T-104 | Owner |
-| T-020 | P1 | Migration 019 on the shop's Supabase database, by someone with database access | Not run | the live shop's catalogue | Owner |
-| T-021 | P0 | Change the old system's owner password (it was printed in a public document) and make the repository private | On hold by your decision (DL-012) | — | Owner |
+| T-019 | P1 | Sign `docs/furniture-2030/catalogue/IMPORT-REPORT.md` (the real catalogue, 170 products) | Not signed | T-104 | **Done** — released by you on 17 November (DL-022): loaded as drafts. Your review of the points is T-090 |
+| T-020 | P1 | Migration 019 on the shop's Supabase database, by someone with database access | Not run | the live shop's catalogue | **Done** 17 November, by the agent with your word (DL-024): applied, and the ledger agrees with the 19 migration files |
+| T-021 | P0 | Change the old system's owner password (it was printed in a public document) and make the repository private | You will do both when the work is complete (DL-022). Until then the risk stands, and the repository is public | — | Owner |
 | T-022 | P1 | Two-factor sign-in required for owner and admin? | Optional | T-065 | Owner |
 | T-023 | P2 | The missing `01-MASTER-PRD.md` | Documents 05 and 07 stand in | — | Owner |
 | T-024 | P3 | **NEW** "The actual AI agent failure example and task" (O-011): your log's own open question. Needed only if you want that diagnosis | — | — | Owner |
@@ -96,12 +98,12 @@ deliverable of its phase 1: "Branding cleanup from Interior-specific UI labels".
 
 | # | Pri | Task | Done when | Who | Status |
 |---|---|---|---|---|---|
-| T-030 | P0 | **NEW** One setting that makes the admin Furniture-only. Today "New quotation", "New invoice" and the document designer start on the **Interior** line, and "New quotation" offers "Woodex Interior" first. The dashboard, the revenue report, Approvals, the lead form, assignment rules, the description library, quotation templates, the chart of accounts and bank accounts offer "Interior" and "Project (turnkey)" as a business line; lead lists print the line beside each lead | No open screen shows the word "Interior" for any of the four roles — checked by the crawl of every screen and by a test; new records are Furniture records | Agent | Next |
-| T-031 | P0 | **NEW** Messages that leave the admin name the wrong company: the WhatsApp greeting on a lead, a contact, the lead board and a quotation ("…from Woodex Interior"), the visit confirmation, the invitation e-mail to new staff ("the Woodex Interior sales and projects system"), and the sender name the installer writes (`Woodex Interior`) | Each message is rendered in a test for a Furniture record and carries the company name from Settings | Agent | Next |
-| T-032 | P0 | **NEW** Public pages a client opens: the invoice page, the holding page and the portal pages print "INTERIOR STUDIO" under the logo; the quotation page prints it for any line but Furniture | Each page shows the Furniture name; a test opens each | Agent | Next |
+| T-030 | P0 | **NEW** One setting that makes the admin Furniture-only. Today "New quotation", "New invoice" and the document designer start on the **Interior** line, and "New quotation" offers "Woodex Interior" first. The dashboard, the revenue report, Approvals, the lead form, assignment rules, the description library, quotation templates, the chart of accounts and bank accounts offer "Interior" and "Project (turnkey)" as a business line; lead lists print the line beside each lead | No open screen shows the word "Interior" for any of the four roles — checked by the crawl of every screen and by a test; new records are Furniture records | Agent | **Done** `0d8ae53` |
+| T-031 | P0 | **NEW** Messages that leave the admin name the wrong company: the WhatsApp greeting on a lead, a contact, the lead board and a quotation ("…from Woodex Interior"), the visit confirmation, the invitation e-mail to new staff ("the Woodex Interior sales and projects system"), and the sender name the installer writes (`Woodex Interior`) | Each message is rendered in a test for a Furniture record and carries the company name from Settings | Agent | **Done** `0d8ae53` |
+| T-032 | P0 | **NEW** Public pages a client opens: the invoice page, the holding page and the portal pages print "INTERIOR STUDIO" under the logo; the quotation page prints it for any line but Furniture | Each page shows the Furniture name; a test opens each | Agent | **Done** `0d8ae53` |
 | T-033 | P1 | **NEW** Interior lists and fields inside open screens: quotation types (Renovation, Civil Work, Interior Designing, Fit-out, Architecture), lead fields (property type, area in square feet, budget band), the pipeline step "Site Visit" | Replaced by Furniture's own wording (needs T-003, T-018) or hidden by the setting of T-030 | Agent, owner | Later (T-003) |
 | T-034 | P1 | **NEW** Interior code that stays switched off (two Interior quotation PDFs, the estimator's rate book, case-study drafts, chat-bot texts): prove it cannot be reached while its module is off | A test asks for each and gets "not found"; each is removed or adapted in its module's wave | Agent | Next |
-| T-035 | P1 | **NEW** Tests that expect two brands (for example "offers both brands…"; 27 test titles mention Interior or "the studio") | Each changed expectation is listed in the round's report with the reason; no test is deleted | Agent | Next (with T-030) |
+| T-035 | P1 | **NEW** Tests that expect two brands (for example "offers both brands…"; 27 test titles mention Interior or "the studio") | Each changed expectation is listed in the round's report with the reason; no test is deleted | Agent | **Done** `0d8ae53` — no existing test needed a changed expectation: the suite runs with all three lines (DL-021) |
 
 ---
 
@@ -136,9 +138,9 @@ Wave 2 replaces 15 routes of the old API. T-061 comes first: it is cheap today a
 | # | Pri | Task | Done when | Who | Status |
 |---|---|---|---|---|---|
 | T-060 | P0 | One role and permission matrix from the two systems (eight Laravel roles, five in Node), sign-in locks, no route without a permission | A matrix test proves each role's access on every route | Agent | Later (T-004) |
-| T-061 | P0 | **NEW** Store times in UTC and show them in Pakistan time (document 03 §2). Today they are stored in Pakistan time (`APP_TIMEZONE=Asia/Karachi`, `DB_TIMEZONE=+05:00`) | The database holds UTC; every screen, PDF and export shows Pakistan time; tests pin both. **Before any real data** | Agent | Next |
+| T-061 | P0 | **NEW** Times held in UTC and shown in Pakistan time (document 03 §2). The finding of version 2 is corrected: on MySQL every time column is a TIMESTAMP and is held in UTC already; the real weakness was two settings that had to agree. Now one setting rules both (DL-023) | The database holds UTC; every screen, PDF and export shows Pakistan time; tests pin both | Agent | **Done** `d7d6c29` (the MySQL part of the test runs in CI) |
 | T-062 | P1 | **NEW** A request number on every response and every log line; logs in a structured form (documents 02 §9, 04 §2) | An error page shows the number; the same number finds the log line | Agent | Next |
-| T-063 | P1 | **NEW** The `/api/v1` rules for the shop and outside clients: the answer shape `data` / `meta` / `error` with codes, pagination, allowed filters, an idempotency key on every create, money as whole minor units, and how the shop or an outside client signs in. Recorded with it: staff need no JSON API, because the admin's screens are rendered by Laravel | The seven existing endpoints follow the rules; a contract test fails on a different shape | Agent | Later (T-001) |
+| T-063 | P1 | **NEW** The `/api/v1` rules for the shop and outside clients: the answer shape `data` / `meta` / `error` with codes, pagination, allowed filters, an idempotency key on every create, money as whole minor units, and how the shop or an outside client signs in. Recorded with it: staff need no JSON API, because the admin's screens are rendered by Laravel | The seven existing endpoints follow the rules; a contract test fails on a different shape | Agent | Next |
 | T-064 | P1 | **NEW** Business settings in one screen: currency, time zone, tax rules (document 07 §14). Today "PKR" is written into the code in eleven files and tax is a rate typed per document | Changing the setting changes new documents; issued documents keep their own values | Agent | Later (T-008) |
 | T-065 | P1 | A screen for sign-in locks and open sessions; two-factor enforced if T-022 says so | An owner can see and end a session and lift a lock | Agent | Later (T-060) |
 | T-066 | P2 | **NEW** A currency code on payments, bills, expenses and journal lines (only quotations and invoices carry one) | Needed only if a second currency is ever used; decided with T-008 | Agent | Later (T-008) |
@@ -159,9 +161,12 @@ Wave 2 replaces 15 routes of the old API. T-061 comes first: it is cheap today a
 | T-083 | P1 | **NEW** Contacts: several phone numbers and e-mail addresses per person, with "main" and "verified" marks (document 07 §4). Today four fixed fields | A contact holds any number of methods; duplicate detection reads all of them | Agent | Later (wave 3) |
 | T-084 | P0 | Documents: issuing is blocked until terms and signers are confirmed | The owner confirms once; a sent quotation carries them | Agent, owner | Later (T-003) |
 | T-085 | P1 | Estimations: Furniture's rates in place of the Interior rate book; module switched on | An estimate becomes a quotation with the same totals | Agent | Later (T-003) |
-| T-086 | P1 | **NEW** A quotation line chosen from the catalogue keeps the product and its price as issued | A later price change does not alter a sent quotation (tested for rate-book lines today) | Agent | Later (T-104) |
+| T-086 | P1 | **NEW** A quotation line chosen from the catalogue keeps the product and its price as issued | A later price change does not alter a sent quotation (tested for rate-book lines today) | Agent | Next |
 | T-087 | P1 | **NEW** Tax rules on quotations and invoices; credit notes and payment schedules as the old dashboard has them | An invoice shows the rule it was issued under | Agent | Later (T-008) |
-| T-088 | P1 | Commerce readiness: `php artisan commerce:readiness --production` lists seven blockers. Three are the environment (not production, no permanent address, no MySQL driver); four are work: video in galleries, full shop and series management, products, prices and quote requests switched over to Laravel, acceptance on the target host | The command exits clean on staging | Agent | Later (T-104, T-130) |
+| T-088 | P1 | Commerce readiness: `php artisan commerce:readiness --production` lists seven blockers. Three are the environment (not production, no permanent address, no MySQL driver); four are work: video in galleries, full shop and series management, products, prices and quote requests switched over to Laravel, acceptance on the target host | The command exits clean on staging | Agent | Later (T-130) |
+| T-089 | P1 | **NEW** The photographs of the catalogue: each product's photograph is still on woodexfurniture.pk and the admin only links to it. Copy each into the media library (needs a server that can reach woodexfurniture.pk: the Hostinger site or a GitHub runner) | Every imported product shows its own photograph | Agent | Later (T-130) |
+| T-090 | P1 | **NEW** Review of the imported catalogue: 116 products carry a point to check (the import report), 33 have no price, eight categories are switched off | Each product is marked reviewed or corrected; a price is given or "on request" confirmed; the categories are switched on | Owner | Owner |
+| T-091 | P1 | **NEW** The React shop (`woodex-2030.vercel.app`) still sells the 148 sample products it was first filled with; none is Woodex's. The real 170 are prepared in its build, and since migration 019 the old dashboard can load them: sign in, open `/admin/catalog/import`, tick "Let the real product take the place of the demo product" (2 addresses), press "Load 170 products as drafts"; publish after review; then "Withdraw the demo catalogue". Rehearsed on a copy filled like the live database | A visitor of the shop gets only products that came from the import | Owner (needs the old dashboard's sign-in) | Owner |
 
 ---
 
@@ -171,12 +176,12 @@ Wave 2 replaces 15 routes of the old API. T-061 comes first: it is cheap today a
 
 | # | Pri | Wave | Task | Routes | Done when | Status |
 |---|---|---|---|---:|---|---|
-| T-100 | P0 | 3 | The shop's enquiry and quote-request forms write to Laravel. An adapter is needed: field names, the reference returned, the WhatsApp hand-off (`docs/laravel-os/05` §4) | 28 | An enquiry from the shop is in the Laravel CRM | Later (T-001, T-130) |
+| T-100 | P0 | 3 | The shop's enquiry and quote-request forms write to Laravel. An adapter is needed: field names, the reference returned, the WhatsApp hand-off (`docs/laravel-os/05` §4) | 28 | An enquiry from the shop is in the Laravel CRM | Later (T-130) |
 | T-101 | P1 | 3 | Import of leads, contacts, companies, tasks and meetings: repeatable, with a dry run and a reconciliation | — | Counts, statuses and duplicates agree with the source | Later (T-017) |
 | T-102 | P0 | 3 | Close the Node write path for CRM: one writer | — | The old form endpoint answers "moved" | Later (T-100) |
 | T-103 | P0 | 4 | Sales documents merged: quotations, invoices, payments, with Furniture templates | 17 | A quotation becomes an invoice and a receipt with totals computed on the server | Later (T-003) |
-| T-104 | P1 | 5 | The real catalogue (170 products) imported as drafts: SKUs, options, price on request; series | 19 | Every product is a reviewed draft; nothing is published without the owner | Later (T-019, T-011) |
-| T-105 | P1 | 5 | The shop reads products, categories and series from `/api/v1`; the Node catalogue is closed | — | The shop shows only what Laravel has published | Later (T-104, T-063) |
+| T-104 | P1 | 5 | The real catalogue (170 products) imported as drafts: codes (SKU), prices, price on request, the reduced prices, and the eight categories of woodexfurniture.pk that were missing. Options and series are not in the capture | 19 | Every product is a draft with its code, price and category; nothing is published without the owner | **Done** `f489a36` (loading). Review: T-090 · photographs: T-089 |
+| T-105 | P1 | 5 | The shop reads products, categories and series from `/api/v1`; the Node catalogue is closed | — | The shop shows only what Laravel has published | Later (T-063) |
 | T-106 | P1 | 6 | Orders: created in the admin and by the shop, lines with prices as ordered, status history by explicit steps, payment state kept apart from delivery state, cancellation and return | 35 | An order placed in the shop is delivered and closed in the admin | Later (T-105, T-018) |
 | T-107 | P1 | 6 | Delivery and installation: schedule, address, team, proof, customer told | — | A delivery is closed with its proof | Later (T-010) |
 | T-108 | P1 | 6 | Support and warranty: cases, installed items, the warranty terms as sold, service visits | — | A claim is opened against an order and resolved | Later (T-018) |
@@ -238,6 +243,7 @@ Wave 2 replaces 15 routes of the old API. T-061 comes first: it is cheap today a
 | T-154 | P3 | Measure a cold start (warm: 0.08 to 0.17 s to the first byte from a GitHub runner) | Written into `13-VERCEL-DEPLOYMENT.md` | Agent | Next |
 | T-155 | P2 | Richer sample data — Furniture's own only (D-008): quotations, invoices, products, a project | Every area's main list shows at least five sample rows | Agent | Later (T-003) |
 | T-156 | P2 | When the real admin exists: remove the demo or move it to a preview address | `WOODEX_DEMO` is not set in production | Owner | Later (T-133) |
+| T-157 | P1 | **NEW** The hosted workspace carries the real catalogue and says so on every screen: 170 products as drafts; customers, leads and documents stay samples; nothing typed there is kept | The rehearsal (79 checks) and the live address | Agent | **Done** `f489a36` |
 
 A real admin on Vercel is **not planned** (D-004, D-005). What it would need is kept in [`13-VERCEL-DEPLOYMENT.md`](13-VERCEL-DEPLOYMENT.md) §2.
 
@@ -249,6 +255,9 @@ A real admin on Vercel is **not planned** (D-004, D-005). What it would need is 
 |---|---|---|---|---|---|
 | T-160 | P1 | **NEW** The security tests document 10 lists that do not exist yet: mass assignment (extra fields in a form are ignored), cross-origin rules, the sign-in limit (5 a minute, set but untested), stored script in rich text and notes, secrets in logs and error pages | One test file per kind; each fails when its protection is removed | Agent | Next |
 | T-161 | P1 | **NEW** A sweep for direct object references: every screen that opens a record by its number is tried as a role that should not see it | The route-access test covers records, not only screens | Agent | Later (T-060) |
+| T-162 | P0 | **NEW** The shop's hosted database answered Supabase's Data API for all 72 tables, to read and to write, to anyone holding the project's publishable key: no row-level security, full privileges for the two API roles. The shop itself never uses that API | The two roles hold no privilege on any table; the shop still serves its catalogue | Agent | **Done** 17 November (DL-024) |
+| T-163 | P0 | **NEW** Row-level security on every table of the shop's database as numbered migration 020, with its test and rollback: the second lock behind T-162 | Supabase's security advisor reports nothing for the public schema | Agent | Next |
+| T-164 | P0 | **NEW** Preview builds of the React shop use the production database: in its Vercel project the database address is set for Production, Preview and Development alike, and Vercel builds a preview of every pushed branch. Give previews a database of their own, or take the address out of the Preview environment (previews then show the shop without its API) | The Preview environment holds no address of the production database | Owner chooses; the agent changes the setting | Owner |
 
 Already tested: access without sign-in and across roles on every route · another client's quotation, invoice or
 payment · upload type and content · webhook signatures and replays · a form without its token (419). Headers,
@@ -260,17 +269,17 @@ CSP and audits are T-068 to T-070; passwords and the repository are T-021; two-f
 
 | # | Pri | Task | Done when | Who | Status |
 |---|---|---|---|---|---|
-| T-165 | P0 | **NEW** Browser journeys for the eleven flows of document 10 §2. Three exist in part. To add now: lead assignment and conversion; approval and issue; invoice and payment allocation; project task and handover (T-080 is the first of them). To add with their modules: estimate to quotation, order creation, purchase order and receipt, stock transfer, page edit to publish | Each flow is one named journey that passes on the rehearsal | Agent | Next |
-| T-166 | P1 | **NEW** The acceptance matrix kept as a file: each of the 25 scenarios of document 10 §3 with the test that proves it; CI fails when a named test disappears | The matrix is in the repository and checked | Agent | Next |
+| T-165 | P0 | **NEW** Browser journeys for the eleven flows of document 10 §2. The journey has 15 steps; which flow each presses is kept in document 16 §3 and checked. To add now: lead assignment and conversion; approval and issue; invoice and payment allocation; project task and handover (T-080 is the first of them). To add with their modules: estimate to quotation, order creation, purchase order and receipt, stock transfer, page edit to publish | Each flow is one named journey that passes on the rehearsal | Agent | Next |
+| T-166 | P1 | **NEW** The acceptance matrix kept as a file: each of the 25 scenarios of document 10 §3 with the test that proves it; CI fails when a named test disappears | The matrix is in the repository and checked | Agent | **Done** 17 November — `docs/woodex-os/acceptance/scenarios.json`, checked by `scripts/verify-acceptance.mjs` in `ci.yml` |
 | T-167 | P1 | The crawl of every screen and the journeys run in CI on the rehearsal (by hand today) | A push that breaks a screen fails the workflow | Agent | Next |
 | T-168 | P1 | **NEW** Performance (document 10 §6): a query budget on every list screen and the dashboard; a run with realistic volumes (thousands of leads and documents); an index review | The budgets are tests; the run's findings are in the report | Agent | Later (T-155) |
-| T-169 | P1 | **NEW** A defect register with the four severities of document 10 §8 and their release rules | Every finding of a round is in it with its severity | Agent | Next |
-| T-170 | P1 | **NEW** The round report extended to document 10 §9: devices covered, defects by severity, reconciliation, backup state, performance, the owner's approval; and the 14-point cutover checklist of document 09 §6 for every wave | The next wave report uses it | Agent | Next |
-| T-171 | P0 | **NEW** Acceptance of each module by the ten conditions of document 07 §15, the last being the owner's sign-off. One acceptance sheet per module, starting with the 29 open destinations: CRM, then Sales, then Commerce | Each open module has its sheet, signed or returned with remarks by the owner | Agent, owner | Later (T-080, T-165) |
+| T-169 | P1 | **NEW** A defect register with the four severities of document 10 §8 and their release rules | Every finding of a round is in it with its severity | Agent | **Done** 17 November — `docs/woodex-os/acceptance/defects.json`, shown in document 16 §5 |
+| T-170 | P1 | **NEW** The round report extended to document 10 §9: devices covered, defects by severity, reconciliation, backup state, performance, the owner's approval; and the 14-point cutover checklist of document 09 §6 for every wave | The next wave report uses it | Agent | **Done** 17 November — the format is document 16 §8; first used in `17-RELEASE-2026-11-17.md` |
+| T-171 | P0 | **NEW** Acceptance of each module by the ten conditions of document 07 §15, the last being the owner's sign-off. One acceptance sheet per module, starting with the 29 open destinations: CRM, then Sales, then Commerce | Each open module has its sheet, signed or returned with remarks by the owner | Agent, owner | Owner — the eight sheets are in document 16 §4. Today: approve or return each module's requirements; accept a module when its conditions 1 to 9 are met |
 
-**In force on every push today:** the Laravel suite on MySQL 8.4 (`os-ci.yml`) · the Vercel rehearsal, 74 checks (`vercel-livewire.yml`) · the outside check of the live address, 35 checks (`vercel-live-check.yml`) · the React and Node gate of the shop (`ci.yml`).
+**In force on every push today:** the Laravel suite on MySQL 8.4 (`os-ci.yml`) · the Vercel rehearsal, 79 checks (`vercel-livewire.yml`) · the React and Node gate of the shop, which also checks the catalogue file and the acceptance files against the tests (`ci.yml`). **After every merge into `main`, and every six hours:** the outside check of the hosted admin (35 checks) and of the React shop (12 checks) (`live-check-after-merge.yml`, `vercel-live-check.yml`).
 
-**The five gates of document 10 §7.**
+**The five gates of document 10 §7.** Their state today, the acceptance of each open module, and what the owner can accept now are kept in [`16-ACCEPTANCE-AND-RELEASE-GATES.md`](16-ACCEPTANCE-AND-RELEASE-GATES.md).
 
 | Gate | Passed when | Lines |
 |---|---|---|
@@ -286,7 +295,7 @@ CSP and audits are T-068 to T-070; passwords and the repository are T-021; two-f
 
 | # | Pri | Task | Done when | Who | Status |
 |---|---|---|---|---|---|
-| T-175 | P1 | **NEW** The old system's tables — 72 by today's count of its schema files (`npm run docs:verify`); the master plan counted 74 — read from its migrations and checked against the live database (reading only, with the owner's word), each mapped to its Laravel owner | A table in the repository: source table, target, owner, wave | Agent | Later (T-001) |
+| T-175 | P1 | **NEW** The old system's tables — 72 by today's count of its schema files (`npm run docs:verify`); the master plan counted 74; the live database held 72 on 17 November, 73 after migration 019 — read from its migrations and checked against the live database (reading only, with the owner's word), each mapped to its Laravel owner | A table in the repository: source table, target, owner, wave | Agent | Next |
 | T-176 | P1 | **NEW** Differences between PostgreSQL and MySQL tested on real shapes: dates, JSON, decimals, upper and lower case, enumerations | A test per kind on MySQL in CI | Agent | Later (T-175) |
 | T-177 | P1 | **NEW** One rule for identifiers; old-to-new numbers kept (the table `legacy_refs` exists) | Every importer writes the mapping | Agent | Later (T-175) |
 | T-178 | P1 | An importer per module: repeatable, with a dry run | Run twice, the second run changes nothing | Agent | Later (per wave) |
@@ -302,17 +311,18 @@ CSP and audits are T-068 to T-070; passwords and the repository are T-021; two-f
 |---|---|---|---|---|---|
 | T-185 | P1 | A runbook: deploy, roll back, restore, change a password, add a staff account | Written, and each step done once on staging | Agent | Later (T-137) |
 | T-186 | P1 | Training and handover (wave 11) | Each role has done its main job in the new admin | Agent, owner | Later (wave 11) |
+| T-187 | P1 | **NEW** A backup of the shop's database before every change to it, and one restore tried (`npm run db:backup`, `npm run test:restore`). None was taken before the changes of 17 November; whether the Supabase plan keeps backups is not checked. Needs the database address as a GitHub secret, or the plan's own backups switched on | A dated backup exists and has been restored into an empty database once | Owner, agent | Owner |
 
 ---
 
 ## 15. Order of work
 
-1. **Now, needing nobody** (28 lines): Furniture only (T-030 to T-032, T-034, T-035) · UTC times (T-061) · the sales flow end to end (T-080) and the other journeys (T-165) · the missing security tests (T-160) · tables and states, dashboard, screen pass (T-041, T-044, T-045) · CSP and audits (T-068, T-069) · request numbers (T-062) · the matrix, the defect register and the report (T-166, T-169, T-170).
-2. **As soon as you answer** T-001, T-003, T-004, T-006 and T-008: the role matrix, Furniture's documents, the Hostinger staging site, tax and currency settings.
+1. **Now, needing nobody:** the sales flow end to end (T-080) and the other journeys (T-165) · row-level security on the shop's database (T-163) · the missing security tests (T-160) · tables and states, dashboard, screen pass (T-041, T-044, T-045) · CSP and audits (T-068, T-069) · request numbers (T-062) · Furniture left-overs (T-033, T-034).
+2. **As soon as you answer** T-003, T-004, T-006 and T-008: Furniture's documents, the role matrix, the Hostinger staging site, tax and currency settings.
 3. **Then the waves** 3 to 10, in the order of §8, each closed by its report and your acceptance.
 4. **Last:** cutover (T-121), with its own written approval.
 
-**The five answers that unblock the most:** T-001 (confirm the Laravel admin) · T-006 (Hostinger details and the two secrets) · T-003 (Furniture's price list and terms) · T-004 (who approves what) · T-002 (merge #36).
+**The five actions of yours that unblock the most:** T-021 (change the old dashboard's password: the one critical defect) · T-091 (load the real products into the shop) · T-006 (Hostinger details and the two secrets) · T-003 (Furniture's price list and terms) · T-004 (who approves what).
 
 ---
 

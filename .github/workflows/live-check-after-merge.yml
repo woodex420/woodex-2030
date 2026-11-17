@@ -1,0 +1,25 @@
+name: Live check after a merge
+# A push to main is a deployment: Vercel builds the React shop (woodex-2030.vercel.app) and the hosted admin
+# workspace (woodex-os.vercel.app) from it. This waits for those builds and then asks both sites from outside,
+# with the same checks that run every six hours (vercel-live-check.yml). It needs no secret and never signs in.
+#
+# The wait is a fixed one: neither site says in public which commit it was built from. The shop's build took
+# about four minutes on 17 November 2026 and can queue behind the admin's on the free plan; eight minutes leaves
+# room for both. A check that ran too early would only have read the previous build: it cannot pass wrongly on
+# a broken one, because a failed build is never put live.
+on:
+  push:
+    branches: ["main"]
+permissions:
+  contents: read
+jobs:
+  wait:
+    name: Give Vercel time to build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Wait eight minutes
+        run: sleep 480
+  check:
+    needs: wait
+    uses: ./.github/workflows/vercel-live-check.yml

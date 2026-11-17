@@ -4,8 +4,12 @@
  *
  * scripts/os-screens.mjs opens every screen and measures it; it presses nothing. This script presses: it signs in,
  * creates a lead, finds it again, adds a task, searches for it, writes a quotation with one priced line, opens the
- * PDFs and the CSV export, uploads a sheet, asks for a page that does not exist and one it may not see, and signs
- * out. Every step is a Livewire action or a download that the crawl cannot reach.
+ * PDFs and the CSV export, uploads a sheet, finds a product of the real catalogue by its code and opens it, asks for
+ * a page that does not exist and one it may not see, and signs out. Every step is a Livewire action or a download
+ * that the crawl cannot reach.
+ *
+ * The step names are cited by docs/woodex-os/acceptance/flows.json; scripts/verify-acceptance.mjs fails when a
+ * cited step is renamed or removed.
  *
  * It WRITES records. Run it only against a demo, the rehearsal or a preview: never against real data.
  * The script refuses a page that does not carry the "sample data" notice unless OS_ALLOW_REAL=1.
@@ -19,9 +23,14 @@
  * Exit 1 when a step fails. A step that cannot run here (a switched-off module) is reported as "left out".
  * Browser: see scripts/lib/browser.mjs (E2E_CHROMIUM_PATH, E2E_CHROMIUM_ARGS, E2E_REQUIRED).
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { launchBrowser } from './lib/browser.mjs';
+
+// The catalogue the admin is loaded with (decision DL-022). The journey takes its product from this file, so it
+// types nothing that the file does not say.
+const catalogue = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../platform/resources/data/woodex-catalogue.json'), 'utf8'));
 
 const base = (process.env.OS_BASE || 'http://127.0.0.1:8191').replace(/\/$/, '');
 const outIndex = process.argv.indexOf('--out');
@@ -252,6 +261,30 @@ if (signedIn) {
     const refused = await page.locator('.text-error-600:visible').allInnerTexts();
     must(refused.length === 0, `the screen shows an error: ${refused.join(' / ')}`);
     return `sent in ${uploaded} ms, read (1 row, 5 columns) after ${Date.now() - started} ms`;
+  });
+
+  await step('find a product of the real catalogue by its code, and open it', async () => {
+    const wanted = catalogue.items.find((item) => item.sku && item.price > 0);
+    await page.goto(`${base}/admin/commerce/products`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    const search = page.getByLabel('Search products');
+    if ((await search.count()) === 0) return { leftOut: 'the products screen is not open here' };
+    if ((await page.locator('article').count()) === 0) return { leftOut: 'this workspace holds no catalogue' };
+    await search.fill(wanted.sku);
+    // The list answers through Livewire, without a navigation: wait until the code has narrowed it to one card.
+    const until = Date.now() + 15000;
+    while (Date.now() < until && (await page.locator('article').count()) !== 1) await page.waitForTimeout(250);
+    const found = await page.locator('article').count();
+    must(found === 1, `the code ${wanted.sku} found ${found} products, not one`);
+    const card = page.locator('article').first();
+    const text = await card.innerText();
+    must(text.includes(wanted.name), `the code ${wanted.sku} found another product: ${text.split('\n')[0].slice(0, 80)}`);
+    must(text.includes(wanted.sku), 'the card does not show the code');
+    must(/Draft \/ review/.test(text), 'the product is not a draft: the catalogue must never publish itself');
+    await Promise.all([page.waitForURL(/\/admin\/commerce\/products\/\d+\/edit/, { timeout: 20000 }), card.getByRole('link', { name: 'Edit product' }).click()]);
+    await quiet();
+    await shown(page.getByRole('heading', { name: `Edit product · ${wanted.name}` }), 15000, 'the editor of that product');
+    return `${wanted.sku} "${wanted.name}" is a draft; its editor opens`;
   });
 
   await step('a page that does not exist gets the admin\'s own 404', async () => {
