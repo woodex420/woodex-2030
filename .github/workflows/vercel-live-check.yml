@@ -83,3 +83,35 @@ jobs:
           done
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-os.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-os.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
+  shop:
+    # The live shop and its API (Vercel project woodex-2030, Supabase). Asked from outside, without a secret:
+    # is it up, and does it still hand out its catalogue. Added on 17 November 2026, before catalogue migration
+    # 019 was applied to the shop's database, so that the same check could be read before and after.
+    name: What a visitor gets from the live shop's API
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Health and the published catalogue
+        env:
+          SHOP: https://woodex-2030.vercel.app
+        run: |
+          set -u
+          out="$(mktemp -d)"; fails=0; report=""
+          note() { report="$report | $1"; }
+          must() { if [ "$2" = "$3" ]; then note "ok $1"; else note "FAIL $1 (expected $3, got $2)"; fails=$((fails + 1)); fi; }
+          code() { curl -s -o "$out/body" -w '%{http_code}' --max-time 40 "$@"; }
+
+          must "shop home page" "$(code "$SHOP/")" 200
+          must "API health" "$(code "$SHOP/api/health")" 200
+          must "…says ok" "$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('ok'))" "$out/body" 2>/dev/null)" True
+          must "published catalogue" "$(code "$SHOP/api/products?limit=3")" 200
+          total="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('total'))" "$out/body" 2>/dev/null)"
+          items="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(len(d.get('items', [])))" "$out/body" 2>/dev/null)"
+          drafts="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(sum(1 for p in d.get('items', []) if p.get('status') not in (None, 'published')))" "$out/body" 2>/dev/null)"
+          note "published products: ${total:-?}"
+          if [ "${total:-0}" -ge 1 ] 2>/dev/null; then note "ok the catalogue is not empty"; else note "FAIL the catalogue is empty or unreadable"; fails=$((fails + 1)); fi
+          must "a page of three products" "${items:-?}" 3
+          must "nothing unpublished is handed to a visitor" "${drafts:-?}" 0
+          must "an unpublished list is refused without a sign-in" "$(code "$SHOP/api/products?status=draft")" 401
+
+          if [ "$fails" = 0 ]; then echo "::notice title=woodex-2030.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-2030.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
