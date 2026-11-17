@@ -19,7 +19,7 @@
 #   DOCUMENTS_OWNER_CONFIRMED=false  a site whose owner has not confirmed terms and signers: nothing is issued.
 set -u
 PORT="${1:-8191}"
-[ -f api/index.php ] && [ -f vercel.json ] && [ -f vendor/autoload.php ] || { echo "Run from platform/, with vendor/ installed."; exit 2; }
+[ -f api/index.php ] && [ -f vercel.json ] || { echo "Run from platform/."; exit 2; }
 [ ! -e .env ] || { echo "platform/.env exists: Vercel has none. Run this in a tree without it."; exit 2; }
 PACKAGE="${VERCEL_PHP:-}/vercel-php"
 NATIVE="$(ls -d "${VERCEL_PHP:-}"/@libphp/*/native 2>/dev/null | head -1)"
@@ -30,8 +30,16 @@ PASSWORDS=(WX_PW_OWNER="$WX_PW_OWNER" WX_PW_MANAGER="$WX_PW_MANAGER" WX_PW_SALES
 # PHP as Vercel's builder runs it:   builder NAME=value ... -- command
 builder() {
   local settings=(); while [ "$1" != "--" ]; do settings+=("$1"); shift; done; shift
-  env -i HOME="$HOME_DIR" "${settings[@]}" PATH="$PHP_DIR:$PATH" COMPOSER_HOME=/tmp PHP_INI_EXTENSION_DIR="$PHP_DIR/modules" PHP_INI_SCAN_DIR=":$PACKAGE/conf" LD_LIBRARY_PATH="$LIB_DIR:/usr/lib64:/lib64" "$@"
+  env -i HOME="$HOME_DIR" ${COMPOSER_AUTH:+COMPOSER_AUTH="$COMPOSER_AUTH"} "${settings[@]}" PATH="$PHP_DIR:$PATH" COMPOSER_HOME=/tmp PHP_INI_EXTENSION_DIR="$PHP_DIR/modules" PHP_INI_SCAN_DIR=":$PACKAGE/conf" LD_LIBRARY_PATH="$LIB_DIR:/usr/lib64:/lib64" "$@"
 }
+
+# The packages. In a fresh checkout (CI) WOODEX_INSTALL=1 installs them first, as Vercel's builder does; it leaves
+# no development package in vendor/, so use it in a throwaway tree.
+if [ ! -f vendor/autoload.php ] && [ "${WOODEX_INSTALL:-}" = 1 ]; then
+  builder -- php "$PHP_DIR/composer" install --no-dev --no-interaction --no-scripts --ignore-platform-reqs --no-progress > "${TMPDIR:-/tmp}/woodex-demo-install.log" 2>&1 \
+    || { echo "The packages could not be installed:"; tail -15 "${TMPDIR:-/tmp}/woodex-demo-install.log"; exit 1; }
+fi
+[ -f vendor/autoload.php ] || { echo "vendor/ is missing: install the packages, or set WOODEX_INSTALL=1 in a throwaway tree."; exit 2; }
 
 # A new instance: nothing of an earlier one in /tmp (see fresh_instance in check-entry.sh).
 rm -rf /tmp/woodex-synthetic-vercel-demo.sqlite* /tmp/woodex-livewire /tmp/woodex-config.php /tmp/woodex-events.php /tmp/woodex-packages.php /tmp/woodex-routes.php /tmp/woodex-services.php
