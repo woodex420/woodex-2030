@@ -27,7 +27,7 @@ for (const folder of folders) {
     let pages = 0;
     for (const [role, entry] of Object.entries(report.roles ?? {})) {
       pages += entry.pages.length;
-      for (const page of [...entry.pages, ...(entry.phone ?? [])].filter((item) => item.bad)) wrong.push(`${role}: ${page.path} → ${page.status}${page.failure ? ` (${page.failure})` : ''}`);
+      for (const page of [...entry.pages, ...(entry.phone ?? [])].filter((item) => item.bad)) wrong.push(`${role}: ${page.path} → ${page.status}${page.failure ? ` (${page.failure})` : ''}${page.blocked?.length ? ` (blocked by the content policy: ${page.blocked[0].slice(0, 120)})` : ''}`);
       for (const download of (entry.downloads ?? []).filter((item) => item.bad)) wrong.push(`${role}: download ${download.path} → ${download.status}`);
       if (!/^ok/.test(String(entry.signIn))) wrong.push(`${role}: sign-in ${entry.signIn}`);
     }
@@ -38,7 +38,7 @@ for (const folder of folders) {
     said.push(`${count('ok')} of ${report.steps.length} steps held${count('left out') ? `, ${count('left out')} left out` : ''}`);
     for (const step of report.steps.filter((entry) => entry.result === 'FAILED')) wrong.push(`step "${step.name}": ${String(step.note).slice(0, 160)}`);
     for (const step of report.steps.filter((entry) => entry.result === 'left out')) wrong.push(`left out "${step.name}": ${String(step.note).slice(0, 120)}`);
-    for (const problem of [...new Set(report.problems ?? [])].filter((entry) => entry.startsWith('HTTP 5'))) wrong.push(problem.slice(0, 160));
+    for (const problem of [...new Set(report.problems ?? [])].filter((entry) => entry.startsWith('HTTP 5') || /Content[ -]Security[ -]Policy/i.test(entry))) wrong.push(problem.slice(0, 200));
   } else {
     wrong.push(`no report in ${path.basename(folder)}: the script did not finish`);
   }

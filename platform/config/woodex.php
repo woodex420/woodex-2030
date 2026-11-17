@@ -39,8 +39,21 @@ return [
         'require_2fa_roles' => ['admin', 'accountant'],
         // X-Frame-Options value; empty disables the header (only for embedded previews).
         'frame_options' => env('SECURITY_FRAME_OPTIONS', 'SAMEORIGIN'),
+        // Content-Security-Policy on every page (App\Support\ContentPolicy, master list T-068).
+        // "enforce" is the default. "report" blocks nothing and only makes the browser write to its console what
+        // it would have blocked: for finding a fault without breaking a screen. "off" sends no policy.
+        'csp' => env('SECURITY_CSP', 'enforce'),
         // Extra origins allowed to frame staff PDFs (e.g. a hosted preview shell).
         'pdf_frame_ancestors' => array_values(array_filter(array_map('trim', explode(',', (string) env('SECURITY_PDF_FRAME_ANCESTORS', ''))))),
+    ],
+
+    'logging' => [
+        // One line in the log for a request (App\Support\RequestLog, master list T-062): "errors" writes it for
+        // every answer from 400 up (the default), "all" for every request, "off" for none. A fault is written to
+        // the log by Laravel in any case. A refusal is written as a warning, a fault as an error, any other
+        // answer as "info": with LOG_LEVEL=warning (what the installer writes) "all" adds nothing — set
+        // LOG_LEVEL=info with it.
+        'requests' => env('LOG_REQUESTS', 'errors'),
     ],
 
     'public_leads' => [

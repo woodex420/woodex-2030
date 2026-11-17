@@ -34,7 +34,7 @@
                 </x-admin.field>
                 <x-admin.field label="New URL or page" for="toPath">
                     <input id="toPath" type="text" wire:model="toPath" class="wx-input" placeholder="/interior-design/">
-                    <select class="wx-input mt-2" onchange="this.previousElementSibling.value = this.value">
+                    <select class="wx-input mt-2" x-data @change="$el.previousElementSibling.value = $el.value">
                         <option value="">…or pick a published page</option>
                         @foreach ($pages as $page)
                             <option value="{{ $page->slug }}">{{ $page->slug }} · {{ $page->title }}</option>

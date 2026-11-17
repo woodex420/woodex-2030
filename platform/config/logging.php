@@ -1,9 +1,23 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
+
+/*
+| The form of a log line (master list T-062; document 02 §9 of the specification: structured logs).
+|
+| "json", the default: one JSON object on one line — when, how grave, the message, what it was about, and under
+| "extra" the number of the request (App\Support\RequestNumber) with its route and the person's number. A fault
+| carries its trace inside the same line. A line is found with:  grep 4F7K-9Q2M-T8RB storage/logs/*.log
+| "text": Laravel's older form, for reading by eye; the request number is then at the end of the line.
+*/
+$form = strtolower((string) env('LOG_FORMAT', 'json')) === 'text' ? [] : [
+    'formatter' => JsonFormatter::class,
+    'formatter_with' => ['includeStacktraces' => true],
+];
 
 return [
 
@@ -60,6 +74,7 @@ return [
 
         'single' => [
             'driver' => 'single',
+            ...$form,
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
@@ -67,6 +82,7 @@ return [
 
         'daily' => [
             'driver' => 'daily',
+            ...$form,
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => env('LOG_DAILY_DAYS', 14),
@@ -75,6 +91,7 @@ return [
 
         'monthly' => [
             'driver' => 'monthly',
+            ...$form,
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => 3,
@@ -109,7 +126,9 @@ return [
             'handler_with' => [
                 'stream' => 'php://stderr',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
+            // A host that reads this stream (Vercel's log of the demo) gets the same form as the files, unless
+            // LOG_STDERR_FORMATTER names another one.
+            ...(env('LOG_STDERR_FORMATTER') === null ? $form : ['formatter' => env('LOG_STDERR_FORMATTER')]),
             'processors' => [PsrLogMessageProcessor::class],
         ],
 

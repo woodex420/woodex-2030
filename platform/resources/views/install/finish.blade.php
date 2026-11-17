@@ -30,7 +30,7 @@
     </form>
 
     @if ($auto)
-        <script>
+        <script nonce="{{ Vite::cspNonce() }}">
             // Step 2 needs a fresh request that starts with the new settings: continue automatically.
             window.addEventListener('load', function () {
                 var form = document.getElementById('install-finish');

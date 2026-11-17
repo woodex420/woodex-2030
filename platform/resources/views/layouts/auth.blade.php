@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#f7f7f7">
     <title>@yield('title', 'Sign in') · WOODEX OS</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    <script>
+    <script nonce="{{ Vite::cspNonce() }}">
         // The same theme as the admin (wx.theme: light, dark or system), set before the first paint.
         (() => {
             let mode = 'system';
@@ -48,7 +48,7 @@
         </main>
         <footer class="wx-auth-footer"><span>Woodex Furniture · Lahore</span><span>A considered space for better work.</span></footer>
     </div>
-    <script>
+    <script nonce="{{ Vite::cspNonce() }}">
         // Native fallback for the other Fortify forms. The enhanced login prevents this handler.
         (function () {
             var busy = ['opacity-70', 'cursor-wait'];

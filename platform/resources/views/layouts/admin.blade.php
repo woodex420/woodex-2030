@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#f6f6f6">
     <title>{{ isset($title) ? $title.' · ' : '' }}WOODEX OS</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    <script>
+    <script nonce="{{ Vite::cspNonce() }}">
         (() => {
             let mode = 'system';
             try { mode = localStorage.getItem('wx.theme') || 'system'; } catch (e) {}
@@ -23,7 +23,7 @@
     </script>
     @if (request()->attributes->get('synthetic_direct_preview') === true)
         <meta name="woodex-demo-context" content="{{ request()->attributes->get('synthetic_demo_context') }}">
-        <script type="module" src="{{ asset('__sandbox/direct-context.js') }}"></script>
+        <script type="module" nonce="{{ Vite::cspNonce() }}" src="{{ asset('__sandbox/direct-context.js') }}"></script>
     @endif
     @vite(['resources/css/admin.css', 'resources/js/admin.js'])
     @livewireStyles

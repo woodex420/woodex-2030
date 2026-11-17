@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Website\Services\SiteRouter;
+use App\Http\Middleware\AssignRequestNumber;
 use App\Http\Middleware\EnsureAnyPermission;
 use App\Http\Middleware\EnsureDatabaseIsCurrent;
 use App\Http\Middleware\EnsureModuleIsEnabled;
@@ -11,6 +12,7 @@ use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VerifyTelegramWebhook;
 use App\Support\Install\SiteState;
 use App\Support\Modules;
+use App\Support\RequestNumber;
 use App\Support\Website\ContactFormResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
@@ -21,6 +23,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 $app = Application::configure(basePath: dirname(__DIR__))
@@ -48,6 +51,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
         // A freshly deployed site without .env opens the installer instead of failing (D-58).
         $middleware->prepend(RedirectToInstaller::class);
+        // Before everything, the installer's redirect included: every answer carries its request number (T-062).
+        $middleware->prepend(AssignRequestNumber::class);
         $middleware->append(SecurityHeaders::class);
 
         // Passwords typed into the installer are stored exactly as typed.
@@ -63,6 +68,15 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn () => route('admin.dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // A fault that is answered outside the middleware (while the application starts) carries the number too.
+        $exceptions->respond(function (Response $response): Response {
+            if (! $response->headers->has(RequestNumber::HEADER)) {
+                $response->headers->set(RequestNumber::HEADER, RequestNumber::current());
+            }
+
+            return $response;
+        });
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->is('webhooks/*') || $request->expectsJson(),
         );

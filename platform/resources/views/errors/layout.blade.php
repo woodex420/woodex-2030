@@ -12,15 +12,20 @@
     <meta name="theme-color" content="#f7f7f7">
     <title>@yield('title') · WOODEX OS</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    <script>
-        (() => {
-            let mode = 'system';
-            try { mode = localStorage.getItem('wx.theme') || 'system'; } catch (e) {}
-            const dark = mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
-            document.documentElement.classList.toggle('dark', dark);
-            document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-        })();
-    </script>
+    {{-- A screen part that fails (a Livewire call) shows this page inside the screen, in a frame the browser
+         holds to the screen's own content policy: a script written here would be refused there (T-068). The page
+         reads the same without it, in the light theme. --}}
+    @unless (request()->hasHeader('X-Livewire'))
+        <script nonce="{{ Vite::cspNonce() }}">
+            (() => {
+                let mode = 'system';
+                try { mode = localStorage.getItem('wx.theme') || 'system'; } catch (e) {}
+                const dark = mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.classList.toggle('dark', dark);
+                document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+            })();
+        </script>
+    @endunless
     @vite(['resources/css/admin.css'])
 </head>
 @php
@@ -48,7 +53,13 @@
                         <a href="{{ $home }}" class="wx-auth-submit flex h-11 items-center justify-center rounded-lg px-5 text-theme-sm font-medium">{{ $inAdmin ? 'Go to the dashboard' : 'Go to the front page' }}</a>
                     @endif
                 </div>
-                <p class="wx-auth-fallback">{{ now()->timezone('Asia/Karachi')->format('j M Y, H:i') }} (Pakistan time)</p>
+                {{-- The number of this request (App\Support\RequestNumber): the same number is on every line the
+                     application wrote to its log while answering, so whoever is asked for help can find them. --}}
+                <p class="wx-auth-fallback">
+                    {{ now()->timezone('Asia/Karachi')->format('j M Y, H:i') }} (Pakistan time)<br>
+                    Request number <strong class="whitespace-nowrap font-semibold select-all" data-request-number>{{ \App\Support\RequestNumber::current() }}</strong>.
+                    Give this number when you ask for help with this page.
+                </p>
             </section>
         </main>
         <footer class="wx-auth-footer"><span>Woodex Furniture · Lahore</span></footer>

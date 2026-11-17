@@ -256,10 +256,22 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   `node scripts/build-woodex-catalogue.mjs` and loaded by `php artisan commerce:import-catalogue`. It loads
   drafts only: nothing in the code may publish a product by itself.
 - **Done, for a change under `platform/`:** its test suite passes **on MySQL in CI** (workflow
-  `os-ci.yml`, five jobs). That is the authority. In a sandbox it runs on SQLite with a static PHP build —
-  `platform/tools/preview/README.md` says how to get PHP and Composer where only GitHub and npm are
-  reachable. Nine tests cannot run there (they need `pdo_mysql` or `xmlwriter`); read a sandbox run with
-  `tools/preview/sandbox/suite-summary.py`, which excuses a failure only by its cause, never by its name.
+  `os-ci.yml`, five jobs). That is the authority. In a sandbox it runs on SQLite:
+  `bash platform/tools/preview/sandbox/setup.sh` builds PHP, Composer, the packages and the rehearsal in
+  about a minute where only GitHub and npm are reachable (`platform/tools/preview/README.md` says what it
+  does). With the older static PHP build nine tests cannot run (they need `pdo_mysql` or `xmlwriter`); read a
+  sandbox run with `tools/preview/sandbox/suite-summary.py`, which excuses a failure only by its cause, never
+  by its name.
+- **A page may run only what the policy allows** (`App\Support\ContentPolicy`, sent by `SecurityHeaders`). A
+  `<script>` written into a view needs `nonce="{{ Vite::cspNonce() }}"`; an `onclick=` or any other handler
+  in the markup never runs — use Alpine (`@click`); a script, font or frame from another server is refused.
+  `tests/Feature/Security/ContentPolicyTest.php` reads every screen of the menu for this, and the crawl and the
+  journeys fail on anything the browser refuses.
+- **Every answer carries a request number** (`X-Request-Id`, `App\Support\RequestNumber`), every error page
+  shows it, and every log line of that request has it. The log is one JSON object a line. A log line must never
+  hold a query string, a token, a value typed into a form, an e-mail or an IP address: write the route's pattern
+  and the numbers of records (`App\Support\RequestLog` shows how;
+  `tests/Feature/Observability/RequestNumberTest.php` pins it).
 - **Never run it against a real database.** The preview refuses anything but a SQLite file named
   `woodex-synthetic-*`. Trap 5 applies here too.
 - **One navigation registry:** `app/Support/AdminNavigation.php`. A new screen is added there, once, with an

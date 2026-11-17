@@ -94,7 +94,7 @@
                                 <x-admin.button href="{{ $telegramStartUrl }}" target="_blank" rel="noopener" icon="send">Open in Telegram and tap Start</x-admin.button>
                                 <label class="wx-label mt-4" for="telegram-start-url">Or copy this link to your phone</label>
                                 <div class="flex gap-2">
-                                    <input id="telegram-start-url" type="text" readonly value="{{ $telegramStartUrl }}" class="wx-input font-mono text-xs" onclick="this.select()">
+                                    <input id="telegram-start-url" type="text" readonly value="{{ $telegramStartUrl }}" class="wx-input font-mono text-xs" x-data @click="$el.select()">
                                     <button type="button" x-data @click="navigator.clipboard?.writeText(@js($telegramStartUrl)); $el.textContent = 'Copied'; setTimeout(() => $el.textContent = 'Copy', 1500)" class="shrink-0 rounded-lg border border-gray-300 px-3 text-theme-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5">Copy</button>
                                 </div>
                             </div>
