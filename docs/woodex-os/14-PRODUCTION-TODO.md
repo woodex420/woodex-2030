@@ -32,9 +32,9 @@ with real, backed-up data; the old dashboard is no longer needed.
 | Tests | 2,244 pass, 34 skipped, 0 fail (PHP 8.5, SQLite); the same suite on MySQL 8.4 in CI. 14 browser steps pass on the rehearsal |
 | Production host | **Hostinger shared hosting ("Business") with MySQL** — the owner's decision (D-004, D-005, OD-3). Its staging site has never started (two failed checks, 13 November) |
 | Real data | None in Laravel. The live business runs on the React shop, the React dashboard and the Node API (Vercel + Supabase) |
-| The other admin | `woodex-2030.vercel.app/admin` — the sign-in titled "Woodex Workspace", with a username — is the **old React dashboard**, a different system. The Laravel admin is `woodex-os.vercel.app/admin` — "Welcome back", with an e-mail address. The old one stays in use for its 13 destinations until each is moved |
+| The other admin | `woodex-2030.vercel.app/admin` — the sign-in titled "Woodex Workspace", with a username — is the **old React dashboard**, a different system. The Laravel admin is `woodex-os.vercel.app/admin` — "Welcome back", with an e-mail address. The old one stays in use for its 13 destinations until each is moved (T-025) |
 
-**This list in numbers:** 127 lines — 3 done, 28 can start now, 70 wait for an earlier line or wave, 26 wait for the owner. 55 are new since version 1. By priority: 29 P0, 68 P1, 23 P2, 7 P3.
+**This list in numbers:** 128 lines — 3 done, 28 can start now, 70 wait for an earlier line or wave, 27 wait for the owner. 55 are new since version 1. By priority: 29 P0, 68 P1, 24 P2, 7 P3.
 
 ---
 
@@ -45,7 +45,7 @@ with real, backed-up data; the old dashboard is no longer needed.
 3. **Hosting is already decided in your log**: Hostinger shared hosting with MySQL. Version 1 asked you to choose between Hostinger and Vercel; that question is withdrawn. The Vercel site stays what it is, a demo.
 4. **"Woodex Interior" is still in screens that are open today** — in the WhatsApp greeting a salesperson sends from a lead, in the invitation e-mail to new staff, under the logo of the public invoice page, as the first choice on "New quotation". Your log excludes Interior from this product (D-008). New block §4, priority P0.
 5. **Document 10 names 25 acceptance scenarios, 12 security tests, 11 browser flows and five release gates.** Ten of the twelve sales and finance scenarios already have their rule and a passing test in Laravel; two are partly met. The thirteen stock, purchasing and page-builder scenarios have no module yet. Missing in between: browser journeys for the main flows, and five kinds of security test (§11, §12).
-6. **Document 11 adds deliverables** that were not on the list: favourite and recent screens, a dashboard widget framework, the sales flow proven end to end, and your approval of the design.
+6. **Document 11 adds deliverables and exit rules** that were not on the list: the dashboard as a widget framework, the sales flow proven end to end on staging, the Interior cleanup, keyboard tests, and your approval of the design before the shell counts as finished.
 7. **Times are stored in Pakistan time, not UTC** as document 03 requires. This must be changed before real data is entered, because changing it afterwards means converting every stored time (T-061).
 
 ---
@@ -80,8 +80,9 @@ IDs in brackets are the owner's own log (document 12) or earlier records.
 | T-022 | P1 | Two-factor sign-in required for owner and admin? | Optional | T-065 | Owner |
 | T-023 | P2 | The missing `01-MASTER-PRD.md` | Documents 05 and 07 stand in | — | Owner |
 | T-024 | P3 | **NEW** "The actual AI agent failure example and task" (O-011): your log's own open question. Needed only if you want that diagnosis | — | — | Owner |
+| T-025 | P2 | The old address `woodex-2030.vercel.app/admin` still opens the old React dashboard ("Woodex Workspace"), and is easily taken for the new admin. Choose: leave it until cutover, or put a line on that sign-in page that links to the Laravel admin | Left as it is. A link is a small change to the old dashboard; it would ship with T-002 | — | Owner |
 
-**Already answered — no action:** online payment at checkout: no, cash on delivery at launch (O-004, OD-4), so payments are recorded by hand (P-003) · a staging account for visual checks: the demo, one account per role (O-012) · production host: Hostinger shared hosting, MySQL (D-004, D-005) · the old `/admin` of the shop: left as it is until cutover.
+**Already answered — no action:** online payment at checkout: no, cash on delivery at launch (O-004, OD-4), so payments are recorded by hand (P-003) · a staging account for visual checks: the demo, one account per role (O-012) · production host: Hostinger shared hosting, MySQL (D-004, D-005).
 
 **Built as your log assumes — say so only if it is wrong:** one organisation, no branches as separate workspaces (P-006) · the admin is in English (P-007) · quotation approval goes by role (P-005; the limits are T-004).
 
@@ -332,7 +333,7 @@ cite version 1 and are not edited: its §2 is §17 here, and its lines are now:
 | O-11 | T-023 | S-5, S-6, S-7 | T-022, T-021, T-060 |
 | O-12 | T-005 | S-8 | standing rule: the demo passwords exist only as Vercel settings; if one leaks, change the four values and redeploy |
 | O-13 | T-007 | U-1, U-2, U-3 · U-4, U-5, U-6, U-7 | T-040 · T-041, T-044, T-045, T-046 |
-| O-14 | answered: left as it is | U-8, U-9, U-10, U-11 | T-052, T-053, T-054, T-055 |
+| O-14 | T-025 | U-8, U-9, U-10, U-11 | T-052, T-053, T-054, T-055 |
 | Waves 2 to 11 | T-060 to T-067, T-100 to T-121 | E-1, E-2, E-3 · P-1, P-2, P-3, P-4 | T-155, T-150, T-156 · T-138, T-142, T-185, T-186 |
 | Q-1, Q-2, Q-4, Q-6 (gates in force) | unchanged; named in §12 | Q-3, Q-5 | T-151, T-167 |
 
