@@ -6,8 +6,10 @@ namespace App\Livewire\Admin\Accounts;
 
 use App\Domain\Accounts\Enums\AccountType;
 use App\Domain\Accounts\Models\Account;
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -52,7 +54,22 @@ class ChartOfAccounts extends Component
             ),
             'groups' => $groups,
             'canManage' => auth()->user()?->can('accounts.manage'),
+            'brands' => $this->brandChoices(),
+            // The line column is shown where lines are told apart, and where an account of another line exists.
+            'showLine' => BusinessLine::severalBrandsOffered() || $accounts->contains(fn (Account $account): bool => $account->business_line !== null && $account->business_line->tag() !== ''),
         ]);
+    }
+
+    /**
+     * The brands an account may be kept for: the brands on sale, and the stored brand of the account being edited.
+     *
+     * @return array<string, string> value => label
+     */
+    private function brandChoices(): array
+    {
+        return BusinessLine::brandOptionsFor(
+            $this->editingId !== null ? Account::query()->find($this->editingId)?->business_line : null,
+        );
     }
 
     public function create(): void
@@ -88,7 +105,7 @@ class ChartOfAccounts extends Component
             'name' => ['required', 'string', 'max:120'],
             'type' => ['required', new Enum(AccountType::class)],
             'parentId' => ['nullable', 'integer', 'exists:chart_of_accounts,id'],
-            'businessLine' => ['nullable', 'in:interior,furniture'],
+            'businessLine' => ['nullable', Rule::in(array_keys($this->brandChoices()))],
             'isActive' => ['boolean'],
         ]);
 

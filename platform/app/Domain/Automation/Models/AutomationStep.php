@@ -6,6 +6,7 @@ namespace App\Domain\Automation\Models;
 
 use App\Domain\Automation\Enums\StepKind;
 use App\Domain\Crm\Models\Lead;
+use App\Support\Brand;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -51,6 +52,6 @@ class AutomationStep extends Model
 
     private function render(string $text, string $name): string
     {
-        return str_replace(['{first_name}', '{studio_name}'], [$name, 'Woodex Interior'], $text);
+        return str_replace(['{first_name}', '{studio_name}'], [$name, Brand::name()], $text);
     }
 }

@@ -33,10 +33,13 @@
                 <x-admin.button type="submit" variant="secondary" wire:loading.attr="disabled" wire:target="importTemplate,importFile">Import</x-admin.button>
             </form>
             @error('importFile')<p class="mt-2 text-theme-xs text-error-600">{{ $message }}</p>@enderror
-            <div class="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3 dark:border-gray-800">
-                <x-admin.button variant="secondary" size="sm" icon="download" wire:click="importStarters" wire:loading.attr="disabled" wire:target="importStarters">Import Woodex starter templates</x-admin.button>
-                <span class="text-theme-xs text-gray-500">Re-adds any missing standard templates (Renovation, Civil Work, Interior Designing, scopes…) with sections, lines, rates and terms — ones you edited stay untouched.</span>
-            </div>
+            {{-- The bundled starter pack is the Interior studio's; it is offered only where that brand is sold. --}}
+            @if ($offersStarterPack)
+                <div class="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+                    <x-admin.button variant="secondary" size="sm" icon="download" wire:click="importStarters" wire:loading.attr="disabled" wire:target="importStarters">Import Woodex starter templates</x-admin.button>
+                    <span class="text-theme-xs text-gray-500">Re-adds any missing standard templates (Renovation, Civil Work, Interior Designing, scopes…) with sections, lines, rates and terms — ones you edited stay untouched.</span>
+                </div>
+            @endif
         </x-admin.card>
     @endif
 
@@ -47,7 +50,7 @@
                     <div>
                         <h2 class="font-medium text-gray-900 dark:text-white">{{ $template->name }}</h2>
                         <p class="mt-0.5 text-theme-xs text-gray-500">
-                            {{ $template->kind->label() }} · {{ $template->business_line->label() }} · {{ $template->milestone_plan->label() }}
+                            {{ implode(' · ', array_filter([$template->kind->label(), $template->business_line->tag(), $template->milestone_plan->label()])) }}
                             @unless ($template->is_active) · <span class="text-warning-700">hidden</span>@endunless
                         </p>
                     </div>
@@ -120,11 +123,13 @@
                         @foreach ($kinds as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
                     </select>
                 </x-admin.field>
-                <x-admin.field label="Line" for="formLine">
-                    <select id="formLine" wire:model="formLine" class="wx-input">
-                        @foreach ($lines as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
-                    </select>
-                </x-admin.field>
+                @if (count($lines) > 1)
+                    <x-admin.field label="Line" for="formLine">
+                        <select id="formLine" wire:model="formLine" class="wx-input">
+                            @foreach ($lines as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
+                        </select>
+                    </x-admin.field>
+                @endif
                 <x-admin.field label="Milestone plan" for="formPlan">
                     <select id="formPlan" wire:model="formPlan" class="wx-input">
                         @foreach ($plans as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach

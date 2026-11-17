@@ -56,7 +56,8 @@ class ContactShow extends Component
 
     public bool $showLead = false;
 
-    public string $leadLine = 'interior';
+    /** The line of a new enquiry; set to the line this installation sells when the screen opens. */
+    public string $leadLine = '';
 
     public string $leadService = '';
 
@@ -66,6 +67,7 @@ class ContactShow extends Component
     {
         $this->authorize('view', $contact);
         $this->contactId = $contact->id;
+        $this->leadLine = BusinessLine::primary()->value;
     }
 
     #[Computed]
@@ -196,7 +198,7 @@ class ContactShow extends Component
         $this->authorize('create', Lead::class);
 
         $this->validate([
-            'leadLine' => ['required', Rule::enum(BusinessLine::class)],
+            'leadLine' => ['required', Rule::in(BusinessLine::offeredValues())],
             'leadService' => ['nullable', 'string', 'max:60'],
             'leadMessage' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -296,7 +298,7 @@ class ContactShow extends Component
             'files' => $contact->getMedia('files')->sortByDesc('id')->values(),
             'duplicates' => $user->can('merge', Contact::class) ? $contact->possibleDuplicates() : collect(),
             'types' => ClientType::options(),
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::offeredOptions(),
             'quotes' => $user->can('quotes.view') ? $contact->quotes()->visibleTo($user)->latest('id')->limit(20)->get() : collect(),
             'money' => $money,
             'invoices' => $invoices,

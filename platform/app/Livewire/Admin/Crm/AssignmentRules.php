@@ -169,7 +169,7 @@ class AssignmentRules extends Component
             'staff' => $staff,
             'staffNames' => $staff->pluck('name', 'id'),
             'loads' => $openLoads,
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::offeredOptions(),
             'sources' => LeadSource::options(),
             'roles' => UsersIndex::ROLES,
             'roleCounts' => collect(array_keys(UsersIndex::ROLES))->mapWithKeys(fn (string $role) => [

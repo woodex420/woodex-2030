@@ -20,7 +20,7 @@
             <form wire:submit="save" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label class="wx-label" for="ba-title">Account title</label>
-                    <input id="ba-title" type="text" wire:model="title" class="wx-input" placeholder="WOODEX INTERIOR" />
+                    <input id="ba-title" type="text" wire:model="title" class="wx-input" placeholder="{{ mb_strtoupper(\App\Support\Brand::name()) }}" />
                     @error('title') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
@@ -36,15 +36,19 @@
                     </select>
                     @error('kind') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
                 </div>
-                <div>
-                    <label class="wx-label" for="ba-line">Business line</label>
-                    <select id="ba-line" wire:model="businessLine" class="wx-input">
-                        <option value="">Both lines</option>
-                        <option value="interior">Interior</option>
-                        <option value="furniture">Furniture</option>
-                    </select>
-                    @error('businessLine') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
-                </div>
+                {{-- An account is tied to a line only where more than one brand is sold. --}}
+                @if (count($brands) > 1)
+                    <div>
+                        <label class="wx-label" for="ba-line">Business line</label>
+                        <select id="ba-line" wire:model="businessLine" class="wx-input">
+                            <option value="">Both lines</option>
+                            @foreach ($brands as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('businessLine') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
+                    </div>
+                @endif
                 <div>
                     <label class="wx-label" for="ba-number">Account number</label>
                     <input id="ba-number" type="text" wire:model="accountNumber" class="wx-input" inputmode="numeric" placeholder="01234567890123" />
@@ -97,7 +101,7 @@
                         <th class="px-5 py-3 font-medium">Account</th>
                         <th class="hidden px-5 py-3 font-medium md:table-cell">Bank</th>
                         <th class="hidden px-5 py-3 font-medium lg:table-cell">Number / IBAN</th>
-                        <th class="px-5 py-3 font-medium">Line</th>
+                        <th class="px-5 py-3 font-medium">{{ $severalBrands ? 'Line' : 'Default' }}</th>
                         <th class="px-5 py-3 font-medium">Status</th>
                         @if ($canManage)
                             <th class="px-5 py-3 text-right font-medium">Actions</th>
@@ -119,7 +123,7 @@
                                 @endif
                             </td>
                             <td class="px-5 py-3">
-                                {{ $account->business_line?->label() ?? 'Both' }}
+                                {{ $account->business_line === null ? ($severalBrands ? 'Both' : '') : $account->business_line->tag() }}
                                 @if ($account->is_default)
                                     <x-admin.badge color="success" class="ml-1">Default</x-admin.badge>
                                 @endif

@@ -45,7 +45,7 @@
                                     <span class="flex size-8 items-center justify-center rounded-lg bg-navy-50 text-navy-700 dark:bg-white/10 dark:text-white"><x-icon name="users" class="size-4" /></span>
                                     <span class="min-w-0 flex-1">
                                         <span class="block truncate text-theme-sm font-medium text-gray-800 dark:text-white/90">{{ $lead->contact->name }}</span>
-                                        <span class="block truncate text-theme-xs text-gray-500">{{ $lead->ref }} · {{ $lead->business_line->label() }}</span>
+                                        <span class="block truncate text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$lead->ref, $lead->business_line->tag()])) }}</span>
                                     </span>
                                     <x-admin.badge :color="$lead->stage->badgeColor()">{{ $lead->stage->name }}</x-admin.badge>
                                 </a>

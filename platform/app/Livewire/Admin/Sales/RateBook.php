@@ -82,7 +82,7 @@ class RateBook extends Component
         $descriptionId = request()->integer('description');
         if ($descriptionId > 0) {
             $this->authorize('manageCatalog', Quote::class);
-            $description = DescriptionTemplate::query()->where('is_active', true)->findOrFail($descriptionId);
+            $description = DescriptionTemplate::query()->onSale()->where('is_active', true)->findOrFail($descriptionId);
             $this->openCreate();
             $this->formDescription = $description->body;
             $this->formCategory = $description->section;
@@ -123,6 +123,18 @@ class RateBook extends Component
         $this->showForm = true;
     }
 
+    /**
+     * The lines a rate may be kept for: the lines on sale, and the stored line of the rate being edited.
+     *
+     * @return array<string, string>
+     */
+    private function lineOptions(): array
+    {
+        $stored = $this->editingId !== null ? CatalogItem::query()->whereKey($this->editingId)->value('business_line') : null;
+
+        return BusinessLine::optionsFor($stored instanceof BusinessLine ? $stored : BusinessLine::tryFrom((string) $stored));
+    }
+
     public function save(): void
     {
         $this->authorize('manageCatalog', Quote::class);
@@ -134,7 +146,7 @@ class RateBook extends Component
             'formRate' => ['nullable', 'string', 'max:20'],
             'formCost' => ['nullable', 'string', 'max:20'],
             'formFinish' => ['nullable', Rule::in(array_keys(self::FINISHES))],
-            'formLine' => ['nullable', Rule::enum(BusinessLine::class)],
+            'formLine' => ['nullable', Rule::in(array_keys($this->lineOptions()))],
             'formActive' => ['boolean'],
             'formImage' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [], [
@@ -198,7 +210,7 @@ class RateBook extends Component
             'categories' => CatalogItem::query()->distinct()->orderBy('category')->pluck('category'),
             'units' => Unit::options(),
             'finishes' => self::FINISHES,
-            'lines' => BusinessLine::options(),
+            'lines' => $this->lineOptions(),
             'lakh' => app(SalesSettings::class)->lakh_grouping,
         ]);
     }

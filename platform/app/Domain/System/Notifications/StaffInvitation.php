@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\System\Notifications;
 
+use App\Support\Brand;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -34,7 +35,7 @@ final class StaffInvitation extends Notification
         return (new MailMessage)
             ->subject('Your Woodex OS account')
             ->greeting("Assalam o Alaikum {$notifiable->name},")
-            ->line('You now have access to Woodex OS, the Woodex Interior sales and projects system.')
+            ->line('You now have access to Woodex OS, the '.Brand::name().' workspace for sales and projects.')
             ->action('Set your password', $url)
             ->line("This link works for {$minutes} minutes. If it has expired, ask for a new invitation or use “Forgot password” on the sign-in page.")
             ->line('After signing in you will be asked to turn on two-factor authentication with an authenticator app.');

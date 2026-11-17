@@ -86,7 +86,7 @@
                         <li wire:key="company-lead-{{ $lead->id }}" class="flex items-center justify-between gap-3 px-5 py-3">
                             <div class="min-w-0">
                                 <a href="{{ route('admin.leads.show', $lead) }}" wire:navigate class="font-medium text-gray-800 hover:underline dark:text-white/90">{{ $lead->ref }} · {{ $lead->contact->name }}</a>
-                                <p class="text-theme-xs text-gray-500">{{ $lead->business_line->label() }}{{ $lead->service ? ' · '.\Illuminate\Support\Str::headline($lead->service) : '' }} · {{ $lead->owner?->name ?? 'Unassigned' }}</p>
+                                <p class="text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$lead->lineAndService(), $lead->owner?->name ?? 'Unassigned'])) }}</p>
                             </div>
                             <x-admin.badge :color="$lead->stage->badgeColor()">{{ $lead->stage->name }}</x-admin.badge>
                         </li>

@@ -338,3 +338,25 @@ it('keeps an existing owner when it is pointed at an installed database', functi
 it('suggests the cron command for the PHP the site runs', function () {
     expect(app(Installer::class)->cronCommand())->toEndWith('/domains/site.test/public_html/platform/artisan schedule:run');
 });
+
+it('names the site, the sender and the allowed origin after the address it is given, and nothing of the Interior studio', function () {
+    // The installer came with the Interior studio's application. Whatever address was typed, it wrote that
+    // studio's website (woodex.com.pk) as the public site and as an origin allowed to post enquiries, its
+    // mailbox as the sender, and "Woodex Interior" as the sender's name (owner decision D-008).
+    $this->get('/install');
+    $this->post('/install', installerForm(['setup_code' => setupCode($this->data), 'app_url' => 'https://admin.furniture.example/']))->assertOk();
+
+    $written = (string) file_get_contents($this->data.'/.env');
+    $env = Dotenv::parse($written);
+
+    expect($env['APP_URL'])->toBe('https://admin.furniture.example')
+        ->and($env['PUBLIC_SITE_URL'])->toBe('https://admin.furniture.example')
+        // Only this site may post enquiries until the shop's address is added by hand.
+        ->and($env['PUBLIC_LEADS_ALLOWED_ORIGINS'])->toBe('https://admin.furniture.example')
+        ->and($env['MAIL_FROM_ADDRESS'])->toBe('noreply@admin.furniture.example')
+        ->and($env['MAIL_FROM_NAME'])->toBe('Woodex Furniture')
+        // Mail is still written to the log until a mailbox is set up: nothing is sent under this address yet.
+        ->and($env['MAIL_MAILER'])->toBe('log')
+        ->and($written)->not->toContain('woodex.com.pk')
+        ->and($written)->not->toContain('Interior');
+});

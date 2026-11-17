@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Accounts\Models\AccountingPeriod;
 use App\Domain\Accounts\Models\PaymentMethodAccount;
+use App\Domain\Crm\Enums\BusinessLine;
 use Illuminate\Database\Seeder;
 
 /**
@@ -70,7 +71,15 @@ class ChartOfAccountsSeeder extends Seeder
             ['5190', 'Other expenses', 'expense', '5000', null],
         ];
 
+        $brands = BusinessLine::offeredBrandValues();
+
         foreach ($leaves as [$code, $name, $type, $parent, $businessLine]) {
+            // An account kept for one brand belongs to an installation that sells it: Woodex Furniture gets
+            // "Furniture revenue" and no "Interior design revenue" (owner decision D-008).
+            if ($businessLine !== null && ! in_array($businessLine, $brands, true)) {
+                continue;
+            }
+
             Account::query()->firstOrCreate(
                 ['code' => $code],
                 [

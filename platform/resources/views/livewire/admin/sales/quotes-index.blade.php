@@ -33,12 +33,14 @@
             <x-icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gray-400" />
             <input type="search" wire:model.live.debounce.300ms="search" placeholder="Number, title, client or phone" class="wx-input pl-10" aria-label="Search quotations">
         </div>
-        <select wire:model.live="line" class="wx-input" aria-label="Line">
-            <option value="">All lines</option>
-            @foreach ($lines as $value => $label)
-                <option value="{{ $value }}">{{ $label }}</option>
-            @endforeach
-        </select>
+        @if (count($lines) > 1)
+            <select wire:model.live="line" class="wx-input" aria-label="Line">
+                <option value="">All lines</option>
+                @foreach ($lines as $value => $label)
+                    <option value="{{ $value }}">{{ $label }}</option>
+                @endforeach
+            </select>
+        @endif
         @if ($seesAll)
             <select wire:model.live="owner" class="wx-input" aria-label="Owner">
                 <option value="">Everyone</option>

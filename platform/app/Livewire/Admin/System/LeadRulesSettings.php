@@ -117,7 +117,7 @@ class LeadRulesSettings extends Component
     {
         return view('livewire.admin.system.lead-rules-settings', [
             'sources' => LeadSource::options(),
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::offeredOptions(),
             'bands' => app(SalesSettings::class)->budget_bands,
             'timelines' => LeadShow::timelines(),
         ]);

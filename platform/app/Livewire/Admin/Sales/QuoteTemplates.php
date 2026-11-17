@@ -65,7 +65,8 @@ class QuoteTemplates extends Component
 
     public string $formDescription = '';
 
-    public string $formLine = 'interior';
+    /** The line of the template being edited (openEdit sets it). */
+    public string $formLine = '';
 
     public string $formKind = 'execution';
 
@@ -106,10 +107,12 @@ class QuoteTemplates extends Component
     {
         $this->authorize('manageCatalog', Quote::class);
 
+        $editing = QuoteTemplate::query()->findOrFail($this->editingId);
+
         $this->validate([
             'formName' => ['required', 'string', 'max:120'],
             'formDescription' => ['nullable', 'string', 'max:500'],
-            'formLine' => ['required', Rule::enum(BusinessLine::class)],
+            'formLine' => ['required', Rule::in(array_keys(BusinessLine::optionsFor($editing->business_line)))],
             'formKind' => ['required', Rule::enum(TemplateKind::class)],
             'formPlan' => ['required', Rule::enum(MilestonePlanKey::class)],
             'formTerms' => ['nullable', 'string', 'max:10000'],
@@ -118,7 +121,7 @@ class QuoteTemplates extends Component
             'formActive' => ['boolean'],
         ], [], ['formName' => 'name', 'formLine' => 'line', 'formKind' => 'type', 'formPlan' => 'milestone plan']);
 
-        QuoteTemplate::query()->findOrFail($this->editingId)->update([
+        $editing->update([
             'name' => trim($this->formName),
             'description' => trim($this->formDescription) !== '' ? trim($this->formDescription) : null,
             'business_line' => $this->formLine,
@@ -281,6 +284,8 @@ class QuoteTemplates extends Component
     public function importStarters(): void
     {
         $this->authorize('manageCatalog', Quote::class);
+        // The bundled pack is the Interior studio's. Where that brand is not sold it is not offered, and not installed.
+        abort_unless(in_array(BusinessLine::Interior, BusinessLine::offeredBrands(), true), 404);
 
         $decoded = TemplatePackImporter::starterContents();
 
@@ -320,7 +325,8 @@ class QuoteTemplates extends Component
                 ->orderBy('position')
                 ->get(),
             'kinds' => TemplateKind::options(),
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::optionsFor(BusinessLine::tryFrom($this->formLine)),
+            'offersStarterPack' => in_array(BusinessLine::Interior, BusinessLine::offeredBrands(), true),
             'plans' => MilestonePlanKey::options(),
             'previewTemplate' => $previewTemplate,
             'previewSections' => $previewTemplate !== null ? QuoteBlueprint::sections($previewTemplate->blueprint) : [],

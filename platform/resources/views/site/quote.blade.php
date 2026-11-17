@@ -37,7 +37,7 @@
                     <span class="font-heading text-xl">{{ $displayBrand }}</span>
                 </span>
             @else
-                <x-brand-logo :subtitle="($s['business_line'] ?? '') === 'furniture' ? 'FURNITURE' : 'INTERIOR STUDIO'" class="text-white" />
+                <x-brand-logo :subtitle="\App\Support\Brand::wordmark(\App\Domain\Crm\Enums\BusinessLine::tryFrom((string) ($s['business_line'] ?? '')))" class="text-white" />
             @endif
             @if ($whatsapp)
                 <a href="{{ $whatsapp }}" target="_blank" rel="noopener" class="btn-studio">Ask on WhatsApp <span aria-hidden="true">↗</span></a>

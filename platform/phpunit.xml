@@ -43,6 +43,9 @@
         <env name="PUBLIC_LEADS_BRIDGE_KEY" value=""/>
         <!-- The suite inherited from WOODEX OS exercises every module; ModuleSwitchTest covers the shipped default. -->
         <env name="WOODEX_MODULES" value="*"/>
+        <!-- The inherited suite sells three business lines and starts on Interior. The shipped default is Furniture
+             alone; FurnitureOnlyTest covers it screen by screen. -->
+        <env name="WOODEX_BUSINESS_LINES" value="interior,furniture,project"/>
         <!-- The inherited Website tests assert addresses under the Interior site. The application default is APP_URL. -->
         <env name="PUBLIC_SITE_URL" value="https://woodex.com.pk"/>
         <env name="PULSE_ENABLED" value="false"/>

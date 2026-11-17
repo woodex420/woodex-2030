@@ -62,7 +62,7 @@
             </div>
         @empty
             <div class="sm:col-span-2 xl:col-span-3">
-                <x-admin.empty icon="image" title="No images yet" description="Upload the studio photographs, then give each one a description." />
+                <x-admin.empty icon="image" title="No images yet" description="Upload the photographs, then give each one a description." />
             </div>
         @endforelse
     </div>

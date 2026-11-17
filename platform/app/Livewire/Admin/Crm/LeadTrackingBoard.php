@@ -10,6 +10,7 @@ use App\Domain\Crm\Enums\ActivityType;
 use App\Domain\Crm\Enums\NextActionType;
 use App\Domain\Crm\Models\Lead;
 use App\Livewire\Concerns\InteractsWithAdmin;
+use App\Support\Brand;
 use App\Support\Phone;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -176,7 +177,7 @@ class LeadTrackingBoard extends Component
 
         return Phone::whatsappUrl(
             $contact->whatsappNumber(),
-            "Assalam o Alaikum {$contact->firstName()}, this is {$this->user()->name} from Woodex Interior regarding your enquiry ({$lead->ref}).",
+            "Assalam o Alaikum {$contact->firstName()}, this is {$this->user()->name} from ".Brand::name($lead->business_line)." regarding your enquiry ({$lead->ref}).",
         );
     }
 }

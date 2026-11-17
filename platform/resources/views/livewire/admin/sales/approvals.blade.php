@@ -12,7 +12,9 @@
     @if ($pending !== null)
     <div class="mb-4 flex flex-wrap gap-3">
         <input type="search" wire:model.live.debounce.300ms="search" aria-label="Search approvals" placeholder="Search client, quote number or title" class="wx-input max-w-sm">
-        <select wire:model.live="line" aria-label="Approval business line" class="wx-input w-auto"><option value="">All business lines</option>@foreach (\App\Domain\Crm\Enums\BusinessLine::cases() as $businessLine)<option value="{{ $businessLine->value }}">{{ $businessLine->label() }}</option>@endforeach</select>
+        @if (\App\Domain\Crm\Enums\BusinessLine::severalOffered())
+            <select wire:model.live="line" aria-label="Approval business line" class="wx-input w-auto"><option value="">All business lines</option>@foreach (\App\Domain\Crm\Enums\BusinessLine::offered() as $businessLine)<option value="{{ $businessLine->value }}">{{ $businessLine->label() }}</option>@endforeach</select>
+        @endif
     </div>
     <x-admin.card :title="'Waiting ('.$pending->total().')'" :padding="false">
         @forelse ($pending as $approval)

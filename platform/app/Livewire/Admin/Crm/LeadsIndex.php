@@ -106,7 +106,8 @@ class LeadsIndex extends Component
 
     public string $newEmail = '';
 
-    public string $newLine = 'interior';
+    /** The line of a lead typed in by hand; set to the line this installation sells when the screen opens. */
+    public string $newLine = '';
 
     public string $newService = '';
 
@@ -117,6 +118,7 @@ class LeadsIndex extends Component
     public function mount(): void
     {
         $this->authorize('viewAny', Lead::class);
+        $this->newLine = BusinessLine::primary()->value;
         $this->applyDefaultView();
 
         // GLB-016: the 'N' shortcut lands on /leads?new=1 — open the composer.
@@ -492,7 +494,7 @@ class LeadsIndex extends Component
                 }
             }],
             'newEmail' => ['nullable', 'required_without:newPhone', 'email', 'max:160'],
-            'newLine' => ['required', Rule::enum(BusinessLine::class)],
+            'newLine' => ['required', Rule::in(BusinessLine::offeredValues())],
             'newService' => ['nullable', 'string', 'max:60'],
             'newSource' => ['required', Rule::in(array_map(fn (LeadSource $s) => $s->value, LeadSource::manualSources()))],
             'newMessage' => ['nullable', 'string', 'max:2000'],
@@ -512,7 +514,7 @@ class LeadsIndex extends Component
         ));
 
         $this->reset('showCreate', 'newName', 'newPhone', 'newEmail', 'newService', 'newMessage');
-        $this->newLine = 'interior';
+        $this->newLine = BusinessLine::primary()->value;
         $this->newSource = 'manual';
 
         $this->dispatch('toast',
@@ -549,7 +551,10 @@ class LeadsIndex extends Component
                 'unassigned' => (clone $this->query())->whereNull('owner_id')->count(),
             ],
             'stages' => PipelineStage::query()->ordered()->get(),
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::offeredOptions(),
+            'severalLines' => BusinessLine::severalOffered(),
+            // With one line on sale the column holds the service alone, and says so.
+            'columnLabels' => BusinessLine::severalOffered() ? self::COLUMNS : array_replace(self::COLUMNS, ['line' => 'Service']),
             'sources' => LeadSource::options(),
             'hasFilters' => trim($this->search) !== '' || $this->stage !== '' || $this->line !== '' || $this->source !== '' || $this->owner !== '' || $this->created !== '' || $this->due !== '' || $this->month !== '',
             'views' => $this->savedViews(),

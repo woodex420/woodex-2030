@@ -1,6 +1,15 @@
 @use('App\Support\Money')
+@use('App\Domain\Crm\Enums\BusinessLine')
+@php
+    // The split by line is shown where it tells something: more than one line is sold, or the period holds a
+    // record of a line that is no longer sold. With one line it would repeat the totals in a table of one row.
+    $byLine = $this->report()['by_line'];
+    $only = [BusinessLine::primary()->value, strtolower(BusinessLine::primary()->label())];
+    $showLines = BusinessLine::severalOffered()
+        || collect($byLine)->contains(fn (array $row): bool => ! in_array(strtolower((string) $row['label']), $only, true));
+@endphp
 <div>
-    <x-admin.page-header title="Sales funnel" description="Enquiries in, quotations out, wins and losses — by source, line and owner."
+    <x-admin.page-header title="Sales funnel" :description="$showLines ? 'Enquiries in, quotations out, wins and losses — by source, line and owner.' : 'Enquiries in, quotations out, wins and losses — by source and owner.'"
                          :breadcrumbs="['Reports' => null, 'Sales Funnel' => null]">
         <x-slot:actions>
             <div class="flex flex-wrap items-center gap-2">
@@ -63,7 +72,8 @@
         </div>
     </x-admin.card>
 
-    <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+    <div @class(['mt-6 grid grid-cols-1 gap-6', 'xl:grid-cols-2' => $showLines])>
+        @if ($showLines)
         <x-admin.card title="By business line" :padding="false">
             <div class="overflow-x-auto">
                 <table class="w-full text-theme-sm">
@@ -93,6 +103,7 @@
                 </table>
             </div>
         </x-admin.card>
+        @endif
 
         <x-admin.card title="Why leads were lost" :padding="false">
             @forelse ($this->report()['drop_offs'] as $row)

@@ -18,7 +18,7 @@
                     <div class="min-w-0">
                         @if ($tab === 'leads')
                             <p class="font-medium text-gray-800 dark:text-white/90">{{ $record->ref }} · {{ $record->contact?->name ?? 'Unknown contact' }}</p>
-                            <p class="text-theme-xs text-gray-500">{{ $record->business_line->label() }} · {{ $record->owner?->name ?? 'Unassigned' }} · deleted {{ $record->deleted_at?->diffForHumans() }}</p>
+                            <p class="text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$record->business_line->tag(), $record->owner?->name ?? 'Unassigned'])) }} · deleted {{ $record->deleted_at?->diffForHumans() }}</p>
                         @elseif ($tab === 'contacts')
                             <p class="font-medium text-gray-800 dark:text-white/90">{{ $record->name }}</p>
                             <p class="text-theme-xs text-gray-500">{{ \App\Support\Phone::display($record->phone) ?: ($record->email ?: 'no contact details') }} · {{ $record->leads_count }} {{ \Illuminate\Support\Str::plural('enquiry', $record->leads_count) }} · deleted {{ $record->deleted_at?->diffForHumans() }}</p>

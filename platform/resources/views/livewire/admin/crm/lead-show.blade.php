@@ -1,3 +1,4 @@
+@use('App\Support\Brand')
 @use('App\Support\Phone')
 @use('Illuminate\Support\Str')
 @php
@@ -7,7 +8,7 @@
     $canAssign = $me->can('assign', \App\Domain\Crm\Models\Lead::class);
     $flow = $stages->whereNotIn('key', ['on_hold', 'lost'])->values();
     $current = $lead->stage;
-    $wa = Phone::whatsappUrl($contact->whatsappNumber(), "Assalam o Alaikum {$contact->firstName()}, this is {$me->name} from Woodex Interior regarding your enquiry ({$lead->ref}).");
+    $wa = Phone::whatsappUrl($contact->whatsappNumber(), "Assalam o Alaikum {$contact->firstName()}, this is {$me->name} from ".Brand::name($lead->business_line)." regarding your enquiry ({$lead->ref}).");
     $value = $lead->expectedValue()?->format($lakh);
     $isClosed = $current->isClosed();
 @endphp
@@ -46,8 +47,10 @@
         <span class="text-gray-400">·</span>
         <span>{{ $lead->ref }}</span>
         <span class="text-gray-400">·</span>
-        <span>{{ $lead->business_line->label() }}{{ $lead->service ? ' · '.Str::headline($lead->service) : '' }}</span>
-        <span class="text-gray-400">·</span>
+        @if ($lead->lineAndService() !== '')
+            <span>{{ $lead->lineAndService() }}</span>
+            <span class="text-gray-400">·</span>
+        @endif
         <span>{{ $lead->source->label() }}, {{ $lead->created_at?->diffForHumans() }}</span>
     </div>
 
@@ -423,7 +426,7 @@
                         <p class="mb-2 text-theme-xs font-medium tracking-wide text-gray-400 uppercase">Other enquiries</p>
                         @foreach ($otherLeads as $other)
                             <a href="{{ route('admin.leads.show', $other) }}" wire:navigate class="flex items-center justify-between rounded-lg px-2 py-1.5 text-theme-sm hover:bg-gray-50 dark:hover:bg-white/5">
-                                <span class="text-gray-700 dark:text-gray-300">{{ $other->ref }} · {{ $other->business_line->label() }}</span>
+                                <span class="text-gray-700 dark:text-gray-300">{{ implode(' · ', array_filter([$other->ref, $other->business_line->tag()])) }}</span>
                                 <x-admin.badge :color="$other->stage->badgeColor()">{{ $other->stage->name }}</x-admin.badge>
                             </a>
                         @endforeach
@@ -472,18 +475,22 @@
     @if ($showDetails)
         <x-admin.modal name="showDetails" title="Lead details" submit="saveDetails" width="max-w-2xl">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <x-admin.field label="Business line" for="details.business_line">
-                    <select id="details.business_line" wire:model="details.business_line" class="wx-input">
-                        @foreach ($lines as $v => $l)<option value="{{ $v }}">{{ $l }}</option>@endforeach
-                    </select>
-                </x-admin.field>
+                {{-- The line can be changed only where more than one is sold. A lead of a line that is not sold
+                     here keeps it and shows it, so nothing changes a record unseen. --}}
+                @if (count($lines) > 1)
+                    <x-admin.field label="Business line" for="details.business_line">
+                        <select id="details.business_line" wire:model="details.business_line" class="wx-input">
+                            @foreach ($lines as $v => $l)<option value="{{ $v }}">{{ $l }}</option>@endforeach
+                        </select>
+                    </x-admin.field>
+                @endif
                 <x-admin.field label="Priority" for="details.priority">
                     <select id="details.priority" wire:model="details.priority" class="wx-input">
                         @foreach ($priorities as $v => $l)<option value="{{ $v }}">{{ $l }}</option>@endforeach
                     </select>
                 </x-admin.field>
                 <x-admin.field label="Service" for="details.service">
-                    <input id="details.service" type="text" wire:model="details.service" class="wx-input" placeholder="e.g. kitchen, fit-out, wardrobes">
+                    <input id="details.service" type="text" wire:model="details.service" class="wx-input" placeholder="e.g. {{ $lead->business_line->serviceExamples() }}">
                 </x-admin.field>
                 <x-admin.field label="Property type" for="details.property_type">
                     <input id="details.property_type" type="text" wire:model="details.property_type" class="wx-input" placeholder="house, apartment, office…">

@@ -42,7 +42,8 @@ class QuoteCreate extends Component
     #[Url(as: 'template')]
     public ?int $templateId = null;
 
-    public string $line = 'interior';
+    /** The line of the quotation; set when the screen opens to the line this installation sells. */
+    public string $line = '';
 
     public bool $brandChosen = false;
 
@@ -50,7 +51,7 @@ class QuoteCreate extends Component
 
     public function chooseBrand(string $brand): void
     {
-        if (! in_array($brand, ['interior', 'furniture'], true)) {
+        if (! in_array($brand, BusinessLine::offeredBrandValues(), true)) {
             return;
         }
         $this->brandChosen = true;
@@ -70,13 +71,14 @@ class QuoteCreate extends Component
     public function mount(): void
     {
         $this->authorize('create', Quote::class);
+        $this->line = BusinessLine::primary()->value;
 
         if ($this->leadId > 0) {
             $lead = Lead::query()->find($this->leadId);
 
             if ($lead !== null && $this->user()->can('view', $lead)) {
                 $this->contactId = $lead->contact_id;
-                $this->line = $lead->business_line->value;
+                $this->line = $this->offeredLine($lead->business_line);
             } else {
                 $this->leadId = 0;
             }
@@ -92,9 +94,18 @@ class QuoteCreate extends Component
             $this->templateId = $template?->id;
 
             if ($template !== null && $this->leadId === 0) {
-                $this->line = $template->business_line->value;
+                $this->line = $this->offeredLine($template->business_line);
             }
         }
+    }
+
+    /**
+     * A quotation is written on a line this installation sells. An enquiry or a template of another line
+     * (an older record) does not carry its line over.
+     */
+    private function offeredLine(BusinessLine $line): string
+    {
+        return ($line->isOffered() ? $line : BusinessLine::primary())->value;
     }
 
     public function selectContact(int $contactId): void
@@ -111,7 +122,7 @@ class QuoteCreate extends Component
         $this->leadId = $only->id ?? 0;
 
         if ($only !== null && ! $this->brandChosen) {
-            $this->line = $only->business_line->value;
+            $this->line = $this->offeredLine($only->business_line);
         }
     }
 
@@ -135,7 +146,7 @@ class QuoteCreate extends Component
             $this->templateId = $template->id;
 
             if ($template->business_line === BusinessLine::Furniture || $this->line === BusinessLine::Furniture->value) {
-                $this->line = $template->business_line->value;
+                $this->line = $this->offeredLine($template->business_line);
             }
         }
     }
@@ -147,7 +158,7 @@ class QuoteCreate extends Component
         $this->validate([
             'contactId' => ['required', 'integer', 'min:1'],
             'leadId' => ['integer', 'min:0'],
-            'line' => ['required', Rule::enum(BusinessLine::class)],
+            'line' => ['required', Rule::in(BusinessLine::offeredValues())],
             'templateId' => ['required', 'integer', 'min:0'],
             'title' => ['nullable', 'string', 'max:200'],
         ], [
@@ -202,7 +213,8 @@ class QuoteCreate extends Component
                 ? Contact::query()->visibleTo($this->user())->search($term)->with('company:id,name')->orderBy('name')->limit(8)->get()
                 : collect(),
             'templates' => QuoteTemplate::query()->where('is_active', true)->where('business_line', $this->line === 'furniture' ? 'furniture' : 'interior')->orderBy('position')->get(),
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::offeredOptions(),
+            'brands' => BusinessLine::offeredBrandValues(),
         ]);
     }
 

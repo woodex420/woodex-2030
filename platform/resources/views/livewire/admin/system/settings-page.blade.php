@@ -38,7 +38,7 @@
                     <x-admin.field label="WhatsApp" for="business.whatsapp"><input id="business.whatsapp" type="tel" wire:model="business.whatsapp" class="wx-input"></x-admin.field>
                     <x-admin.field label="Email" for="business.email"><input id="business.email" type="email" wire:model="business.email" class="wx-input"></x-admin.field>
                     <x-admin.field label="City" for="business.city"><input id="business.city" type="text" wire:model="business.city" class="wx-input"></x-admin.field>
-                    <x-admin.field label="Studio address" for="business.address" class="md:col-span-2"><input id="business.address" type="text" wire:model="business.address" class="wx-input"></x-admin.field>
+                    <x-admin.field label="Business address" for="business.address" class="md:col-span-2"><input id="business.address" type="text" wire:model="business.address" class="wx-input"></x-admin.field>
                 </div>
             </x-admin.card>
 

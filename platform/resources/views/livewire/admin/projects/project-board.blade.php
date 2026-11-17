@@ -3,12 +3,14 @@
     <x-admin.page-header title="Project board" description="Drag a card to move the work on. Dropping a job on Completed closes it and tells the client it is finished."
                          :breadcrumbs="['Projects' => null, 'Board' => null]">
         <x-slot:actions>
-            <select wire:model.live="line" class="wx-input w-auto" aria-label="Business line">
-                <option value="">All lines</option>
-                @foreach ($lines as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
-                @endforeach
-            </select>
+            @if (count($lines) > 1)
+                <select wire:model.live="line" class="wx-input w-auto" aria-label="Business line">
+                    <option value="">All lines</option>
+                    @foreach ($lines as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            @endif
             <select wire:model.live="owner" class="wx-input w-auto" aria-label="Project manager">
                 <option value="">Everyone</option>
                 <option value="me">My projects</option>

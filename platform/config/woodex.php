@@ -17,6 +17,17 @@ return [
         'sidebar_tone' => env('WOODEX_ADMIN_SIDEBAR_TONE', 'light') === 'charcoal' ? 'charcoal' : 'light',
     ],
 
+    /*
+    | The business lines this installation sells, first one first. Woodex Furniture sells one: furniture
+    | (owner decision D-008: nothing of Woodex Interior in this product). The application came from the Interior
+    | studio's, which sold three — interior, furniture, project; naming more than one brings back the choosers,
+    | filters and labels that tell them apart. Read through App\Domain\Crm\Enums\BusinessLine::offered().
+    */
+    'business_lines' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('WOODEX_BUSINESS_LINES', 'furniture')),
+    ))),
+
     'public_site_url' => env('PUBLIC_SITE_URL', env('APP_URL', 'http://localhost')),
 
     // Full HTTPS base URL, including /dashboard where required. No shared authentication or data sync.

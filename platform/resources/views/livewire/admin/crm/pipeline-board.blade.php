@@ -2,12 +2,14 @@
     <x-admin.page-header title="Pipeline" description="Drag a card to move it. Site visit books the visit, Lost asks for a reason, Won needs an accepted quotation."
                          :breadcrumbs="['CRM' => null, 'Pipeline' => null]">
         <x-slot:actions>
-            <select wire:model.live="line" class="wx-input w-auto" aria-label="Business line">
-                <option value="">All lines</option>
-                @foreach ($lines as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
-                @endforeach
-            </select>
+            @if (count($lines) > 1)
+                <select wire:model.live="line" class="wx-input w-auto" aria-label="Business line">
+                    <option value="">All lines</option>
+                    @foreach ($lines as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            @endif
             <select wire:model.live="owner" class="wx-input w-auto" aria-label="Owner">
                 <option value="">Everyone</option>
                 <option value="me">My leads</option>
@@ -45,7 +47,7 @@
                                     <x-admin.badge color="navy" :dot="false">Hot</x-admin.badge>
                                 @endif
                             </div>
-                            <p class="mt-0.5 text-theme-xs text-gray-500">{{ $lead->ref }} · {{ $lead->business_line->label() }}</p>
+                            <p class="mt-0.5 text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$lead->ref, $lead->business_line->tag()])) }}</p>
                             @if ($lead->service || $lead->area)
                                 <p class="mt-2 text-theme-xs text-gray-600 dark:text-gray-400">
                                     {{ $lead->service ? \Illuminate\Support\Str::headline($lead->service) : '' }}{{ $lead->service && $lead->area ? ' · ' : '' }}{{ $lead->area }}

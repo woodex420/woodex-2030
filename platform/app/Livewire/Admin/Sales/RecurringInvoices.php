@@ -13,6 +13,7 @@ use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Settings\SalesSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -37,7 +38,8 @@ class RecurringInvoices extends Component
 
     public string $title = '';
 
-    public string $businessLine = 'interior';
+    /** The brand the schedule invoices under; set when the screen opens to the one this installation sells. */
+    public string $businessLine = '';
 
     public string $lineDescription = '';
 
@@ -61,6 +63,7 @@ class RecurringInvoices extends Component
 
         $this->startsOn = today()->toDateString();
         $this->dueDays = (string) $settings->invoice_due_days;
+        $this->businessLine = BusinessLine::primaryBrand()->value;
     }
 
     public function openForm(?int $contactId = null): void
@@ -79,7 +82,7 @@ class RecurringInvoices extends Component
         $data = $this->validate([
             'contactId' => ['required', 'integer', 'exists:contacts,id'],
             'title' => ['required', 'string', 'max:160'],
-            'businessLine' => ['required', 'in:interior,furniture'],
+            'businessLine' => ['required', Rule::in(BusinessLine::offeredBrandValues())],
             'lineDescription' => ['required', 'string', 'max:200'],
             'lineQty' => ['required', 'integer', 'min:1', 'max:999'],
             'lineRate' => ['required', 'numeric', 'min:0.01', 'max:100000000'],
@@ -207,7 +210,8 @@ class RecurringInvoices extends Component
         return view('livewire.admin.sales.recurring-invoices', [
             'schedules' => $schedules,
             'contacts' => $contacts,
-            'lines' => BusinessLine::options(),
+            // A schedule invoices under a brand: Interior and Project share one.
+            'lines' => array_intersect_key(BusinessLine::options(), array_flip(BusinessLine::offeredBrandValues())),
             'frequencies' => RecurringFrequency::options(),
             'lakh' => $settings->lakh_grouping,
         ]);

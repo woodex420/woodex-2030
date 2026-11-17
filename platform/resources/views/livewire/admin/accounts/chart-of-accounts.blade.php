@@ -1,6 +1,6 @@
 @use('App\Domain\Accounts\Enums\AccountType')
 <div>
-    <x-admin.page-header title="Chart of accounts" description="The studio ledger's accounts. Groups organise the chart; only active leaf accounts receive postings. Balances appear once journals are posted — no opening amounts are invented here."
+    <x-admin.page-header title="Chart of accounts" description="The ledger's accounts. Groups organise the chart; only active leaf accounts receive postings. Balances appear once journals are posted — no opening amounts are invented here."
                          :breadcrumbs="['Accounts' => null, 'Chart of accounts' => null]">
         <x-slot:actions>
             @if ($canManage)
@@ -41,15 +41,19 @@
                     </select>
                     @error('parentId')<p class="mt-1 text-theme-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
-                <div>
-                    <label class="wx-label">Business line</label>
-                    <select wire:model="businessLine" class="wx-input">
-                        <option value="">Both</option>
-                        <option value="interior">Interior</option>
-                        <option value="furniture">Furniture</option>
-                    </select>
-                    @error('businessLine')<p class="mt-1 text-theme-sm text-red-600">{{ $message }}</p>@enderror
-                </div>
+                {{-- An account is tied to a line only where more than one brand is sold. --}}
+                @if (count($brands) > 1)
+                    <div>
+                        <label class="wx-label" for="coa-line">Business line</label>
+                        <select id="coa-line" wire:model="businessLine" class="wx-input">
+                            <option value="">Both</option>
+                            @foreach ($brands as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('businessLine')<p class="mt-1 text-theme-sm text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                @endif
                 <div class="flex items-end justify-between gap-4">
                     <label class="flex items-center gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
                         <input type="checkbox" wire:model="isActive" class="wx-checkbox" />
@@ -74,7 +78,7 @@
                                 <tr>
                                     <th class="px-3 py-2.5 font-medium text-gray-500 dark:text-gray-400">Code</th>
                                     <th class="px-3 py-2.5 font-medium text-gray-500 dark:text-gray-400">Account</th>
-                                    <th class="px-3 py-2.5 font-medium text-gray-500 dark:text-gray-400">Business line</th>
+                                    @if ($showLine)<th class="px-3 py-2.5 font-medium text-gray-500 dark:text-gray-400">Business line</th>@endif
                                     <th class="px-3 py-2.5 font-medium text-gray-500 dark:text-gray-400">Postable</th>
                                     <th class="px-3 py-2.5 font-medium text-gray-500 dark:text-gray-400">Status</th>
                                     @if ($canManage)<th></th>@endif
@@ -85,7 +89,7 @@
                                     <tr>
                                         <td class="font-mono text-theme-sm">{{ $account->code }}</td>
                                         <td class="{{ $account->is_group ? 'font-semibold' : 'pl-6' }}">{{ $account->name }}</td>
-                                        <td class="text-theme-sm">{{ $account->business_line?->label() ?? '—' }}</td>
+                                        @if ($showLine)<td class="text-theme-sm">{{ $account->business_line?->label() ?? '—' }}</td>@endif
                                         <td class="text-theme-sm">
                                             @if ($account->is_group)
                                                 <x-admin.badge color="gray">Group</x-admin.badge>

@@ -1,3 +1,4 @@
+@use('App\Support\Brand')
 @use('App\Support\Phone')
 <div>
     <x-admin.page-header title="Site visits" :description="$todayCount ? $todayCount.' visit'.($todayCount > 1 ? 's' : '').' today' : 'No visits today'"
@@ -53,7 +54,7 @@
                                         @if ($visit->contact->phone)
                                             <a href="{{ Phone::telUrl($visit->contact->phone) }}" class="flex items-center gap-1 text-navy-700 hover:underline dark:text-gray-300"><x-icon name="phone" class="size-3.5" /> {{ Phone::display($visit->contact->phone) }}</a>
                                         @endif
-                                        @if ($wa = Phone::whatsappUrl($visit->contact->whatsappNumber(), 'Assalam o Alaikum, this is Woodex Interior confirming your site visit on '.$visit->scheduled_at->format('l j M \a\t g:i a').'.'))
+                                        @if ($wa = Phone::whatsappUrl($visit->contact->whatsappNumber(), 'Assalam o Alaikum, this is '.Brand::name($visit->lead?->business_line).' confirming your site visit on '.$visit->scheduled_at->format('l j M \a\t g:i a').'.'))
                                             <a href="{{ $wa }}" target="_blank" rel="noopener" class="flex items-center gap-1 text-success-700 hover:underline"><x-icon name="whatsapp" class="size-3.5" /> Confirm</a>
                                         @endif
                                     </div>

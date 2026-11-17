@@ -35,9 +35,11 @@
                         @error('contactId')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror
                     </div>
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <x-admin.field label="Brand / line" for="line">
-                            <select id="line" wire:model.live="line" class="wx-input">@foreach ($lines as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select>
-                        </x-admin.field>
+                        @if (count($lines) > 1)
+                            <x-admin.field label="Brand / line" for="line">
+                                <select id="line" wire:model.live="line" class="wx-input">@foreach ($lines as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select>
+                            </x-admin.field>
+                        @endif
                         <x-admin.field label="Bank account (Pay to)" for="bankAccountId" hint="Printed on the invoice. Empty uses the brand default.">
                             <select id="bankAccountId" wire:model.live.debounce.350ms="bankAccountId" class="wx-input">
                                 <option value="">Brand default</option>
@@ -59,7 +61,7 @@
                                     @if ($line === 'furniture')
                                         <input type="text" wire:model.live.debounce.350ms="items.{{ $i }}.product_name" placeholder="Product name · chair, sofa, workstation" maxlength="160" class="wx-input mb-2" aria-label="Line {{ $i + 1 }} product name">
                                     @endif
-                                    <input type="text" wire:model.live.debounce.350ms="items.{{ $i }}.description" placeholder="Description, e.g. Wardrobe door repair" class="wx-input" aria-label="Line {{ $i + 1 }} description">
+                                    <input type="text" wire:model.live.debounce.350ms="items.{{ $i }}.description" placeholder="{{ $line === 'furniture' ? 'Description, e.g. size, finish and colour' : 'Description, e.g. Wardrobe door repair' }}" class="wx-input" aria-label="Line {{ $i + 1 }} description">
                                     @error('items.'.$i.'.description')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror
                                 </div>
                                 @if (count($items) > 1)

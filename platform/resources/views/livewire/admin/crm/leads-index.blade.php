@@ -50,17 +50,20 @@
         </select>
     </div>
 
-    {{-- Business-line tabs (Slice V): the v2.1 header lines, wired to the list's one line filter. --}}
-    <div class="mb-4 flex flex-wrap items-center gap-1" role="tablist" aria-label="Business line">
-        @foreach (['' => 'All lines'] + $lines as $value => $label)
-            <button type="button" role="tab" aria-selected="{{ $line === $value ? 'true' : 'false' }}" wire:click="$set('line', '{{ $value }}')"
-                    @class([
-                        'rounded-full px-3.5 py-1.5 text-theme-sm font-medium transition',
-                        'bg-navy-800 text-white shadow-theme-xs dark:bg-white dark:text-navy-900' => $line === $value,
-                        'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10' => $line !== $value,
-                    ])>{{ $label }}</button>
-        @endforeach
-    </div>
+    {{-- Business-line tabs (Slice V): the v2.1 header lines, wired to the list's one line filter.
+         Shown only where more than one line is sold; Woodex Furniture sells one. --}}
+    @if ($severalLines)
+        <div class="mb-4 flex flex-wrap items-center gap-1" role="tablist" aria-label="Business line">
+            @foreach (['' => 'All lines'] + $lines as $value => $label)
+                <button type="button" role="tab" aria-selected="{{ $line === $value ? 'true' : 'false' }}" wire:click="$set('line', '{{ $value }}')"
+                        @class([
+                            'rounded-full px-3.5 py-1.5 text-theme-sm font-medium transition',
+                            'bg-navy-800 text-white shadow-theme-xs dark:bg-white dark:text-navy-900' => $line === $value,
+                            'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10' => $line !== $value,
+                        ])>{{ $label }}</button>
+            @endforeach
+        </div>
+    @endif
 
     {{-- Control-view filters (?created=today, ?due=overdue): the dashboard's numbers, opened. --}}
     @if ($created !== '' || $due !== '')
@@ -109,7 +112,7 @@
         <div class="relative" x-data="{ open: false }" x-on:click.outside="open = false">
             <x-admin.button variant="secondary" size="sm" icon="layout" x-on:click="open = ! open">Columns</x-admin.button>
             <div x-cloak x-show="open" x-transition.opacity class="absolute left-0 z-40 mt-2 w-56 rounded-xl border border-gray-200 bg-white p-2 shadow-theme-lg dark:border-gray-800 dark:bg-gray-900">
-                @foreach (\App\Livewire\Admin\Crm\LeadsIndex::COLUMNS as $key => $label)
+                @foreach ($columnLabels as $key => $label)
                     <label class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-theme-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5">
                         <input type="checkbox" wire:click="toggleColumn('{{ $key }}')" @checked(in_array($key, $columns, true)) class="rounded border-gray-300"> {{ $label }}
                     </label>
@@ -155,7 +158,7 @@
                         </th>
                         <th class="px-5 py-3 font-medium">Lead</th>
                         @if (in_array('contact', $columns, true))<th class="px-5 py-3 font-medium">Contact</th>@endif
-                        @if (in_array('line', $columns, true))<th class="px-5 py-3 font-medium">Line · Service</th>@endif
+                        @if (in_array('line', $columns, true))<th class="px-5 py-3 font-medium">{{ $columnLabels['line'] }}</th>@endif
                         @if (in_array('source', $columns, true))<th class="px-5 py-3 font-medium">Source</th>@endif
                         @if (in_array('stage', $columns, true))<th class="px-5 py-3 font-medium">Stage</th>@endif
                         @if (in_array('owner', $columns, true))<th class="px-5 py-3 font-medium">Owner</th>@endif
@@ -187,9 +190,13 @@
                             @endif
                             @if (in_array('line', $columns, true))
                                 <td class="px-5 py-3">
-                                    {{ $lead->business_line->label() }}
-                                    @if ($lead->service)
-                                        <span class="block text-theme-xs text-gray-500">{{ \Illuminate\Support\Str::headline($lead->service) }}</span>
+                                    @if ($lead->business_line->tag() !== '')
+                                        {{ $lead->business_line->tag() }}
+                                        @if ($lead->service)
+                                            <span class="block text-theme-xs text-gray-500">{{ \Illuminate\Support\Str::headline($lead->service) }}</span>
+                                        @endif
+                                    @else
+                                        {{ $lead->service ? \Illuminate\Support\Str::headline($lead->service) : '—' }}
                                     @endif
                                 </td>
                             @endif
@@ -280,14 +287,16 @@
                         <input id="newEmail" type="email" wire:model="newEmail" class="wx-input">
                         @error('newEmail') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
                     </div>
-                    <div>
-                        <label class="wx-label" for="newLine">Business line</label>
-                        <select id="newLine" wire:model="newLine" class="wx-input">
-                            @foreach ($lines as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    @if ($severalLines)
+                        <div>
+                            <label class="wx-label" for="newLine">Business line</label>
+                            <select id="newLine" wire:model="newLine" class="wx-input">
+                                @foreach ($lines as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
                     <div>
                         <label class="wx-label" for="newSource">Source</label>
                         <select id="newSource" wire:model="newSource" class="wx-input">
@@ -296,9 +305,10 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="sm:col-span-2">
+                    {{-- With one line on sale the service sits beside the source; no half row is left empty. --}}
+                    <div @class(['sm:col-span-2' => $severalLines])>
                         <label class="wx-label" for="newService">Service</label>
-                        <input id="newService" type="text" wire:model="newService" class="wx-input" placeholder="e.g. renovation, kitchen-design">
+                        <input id="newService" type="text" wire:model="newService" class="wx-input" placeholder="e.g. {{ \App\Domain\Crm\Enums\BusinessLine::primary()->serviceExamples() }}">
                     </div>
                     <div class="sm:col-span-2">
                         <label class="wx-label" for="newMessage">Notes</label>
@@ -326,9 +336,9 @@
                 <div class="min-w-0">
                     <p class="text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ $drawerLead->ref }} · {{ $drawerLead->source->label() }}</p>
                     <h2 id="lead-drawer-title" class="truncate text-lg font-semibold text-navy-800 dark:text-white">{{ $drawerLead->contact->name }}</h2>
-                    <p class="mt-0.5 text-theme-sm text-gray-500">
-                        {{ $drawerLead->business_line->label() }}@if ($drawerLead->service) · {{ \Illuminate\Support\Str::headline($drawerLead->service) }}@endif
-                    </p>
+                    @if ($drawerLead->lineAndService() !== '')
+                        <p class="mt-0.5 text-theme-sm text-gray-500">{{ $drawerLead->lineAndService() }}</p>
+                    @endif
                 </div>
                 <button type="button" wire:click="closeLeadDrawer" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10" aria-label="Close">
                     <x-icon name="x" class="size-4" />

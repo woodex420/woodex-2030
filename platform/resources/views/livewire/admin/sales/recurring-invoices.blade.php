@@ -60,15 +60,17 @@
                         </select>
                         @error('frequency') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
                     </div>
-                    <div>
-                        <label class="wx-label" for="ri-line-2">Business line</label>
-                        <select id="ri-line-2" wire:model="businessLine" class="wx-input">
-                            @foreach ($lines as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        @error('businessLine') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
-                    </div>
+                    @if (count($lines) > 1)
+                        <div>
+                            <label class="wx-label" for="ri-line-2">Business line</label>
+                            <select id="ri-line-2" wire:model="businessLine" class="wx-input">
+                                @foreach ($lines as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('businessLine') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">

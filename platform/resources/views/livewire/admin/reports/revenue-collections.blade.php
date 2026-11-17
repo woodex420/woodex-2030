@@ -1,6 +1,15 @@
 @use('App\Support\Money')
+@use('App\Domain\Crm\Enums\BusinessLine')
+@php
+    // The split by line is shown where it tells something: more than one line is sold, or the period holds a
+    // record of a line that is no longer sold. With one line it would repeat the totals in a table of one row.
+    $byLine = $this->report()['by_line'];
+    $only = [BusinessLine::primary()->value, strtolower(BusinessLine::primary()->label())];
+    $showLines = BusinessLine::severalOffered()
+        || collect($byLine)->contains(fn (array $row): bool => ! in_array(strtolower((string) $row['label']), $only, true));
+@endphp
 <div>
-    <x-admin.page-header title="Revenue & collections" description="Quoted, accepted, invoiced, collected — per month, per line, per bank."
+    <x-admin.page-header title="Revenue & collections" :description="$showLines ? 'Quoted, accepted, invoiced, collected — per month, per line, per bank.' : 'Quoted, accepted, invoiced, collected — per month and per bank.'"
                          :breadcrumbs="['Reports' => null, 'Revenue & Collections' => null]">
         <x-slot:actions>
             <div class="flex flex-wrap items-center gap-2">
@@ -20,8 +29,10 @@
     </div>
 
     <div class="mb-5 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-        <label class="flex flex-wrap items-center gap-3 text-theme-sm">Business line<select wire:model.live="line" aria-label="Revenue business line" class="wx-input w-auto"><option value="">All business lines</option>@foreach (\App\Domain\Crm\Enums\BusinessLine::cases() as $businessLine)<option value="{{ $businessLine->value }}">{{ $businessLine->label() }}</option>@endforeach</select></label>
-        <p class="mt-3 text-theme-xs text-gray-500">Current: {{ $this->range()->from->format('d M Y') }} – {{ $this->range()->to->format('d M Y') }} · Previous calendar/comparison period: {{ $this->range()->previous()->from->format('d M Y') }} – {{ $this->range()->previous()->to->format('d M Y') }} · {{ config('app.timezone') }}</p>
+        @if (\App\Domain\Crm\Enums\BusinessLine::severalOffered())
+            <label class="mb-3 flex flex-wrap items-center gap-3 text-theme-sm">Business line<select wire:model.live="line" aria-label="Revenue business line" class="wx-input w-auto"><option value="">All business lines</option>@foreach (\App\Domain\Crm\Enums\BusinessLine::offered() as $businessLine)<option value="{{ $businessLine->value }}">{{ $businessLine->label() }}</option>@endforeach</select></label>
+        @endif
+        <p class="text-theme-xs text-gray-500">Current: {{ $this->range()->from->format('d M Y') }} – {{ $this->range()->to->format('d M Y') }} · Previous calendar/comparison period: {{ $this->range()->previous()->from->format('d M Y') }} – {{ $this->range()->previous()->to->format('d M Y') }} · {{ config('app.timezone') }}</p>
         <p class="mt-1 text-theme-xs text-gray-500">Issued invoice values exclude drafts and voids; they are not posted ledger profit. {{ $line === '' ? 'Collections include verified receipts, including unallocated cash.' : 'Collections show verified allocations to this line only; unallocated cash is excluded.' }} Outstanding is the current balance, not a historical period-end balance.</p>
     </div>
     @php
@@ -65,7 +76,8 @@
         </div>
     </x-admin.card>
 
-    <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+    <div @class(['mt-6 grid grid-cols-1 gap-6', 'xl:grid-cols-2' => $showLines])>
+        @if ($showLines)
         <x-admin.card title="By business line" :padding="false">
             <div class="overflow-x-auto">
                 <table class="w-full text-theme-sm">
@@ -93,6 +105,7 @@
                 </table>
             </div>
         </x-admin.card>
+        @endif
 
         <x-admin.card title="Where the money arrived" :padding="false">
             @forelse ($this->report()['by_method'] as $row)

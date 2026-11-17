@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Sales;
 
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Sales\Actions\CollectPayment;
 use App\Domain\Sales\Actions\SendPaymentReminder;
 use App\Domain\Sales\Enums\InvoiceStatus;
@@ -147,7 +148,7 @@ class InvoiceTrackingBoard extends Component
             'canRemind' => $this->user()->can('invoices.view'),
             'canCreate' => $this->user()->can('create', Invoice::class),
             'years' => $years,
-            'lines' => ['interior' => 'Interior (WI)', 'furniture' => 'Furniture (WF)'],
+            'lines' => BusinessLine::offeredBrandOptions(['interior' => 'Interior (WI)', 'furniture' => 'Furniture (WF)']),
         ]);
     }
 

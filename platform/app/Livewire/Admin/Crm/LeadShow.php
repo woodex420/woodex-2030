@@ -394,7 +394,7 @@ class LeadShow extends Component
         $this->authorize('update', $lead);
 
         $data = $this->validate([
-            'details.business_line' => ['required', Rule::enum(BusinessLine::class)],
+            'details.business_line' => ['required', Rule::in(array_keys(BusinessLine::optionsFor($lead->business_line)))],
             'details.service' => ['nullable', 'string', 'max:60'],
             'details.property_type' => ['nullable', 'string', 'max:30'],
             'details.city' => ['nullable', 'string', 'max:80'],
@@ -460,7 +460,7 @@ class LeadShow extends Component
             'budgetBands' => $sales->budget_bands,
             'lostReasons' => $sales->lost_reasons,
             'timelines' => self::timelines(),
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::optionsFor($lead->business_line),
             'priorities' => LeadPriority::options(),
             'estimate' => $this->estimate(),
             'estimates' => $this->user()->can('estimates.view')

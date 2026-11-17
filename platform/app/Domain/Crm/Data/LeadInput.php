@@ -13,7 +13,10 @@ use Carbon\CarbonImmutable;
  */
 final readonly class LeadInput
 {
+    public BusinessLine $businessLine;
+
     /**
+     * @param  BusinessLine|null  $businessLine  null = the line this installation sells first (BusinessLine::primary())
      * @param  array<string, mixed>  $attribution  utm_*, gclid, fbclid, landing, referrer, device
      * @param  array<string, mixed>  $meta
      */
@@ -22,7 +25,7 @@ final readonly class LeadInput
         public ?string $phone,
         public ?string $email,
         public LeadSource $source,
-        public BusinessLine $businessLine = BusinessLine::Interior,
+        ?BusinessLine $businessLine = null,
         public ?string $service = null,
         public ?string $propertyType = null,
         public ?string $city = null,
@@ -39,5 +42,7 @@ final readonly class LeadInput
         public string $preferredLanguage = 'en',
         public array $meta = [],
         public ?CarbonImmutable $historicalAt = null,
-    ) {}
+    ) {
+        $this->businessLine = $businessLine ?? BusinessLine::primary();
+    }
 }

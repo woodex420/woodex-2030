@@ -90,7 +90,7 @@ class QuotesIndex extends Component
                 QuoteStatus::Draft, QuoteStatus::PendingApproval, QuoteStatus::Sent, QuoteStatus::Viewed,
                 QuoteStatus::ChangesRequested, QuoteStatus::Accepted, QuoteStatus::Declined, QuoteStatus::Expired,
             ],
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::offeredOptions(),
             'staff' => $this->staff(),
             'seesAll' => QuotePolicy::seesAll($user),
             'lakh' => app(SalesSettings::class)->lakh_grouping,

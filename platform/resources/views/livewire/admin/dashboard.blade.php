@@ -12,7 +12,9 @@
             <div><p class="text-theme-xs font-semibold uppercase tracking-widest text-brand-600 dark:text-brand-400">Business performance</p><h2 class="mt-1 text-theme-xl font-bold">{{ $range->label() }}</h2><p class="text-theme-xs text-gray-500">{{ $range->from->format('d M Y') }} – {{ $range->to->format('d M Y') }} · {{ config('app.timezone') }} · refreshed {{ now()->format('H:i') }}</p></div>
             <div class="flex flex-wrap gap-3">
                 <label class="text-theme-xs text-gray-500">Period<select wire:model.live="preset" aria-label="Performance period" class="wx-input mt-1"><option value="today">Today</option><option value="this_month">This month</option><option value="last_month">Last month</option><option value="last_90_days">Last 90 days</option><option value="this_quarter">This quarter</option><option value="this_year">This year</option></select></label>
-                <label class="text-theme-xs text-gray-500">Business line<select wire:model.live="line" aria-label="Performance business line" class="wx-input mt-1"><option value="">All business lines</option>@foreach (\App\Domain\Crm\Enums\BusinessLine::cases() as $businessLine)<option value="{{ $businessLine->value }}">{{ $businessLine->label() }}</option>@endforeach</select></label>
+                @if (\App\Domain\Crm\Enums\BusinessLine::severalOffered())
+                    <label class="text-theme-xs text-gray-500">Business line<select wire:model.live="line" aria-label="Performance business line" class="wx-input mt-1"><option value="">All business lines</option>@foreach (\App\Domain\Crm\Enums\BusinessLine::offered() as $businessLine)<option value="{{ $businessLine->value }}">{{ $businessLine->label() }}</option>@endforeach</select></label>
+                @endif
             </div>
         </div>
         <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -22,10 +24,10 @@
                 <p class="text-theme-sm text-gray-500">Your role has no period metrics. Open your permitted workspaces from Operations.</p>
             @endforelse
         </div>
-        <p class="mt-4 text-theme-xs text-gray-500">These filters apply only to period performance. Team access follows your existing permissions; no unsupported owner filter is implied. Invoice value excludes drafts/voids and is not ledger revenue.</p>
+        <p class="mt-4 text-theme-xs text-gray-500">{{ \App\Domain\Crm\Enums\BusinessLine::severalOffered() ? 'These filters apply' : 'The period applies' }} only to period performance. Team access follows your existing permissions; no unsupported owner filter is implied. Invoice value excludes drafts/voids and is not ledger revenue.</p>
     </section>
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 class="text-[15px] leading-6 font-semibold text-gray-900 dark:text-white">Live operating queues</h2><a href="{{ route('admin.dashboard', ['tab' => 'operations']) }}" wire:navigate class="text-theme-sm text-brand-600 dark:text-brand-400">All operations →</a></div>
-    <p class="mb-4 text-theme-xs text-gray-500">Current position across all permitted records. Not filtered by the performance period or business line above.</p>
+    <p class="mb-4 text-theme-xs text-gray-500">Current position across all permitted records. Not filtered by the performance period{{ \App\Domain\Crm\Enums\BusinessLine::severalOffered() ? ' or business line' : '' }} above.</p>
 
     {{-- The six control numbers: one query each, from ControlPanel, with the link to the same rows. --}}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
@@ -78,7 +80,7 @@
                             <a href="{{ route('admin.leads.show', $lead) }}" wire:navigate class="block truncate font-medium text-gray-800 hover:underline dark:text-white/90">{{ $lead->contact->name }}
                                 <span class="ml-1 text-theme-xs font-normal text-gray-400">{{ $lead->ref }}</span></a>
                             @php($service = $lead->service ? \Illuminate\Support\Str::headline($lead->service) : null)
-                            <p class="text-theme-xs text-gray-500">{{ $lead->business_line->label() }}{{ $service && $service !== $lead->business_line->label() ? ' · '.$service : '' }} · {{ $lead->owner?->name ?? 'Unassigned' }}</p>
+                            <p class="text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$lead->business_line->tag(), $service && $service !== $lead->business_line->label() ? $service : '', $lead->owner?->name ?? 'Unassigned'])) }}</p>
                         </div>
                         @if ($lead->isSlaBreached())
                             <x-admin.badge color="error">SLA breached</x-admin.badge>

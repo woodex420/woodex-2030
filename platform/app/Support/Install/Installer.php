@@ -320,6 +320,9 @@ final class Installer
 
         $url = rtrim($input['app_url'], '/');
         $https = str_starts_with($url, 'https://');
+        // Everything that names a site or a sender comes from the address this installation is given. The
+        // application once wrote the Interior studio's website, its mailbox and its name here, whatever was typed.
+        $host = (string) (parse_url($url, PHP_URL_HOST) ?: 'localhost');
 
         if ($input['connection'] === 'sqlite') {
             $file = $this->isClassic() ? $this->site->basePath.'/database/database.sqlite' : $directory.'/database.sqlite';
@@ -356,7 +359,7 @@ final class Installer
             'Admin location and security (admin at '.$url.'/admin)' => [
                 'ADMIN_DOMAIN' => '',
                 'ADMIN_PATH' => 'admin',
-                'PUBLIC_SITE_URL' => 'https://woodex.com.pk',
+                'PUBLIC_SITE_URL' => $url,
                 'ENFORCE_2FA' => $input['enforce_2fa'],
                 'SECURITY_FRAME_OPTIONS' => 'SAMEORIGIN',
                 'BCRYPT_ROUNDS' => 12,
@@ -387,11 +390,12 @@ final class Installer
                 'MAIL_PORT' => 465,
                 'MAIL_USERNAME' => '',
                 'MAIL_PASSWORD' => '',
-                'MAIL_FROM_ADDRESS' => 'noreply@woodex.com.pk',
-                'MAIL_FROM_NAME' => 'Woodex Interior',
+                'MAIL_FROM_ADDRESS' => 'noreply@'.$host,
+                'MAIL_FROM_NAME' => 'Woodex Furniture',
             ],
             'Website lead forms allowed to post enquiries' => [
-                'PUBLIC_LEADS_ALLOWED_ORIGINS' => implode(',', array_unique(['https://woodex.com.pk', 'https://www.woodex.com.pk', $url])),
+                // Only this site may post enquiries until the owner names the shop's address (PUBLIC_LEADS_ALLOWED_ORIGINS).
+                'PUBLIC_LEADS_ALLOWED_ORIGINS' => $url,
                 'PUBLIC_LEADS_BRIDGE_KEY' => '',
             ],
             'Integrations: fill in when ready (docs/06 section 4)' => [

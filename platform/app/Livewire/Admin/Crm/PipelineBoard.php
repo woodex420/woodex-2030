@@ -135,7 +135,7 @@ class PipelineBoard extends Component
             'stages' => $stages,
             'leadsByStage' => $leads,
             'totals' => $totals,
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::offeredOptions(),
             'lostReasons' => app(SalesSettings::class)->lost_reasons,
             'staff' => $this->showVisit ? $this->staff() : collect(),
         ]);

@@ -1,3 +1,4 @@
+@use('App\Support\Brand')
 @use('App\Support\Money')
 @use('App\Support\Phone')
 @use('App\Support\NumberInput')
@@ -46,8 +47,10 @@
         <span class="font-medium text-gray-700 dark:text-gray-300">{{ $quote->title }}</span>
         <span class="text-gray-400">·</span>
         <span>{{ $contact->name }}</span>
-        <span class="text-gray-400">·</span>
-        <span>{{ $quote->business_line->label() }}</span>
+        @if ($quote->business_line->tag() !== '')
+            <span class="text-gray-400">·</span>
+            <span>{{ $quote->business_line->tag() }}</span>
+        @endif
         @if ($quote->valid_until)
             <span class="text-gray-400">·</span>
             <span>Valid until {{ $quote->valid_until->format('j M Y') }}</span>
@@ -397,7 +400,7 @@
                     <p class="mt-2 flex items-center gap-2 text-theme-sm text-gray-600 dark:text-gray-400">
                         {{ Phone::display($contact->phone) }}
                         <a href="{{ Phone::telUrl($contact->phone) }}" class="text-gray-400 hover:text-navy-800" aria-label="Call"><x-icon name="phone" class="size-4" /></a>
-                        @if ($wa = Phone::whatsappUrl($contact->whatsappNumber(), "Assalam o Alaikum {$contact->firstName()}, this is regarding your quotation {$quote->label()} from Woodex Interior."))
+                        @if ($wa = Phone::whatsappUrl($contact->whatsappNumber(), "Assalam o Alaikum {$contact->firstName()}, this is regarding your quotation {$quote->label()} from ".Brand::name($quote->business_line).'.'))
                             <a href="{{ $wa }}" target="_blank" rel="noopener" class="text-success-600 hover:text-success-700" aria-label="WhatsApp"><x-icon name="whatsapp" class="size-4" /></a>
                         @endif
                     </p>
@@ -437,22 +440,30 @@
                         <input id="details.valid_until" type="date" wire:model.live.blur="details.valid_until" @disabled($ro) class="wx-input">
                     </x-admin.field>
                     <x-admin.field label="Type" for="details.type" hint="Printed in the project details box.">
-                        <input id="details.type" type="text" list="quote-types" wire:model.live.blur="details.type" @disabled($ro) placeholder="e.g. Renovation" class="wx-input">
-                        <datalist id="quote-types">
-                            @foreach (['Renovation', 'Civil Work', 'Interior Designing', 'Interior', 'Fit-out', 'Architecture'] as $typeOption)
-                                <option value="{{ $typeOption }}"></option>
-                            @endforeach
-                        </datalist>
+                        {{-- Suggestions belong to the quotation's line. Furniture has no list of its own yet. --}}
+                        @php
+                            $quoteTypes = $quote->business_line->quotationTypes();
+                        @endphp
+                        <input id="details.type" type="text" @if ($quoteTypes !== []) list="quote-types" @endif wire:model.live.blur="details.type" @disabled($ro) placeholder="{{ $quoteTypes !== [] ? 'e.g. '.$quoteTypes[0] : 'e.g. Office furniture' }}" class="wx-input">
+                        @if ($quoteTypes !== [])
+                            <datalist id="quote-types">
+                                @foreach ($quoteTypes as $typeOption)
+                                    <option value="{{ $typeOption }}"></option>
+                                @endforeach
+                            </datalist>
+                        @endif
                     </x-admin.field>
                     <x-admin.field label="Site" for="details.site">
                         <input id="details.site" type="text" wire:model.live.blur="details.site" @disabled($ro) placeholder="e.g. DHA Phase 6, Lahore" class="wx-input">
                     </x-admin.field>
                     <x-admin.field label="Intro line on the summary page" for="details.intro_line" hint="Printed above the summary of cost. Optional.">
-                        <textarea id="details.intro_line" rows="2" wire:model.live.blur="details.intro_line" @disabled($ro) placeholder="Thank you for the opportunity. Please find below our quotation for the renovation work." class="wx-input"></textarea>
+                        <textarea id="details.intro_line" rows="2" wire:model.live.blur="details.intro_line" @disabled($ro) placeholder="{{ $quote->business_line->brand() === \App\Domain\Crm\Enums\BusinessLine::Furniture ? 'Thank you for the opportunity. Please find our quotation below.' : 'Thank you for the opportunity. Please find below our quotation for the renovation work.' }}" class="wx-input"></textarea>
                     </x-admin.field>
                     <dl class="grid grid-cols-2 gap-3 text-theme-sm">
                         <div><dt class="text-theme-xs text-gray-500">Number</dt><dd>{{ $quote->label() }}</dd></div>
-                        <div><dt class="text-theme-xs text-gray-500">Line</dt><dd>{{ $quote->business_line->label() }}</dd></div>
+                        @if ($quote->business_line->tag() !== '')
+                            <div><dt class="text-theme-xs text-gray-500">Line</dt><dd>{{ $quote->business_line->tag() }}</dd></div>
+                        @endif
                         <div><dt class="text-theme-xs text-gray-500">Template</dt><dd>{{ $quote->template->name ?? 'Blank' }}</dd></div>
                         <div><dt class="text-theme-xs text-gray-500">Owner</dt><dd>{{ $quote->owner->name ?? '—' }}</dd></div>
                     </dl>

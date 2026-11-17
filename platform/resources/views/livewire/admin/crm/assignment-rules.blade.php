@@ -56,6 +56,8 @@
 
                 <fieldset>
                     <legend class="wx-label">When the lead is… (leave a group empty for “any”)</legend>
+                    {{-- A rule can tell lines apart only where more than one is sold. --}}
+                    @if (count($lines) > 1)
                     <div class="mt-2 flex flex-wrap gap-2">
                         @foreach ($lines as $value => $label)
                             <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-theme-sm has-[:checked]:border-navy-900 has-[:checked]:bg-navy-50 dark:border-gray-700 dark:has-[:checked]:bg-white/10">
@@ -63,8 +65,9 @@
                             </label>
                         @endforeach
                     </div>
+                    @endif
                     <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <x-admin.field label="Services (comma separated)" for="rule.services" hint="e.g. turnkey, renovation">
+                        <x-admin.field label="Services (comma separated)" for="rule.services" :hint="'e.g. '.\App\Domain\Crm\Enums\BusinessLine::primary()->serviceExamples()">
                             <input id="rule.services" type="text" wire:model="rule.services" class="wx-input">
                         </x-admin.field>
                         <x-admin.field label="Cities or areas (comma separated)" for="rule.cities" hint="e.g. Islamabad, DHA, Bahria Town">

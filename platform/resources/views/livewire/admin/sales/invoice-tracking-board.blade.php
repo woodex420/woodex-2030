@@ -12,10 +12,12 @@
             <option value="">All years</option>
             @foreach ($years as $y)<option value="{{ $y }}">{{ $y }}</option>@endforeach
         </select>
-        <select wire:model.live="line" class="wx-input w-auto" aria-label="Brand line">
-            <option value="">All · Interior + Furniture</option>
-            @foreach ($lines as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
-        </select>
+        @if (count($lines) > 1)
+            <select wire:model.live="line" class="wx-input w-auto" aria-label="Brand line">
+                <option value="">All · Interior + Furniture</option>
+                @foreach ($lines as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
+            </select>
+        @endif
     </div>
 
     <div class="mb-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">

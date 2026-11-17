@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Sales;
 
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Sales\Actions\SaveDocumentDesign;
 use App\Domain\Sales\Models\DocumentDesign;
 use App\Domain\Sales\Services\DocumentStyles;
@@ -24,10 +25,11 @@ class DocumentDesigner extends Component
 {
     use InteractsWithAdmin, WithFileUploads;
 
-    public string $line = 'interior';
+    /** The brand whose design is on screen; mount() starts on the brand this installation sells. */
+    public string $line = '';
 
     #[Locked]
-    public string $loadedLine = 'interior';
+    public string $loadedLine = '';
 
     #[Locked]
     public int $revision = 1;
@@ -53,6 +55,7 @@ class DocumentDesigner extends Component
     public function mount(): void
     {
         $this->authorize('settings.manage');
+        $this->line = BusinessLine::primaryBrand()->value;
         $this->loadDesign();
     }
 
@@ -65,7 +68,7 @@ class DocumentDesigner extends Component
     public function save(): void
     {
         $this->authorize('settings.manage');
-        $this->validate(['line' => ['required', 'in:interior,furniture'], 'form.brand_name' => ['required', 'string', 'max:35'], 'form.accent_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'], 'form.header_text' => ['present', 'string', 'max:100'], 'form.footer_text' => ['present', 'string', 'max:120'], 'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:96', 'dimensions:min_width=8,min_height=8,max_width=600,max_height=240'], 'pdfTheme' => ['required', Rule::in(array_keys(DocumentStyles::THEMES))], 'quoteBlocks' => ['array', 'max:20'], 'quoteBlocks.*.key' => ['required', 'string', Rule::in(array_keys(DocumentStyles::QUOTE_BLOCKS))], 'quoteBlocks.*.visible' => ['required', 'boolean'], 'invoiceBlocks' => ['array', 'max:20'], 'invoiceBlocks.*.key' => ['required', 'string', Rule::in(array_keys(DocumentStyles::INVOICE_BLOCKS))], 'invoiceBlocks.*.visible' => ['required', 'boolean']]);
+        $this->validate(['line' => ['required', Rule::in(BusinessLine::offeredBrandValues())], 'form.brand_name' => ['required', 'string', 'max:35'], 'form.accent_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'], 'form.header_text' => ['present', 'string', 'max:100'], 'form.footer_text' => ['present', 'string', 'max:120'], 'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:96', 'dimensions:min_width=8,min_height=8,max_width=600,max_height=240'], 'pdfTheme' => ['required', Rule::in(array_keys(DocumentStyles::THEMES))], 'quoteBlocks' => ['array', 'max:20'], 'quoteBlocks.*.key' => ['required', 'string', Rule::in(array_keys(DocumentStyles::QUOTE_BLOCKS))], 'quoteBlocks.*.visible' => ['required', 'boolean'], 'invoiceBlocks' => ['array', 'max:20'], 'invoiceBlocks.*.key' => ['required', 'string', Rule::in(array_keys(DocumentStyles::INVOICE_BLOCKS))], 'invoiceBlocks.*.visible' => ['required', 'boolean']]);
         abort_unless($this->line === $this->loadedLine, 409, 'Reload the selected brand before saving.');
         app(SaveDocumentDesign::class)->handle($this->user(), $this->loadedLine, [...$this->form, 'pdf_theme' => $this->pdfTheme, 'quote_blocks' => $this->quoteBlocks, 'invoice_blocks' => $this->invoiceBlocks, 'furniture_style' => $this->furnitureStyle], $this->revision, $this->logo, $this->removeLogo);
         $this->loadDesign();
@@ -74,7 +77,7 @@ class DocumentDesigner extends Component
 
     private function loadDesign(): void
     {
-        abort_unless(in_array($this->line, ['interior', 'furniture'], true), 422);
+        abort_unless(in_array($this->line, BusinessLine::offeredBrandValues(), true), 422);
         $design = DocumentDesign::query()->where('business_line', $this->line)->firstOrFail();
         $this->loadedLine = $this->line;
         $this->revision = $design->revision;
@@ -133,6 +136,7 @@ class DocumentDesigner extends Component
             'quoteBlockLabels' => DocumentStyles::QUOTE_BLOCKS,
             'invoiceBlockLabels' => DocumentStyles::INVOICE_BLOCKS,
             'lockedBlocks' => [...DocumentStyles::LOCKED_BLOCKS, 'quote' => []],
+            'brands' => BusinessLine::offeredBrandOptions(['interior' => 'Woodex Interior / Project', 'furniture' => 'Woodex Furniture']),
         ]);
     }
 }

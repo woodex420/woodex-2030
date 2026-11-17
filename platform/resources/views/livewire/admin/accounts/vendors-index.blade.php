@@ -1,6 +1,6 @@
 <div>
     <x-admin.page-header title="Vendors"
-                         description="Everyone the studio buys from — suppliers, carpenters, subcontractors, the landlord. Type the details once here and every bill and expense picks them up."
+                         description="Everyone the business buys from — suppliers, carpenters, subcontractors, the landlord. Type the details once here and every bill and expense picks them up."
                          :breadcrumbs="['Accounts' => null, 'Payables' => null, 'Vendors' => null]">
         @if ($canManage)
             <x-slot:actions>

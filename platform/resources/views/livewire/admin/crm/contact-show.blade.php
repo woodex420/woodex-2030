@@ -1,9 +1,10 @@
+@use('App\Support\Brand')
 @use('App\Support\Phone')
 @use('Illuminate\Support\Str')
 @php
     $me = auth()->user();
     $canUpdate = $me->can('update', $contact);
-    $wa = Phone::whatsappUrl($contact->whatsappNumber(), "Assalam o Alaikum {$contact->firstName()}, this is {$me->name} from Woodex Interior.");
+    $wa = Phone::whatsappUrl($contact->whatsappNumber(), "Assalam o Alaikum {$contact->firstName()}, this is {$me->name} from ".Brand::name().'.');
     $initials = Str::of($contact->name)->explode(' ')->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('');
 @endphp
 <div>
@@ -150,7 +151,7 @@
                     @forelse ($leads as $lead)
                         <a href="{{ route('admin.leads.show', $lead) }}" wire:navigate class="flex flex-col gap-2 px-5 py-4 hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between dark:hover:bg-white/[0.02]" wire:key="lead-{{ $lead->id }}">
                             <div class="min-w-0">
-                                <p class="font-medium text-gray-800 dark:text-white/90">{{ $lead->ref }} · {{ $lead->business_line->label() }}{{ $lead->service ? ' · '.Str::headline($lead->service) : '' }}</p>
+                                <p class="font-medium text-gray-800 dark:text-white/90">{{ implode(' · ', array_filter([$lead->ref, $lead->lineAndService()])) }}</p>
                                 <p class="text-theme-xs text-gray-500">{{ $lead->source->label() }} · {{ $lead->created_at?->format('j M Y') }} · {{ $lead->owner?->name ?? 'Unassigned' }}</p>
                             </div>
                             <div class="flex items-center gap-3">
@@ -306,15 +307,17 @@
 
     {{-- New enquiry --}}
     @if ($showLead)
-        <x-admin.modal name="showLead" title="New enquiry for {{ $contact->name }}" description="If an open lead for the same line exists, the enquiry is added to it." submit="createLead">
+        <x-admin.modal name="showLead" title="New enquiry for {{ $contact->name }}" :description="count($lines) > 1 ? 'If an open lead for the same line exists, the enquiry is added to it.' : 'If this client has an open lead, the enquiry is added to it.'" submit="createLead">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <x-admin.field label="Business line" for="leadLine">
-                    <select id="leadLine" wire:model="leadLine" class="wx-input">
-                        @foreach ($lines as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
-                    </select>
-                </x-admin.field>
-                <x-admin.field label="Service" for="leadService">
-                    <input id="leadService" type="text" wire:model="leadService" class="wx-input" placeholder="kitchen, wardrobes, fit-out…">
+                @if (count($lines) > 1)
+                    <x-admin.field label="Business line" for="leadLine">
+                        <select id="leadLine" wire:model="leadLine" class="wx-input">
+                            @foreach ($lines as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
+                        </select>
+                    </x-admin.field>
+                @endif
+                <x-admin.field label="Service" for="leadService" :class="count($lines) > 1 ? '' : 'sm:col-span-2'">
+                    <input id="leadService" type="text" wire:model="leadService" class="wx-input" placeholder="{{ \App\Domain\Crm\Enums\BusinessLine::primary()->serviceExamples() }}…">
                 </x-admin.field>
                 <x-admin.field label="What do they need?" for="leadMessage" class="sm:col-span-2">
                     <textarea id="leadMessage" wire:model="leadMessage" rows="3" class="wx-input h-auto py-2.5"></textarea>

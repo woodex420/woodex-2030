@@ -54,7 +54,7 @@ final class ConvertEstimateToQuote
             $label = (string) ($estimate->computed['service_label'] ?? EstimatorRate::query()->where('key', $estimate->service_key)->value('label') ?? $estimate->service_key);
             $contact = $estimate->contact()->firstOrFail();
             $lead = $estimate->lead_id !== null ? $estimate->lead()->firstOrFail() : null;
-            $line = $estimate->service_key === 'furniture' ? BusinessLine::Furniture : ($lead->business_line ?? BusinessLine::Interior);
+            $line = $estimate->service_key === 'furniture' ? BusinessLine::Furniture : ($lead->business_line ?? BusinessLine::primary());
             $computed = $estimate->computed;
             $quantity = (string) ($computed['quantity'] ?? $estimate->inputs['quantity']);
             $finish = (string) ($computed['finish'] ?? $estimate->inputs['finish']);

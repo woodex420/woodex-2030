@@ -45,7 +45,8 @@ class InvoiceCreate extends Component
 
     public string $contactSearch = '';
 
-    public string $line = 'interior';
+    /** The brand the invoice is issued under; set when the screen opens to the one this installation sells. */
+    public string $line = '';
 
     public string $issueDate = '';
 
@@ -79,6 +80,10 @@ class InvoiceCreate extends Component
     public function mount(): void
     {
         $this->authorize('create', Invoice::class);
+
+        // Starting on Furniture is the same as choosing it: the first row counts pieces, not jobs.
+        $this->line = BusinessLine::primaryBrand()->value;
+        $this->updatedLine();
 
         $sales = app(SalesSettings::class);
         $this->furniture = FurnitureDocument::text(['signatories_text' => FurnitureDocument::signatureText($sales->signatories)]);
@@ -155,7 +160,7 @@ class InvoiceCreate extends Component
 
         $this->validate([
             'contactId' => ['required', 'integer', 'min:1'],
-            'line' => ['required', Rule::in(['interior', 'furniture'])],
+            'line' => ['required', Rule::in(BusinessLine::offeredBrandValues())],
             'issueDate' => ['required', 'date'],
             'dueDate' => ['required', 'date', 'after_or_equal:issueDate'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
@@ -270,7 +275,7 @@ class InvoiceCreate extends Component
         $totals = $this->totals();
         $contact = $this->contactId > 0 ? $this->visibleContact($this->contactId) : null;
 
-        $bankAccount = BankAccount::query()->forLine(BusinessLine::tryFrom($this->line) ?? BusinessLine::Interior)
+        $bankAccount = BankAccount::query()->forLine(BusinessLine::tryFrom($this->line) ?? BusinessLine::primaryBrand())
             ->when($this->bankAccountId !== '', fn ($query) => $query->whereKey((int) $this->bankAccountId))->first();
 
         $invoice = new Invoice;
@@ -278,7 +283,7 @@ class InvoiceCreate extends Component
             'number' => 'Draft',
             'kind' => InvoiceKind::Manual,
             'status' => InvoiceStatus::Draft,
-            'business_line' => BusinessLine::tryFrom($this->line) ?? BusinessLine::Interior,
+            'business_line' => BusinessLine::tryFrom($this->line) ?? BusinessLine::primaryBrand(),
             'currency' => 'PKR',
             'issue_date' => $this->issueDate !== '' ? $this->issueDate : today()->toDateString(),
             'due_date' => $this->dueDate !== '' ? $this->dueDate : today()->toDateString(),
@@ -423,7 +428,7 @@ class InvoiceCreate extends Component
 
     public function render(): View
     {
-        $line = BusinessLine::tryFrom($this->line) ?? BusinessLine::Interior;
+        $line = BusinessLine::tryFrom($this->line) ?? BusinessLine::primaryBrand();
 
         $results = collect();
 
@@ -437,7 +442,7 @@ class InvoiceCreate extends Component
         return view('livewire.admin.sales.invoice-create', [
             'selectedContact' => $this->contactId > 0 ? $this->visibleContact($this->contactId) : null,
             'contactResults' => $results,
-            'lines' => ['interior' => 'Interior (WI)', 'furniture' => 'Woodex Furniture (WFI)'],
+            'lines' => BusinessLine::offeredBrandOptions(['interior' => 'Interior (WI)', 'furniture' => 'Woodex Furniture (WFI)']),
             'units' => Unit::options(),
             'bankAccounts' => BankAccount::query()->forLine($line)->get(),
             'totals' => $this->totals(),

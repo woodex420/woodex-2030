@@ -51,7 +51,7 @@
                                     <div>
                                 <span class="block text-gray-800 dark:text-white/90">{{ $item->description }}</span>
                                 <span class="block text-theme-xs text-gray-500">
-                                    per {{ $item->unit }}{{ $item->finish ? ' · '.ucfirst($item->finish) : '' }}{{ $item->business_line ? ' · '.$item->business_line->label().' only' : '' }}<span class="md:hidden"> · {{ $item->category }}</span>
+                                    per {{ $item->unit }}{{ $item->finish ? ' · '.ucfirst($item->finish) : '' }}{{ $item->business_line && $item->business_line->tag() !== '' ? ' · '.$item->business_line->tag().' only' : '' }}<span class="md:hidden"> · {{ $item->category }}</span>
                                     @unless ($item->is_active) · <span class="text-warning-700">hidden</span>@endunless
                                 </span>
                                     </div>
@@ -120,14 +120,16 @@
                         @endforeach
                     </select>
                 </x-admin.field>
-                <x-admin.field label="Line" for="formLine">
-                    <select id="formLine" wire:model="formLine" class="wx-input">
-                        <option value="">All lines</option>
-                        @foreach ($lines as $value => $label)
-                            <option value="{{ $value }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </x-admin.field>
+                @if (count($lines) > 1)
+                    <x-admin.field label="Line" for="formLine">
+                        <select id="formLine" wire:model="formLine" class="wx-input">
+                            <option value="">All lines</option>
+                            @foreach ($lines as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </x-admin.field>
+                @endif
                 <label class="flex items-center gap-2 text-theme-sm sm:col-span-2">
                     <input type="checkbox" wire:model="formActive" class="size-4 rounded border-gray-300 text-navy-900"> Available in the quote builder
                 </label>

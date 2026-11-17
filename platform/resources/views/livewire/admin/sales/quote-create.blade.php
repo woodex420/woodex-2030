@@ -6,15 +6,18 @@
 
     <form wire:submit="create" class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div class="min-w-0 space-y-6">
-            <x-admin.card title="Choose your Woodex brand" description="Both brands share Sales; each has its own quotation template, logo and number series.">
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    @foreach (['interior' => ['Woodex Interior', 'WI · interior design, execution and projects'], 'furniture' => ['Woodex Furniture', 'WF · products, specifications, advance and full invoices']] as $brand => $copy)
-                        <button type="button" wire:click="chooseBrand('{{ $brand }}')" aria-pressed="{{ ($line === 'furniture') === ($brand === 'furniture') ? 'true' : 'false' }}" class="rounded-xl border p-4 text-left {{ ($line === 'furniture') === ($brand === 'furniture') ? 'border-navy-900 bg-navy-50' : 'border-gray-200' }}">
-                            <strong class="block">{{ $copy[0] }}</strong><span class="mt-1 block text-theme-xs text-gray-500">{{ $copy[1] }}</span>
-                        </button>
-                    @endforeach
-                </div>
-            </x-admin.card>
+            {{-- A brand is chosen only where more than one is sold. Woodex Furniture sells one: no chooser. --}}
+            @if (count($brands) > 1)
+                <x-admin.card title="Choose your Woodex brand" description="Both brands share Sales; each has its own quotation template, logo and number series.">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        @foreach (array_intersect_key(['interior' => ['Woodex Interior', 'WI · interior design, execution and projects'], 'furniture' => ['Woodex Furniture', 'WF · products, specifications, advance and full invoices']], array_flip($brands)) as $brand => $copy)
+                            <button type="button" wire:click="chooseBrand('{{ $brand }}')" aria-pressed="{{ ($line === 'furniture') === ($brand === 'furniture') ? 'true' : 'false' }}" class="rounded-xl border p-4 text-left {{ ($line === 'furniture') === ($brand === 'furniture') ? 'border-navy-900 bg-navy-50' : 'border-gray-200' }}">
+                                <strong class="block">{{ $copy[0] }}</strong><span class="mt-1 block text-theme-xs text-gray-500">{{ $copy[1] }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                </x-admin.card>
+            @endif
             {{-- 1. Client --}}
             <x-admin.card title="1. Client" description="Quotations belong to a contact; link the enquiry so the lead shows it.">
                 @if ($contact)
@@ -32,7 +35,7 @@
                             @foreach ($openLeads as $openLead)
                                 <label wire:key="lead-{{ $openLead->id }}" class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 text-theme-sm has-checked:border-navy-900 has-checked:bg-navy-50 dark:border-gray-800 dark:has-checked:border-white dark:has-checked:bg-white/10">
                                     <input type="radio" wire:model.live="leadId" value="{{ $openLead->id }}" class="size-4 text-navy-900">
-                                    <span class="flex-1">{{ $openLead->ref }} · {{ $openLead->business_line->label() }}{{ $openLead->service ? ' · '.\Illuminate\Support\Str::headline($openLead->service) : '' }}</span>
+                                    <span class="flex-1">{{ implode(' · ', array_filter([$openLead->ref, $openLead->lineAndService()])) }}</span>
                                     <x-admin.badge :color="$openLead->stage->badgeColor()">{{ $openLead->stage->name }}</x-admin.badge>
                                 </label>
                             @endforeach
@@ -101,16 +104,24 @@
         <div class="space-y-6 xl:sticky xl:top-24 xl:self-start">
             <x-admin.card title="3. Details">
                 <div class="space-y-4">
-                    <x-admin.field label="Line" for="line" hint="Interior and project quotes are numbered WI-…, furniture WF-….">
-                        <select id="line" wire:model.live="line" class="wx-input">
-                            @foreach ($lines as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </x-admin.field>
-                    <x-admin.field label="Title (optional)" for="title" hint="Defaults to the template name, e.g. “Renovation”.">
-                        <input id="title" type="text" wire:model="title" class="wx-input" placeholder="e.g. Renovation of DHA Phase 6 house">
-                    </x-admin.field>
+                    @if (count($lines) > 1)
+                        <x-admin.field label="Line" for="line" hint="Interior and project quotes are numbered WI-…, furniture WF-….">
+                            <select id="line" wire:model.live="line" class="wx-input">
+                                @foreach ($lines as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </x-admin.field>
+                    @endif
+                    @if ($line === 'furniture')
+                        <x-admin.field label="Title (optional)" for="title" hint="Defaults to the template name.">
+                            <input id="title" type="text" wire:model="title" class="wx-input" placeholder="e.g. Office furniture for the head office">
+                        </x-admin.field>
+                    @else
+                        <x-admin.field label="Title (optional)" for="title" hint="Defaults to the template name, e.g. “Renovation”.">
+                            <input id="title" type="text" wire:model="title" class="wx-input" placeholder="e.g. Renovation of DHA Phase 6 house">
+                        </x-admin.field>
+                    @endif
                 </div>
             </x-admin.card>
             <x-admin.button type="submit" icon="check" class="w-full" wire:loading.attr="disabled" wire:target="create">Create draft quotation</x-admin.button>

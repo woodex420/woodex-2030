@@ -22,7 +22,7 @@
 <body class="bg-sand-50">
     <header class="bg-navy-900 text-white">
         <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-5 md:px-8">
-            <x-brand-logo subtitle="INTERIOR STUDIO" class="text-white" />
+            <x-brand-logo :subtitle="\App\Support\Brand::wordmark($project->business_line)" class="text-white" />
             <div class="flex items-center gap-3">
                 <span class="hidden text-sm text-navy-100/80 sm:inline">{{ $project->contact?->first_name ? 'Hello '.$project->contact->first_name() : '' }}</span>
                 @if ($whatsapp)
@@ -42,7 +42,7 @@
 
         {{-- Where the job stands --}}
         <section class="rounded-2xl border border-line bg-white p-6">
-            <p class="text-sm text-muted">{{ $project->code }} · {{ $project->business_line->label() }}</p>
+            <p class="text-sm text-muted">{{ implode(' · ', array_filter([$project->code, $project->business_line->tag()])) }}</p>
             <h1 class="mt-1 text-3xl font-medium text-ink">{{ $project->name }}</h1>
             <p class="mt-2 text-ink/70">{{ $project->stage->clientLine() }}</p>
 

@@ -72,7 +72,7 @@ class ProjectBoard extends Component
         return view('livewire.admin.projects.project-board', [
             'stages' => ProjectStage::cases(),
             'projectsByStage' => $projects,
-            'lines' => BusinessLine::options(),
+            'lines' => BusinessLine::offeredOptions(),
             'lakh' => app(SalesSettings::class)->lakh_grouping,
         ]);
     }

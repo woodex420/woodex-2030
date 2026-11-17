@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
@@ -77,6 +78,18 @@ class Lead extends Model implements HasMedia
             ->logOnly(['stage_id', 'owner_id', 'priority', 'business_line', 'service', 'expected_value_minor', 'lost_reason', 'next_action_at'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
+    }
+
+    /**
+     * The line and the service asked for, as one caption: "Interior · Renovation". The line is left out where
+     * every record is of the one line this installation sells (BusinessLine::tag()).
+     */
+    public function lineAndService(): string
+    {
+        return implode(' · ', array_filter([
+            $this->business_line->tag(),
+            filled($this->service) ? Str::headline((string) $this->service) : '',
+        ], static fn (string $part): bool => $part !== ''));
     }
 
     /**

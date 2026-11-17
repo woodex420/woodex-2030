@@ -1,6 +1,6 @@
 @use('App\Support\Money')
 <div>
-    <x-admin.page-header title="Projects" description="Every job the studio is running: where it stands, what is invoiced and what has been collected. A project appears the moment a client accepts a quotation."
+    <x-admin.page-header title="Projects" description="Every job the business is running: where it stands, what is invoiced and what has been collected. A project appears the moment a client accepts a quotation."
                          :breadcrumbs="['Projects' => null, 'Projects' => null]">
         <x-slot:actions>
             <x-admin.button variant="secondary" icon="kanban" :href="route('admin.projects.board')" wire:navigate>Board</x-admin.button>
@@ -64,7 +64,7 @@
                         <tr wire:key="project-{{ $project->id }}" class="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
                             <td class="px-5 py-3">
                                 <a href="{{ route('admin.projects.show', $project) }}" wire:navigate class="block font-medium text-gray-800 hover:underline dark:text-white/90">{{ $project->name }}</a>
-                                <span class="block text-theme-xs text-gray-500">{{ $project->code }} · {{ $project->business_line->label() }}</span>
+                                <span class="block text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$project->code, $project->business_line->tag()])) }}</span>
                                 @if ($project->status !== \App\Domain\Projects\Enums\ProjectStatus::Active)
                                     <span class="mt-1 inline-block"><x-admin.badge :color="$project->status->color()">{{ $project->status->label() }}</x-admin.badge></span>
                                 @endif

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Sales;
 
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Sales\Models\BankAccount;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -100,7 +102,7 @@ class BankAccounts extends Component
             'branchCode' => ['nullable', 'string', 'max:20'],
             'walletProvider' => ['nullable', 'string', 'max:20'],
             'kind' => ['required', 'in:bank,wallet'],
-            'businessLine' => ['nullable', 'in:interior,furniture'],
+            'businessLine' => ['nullable', Rule::in(array_keys($this->brandChoices()))],
             'isDefault' => ['boolean'],
             'isActive' => ['boolean'],
         ]);
@@ -164,7 +166,25 @@ class BankAccounts extends Component
             $account->update(['is_default' => true, 'is_active' => true]);
         });
 
-        session()->flash('status', $account->title.' is now the default for '.($account->business_line?->label() ?? 'both lines').'.');
+        $for = match (true) {
+            ! BusinessLine::severalBrandsOffered() && ($account->business_line === null || $account->business_line->isOffered()) => '',
+            $account->business_line === null => ' for both lines',
+            default => ' for '.$account->business_line->label(),
+        };
+
+        session()->flash('status', $account->title.' is now the default'.$for.'.');
+    }
+
+    /**
+     * The brands an account may be kept for: the brands on sale, and the stored brand of the account being edited.
+     *
+     * @return array<string, string> value => label
+     */
+    private function brandChoices(): array
+    {
+        return BusinessLine::brandOptionsFor(
+            $this->editingId !== null ? BankAccount::query()->find($this->editingId)?->business_line : null,
+        );
     }
 
     public function render(): View
@@ -172,6 +192,8 @@ class BankAccounts extends Component
         return view('livewire.admin.sales.bank-accounts', [
             'accounts' => BankAccount::query()->orderByRaw('business_line is null')->orderBy('business_line')->orderBy('position')->orderBy('id')->get(),
             'canManage' => $this->user()->can('invoices.manage'),
+            'brands' => $this->brandChoices(),
+            'severalBrands' => BusinessLine::severalBrandsOffered(),
         ]);
     }
 

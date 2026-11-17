@@ -1,7 +1,7 @@
 @use('App\Support\Money')
 @use('App\Domain\Sales\Enums\InvoiceStatus')
 <div>
-    <x-admin.page-header :title="$project->code" :description="$project->name.' · '.$project->business_line->label()"
+    <x-admin.page-header :title="$project->code" :description="implode(' · ', array_filter([$project->name, $project->business_line->tag()]))"
                          :breadcrumbs="['Projects' => route('admin.projects.index'), 'Board' => route('admin.projects.board'), $project->code => null]">
         <x-slot:actions>
             @if ($project->quote)

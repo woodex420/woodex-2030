@@ -20,7 +20,7 @@
 <body class="bg-sand-50">
     <header class="bg-navy-900 text-white">
         <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-5 md:px-8">
-            <x-brand-logo subtitle="INTERIOR STUDIO" class="text-white" />
+            <x-brand-logo :subtitle="\App\Support\Brand::wordmark($invoice->business_line)" class="text-white" />
             <div class="flex items-center gap-3">
                 <a href="{{ $pdfUrl }}" class="btn-studio">Download PDF <span aria-hidden="true">↗</span></a>
                 @if ($whatsapp)

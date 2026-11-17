@@ -18,8 +18,14 @@
  * window (and which element sticks out), the height of the top bar on a phone, and four accessibility counts.
  * Downloads (PDF, CSV) are fetched with the signed-in session, not opened.
  *
+ * OS_WATCH="Interior,Studio" names words that no screen may carry (the admin is for Woodex Furniture only). They are
+ * looked for where a person meets them: in the page's text, shown or folded away (a dialog, a menu), in the choices
+ * of a list, in the hints and names of fields and buttons, and in the links that leave the admin — a WhatsApp
+ * greeting is a link. Capital letters count: "Interior" is not "interior".
+ *
  * Output: <folder>/screens.json (everything) and a summary on the screen. Exit code 1 when a page did not open,
- * threw an error or a request failed; layout and accessibility findings are reported, they do not fail the run.
+ * threw an error, a request failed or a watched word was found; layout and accessibility findings are reported,
+ * they do not fail the run.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { launchBrowser } from './lib/browser.mjs';
@@ -29,6 +35,7 @@ const args = process.argv.slice(2);
 const out = args.includes('--out') ? args[args.indexOf('--out') + 1] : '/tmp/os-screens';
 const shots = args.includes('--shots');
 const maxPages = Number(process.env.OS_MAX_PAGES || 220);
+const watch = (process.env.OS_WATCH || '').split(',').map((word) => word.trim()).filter(Boolean);
 mkdirSync(out, { recursive: true });
 
 const roles = [
@@ -48,7 +55,7 @@ const skip = (path) => /\/logout(\?|$)/.test(path) || !path.startsWith('/admin')
 const fileName = (role, path, width) => `${out}/${role}-${kind(path).replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '').slice(0, 60) || 'admin'}-${width}.jpg`;
 
 /** Runs in the page: what the page shows, and what sticks out of the window. */
-const inPage = () => {
+const inPage = (watch = []) => {
   const visible = (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
   const named = (el) => (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title') || el.textContent || '').trim() !== '';
   const labelled = (el) => el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title')
@@ -76,6 +83,26 @@ const inPage = () => {
     }
     if (!contained) sticking.push(`${describe(el)} ends at ${Math.round(box.right)} px`);
   }
+  // Watched words, with where each was met and the words around it.
+  const watched = [];
+  if (watch.length > 0) {
+    const readable = document.body.cloneNode(true);
+    for (const el of readable.querySelectorAll('script, style, noscript, template')) el.remove();
+    const decoded = (href) => { try { return decodeURIComponent(href.replace(/\+/g, ' ')); } catch { return href; } };
+    const places = {
+      text: readable.textContent.replace(/\s+/g, ' '),
+      choice: [...document.querySelectorAll('option')].map((option) => option.textContent.trim()).join(' | '),
+      hint: [...document.querySelectorAll('[placeholder], [title], [aria-label], [alt]')]
+        .flatMap((el) => ['placeholder', 'title', 'aria-label', 'alt'].map((name) => el.getAttribute(name)).filter(Boolean)).join(' | '),
+      link: [...document.querySelectorAll('a[href]')].map((a) => decoded(a.getAttribute('href'))).join(' | '),
+    };
+    for (const word of watch) {
+      for (const [place, text] of Object.entries(places)) {
+        const at = text.indexOf(word);
+        if (at >= 0) watched.push({ word, place, around: text.slice(Math.max(0, at - 50), at + word.length + 50).trim() });
+      }
+    }
+  }
   const header = document.querySelector('header.wx-admin-header');
   const navigation = performance.getEntriesByType('navigation')[0];
   const resources = performance.getEntriesByType('resource');
@@ -83,6 +110,7 @@ const inPage = () => {
     title: document.title,
     h1: [...document.querySelectorAll('h1')].filter(visible).map((el) => el.textContent.trim().replace(/\s+/g, ' ')).slice(0, 3),
     demoNotice: document.querySelectorAll('[data-demo-notice]').length,
+    watched,
     overflow: document.documentElement.scrollWidth - width,
     sticking: sticking.slice(0, 4),
     headerHeight: header ? Math.round(header.getBoundingClientRect().height) : null,
@@ -175,7 +203,7 @@ for (const role of roles) {
       const idleFrom = Date.now();
       current.settled = await page.waitForLoadState('networkidle', { timeout: 5000 }).then(() => true, () => false);
       current.idleMs = Date.now() - idleFrom;
-      const { links, ...found } = await page.evaluate(inPage);
+      const { links, ...found } = await page.evaluate(inPage, watch);
       Object.assign(current, found);
       if (shots && depth <= 1) await page.screenshot({ path: fileName(role.key, path, 1366), type: 'jpeg', quality: 60 }).catch(() => {});
       if (depth < role.depth) {
@@ -191,7 +219,7 @@ for (const role of roles) {
       current.status = current.status ?? 0;
       current.failure = String(error.message).split('\n')[0].slice(0, 200);
     }
-    current.bad = Boolean(current.status !== 200 || current.failure || current.errorText || current.pageErrors.length > 0 || current.failedRequests.length > 0);
+    current.bad = Boolean(current.status !== 200 || current.failure || current.errorText || current.pageErrors.length > 0 || current.failedRequests.length > 0 || (current.watched?.length ?? 0) > 0);
     if (current.bad) failures += 1;
     entry.pages.push(current);
     current = null;
@@ -246,8 +274,9 @@ for (const [key, entry] of Object.entries(report.roles)) {
   const phone = entry.phone;
   console.log(`  phone (390 px): ${phone.length} pages, ${phone.filter((p) => p.bad).length} not fine; wider than the window: ${phone.filter((p) => p.overflow > 0).length}; top bar taller than 72 px: ${phone.filter((p) => (p.headerHeight ?? 0) > 72).length}; controls smaller than 24 px: ${phone.reduce((t, p) => t + (p.smallTargets ?? 0), 0)} on ${phone.filter((p) => p.smallTargets).length} pages`);
   for (const p of pages.filter((p) => p.bad)) {
-    console.log(`  NOT FINE ${p.path} (from ${p.from}) → ${p.status}${p.failure ? ` · ${p.failure}` : ''}${p.errorText ? ` · text: ${p.errorText.slice(0, 80)}` : ''}${p.pageErrors.length ? ` · page error: ${p.pageErrors[0]}` : ''}${p.failedRequests.length ? ` · requests: ${[...new Set(p.failedRequests)].slice(0, 3).join(', ')}` : ''}`);
+    console.log(`  NOT FINE ${p.path} (from ${p.from}) → ${p.status}${p.failure ? ` · ${p.failure}` : ''}${p.errorText ? ` · text: ${p.errorText.slice(0, 80)}` : ''}${p.pageErrors.length ? ` · page error: ${p.pageErrors[0]}` : ''}${p.failedRequests.length ? ` · requests: ${[...new Set(p.failedRequests)].slice(0, 3).join(', ')}` : ''}${p.watched?.length ? ` · watched word: ${p.watched.map((w) => `“${w.word}” in a ${w.place}: …${w.around}…`).slice(0, 3).join(' · ')}` : ''}`);
   }
+  if (watch.length > 0) console.log(`  watched words (${watch.join(', ')}): on ${fine.filter((p) => p.watched?.length).length} of ${fine.length} pages`);
   for (const p of phone.filter((p) => p.overflow > 0)) console.log(`  PHONE WIDER ${p.path} by ${p.overflow} px — ${(p.sticking || []).slice(0, 2).join('; ')}`);
   for (const p of fine.filter((p) => p.a11y?.fieldsWithoutLabel?.length)) console.log(`  NO LABEL ${p.path}: ${p.a11y.fieldsWithoutLabel.slice(0, 4).join(', ')}`);
   for (const d of entry.downloads) console.log(`  download ${d.path} → ${d.status} ${d.type} ${d.bytes} bytes (starts "${d.starts.replace(/[^\x20-\x7e]/g, '.')}")${d.bad ? ' NOT FINE' : ''}`);

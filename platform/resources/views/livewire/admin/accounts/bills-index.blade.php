@@ -1,7 +1,7 @@
 @use('App\Support\Money')
 <div>
     <x-admin.page-header title="Received invoices"
-                         description="The bills suppliers send the studio. Posting one books the cost and the payable; paying it clears the payable — the ledger is written by the same buttons you press here."
+                         description="The bills suppliers send the business. Posting one books the cost and the payable; paying it clears the payable — the ledger is written by the same buttons you press here."
                          :breadcrumbs="['Accounts' => null, 'Payables' => null, 'Received invoices' => null]">
         @if ($canManage)
             <x-slot:actions>
@@ -254,7 +254,7 @@
                     @empty
                         <tr>
                             <td colspan="8" class="px-5 py-10 text-center text-theme-sm text-gray-500">
-                                Nothing here yet. Add a vendor, then enter the first bill the studio received — it posts to the ledger as you save it.
+                                Nothing here yet. Add a vendor, then enter the first bill the business received — it posts to the ledger as you save it.
                             </td>
                         </tr>
                     @endforelse

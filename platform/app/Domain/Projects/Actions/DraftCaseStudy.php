@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Projects\Actions;
 
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Projects\Models\Project;
 use App\Domain\Website\Actions\SavePage;
 use App\Domain\Website\Enums\BlockType;
@@ -12,6 +13,7 @@ use App\Domain\Website\Enums\PageType;
 use App\Domain\Website\Models\Media;
 use App\Domain\Website\Models\Page;
 use App\Models\User;
+use App\Support\Brand;
 use App\Support\Money;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -52,8 +54,11 @@ final class DraftCaseStudy
                 'title' => $project->name,
                 'excerpt' => sprintf('%s in %s — a %s project by Woodex.', $project->name, $project->city ?: 'Lahore', $project->business_line->label()),
                 'seo' => [
-                    'title' => $project->name.' — Woodex Interior',
-                    'description' => Str::limit(sprintf('%s in %s. Interior design and execution by Woodex, Lahore.', $project->name, $project->city ?: 'Lahore'), 155),
+                    // The page is named for the brand the job was done under; the settings say what it is called.
+                    'title' => $project->name.' — '.Brand::name($project->business_line),
+                    'description' => Str::limit($project->business_line->brand() === BusinessLine::Furniture
+                        ? sprintf('%s in %s. A project by %s.', $project->name, $project->city ?: 'Lahore', Brand::name($project->business_line))
+                        : sprintf('%s in %s. Interior design and execution by Woodex, Lahore.', $project->name, $project->city ?: 'Lahore'), 155),
                     'robots' => 'index,follow',
                     'focus_keyword' => Str::lower($project->name),
                     'og_image_id' => $photos[0]['id'] ?? null,

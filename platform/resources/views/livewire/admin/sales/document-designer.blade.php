@@ -1,6 +1,8 @@
 <div>
     <x-admin.page-header title="Document design" description="Shared quotation and invoice identity for each brand. Saved styles are copied into new documents—not pushed into historical PDFs." :breadcrumbs="['Sales' => null, 'Document design' => null]" />
-    <div class="mb-5 max-w-sm"><x-admin.field label="Brand" for="line"><select id="line" wire:model.live="line" class="wx-input"><option value="interior">Woodex Interior / Project</option><option value="furniture">Woodex Furniture</option></select></x-admin.field></div>
+    @if (count($brands) > 1)
+        <div class="mb-5 max-w-sm"><x-admin.field label="Brand" for="line"><select id="line" wire:model.live="line" class="wx-input">@foreach ($brands as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select></x-admin.field></div>
+    @endif
     <div class="grid gap-5 lg:grid-cols-2">
         <x-admin.card>
             <form wire:submit="save" class="space-y-4">
