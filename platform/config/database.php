@@ -3,6 +3,18 @@
 use Illuminate\Support\Str;
 use Pdo\Mysql;
 
+/*
+| Times (document 03 §2: "store timestamps in UTC; render in configured workspace timezone").
+|
+| Every time column is a TIMESTAMP, and MySQL holds a TIMESTAMP in UTC: it converts from the session's time zone
+| on the way in and back on the way out. The session's time zone is therefore the offset of the workspace's
+| time zone (APP_TIMEZONE), taken from that one setting so the two cannot disagree — a disagreement would shift
+| every time silently. Pakistan has no daylight saving, so its offset is constant. A workspace in a zone that
+| has it would name the zone in DB_TIMEZONE (MySQL then needs its time zone tables).
+| tests/Feature/TimeStorageTest.php pins all of this, on MySQL in CI.
+*/
+$sessionTimeZone = env('DB_TIMEZONE') ?: (new DateTimeImmutable('now', new DateTimeZone((string) env('APP_TIMEZONE', 'Asia/Karachi'))))->format('P');
+
 return [
 
     /*
@@ -59,7 +71,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'timezone' => env('DB_TIMEZONE', '+05:00'),
+            'timezone' => $sessionTimeZone,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
@@ -80,7 +92,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'timezone' => env('DB_TIMEZONE', '+05:00'),
+            'timezone' => $sessionTimeZone,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

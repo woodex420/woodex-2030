@@ -340,7 +340,7 @@ final class Installer
                 'DB_DATABASE' => $input['database'],
                 'DB_USERNAME' => $input['username'],
                 'DB_PASSWORD' => $input['password'],
-                'DB_TIMEZONE' => '+05:00',
+                // No DB_TIMEZONE: the database session follows APP_TIMEZONE (config/database.php).
             ];
         }
 
