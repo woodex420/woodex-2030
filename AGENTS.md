@@ -247,6 +247,14 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   CI runs the same script as a check. If you rename a test or a journey step that is named as proof there,
   rename it there too. Enter every finding of your round in `acceptance/defects.json` with its severity, and
   write a release report with the ten headings of document 10 §9 (`17-RELEASE-2026-11-17.md` is the model).
+- **What is pending, in which order, and how each line is tested** is
+  `docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md`. Its tables are written by
+  `node scripts/verify-plan.mjs --write` from the rows of the list and from
+  `docs/woodex-os/acceptance/plan.json`; CI runs the same script as a check, and
+  `node scripts/test-verify-plan.mjs` tries the check itself. Take the lines in the order of its rounds unless
+  the owner says otherwise. When a line is done: mark it done in the list, take it out of its round and its
+  title out of `plan.json`, give a round to every line it sets free, and run the script with `--write`. A line
+  enters a round only with what is built, its tests, what the tests are tried against and the way back.
 - **Furniture only.** The code came from the Woodex Interior application. One setting names the lines an
   installation sells: `WOODEX_BUSINESS_LINES`, default `furniture` (DL-021). With one line there is no line
   chooser, filter or column, and a line that is not sold is refused. The test suite runs with all three lines;

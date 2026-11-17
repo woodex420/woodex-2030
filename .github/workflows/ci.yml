@@ -53,6 +53,16 @@ jobs:
         # specification, the journey steps that press each browser flow, and the state of every release gate.
         # Fails when a named test or step has gone, or when document 16 no longer shows what the files say.
         run: node scripts/verify-acceptance.mjs
+      - name: The plan of the pending work agrees with the master list
+        # docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md is written from the rows of the master list
+        # (14-PRODUCTION-TODO.md) and from docs/woodex-os/acceptance/plan.json. Fails when a line that can start
+        # now is in no round or names no test, when a round still holds a line that is done or waits, when the
+        # list's own numbers or its "Order of work" no longer agree with its rows, or when document 21 does not
+        # show what the two say. The second command tries the check itself: it changes one thing at a time in a
+        # copy and requires the check to fail and to name the reason.
+        run: |
+          node scripts/verify-plan.mjs
+          node scripts/test-verify-plan.mjs
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps
