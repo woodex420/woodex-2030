@@ -1,5 +1,8 @@
 <?php
 
+use App\Support\TwoWritersMet;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -66,6 +69,46 @@ it('hides what went wrong inside from the person who sees the error page', funct
         ->assertDontSee('RuntimeException');
 });
 
+it('tells a person that somebody else was saving, when the database ended the request for another writer', function (string $fault) {
+    config(['app.debug' => false]);
+    Route::get('/_test/two-writers', fn () => throw match ($fault) {
+        'a deadlock in the request\'s own transaction' => new QueryException('mysql', 'select * from `number_sequences` where `key` = ? limit 1 for update', ['journal'], new PDOException('SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock; try restarting transaction')),
+        'a deadlock inside a nested transaction' => new DeadlockException('SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock; try restarting transaction (SQL: update `number_sequences`)'),
+        'a wait for a lock that ran out' => new QueryException('mysql', 'update `number_sequences` set `next_number` = ?', [2], new PDOException('SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transaction')),
+        'SQLite, busy with another writer' => new QueryException('sqlite', 'update "number_sequences" set "next_number" = ?', [2], new PDOException('SQLSTATE[HY000]: General error: 5 database is locked')),
+        'a deadlock wrapped by the code that met it' => new RuntimeException('The posting failed.', 0, new DeadlockException('Deadlock found when trying to get lock')),
+    });
+
+    $this->get('/_test/two-writers')
+        ->assertStatus(409)
+        ->assertSee('Somebody else was saving the same records')
+        ->assertSee('Nothing of what you just did was saved')
+        ->assertSee('data-error-page="409"', false)
+        ->assertDontSee('SQLSTATE')
+        ->assertDontSee('number_sequences')
+        ->assertDontSee('Something went wrong on our side');
+
+    $this->getJson('/_test/two-writers')
+        ->assertStatus(409)
+        ->assertExactJson(['message' => TwoWritersMet::MESSAGE]);
+})->with([
+    'a deadlock in the request\'s own transaction',
+    'a deadlock inside a nested transaction',
+    'a wait for a lock that ran out',
+    'SQLite, busy with another writer',
+    'a deadlock wrapped by the code that met it',
+]);
+
+it('keeps every other fault of the database an error on our side', function () {
+    config(['app.debug' => false]);
+    Route::get('/_test/not-two-writers', fn () => throw new QueryException('mysql', 'insert into `number_sequences`', [], new PDOException('SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry')));
+
+    $this->get('/_test/not-two-writers')
+        ->assertStatus(500)
+        ->assertSee('Something went wrong on our side')
+        ->assertDontSee('Duplicate entry');
+});
+
 it('has a page for every status the admin answers with', function (int $status, string $heading) {
     $html = view("errors.{$status}", ['exception' => new HttpException($status)])->render();
 
@@ -76,6 +119,7 @@ it('has a page for every status the admin answers with', function (int $status, 
 })->with([
     [403, 'You do not have access to this screen'],
     [404, 'This page does not exist'],
+    [409, 'Somebody else was saving the same records'],
     [419, 'This page was open for too long'],
     [429, 'Too many attempts in a short time'],
     [500, 'Something went wrong on our side'],
