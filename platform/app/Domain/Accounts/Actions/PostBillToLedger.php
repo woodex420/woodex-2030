@@ -28,13 +28,10 @@ final class PostBillToLedger
         return DB::transaction(function () use ($bill, $actor): JournalEntry {
             // Re-read under a source-row lock before checking idempotence or the bill's state.
             $bill = Bill::query()->lockForUpdate()->findOrFail($bill->id);
-            // Asked without a lock: the bill's own row, locked above, already keeps a second posting of this bill
-            // out, and PostJournalEntry asks again inside the ledger's turn. With a lock here, two people posting
-            // two different bills each held the place of the other's entry and one was stopped (T-093).
             $existing = JournalEntry::query()
                 ->where('source_type', 'bill')
                 ->where('source_id', $bill->id)
-                ->first();
+                ->lockForUpdate()->first();
 
             if ($existing !== null) {
                 return $existing;

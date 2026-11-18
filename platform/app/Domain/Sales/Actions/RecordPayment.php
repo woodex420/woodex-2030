@@ -11,7 +11,6 @@ use App\Domain\Sales\Enums\PaymentStatus;
 use App\Domain\Sales\Mail\PaymentMail;
 use App\Domain\Sales\Models\Payment;
 use App\Domain\Sales\Notifications\PaymentNotification;
-use App\Domain\Sales\Services\InvoiceLocks;
 use App\Domain\Sales\Services\ReceiptPdf;
 use App\Domain\System\Alerts\AlertRouter;
 use App\Models\User;
@@ -38,7 +37,6 @@ final class RecordPayment
         private readonly Numbering $numbering,
         private readonly ReceiptPdf $receipts,
         private readonly PostPaymentToLedger $postToLedger,
-        private readonly InvoiceLocks $invoices,
     ) {}
 
     /**
@@ -70,10 +68,6 @@ final class RecordPayment
         $contact = Contact::query()->findOrFail((int) $input['contact_id']);
 
         return DB::transaction(function () use ($input, $by, $contact): Payment {
-            // Before the payment is written: every invoice its money may reach, locked in the one order
-            // (InvoiceLocks::forMoneyOf says what happened without this, T-093).
-            $this->invoices->forMoneyOf($contact->id, [isset($input['invoice_id']) ? (int) $input['invoice_id'] : null, ...array_keys($input['allocations'] ?? [])]);
-
             $payment = Payment::query()->create([
                 'contact_id' => $contact->id,
                 'invoice_id' => $input['invoice_id'] ?? null,

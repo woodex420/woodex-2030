@@ -13,7 +13,6 @@ use App\Domain\Projects\Services\ProjectCostAccess;
 use App\Domain\Sales\Enums\PaymentMethod;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -55,10 +54,7 @@ final class PayBill
 
             $project = app(ProjectCostAccess::class)->project($bill->project_id, $actor, true);
             if ($idempotencyKey !== null) {
-                // Asked without a lock. The bill's row, locked above, already makes a second sending of the same
-                // request wait and then find the first. With a lock here, two people paying two different bills
-                // each held the place of the other's payment and the database stopped one of them (T-093).
-                $existing = BillPayment::query()->where('idempotency_key', $idempotencyKey)->first();
+                $existing = BillPayment::query()->where('idempotency_key', $idempotencyKey)->lockForUpdate()->first();
                 if ($existing !== null) {
                     if ($existing->bill_id !== $bill->id || $existing->amount_minor !== $amountMinor
                         || $existing->method !== $method || $existing->reference !== $reference
@@ -96,21 +92,15 @@ final class PayBill
                 throw new JournalPostingFailed('Account 2010 (Accounts payable) is missing from the chart. Restore it before paying bills.');
             }
 
-            try {
-                $payment = BillPayment::query()->create([
-                    'bill_id' => $bill->id,
-                    'amount_minor' => $amountMinor,
-                    'paid_on' => $paidOn,
-                    'method' => $method,
-                    'reference' => $reference !== null && trim($reference) !== '' ? trim($reference) : null,
-                    'idempotency_key' => $idempotencyKey,
-                    'created_by' => $actor->id,
-                ]);
-            } catch (UniqueConstraintViolationException) {
-                // The one key of this table besides its number is the request's: the same request was sent for
-                // another bill in the same moment and got there first.
-                throw ValidationException::withMessages(['amount' => 'This payment request was already used with different details.']);
-            }
+            $payment = BillPayment::query()->create([
+                'bill_id' => $bill->id,
+                'amount_minor' => $amountMinor,
+                'paid_on' => $paidOn,
+                'method' => $method,
+                'reference' => $reference !== null && trim($reference) !== '' ? trim($reference) : null,
+                'idempotency_key' => $idempotencyKey,
+                'created_by' => $actor->id,
+            ]);
 
             $entry = app(PostJournalEntry::class)->handle($actor, [
                 ['account_id' => $payable->id, 'debit_minor' => $amountMinor, 'memo' => "Bill {$bill->number} — paid by {$method->label()}"],

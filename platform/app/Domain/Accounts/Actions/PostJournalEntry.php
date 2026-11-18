@@ -8,7 +8,6 @@ use App\Domain\Accounts\Exceptions\JournalPostingFailed;
 use App\Domain\Accounts\Models\Account;
 use App\Domain\Accounts\Models\AccountingPeriod;
 use App\Domain\Accounts\Models\JournalEntry;
-use App\Domain\Accounts\Services\LedgerTurn;
 use App\Models\User;
 use App\Support\Numbering;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +16,6 @@ use Illuminate\Support\Facades\DB;
  * Post a balanced journal entry (docs/18 §2, batch C). Atomic and idempotent per business source:
  * a retried verification or invoice action can never create a second entry. PKR integer paisa only —
  * foreign currency is rejected by design until an FX policy exists.
- *
- * One entry at a time (master list T-093). The first thing a posting does is take the ledger's turn (LedgerTurn
- * says what that is and why). Before, the row behind the turn was locked last, with the entry's number: two people
- * posting in the same moment had both asked "is this document in the journal already?" by then, each held the
- * place where its entry was to go, and the database stopped one of them with a deadlock.
  */
 final class PostJournalEntry
 {
@@ -37,14 +31,12 @@ final class PostJournalEntry
         $businessDate = (string) $context['business_date'];
 
         return DB::transaction(function () use ($actor, $lines, $context, $businessDate): JournalEntry {
-            app(LedgerTurn::class)->take();
-
             $this->assertSourceIsNew((string) ($context['source_type'] ?? ''), $context['source_id'] ?? null);
             $this->assertOpenPeriod($businessDate);
             $accounts = $this->loadAndCheckAccounts($lines);
 
             $entry = JournalEntry::query()->create([
-                'entry_no' => app(Numbering::class)->next(LedgerTurn::SERIES),
+                'entry_no' => app(Numbering::class)->next('journal'),
                 'source_type' => $context['source_type'] ?? null,
                 'source_id' => $context['source_id'] ?? null,
                 'business_date' => $businessDate,
@@ -107,8 +99,6 @@ final class PostJournalEntry
             return; // manual entries carry no source; duplicates are the editor's responsibility.
         }
 
-        // Read with a lock, so that it is read as it is now and not as it was when this transaction began. The
-        // empty place this lock holds when nothing is found is safe to hold only inside the ledger's turn.
         $exists = JournalEntry::query()
             ->where('source_type', $sourceType)
             ->where('source_id', $sourceId)
