@@ -263,13 +263,23 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
 - **The real catalogue** (170 products, DL-022) is `platform/resources/data/woodex-catalogue.json`, built by
   `node scripts/build-woodex-catalogue.mjs` and loaded by `php artisan commerce:import-catalogue`. It loads
   drafts only: nothing in the code may publish a product by itself.
-- **Done, for a change under `platform/`:** its test suite passes **on MySQL in CI** (workflow
-  `os-ci.yml`, five jobs). That is the authority. In a sandbox it runs on SQLite:
+- **Done, for a change under `platform/`:** its test suite passes **on MySQL 8.4 in CI**, and on MariaDB
+  10.11 and 11.4 beside it, which is what the production host gives (workflow `os-ci.yml`). That is the
+  authority. In a sandbox it runs on SQLite:
   `bash platform/tools/preview/sandbox/setup.sh` builds PHP, Composer, the packages and the rehearsal in
   about a minute where only GitHub and npm are reachable (`platform/tools/preview/README.md` says what it
   does). With the older static PHP build nine tests cannot run (they need `pdo_mysql` or `xmlwriter`); read a
   sandbox run with `tools/preview/sandbox/suite-summary.py`, which excuses a failure only by its cause, never
   by its name.
+- **A release for the host** is a folder the host can run as it is: `platform/tools/hostinger/build-release.sh`
+  (the bridge of the website's folder, the application with its packages and built files, no settings, no
+  data). CI installs it in a browser on Apache with the folder's own `.htaccess` and MariaDB, and deploys it a
+  second time (job `hostinger` of `os-ci.yml`; the browser is `scripts/os-install.mjs`). That job is the proof
+  for a change to the installer, the root `.htaccess` or `index.php`, System health, signing in or out. In a
+  sandbox `platform/tools/hostinger/rehearse.sh` serves the same folder without Apache. From `main` only, the
+  job `publish` writes the release to the branch `hostinger-release`: never push to that branch by hand. The
+  owner's steps on the host are `docs/woodex-os/24-HOSTINGER-STEP-BY-STEP.md`; nothing has been seen on the
+  account itself.
 - **A page may run only what the policy allows** (`App\Support\ContentPolicy`, sent by `SecurityHeaders`). A
   `<script>` written into a view needs `nonce="{{ Vite::cspNonce() }}"`; an `onclick=` or any other handler
   in the markup never runs — use Alpine (`@click`); a script, font or frame from another server is refused.

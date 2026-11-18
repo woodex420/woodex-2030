@@ -19,7 +19,9 @@ Read in this order:
 | 11 | [`20-RELEASE-2026-11-17-FOURTH.md`](20-RELEASE-2026-11-17-FOURTH.md) | The release report of pull request #40, written before its merge: the Content-Security-Policy on every page, a request number on every answer, error page and log line |
 | 12 | [`21-PENDING-WORK-PLAN-AND-TESTS.md`](21-PENDING-WORK-PLAN-AND-TESTS.md) | **What is still to do, the plan and the tests**: every line of the list that is not done. The lines that can start now stand in rounds, in order, each with what is built, the tests written, what a browser does and the way back; the lines that wait for the owner; the lines that wait for an earlier line, each with its "done when". Written from the list and `acceptance/plan.json` by `node scripts/verify-plan.mjs --write`, and checked in CI |
 | 13 | [`22-RELEASE-2026-11-17-FIFTH.md`](22-RELEASE-2026-11-17-FIFTH.md) | The release report of pull request #41, written before its merge: the plan of the pending work and its check; no screen and no site behaves differently |
-| 14 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
+| 14 | [`23-RELEASE-2026-11-18.md`](23-RELEASE-2026-11-18.md) | The release report of pull request #42, written before its merge: a release the host can run as it is, installed and deployed again by a browser on Apache and MariaDB on every change; the suite on MariaDB; what that found |
+| 15 | [`24-HOSTINGER-STEP-BY-STEP.md`](24-HOSTINGER-STEP-BY-STEP.md) | **The admin on Hostinger: what is ready, what is proved and where, and the owner's ten steps in hPanel** — about half an hour, without a programmer; what to send afterwards; the way back |
+| 16 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
 
 Related, elsewhere in this repository:
 

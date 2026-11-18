@@ -475,11 +475,56 @@
    "severity": "low",
    "state": "open",
    "found": "2026-11-17",
-   "title": "The check of the live sites has never started by its timer",
-   "detail": "The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Two times due passed, 12:23 and 18:23 UTC, and at 20:07 UTC GitHub's list held no timed run of any workflow. The workflow is active and was last changed under the owner's own GitHub name. The agent's session may not start it by hand (HTTP 403, tried at 19:54 UTC). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges is not.",
+   "title": "The check of the live sites is started by its timer once in three times due",
+   "detail": "The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Recorded on 17 November as \"has never started\": by 20:07 UTC two times due had passed, 12:23 and 18:23 UTC, without a timed run. Corrected on 18 November: GitHub started the run due at 18:23 at 21:06 UTC, 2 h 43 min late (run 44176315991, green: 41 of 41 for the admin, 14 of 14 for the shop). The time due at 00:23 UTC on 18 November brought no run; read at 04:21 UTC, GitHub's list of timed runs holds that one run. So the timer works and GitHub starts it late or drops it. The agent's session may not start the workflow by hand (HTTP 403). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges can stay unseen for longer than six hours.",
    "lines": [
     "T-142"
    ]
+  },
+  {
+   "id": "D-034",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-18",
+   "title": "The installer stopped at its second step on a site opened by a number or a one-word name",
+   "detail": "Found by installing a release in a browser (T-144). The installer wrote `noreply@` and the site's host name as the sender of mail. For a site opened by its IP address or by a name without a dot that is not an address PHP accepts; the backup package refuses such a sender when it is loaded, so every command and the installer's second step answered with an error and the site stayed half installed. A site opened by a real domain was not affected.",
+   "lines": [
+    "T-144"
+   ],
+   "closed": {
+    "on": "2026-11-18",
+    "how": "The installer writes the sender only when PHP accepts it as an address and falls back to `noreply@woodex-os.invalid` otherwise (`Installer::senderFor`). `Feature/InstallerTest.php` installs by a number and by a one-word name; without the correction two of its tests fail. Proven in the rehearsal on Apache and MariaDB, where the site is opened by `127.0.0.1`."
+   }
+  },
+  {
+   "id": "D-035",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-18",
+   "title": "\"Sign out\" ended the session and left the screen as it was, on a site whose first page is elsewhere",
+   "detail": "Found by the same rehearsal. Signing out sent the browser to the first page of the site. In a website folder on a host that page forwards to the shop on another address, and the content policy of the admin stops a form that ends on another address. The session was ended on the server, the screen stayed, and the next click showed the sign-in page: a person could believe they were still signed in, or that the button did nothing. The hosted demo was not affected: there the first page is answered by the admin itself, on the same address.",
+   "lines": [
+    "T-144"
+   ],
+   "closed": {
+    "on": "2026-11-18",
+    "how": "Signing out leads to the admin's own sign-in page (`fortify.redirects.logout`). `Feature/AdminAccessTest.php` signs out and reads where the answer leads; it fails with the setting taken out. In the rehearsal a browser signs out twice under the enforced policy and arrives at the sign-in page."
+   }
+  },
+  {
+   "id": "D-036",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-18",
+   "title": "The installer did not check for one PHP extension that the packages need",
+   "detail": "Found when the first release was put together. Two packages that take in pictures ask for the `exif` extension; the installer's list of extensions to check on the server did not hold it. Composer checks only the PHP version when the application starts, so a host with `exif` switched off would have installed without a word, and the fault would have shown only later, where a picture is taken in.",
+   "lines": [
+    "T-144"
+   ],
+   "closed": {
+    "on": "2026-11-18",
+    "how": "`exif` is in the installer's list, and `Feature/InstallerTest.php` reads the lock file: every extension a package of a release asks for is either checked by the installer or part of every PHP."
+   }
   }
  ]
 }

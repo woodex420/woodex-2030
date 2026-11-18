@@ -1,6 +1,6 @@
 # WOODEX OS on Hostinger — what is ready, and your steps
 
-**Written 18 November 2026** · master list T-143 to T-147 · decision DL-033
+**Written 18 November 2026** · master list T-006, T-143 to T-146 · decision DL-033 · release report 23
 
 You asked for the production deployment to be started. This page says what is ready for it, what has been
 proved and where, and the steps that only you can do, because only you can sign in to Hostinger. They take about
@@ -22,14 +22,16 @@ account (Apache, PHP 8.4, MariaDB 10.11, PHP running as an account named `u12345
 refused with a wrong code, installs with the right one, signs in, reads the System health screen, starts the
 timed jobs with the line the installer printed, and signs out. Then the whole folder is replaced by a second
 release that brings a database change: the browser signs in with the same password, presses "Apply update" and
-works on. From outside, 58 addresses are asked for: no file of the application is handed out. The whole test
-suite also runs on MariaDB 10.11 and 11.4, the two versions between which Hostinger's own lies.
+works on. From outside, 60 addresses are asked for: no file of the application is handed out. The whole test
+suite also runs on MariaDB 10.11 and 11.4, the two long-term versions of the database that Hostinger gives
+under the name MySQL.
 
 **Not proved:** anything on your Hostinger account. Nobody but you can reach it, and the place where this work is
 done reaches only GitHub. Three things can differ there and will show in the first minutes:
 
 - Hostinger's web server is LiteSpeed, not Apache. It reads the same `.htaccess` file, and the rules used are
-  ones its open version is written to understand; it has not been seen doing so.
+  ones its open version is written to understand; it has not been seen doing so. The ten-second check in step 6
+  shows it before anything is installed.
 - Which PHP and which MariaDB version your plan offers. The installer's first page tells you if PHP is too old
   or an extension is off.
 - The path of PHP in the cron line (step 9). System → Health tells you within three minutes whether it works.
@@ -56,9 +58,9 @@ The names are the ones hPanel used when this was written; they may differ slight
 | 3 | hPanel → Databases → Management | Create a new, empty MySQL database and a user for it. Both names begin with your account number, like `u123456789_woodex`. Keep the name, the user and the password for step 8 |
 | 4 | hPanel → File Manager | Open the site's `public_html` and delete what Hostinger put there (a default page). The folder must be empty |
 | 5 | hPanel → Advanced → GIT | Repository `https://github.com/woodex420/woodex-2030.git` · branch `hostinger-release` · folder: leave empty (the site's `public_html`). Create it, then press **Deploy**. About 10,700 files arrive |
-| 6 | Your browser | Open the site's address followed by `/admin`. The page **"Install Woodex OS"** opens, with five checks of the server. Each should carry a tick |
+| 6 | Your browser | **First a ten-second check:** open the site's address followed by `/RELEASE.json`. It must answer with an error page, "Forbidden" or 403. If it shows text in curly brackets instead, the web server is not reading the folder's rules: stop here, empty `public_html` again and tell me. **Then** open the site's address followed by `/admin`. The page **"Install Woodex OS"** opens, with five checks of the server. Each should carry a tick |
 | 7 | hPanel → File Manager | Open the file `WOODEX-SETUP-CODE.txt` in `public_html` and copy the code (six groups of four characters). It cannot be opened from the web; only your hosting account can read it |
-| 8 | The installer | Paste the code. Leave the address as proposed (use `https://` once the certificate is active). Database: host `localhost`, then the name, user and password of step 3. Then your name, your e-mail address and a password of at least 10 characters with letters and numbers. Leave "Require two-factor sign-in" ticked. Press **Install Woodex OS** and leave the page open; creating the tables can take a few minutes |
+| 8 | The installer | Paste the code. Leave the address as proposed (use `https://` once the certificate is active). Database: host `localhost`, then the name, user and password of step 3. Then your name, your e-mail address and a password of at least 10 characters with letters and numbers. Leave "Require two-factor sign-in" ticked. Press **Install Woodex OS** and leave the page open while the tables are created: seconds in the rehearsal, perhaps a minute or two on shared hosting |
 | 9 | hPanel → Advanced → Cron Jobs → Custom | The last page of the installer shows one line that ends in `artisan schedule:run`. Enter it as a cron job that runs **every minute**. Reminders, alerts and queued mail depend on it |
 | 10 | The admin | Press "Sign in to the admin" and sign in. Open **System → Health** |
 
@@ -90,7 +92,7 @@ Hostinger for it.
 | | |
 |---|---|
 | **A new version** | hPanel → Advanced → GIT → Deploy. Then sign in: if the page "A database update is needed" opens, press **Apply update**. hPanel can also deploy by itself on every release (the GIT page shows an address to enter at GitHub under Settings → Webhooks); switch that on only when you want every merged change to go live without your hand |
-| **When the repository is made private** (DL-022) | Hostinger then needs a key to read it. The GIT page shows one; it is added at GitHub under the repository's Settings → Deploy keys, as read-only |
+| **When the repository is made private** (T-021, DL-022) | Hostinger then needs a key to read it. The GIT page shows one; it is added at GitHub under the repository's Settings → Deploy keys, as read-only |
 | **The bare address** | The address without `/admin` forwards to the shop's demo on Vercel, as you chose for the earlier staging site. What it should show in the end is part of T-007 |
 | **Mail** | The installer sets mail to be written to the log, not sent, until you give a mailbox (T-009). Until then "Forgot your password?" sends nothing: keep your password, and set up the second factor under your account → Security |
 | **Backups** | Before real data goes in: one backup made and one restored into an empty database (T-137). hPanel's own backups are a second line, not the proof |

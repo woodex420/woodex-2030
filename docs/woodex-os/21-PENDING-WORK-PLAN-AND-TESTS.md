@@ -21,9 +21,9 @@ four of them. A large line can take more than one.
 ## The short version
 
 <!-- generated:short — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-1. **116 lines of the list are not done.** 19 can start now and need nobody: they are planned in 10 rounds (§2). 28 wait for you (§3). 69 wait for an earlier line (§4), and 49 of those stand behind an answer of yours.
+1. **117 lines of the list are not done.** 19 can start now and need nobody: they are planned in 10 rounds (§2). 28 wait for you (§3). 70 wait for an earlier line (§4), and 49 of those stand behind an answer of yours.
 2. **The next round** is round 1: T-043, A warning before leaving a form with unsaved changes · T-086, A quotation line from the catalogue keeps its product and price.
-3. **The answers of yours that the most lines stand behind:** T-006, Send the Hostinger details and enter the two SSH secrets in GitHub (20 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (4 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
+3. **The answers of yours that the most lines stand behind:** T-006, Install the trial site on Hostinger (document 24) and send its address (20 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (4 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
 4. **1 critical defect is open:** D-002, The owner password of the old dashboard was printed in a public document — T-021, which waits for you.
 5. **Every line has its test.** A line that can start now says in §2 what is built, which tests are written, what a browser does, and what the tests are tried against. A waiting line carries the list's own "done when" (§4). §5 names the checks every round passes before it is merged.
 <!-- /generated:short -->
@@ -35,12 +35,12 @@ four of them. A large line can take more than one.
 <!-- generated:numbers — written by scripts/verify-plan.mjs --write; do not edit by hand -->
 |  |  |
 |---|---|
-| Lines on the list | 145 |
-| Done | 29 |
+| Lines on the list | 149 |
+| Done | 32 |
 | **Can start now, needing nobody** | **19**, in 10 rounds (§2) |
 | **Wait for you** | **28** (§3) |
-| Wait for an earlier line | 69 (§4): 49 stand behind an answer of yours · 11 stand behind lines that need nobody · 9 go with a wave, a date or an event |
-| Not done, by priority | 24 P0, 56 P1, 27 P2, 9 P3 |
+| Wait for an earlier line | 70 (§4): 49 stand behind an answer of yours · 11 stand behind lines that need nobody · 10 go with a wave, a date or an event |
+| Not done, by priority | 25 P0, 56 P1, 27 P2, 9 P3 |
 <!-- /generated:numbers -->
 
 ---
@@ -251,15 +251,15 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the mark taken out of the entry file, the rehearsal's test fails.
 - **The way back:** One header on an answer, and a line of output.
 
-#### T-142 · P2 · small — The outside check on a timer: the first timed run
+#### T-142 · P2 · small — The outside check on a timer: started once in three times due
 
 - **Done when** (the list): It runs every six hours from `main`; a forced failure opens an issue
-- **Found on 17 November 2026:** No timed run has started: GitHub's list holds none. The timer has been on `main` since 17 November, 10:22 UTC, and the two times due since then (12:23 and 18:23 UTC) passed without a run. The workflow is active and was last changed under the owner's own GitHub name, so nothing visible stands in its way. The check after a merge has run every time. Starting the check by hand is refused to this session (HTTP 403, tried on 17 November, 19:54 UTC).
+- **Found on 17 November 2026:** Read again on 18 November, 04:21 UTC, and corrected: until then this said that no timed run had ever started. GitHub's list holds one timed run, 44176315991, of 17 November, 21:06 UTC: green, 41 of 41 for the admin and 14 of 14 for the shop, started 2 h 43 min after the time due (18:23 UTC). The time due before it (12:23 UTC) and the one after it (00:23 UTC on 18 November) brought no run. So the timer works, and GitHub starts it late or drops it: one run in three times due. The check after a merge has run every time. Starting the check by hand is refused to this session (HTTP 403, tried on 17 November, 19:54 UTC).
 - **What is built:**
-  1. GitHub's list of runs is read at the start of every round.
-  2. If no timed run has come by this round, the timer is written again on `main` at another minute, and the list is read after the next time due.
+  1. GitHub's list of timed runs is read at the start of every round, and how many of the times due brought a run is written into the list.
+  2. If fewer than three of the last four times due brought a run, the timer is written again on `main` at another minute, and the list is read after the next times due.
 - **Tests written:**
-  1. A run started by the timer is in GitHub's list, and it is green.
+  1. Runs started by the timer are in GitHub's list for at least three of the last four times due, and they are green.
 - **In a browser:** nothing; this line has no screen.
 - **Tried against:** Done on 17 November: a forced failure opened issue #38, and the next proof closed it.
 - **The way back:** Nothing changes on any site.
@@ -432,7 +432,7 @@ Until you answer, the admin works by what the fourth column says.
 <!-- generated:owner — written by scripts/verify-plan.mjs --write; do not edit by hand -->
 | # | Pri | What is asked of you | In force until you answer | Can start the day you answer | Stand behind it |
 |---|---|---|---|---|---|
-| T-006 | P0 | Send the Hostinger details and enter the two SSH secrets in GitHub | Plan: "Business" (OD-3). Nothing verified on the account | T-130, T-131, T-135 (with T-009), T-140 (with T-007) | 20 lines |
+| T-006 | P0 | Install the trial site on Hostinger (document 24) and send its address | Plan: "Business" (OD-3). Nothing verified on the account | T-130, T-131, T-135 (with T-009), T-140 (with T-007) | 20 lines |
 | T-003 | P0 | Give Furniture's price list, terms, quotation wording and who signs | No template or rate is installed; issuing documents is blocked | T-033, T-084, T-085, T-103, T-155 | 8 lines |
 | T-004 | P0 | Say who may approve what, and each role's discount limit | Quotations: by permission, with a limit per role set in Settings; the owner may approve anything | T-060, T-081 | 4 lines |
 | T-008 | P0 | Confirm the currency (PKR) and the tax rules | PKR; one tax rate typed per document | T-064, T-066, T-087 | 3 lines |
@@ -544,7 +544,7 @@ answer is added here.
 | T-176 | P1 | The differences between PostgreSQL and MySQL, tested | T-175 | T-175 (round 4) | A test per kind on MySQL in CI |
 | T-177 | P1 | One rule for identifiers; old-to-new numbers kept | T-175 | T-175 (round 4) | Every importer writes the mapping |
 
-#### With a wave, a date or an event (9)
+#### With a wave, a date or an event (10)
 
 | # | Pri | Task | Waits for | Done when |
 |---|---|---|---|---|
@@ -552,6 +552,7 @@ answer is added here.
 | T-073 | P3 | "Connect" of a connector that signs in at another site | when the Google module is opened | Pressed in a browser with the module on: the button opens the other site's sign-in page |
 | T-082 | P1 | Reports: definitions, time zone, currency, exports by permission | wave 9 | Each report names its definition; an export leaves an audit row |
 | T-083 | P1 | Contacts with several phone numbers and e-mail addresses | wave 3 | A contact holds any number of methods; duplicate detection reads all of them |
+| T-146 | P0 | The release is written to the branch hostinger-release from main | the merge of pull request #42: the job runs on `main` only | After a merge into `main` the branch holds the release of that commit (`RELEASE.json` names it), and Vercel has built nothing from the branch |
 | T-178 | P1 | An importer per module, repeatable, with a dry run | per wave | Run twice, the second run changes nothing |
 | T-179 | P1 | A reconciliation report per domain | per wave | Read by the owner before each switch |
 | T-180 | P1 | One full rehearsal of the data move, and of going back | wave 10 | Written into the cutover plan |
@@ -569,7 +570,8 @@ of them pass on its last commit.
 <!-- generated:standing — written by scripts/verify-plan.mjs --write; do not edit by hand -->
 | Check | Where it runs | On 17 November 2026 | What it stops |
 |---|---|---|---|
-| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4 (`os-ci.yml`), on every push that touches `platform/` | 2,484 pass, 36 skipped, none fails: run in the sandbox on 17 November, 19:32 to 19:39 UTC, on `dfc8369`. Green on MySQL in CI on the same commit | A rule, a screen or a permission that no longer does what its test says |
+| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,508 pass, 36 skipped, none fails: run in the sandbox on 18 November, 04:33 to 04:38 UTC, on `d11e504`. In CI on the same commit, on each of the three servers: 2,509 pass, 35 skipped | A rule, a screen or a permission that no longer does what its test says |
+| A release installed and deployed again by a browser (`scripts/os-install.mjs`) | CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite | the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d11e504`) | A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change |
 | Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 28 of 28 steps hold, both ways (CI, `dfc8369`) | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
 | Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 248 pages, none fails (CI, `dfc8369`) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
 | The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes (CI, `dfc8369`) | A site that starts without its settings, hands out a file, or loses the session |
