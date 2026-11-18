@@ -9,9 +9,11 @@ use App\Domain\Sales\Enums\PaymentMethod;
 use App\Domain\Sales\Enums\PaymentStatus;
 use App\Domain\Sales\Models\Invoice;
 use App\Domain\Sales\Models\Payment;
+use App\Domain\Sales\Services\InvoiceLocks;
 use App\Models\User;
 use App\Support\Money;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -24,6 +26,7 @@ final class CollectPayment
 {
     public function __construct(
         private readonly VerifyPayment $verify,
+        private readonly InvoiceLocks $locks,
     ) {}
 
     public function handle(Invoice $invoice, int $amountMinor, PaymentMethod $method, User $by, ?string $reference = null, ?string $receivedOn = null): Payment
@@ -38,7 +41,12 @@ final class CollectPayment
         }
 
         return DB::transaction(function () use ($invoice, $amountMinor, $method, $by, $reference, $receivedOn): Payment {
-            $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            // The allocation further down locks every open invoice of this client, lowest number first. The same
+            // rows are taken here in the same order before this invoice is looked at: with this one locked first
+            // and the others after it, two people collecting two invoices of one client each held what the other
+            // was waiting for, and the database stopped one of them (T-093, InvoiceLocks).
+            $invoice = $this->locks->forMoneyOf((int) $invoice->contact_id, [(int) $invoice->id])->get((int) $invoice->id)
+                ?? throw (new ModelNotFoundException)->setModel(Invoice::class, [$invoice->id]);
 
             if (! in_array($invoice->status, [InvoiceStatus::Issued, InvoiceStatus::PartiallyPaid], true)) {
                 throw ValidationException::withMessages(['invoice' => "Invoice {$invoice->number} is {$invoice->status->value} and cannot collect a payment."]);

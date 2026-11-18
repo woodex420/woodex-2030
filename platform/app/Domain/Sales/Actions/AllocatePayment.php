@@ -13,13 +13,15 @@ use App\Domain\Sales\Models\BankAccount;
 use App\Domain\Sales\Models\Invoice;
 use App\Domain\Sales\Models\Payment;
 use App\Domain\Sales\Models\PaymentAllocation;
-use Illuminate\Database\Eloquent\Builder;
+use App\Domain\Sales\Services\InvoiceLocks;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /** Allocations are validated and locked here, not trusted from a form or future automation tool. */
 final class AllocatePayment
 {
+    public function __construct(private readonly InvoiceLocks $locks) {}
+
     /**
      * Explicit maps allocate only the chosen amounts; their remainder stays credit. Without a map, pay the
      * payment's own invoice first, then eligible oldest debts (D-85). The current payment ledger is PKR-only.
@@ -66,18 +68,12 @@ final class AllocatePayment
                 $targetIds[] = $payment->invoice_id;
             }
 
-            // Lock eligible candidates and explicit targets in a deterministic order. The payment lock also
-            // serializes competing allocations against the same credit; invoice locks protect other payments.
-            $invoices = Invoice::query()
-                ->where(fn (Builder $query) => $query->whereIn('id', $targetIds)->orWhere(fn (Builder $eligible) => $eligible
-                    ->where('contact_id', $payment->contact_id)
-                    ->where('currency', 'PKR')
-                    ->whereIn('status', [InvoiceStatus::Issued->value, InvoiceStatus::PartiallyPaid->value])
-                    ->where('kind', '!=', InvoiceKind::CreditNote->value)
-                    ->where('balance_minor', '>', 0)
-                    ->when($payment->project_id !== null, fn (Builder $q) => $q->where('project_id', $payment->project_id))
-                    ->when($bank?->business_line !== null, fn (Builder $q) => $q->where('business_line', $bank->business_line->value))))
-                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            // Lock the explicit targets and every open invoice of the client, each by its own number and lowest
+            // first (InvoiceLocks says why), then keep the ones this payment may reach as they are NOW. The
+            // payment lock also serializes competing allocations against the same credit; invoice locks protect
+            // other payments.
+            $invoices = $this->locks->forMoneyOf((int) $payment->contact_id, $targetIds)
+                ->filter(fn (Invoice $invoice): bool => in_array($invoice->id, $targetIds, true) || $this->reaches($payment, $bank, $invoice));
 
             // Validate ALL explicit targets before touching ANY balance; a bad later row rolls back everything.
             foreach (array_unique($targetIds) as $id) {
@@ -119,6 +115,18 @@ final class AllocatePayment
 
             return $payment->refresh();
         });
+    }
+
+    /** May money of this payment go to this invoice without having been asked for it by name? */
+    private function reaches(Payment $payment, ?BankAccount $bank, Invoice $invoice): bool
+    {
+        return $invoice->contact_id === $payment->contact_id
+            && $invoice->currency === 'PKR'
+            && in_array($invoice->status, [InvoiceStatus::Issued, InvoiceStatus::PartiallyPaid], true)
+            && $invoice->kind !== InvoiceKind::CreditNote
+            && $invoice->balance_minor > 0
+            && ($payment->project_id === null || $invoice->project_id === $payment->project_id)
+            && ($bank?->business_line === null || $invoice->business_line === $bank->business_line);
     }
 
     private function apply(Payment $payment, Invoice $invoice, int $amount): void

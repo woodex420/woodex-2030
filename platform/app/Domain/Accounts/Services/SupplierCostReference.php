@@ -9,7 +9,11 @@ use App\Domain\Accounts\Models\Expense;
 use App\Domain\Accounts\Models\Vendor;
 use Illuminate\Validation\ValidationException;
 
-/** Serialize bill/expense entry for the same vendor; a supplier document has one booking source. */
+/**
+ * Serialize bill/expense entry for the same vendor; a supplier document has one booking source.
+ *
+ * Order of the locks (master list T-093): the supplier's row first, then the ledger's turn, then the question.
+ */
 final class SupplierCostReference
 {
     public function assertAvailable(int $vendorId, ?string $reference, ?int $exceptBillId = null, string $field = 'reference'): void
@@ -23,6 +27,11 @@ final class SupplierCostReference
         if ($reference === '') {
             return;
         }
+
+        // The two questions below hold the empty place where such a bill or expense would go. Two people booking
+        // documents of two different suppliers each held the other's place and the database stopped one of them
+        // (T-093): the questions are asked inside the ledger's turn, where only one writer can be.
+        app(LedgerTurn::class)->take();
 
         $bill = Bill::query()->where('vendor_id', $vendorId)->where('number', $reference)
             ->when($exceptBillId !== null, fn ($query) => $query->whereKeyNot($exceptBillId))->lockForUpdate()->exists();
