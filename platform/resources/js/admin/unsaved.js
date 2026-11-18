@@ -25,6 +25,8 @@
  *  - While a mark stands, leaving asks first. A link or a shortcut inside the admin, and the browser's Back button,
  *    get the admin's own dialog (resources/views/components/admin/unsaved-dialog.blade.php). Closing or reloading
  *    the tab gets the browser's own question.
+ *  - Before anybody is asked, the field that holds the cursor is left (a field that is stored when it is left has
+ *    then been sent) and a save on its way is waited for. What the save stored is not asked about.
  *
  * Not noticed: a row added, moved or removed by a button while nothing was typed.
  * Alpine comes from Livewire; nothing is imported here.
@@ -64,6 +66,8 @@ let cameFrom = null;
 let away = 0;
 /** Saves that were sent and whose answer is not yet worked into the page. */
 let onTheWay = 0;
+/** The watch itself is taking the cursor out of a field: that is no typing. */
+let lettingGo = false;
 
 const nameOf = (mark) => `${mark.id}|${mark.key}`;
 const rootOf = (id) => document.querySelector(`[wire\\:id="${id}"]`);
@@ -106,6 +110,9 @@ const partOnScreen = (mark) => {
 /* ---------- Typing leaves a mark ---------- */
 const note = (event) => {
     const field = event.target;
+    // The browser reports a change when the watch takes the cursor out of a field (letGo). Nothing new was typed:
+    // counting it would make a save that is on its way look overtaken.
+    if (lettingGo) return;
     if (!(field instanceof Element) || field.closest('[data-unsaved-skip]')) return;
     const part = field.closest('[data-unsaved]');
     if (!part || part.dataset.unsaved === 'off') return;
@@ -265,15 +272,57 @@ const ask = () => new Promise((resolve) => {
     stay.focus();
 });
 
+/**
+ * The field that holds the cursor gives up what was typed in it, as it does when the person clicks elsewhere.
+ *
+ * Livewire stops the browser's own handling of a press on a link, and the cursor then stays where it was; the Back
+ * button leaves it there too. A field that is stored when it is left has then not been left: nothing was sent, and
+ * the question came up over a figure that only needed a moment to be saved (it was sent when the question took the
+ * cursor, and the question then closed by itself: a window that flashed).
+ */
+const letGo = () => {
+    const field = document.activeElement;
+    if (!(field instanceof HTMLElement) || !field.matches('input, textarea, select')) return null;
+    const part = field.closest('[data-unsaved]');
+    if (!part || part.dataset.unsaved === 'off') return null;
+
+    lettingGo = true;
+    try {
+        field.blur();
+    } finally {
+        lettingGo = false;
+    }
+
+    return field;
+};
+
+/**
+ * Waits while `busy` says so, for at most `limit` milliseconds of the page's own time: a stretch in which the page
+ * itself stood still (a tab that slept, a machine that was busy) is not time in which an answer could have been
+ * worked in, and is not counted as waiting for one.
+ */
+const waitWhile = async (busy, limit) => {
+    let waited = 0;
+    while (waited < limit && busy()) {
+        const from = Date.now();
+        await pause(40);
+        waited += Math.min(Date.now() - from, 80);
+    }
+};
+
 /** True when the person may go: nothing stands, a save on its way took the mark away, or they said so. */
 const mayLeave = async () => {
-    // A field that is stored when it is left is left by the very click that leaves the screen. That gets a moment
-    // to start, and a save on its way gets the time to come back, before anybody is asked anything.
-    await pause(120);
-    const until = Date.now() + 5000;
-    while (Date.now() < until && onTheWay > 0) await pause(40);
+    const field = letGo();
+    // Leaving the field gets a moment to become a message, and a save on its way gets the time to come back and
+    // to be worked into the page, before anybody is asked anything.
+    await waitWhile(() => true, 120);
+    await waitWhile(() => onTheWay > 0, 5000);
 
-    return standing() === 0 || ask();
+    const go = standing() === 0 || await ask();
+    // "Stay": the cursor goes back to where the person was.
+    if (!go && field?.isConnected) field.focus({ preventScroll: true });
+
+    return go;
 };
 
 const onNavigate = (event) => {

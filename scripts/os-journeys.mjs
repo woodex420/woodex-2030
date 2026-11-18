@@ -292,6 +292,9 @@ if (signedIn) {
     must(onPath(leadPath), `"Stay" left the screen: ${page.url()}`);
     must((await page.getByLabel('New task').inputValue()) === half, '"Stay" kept the screen and lost the text');
     must((await unsaved()).standing === 1, 'after "Stay" the text is no longer marked as not saved');
+    // The watch takes the cursor out of the field before it asks (a field that is stored when it is left must be
+    // left); "Stay" puts it back where the person was.
+    must(await page.getByLabel('New task').evaluate((field) => field === document.activeElement), 'after "Stay" the cursor is not back in the field');
     await menuLink('/admin/contacts').click();
     await questionIs(true, 'the second press of the link did not ask');
     await Promise.all([page.waitForURL(/\/admin\/contacts(\?|$)/, { timeout: 20000 }), page.locator('[data-unsaved-leave]').click()]);
@@ -361,7 +364,9 @@ if (signedIn) {
     const name = page.locator('[id="form.name"]');
     await shown(name, 15000, 'the form "New contact"');
     await page.mouse.click(8, 8);
-    await page.waitForTimeout(300);
+    // Waited for, not slept through: a browser that stands still for a few seconds (seen on a machine that draws
+    // without a graphics card, a second after a page was loaded) answers the click late, and that is no fault.
+    await name.waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
     await quiet();
     must((await name.count()) === 0, 'a click beside an untouched form no longer closes it');
     await page.getByRole('button', { name: 'New contact' }).click();
@@ -563,15 +568,21 @@ if (signedIn) {
   await step('a figure typed into the quotation is kept when a menu link is pressed at once', async () => {
     if (!quoted) return { leftOut: 'no quotation was priced' };
     // Every field of the quotation is stored when it is left. A menu link pressed with the cursor still in the
-    // field leaves the field and the screen in one click. Before the watch on unsaved text (T-043) the screen went
-    // first and the figure was lost without a word; now the screen waits for the save, and asks nothing.
+    // field does not leave the field: Livewire stops the browser's own handling of that press, and the cursor stays
+    // where it was. Before the watch on unsaved text (T-043) the screen went and the figure was lost without a
+    // word. Now the watch leaves the field itself, waits for the save, and asks nothing.
     const rate = () => page.getByLabel('Rate in rupees').first();
     const seen = problems.length;
+    // The question must not come up at all, not even for the moment the save takes: every opening is counted.
+    await page.evaluate(() => {
+      const box = document.querySelector('dialog[data-unsaved-dialog]');
+      window.wxAskedHere = 0;
+      new MutationObserver(() => { if (box.open) window.wxAskedHere += 1; }).observe(box, { attributes: true, attributeFilter: ['open'] });
+    });
     await rate().click();
     await rate().fill('12600');
-    const pressed = Date.now();
     await Promise.all([page.waitForURL(/\/admin\/contacts(\?|$)/, { timeout: 20000 }), menuLink('/admin/contacts').click()]);
-    const waited = Date.now() - pressed;
+    const flashed = await page.evaluate(() => window.wxAskedHere);
     must(!(await asking()), 'the question is on the screen: the figure was not saved in time');
     await quiet();
     // The answer of the save was still being drawn into the page when the first version left: the page that was
@@ -579,12 +590,15 @@ if (signedIn) {
     must(problems.length === seen, `leaving threw on the page: ${[...new Set(problems.slice(seen))].join(' | ').slice(0, 200)}`);
     await page.goto(base + quotePath, { waitUntil: 'domcontentloaded' });
     await quiet();
-    must((await rate().inputValue()) === '12600', `the figure is lost: the rate reads ${await rate().inputValue()}, not 12600`);
-    // Back to the price of this journey, the usual way: type, leave the field, see the total.
+    const kept = await rate().inputValue();
+    // Back to the price of this journey, the usual way: type, leave the field, see the total. This comes before
+    // the verdict, so that a fault found here does not also fail the steps that read the total afterwards.
     await rate().fill('12500'); await rate().blur(); await quiet();
     await shown(page.getByText(amount(quoted.total)).first(), 15000, `the total again, ${quoted.total}`);
+    must(kept === '12600', `the figure is lost: the rate read ${kept}, not 12600`);
+    must(flashed === 0, `the question came up ${flashed === 1 ? 'once' : `${flashed} times`} while the figure was being saved, and closed by itself`);
     must((await unsaved()).standing === 0, 'the quotation is stored and still marked as not saved');
-    return `12600 typed and the link pressed at once: Contacts opened after ${waited} ms without a question, and the quotation holds 12600; put back to 12,500`;
+    return '12600 typed and the link pressed at once: Contacts opened, the question never came up, and the quotation holds 12600; put back to 12,500';
   });
 
   await step('the quotation PDF', async () => {
