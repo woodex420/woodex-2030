@@ -121,7 +121,10 @@
                     </div>
                 </div>
 
-                <a href="{{ route('admin.profile.security') }}" wire:navigate role="menuitem" class="wx-topbar-menu-item mt-1">
+                <a href="{{ route('admin.system.preferences') }}" wire:navigate role="menuitem" class="wx-topbar-menu-item mt-1">
+                    <x-icon name="settings" class="size-4 shrink-0" /> Workspace preferences
+                </a>
+                <a href="{{ route('admin.profile.security') }}" wire:navigate role="menuitem" class="wx-topbar-menu-item">
                     <x-icon name="shield" class="size-4 shrink-0" /> Security &amp; Telegram
                 </a>
                 @if (request()->attributes->get('synthetic_direct_preview') === true)

@@ -38,18 +38,16 @@ it('lists every destination exactly once', function () {
 
     // The exact numbers are asserted on purpose: a destination cannot join or leave the registry without a test.
     expect($items)->toHaveCount(68)
-        ->and($routes)->toHaveCount(50)
-        ->and(array_unique($routes))->toHaveCount(50, 'a screen is listed twice')
+        ->and($routes)->toHaveCount(52)
+        ->and(array_unique($routes))->toHaveCount(52, 'a screen is listed twice')
         ->and(array_unique(array_column($items, 'id')))->toHaveCount(68, 'two destinations share an id')
         ->and(array_unique(array_column($groups, 'id')))->toHaveCount(count($groups))
         ->and(array_column($groups, 'title'))->not->toContain(null);
 
     foreach ($items as $item) {
         // Nothing in the registry is a dead end: a destination has a screen here, or a screen in the
-        // Agency OS dashboard, or a wave in which it arrives — except the two preferences screens, which
-        // are not scheduled.
-        $scheduled = $item['route'] !== null || $item['legacy'] !== null || $item['wave'] !== null;
-        expect($scheduled || in_array($item['id'], ['workspace-preferences', 'team-onboarding'], true))->toBeTrue($item['id']);
+        // Agency OS dashboard, or a wave in which it arrives.
+        expect($item['route'] !== null || $item['legacy'] !== null || $item['wave'] !== null)->toBeTrue($item['id']);
         expect($item['wave'] === null || isset(AdminNavigation::WAVES[$item['wave']]))->toBeTrue($item['id'].' names a wave the plan does not have');
     }
 });

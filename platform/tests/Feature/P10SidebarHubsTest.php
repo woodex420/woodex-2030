@@ -70,7 +70,8 @@ it('consolidates the sidebar to the confirmed P10.1 map', function () {
     // Six ledger tools now share one front door; every original URL remains available.
     // Owner restored Commerce Overview and added native Products plus explicit Shop/Series Soon pages (+4 destinations).
     // 50 since 2026-11-16: the audit log is named beside the Platform hub, and Feature status joined (+2).
-    expect($live)->toHaveCount(50);
+    // 52 since 2026-11-18: Workspace preferences and Team onboarding were built (T-056).
+    expect($live)->toHaveCount(52);
     expect(collect($groups['Operations']['items'])->pluck('route')->all())->toBe(['admin.projects.index', 'admin.projects.board', 'admin.projects.costs', 'admin.projects.portal', 'admin.projects.handovers']);
 });
 

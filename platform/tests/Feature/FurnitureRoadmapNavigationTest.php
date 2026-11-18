@@ -20,8 +20,12 @@ it('keeps switched-off modules out of the sidebar and reports them on Feature st
     foreach (['conversations', 'chat-bot', 'estimations', 'client-portal', 'automations', 'sequences', 'whatsapp-templates', 'marketing', 'pages', 'page-builder', 'blog', 'forms', 'theme'] as $id) {
         expect($status[$id]['state'])->toBe(AdminNavigation::OFF, $id);
     }
-    foreach (['site-overview', 'navigation', 'sections-templates', 'workspace-preferences', 'team-onboarding'] as $id) {
+    foreach (['site-overview', 'navigation', 'sections-templates'] as $id) {
         expect($status[$id]['state'])->toBe(AdminNavigation::PLANNED, $id);
+    }
+    // Built on 18 November (T-056): open in every installation, whatever is switched on.
+    foreach (['workspace-preferences', 'team-onboarding'] as $id) {
+        expect($status[$id]['state'])->toBe(AdminNavigation::AVAILABLE, $id);
     }
 
     $this->actingAs($owner)->get('/admin')->assertOk()
@@ -42,5 +46,10 @@ it('does not advertise settings or automation privileges to sales staff', functi
     expect(collect(AdminNavigation::for($sales))->pluck('title')->all())->not->toContain('Growth', 'System', 'Accounts');
 
     $known = collect(AdminNavigation::status($sales))->flatMap(fn (array $group): array => $group['items'])->pluck('id')->all();
-    expect($known)->not->toContain('chat-bot', 'automations', 'workspace-preferences', 'team-onboarding', 'settings', 'access-team');
+    // One by one: "not to contain a, b, c" holds as soon as any one of them is missing.
+    foreach (['chat-bot', 'automations', 'team-onboarding', 'settings', 'access-team'] as $id) {
+        expect($known)->not->toContain($id);
+    }
+    // Their own preferences are everybody's (T-056).
+    expect($known)->toContain('workspace-preferences');
 });

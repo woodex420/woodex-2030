@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full" @if (config('woodex.admin.sidebar_tone') === 'charcoal') data-sidebar-tone="charcoal" @endif>
+{{-- Workspace preferences (T-056): the person's appearance is the default of a browser that was never switched by
+     hand, and single keys act as shortcuts unless the person switched them off. Both are words of a fixed list. --}}
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full" @if (config('woodex.admin.sidebar_tone') === 'charcoal') data-sidebar-tone="charcoal" @endif
+      data-theme-default="{{ \App\Support\WorkspacePreferences::appearance(auth()->user()) }}" data-shortcuts="{{ \App\Support\WorkspacePreferences::shortcuts(auth()->user()) ? 'on' : 'off' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,8 +13,8 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <script nonce="{{ Vite::cspNonce() }}">
         (() => {
-            let mode = 'system';
-            try { mode = localStorage.getItem('wx.theme') || 'system'; } catch (e) {}
+            let mode = document.documentElement.dataset.themeDefault || 'system';
+            try { mode = localStorage.getItem('wx.theme') || mode; } catch (e) {}
             if (!['light', 'dark', 'system'].includes(mode)) mode = 'system';
             const dark = mode === 'dark' || (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
             document.documentElement.classList.toggle('dark', dark);

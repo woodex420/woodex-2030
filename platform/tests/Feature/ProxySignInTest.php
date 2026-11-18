@@ -5,13 +5,18 @@ declare(strict_types=1);
 use App\Http\Responses\AuthLoginResponse;
 use Illuminate\Support\Facades\Hash;
 
+/*
+| Everybody who signs in here already works in the admin (last_login_at is set). A first sign-in is led to the
+| welcome of Workspace preferences whatever link was followed: tests/Feature/WorkspacePreferencesTest.php.
+*/
+
 it('renders a same-origin relative sign-in action even when the backend sees HTTP', function () {
     $this->get('http://internal-preview.test/admin/login')->assertOk()
         ->assertSee('action="/admin/login"', false)->assertSee('data-two-factor-url="/admin/two-factor-challenge"', false);
 });
 
 it('returns a relative intended destination instead of a proxy HTTP redirect after normal authentication', function () {
-    $user = $this->userWithRole('owner', ['password' => Hash::make('Proxy-fixture-105')]);
+    $user = $this->userWithRole('owner', ['password' => Hash::make('Proxy-fixture-105'), 'last_login_at' => now()->subDay()]);
     $this->withSession(['url.intended' => 'http://localhost/admin/projects?tab=costs'])
         ->postJson(route('login.store'), ['email' => $user->email, 'password' => 'Proxy-fixture-105'])
         ->assertOk()->assertJson(['two_factor' => false, 'redirect' => '/admin/projects?tab=costs'])->assertSessionMissing('url.intended');
@@ -19,7 +24,7 @@ it('returns a relative intended destination instead of a proxy HTTP redirect aft
 });
 
 it('does not navigate to an external intended destination', function () {
-    $user = $this->userWithRole('owner', ['password' => Hash::make('Proxy-fixture-105')]);
+    $user = $this->userWithRole('owner', ['password' => Hash::make('Proxy-fixture-105'), 'last_login_at' => now()->subDay()]);
     $this->withSession(['url.intended' => 'https://external.invalid/steal'])
         ->postJson(route('login.store'), ['email' => $user->email, 'password' => 'Proxy-fixture-105'])
         ->assertOk()->assertJsonPath('redirect', '/admin');
@@ -39,7 +44,7 @@ it('still challenges confirmed two-factor accounts without authenticating or con
 });
 
 it('preserves the native final two-factor verification and recovery-code consumption', function () {
-    $user = $this->userWithRole('owner', ['password' => Hash::make('Proxy-fixture-105'), 'two_factor_secret' => encrypt('JBSWY3DPEHPK3PXP'), 'two_factor_confirmed_at' => now(), 'two_factor_recovery_codes' => encrypt(json_encode(['fixture-only-recovery']))]);
+    $user = $this->userWithRole('owner', ['password' => Hash::make('Proxy-fixture-105'), 'last_login_at' => now()->subDay(), 'two_factor_secret' => encrypt('JBSWY3DPEHPK3PXP'), 'two_factor_confirmed_at' => now(), 'two_factor_recovery_codes' => encrypt(json_encode(['fixture-only-recovery']))]);
     $this->withSession(['url.intended' => '/admin/projects'])->postJson(route('login.store'), ['email' => $user->email, 'password' => 'Proxy-fixture-105'])->assertJson(['two_factor' => true]);
     $this->postJson(route('two-factor.login.store'), ['recovery_code' => 'wrong-recovery'])->assertUnprocessable();
     $this->assertGuest();
@@ -49,7 +54,7 @@ it('preserves the native final two-factor verification and recovery-code consump
 });
 
 it('keeps JavaScript-disabled native Fortify login redirects unchanged', function () {
-    $user = $this->userWithRole('owner', ['password' => Hash::make('Proxy-fixture-105')]);
+    $user = $this->userWithRole('owner', ['password' => Hash::make('Proxy-fixture-105'), 'last_login_at' => now()->subDay()]);
     $this->post(route('login.store'), ['email' => $user->email, 'password' => 'Proxy-fixture-105'])->assertRedirect('/admin');
     $this->assertAuthenticatedAs($user);
 });

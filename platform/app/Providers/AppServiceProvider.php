@@ -60,6 +60,7 @@ use App\Integrations\WhatsApp\WhatsAppCredentials;
 use App\Livewire\Support\TellsTheBrowserOfComplaints;
 use App\Models\User;
 use App\Support\DebugGuard;
+use App\Support\WorkspacePreferences;
 use Illuminate\Auth\Events\Authenticated;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -229,6 +230,11 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(Login::class, function (Login $event): void {
             if ($event->user instanceof User) {
+                // A first sign-in is led to the welcome (T-056). The mark lives in the session until that page
+                // is shown, so a role that must switch on two-factor first is still led there afterwards.
+                if ($event->user->last_login_at === null && request()->hasSession()) {
+                    request()->session()->put(WorkspacePreferences::FIRST_SIGN_IN, true);
+                }
                 $event->user->forceFill([
                     'last_login_at' => now(),
                     'last_login_ip' => request()->ip(),

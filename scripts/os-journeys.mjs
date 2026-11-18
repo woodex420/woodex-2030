@@ -1112,6 +1112,103 @@ if (signedIn) {
   });
 }
 
+// The workspace as each person wants it, and the team's way in (list line T-056).
+{
+  const saved = () => shown(page.locator('.wx-toast-stack > div', { hasText: 'Your preferences are saved.' }).last(), 8000, 'the notice of the save');
+  const look = (where) => where.evaluate(() => ({ dark: document.documentElement.classList.contains('dark'), keys: document.documentElement.dataset.shortcuts, kept: localStorage.getItem('wx.theme') }));
+
+  await step('preferences are kept with the person: the appearance, the single keys, the screen after sign-in', async () => {
+    await become('owner');
+    await page.goto(`${base}/admin/system/preferences`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    must((await look(page)).keys === 'on', 'single keys are off before anybody chose so');
+    await page.getByLabel('Dark', { exact: true }).check();
+    await page.getByLabel(/Single keys act as shortcuts/).uncheck();
+    await page.locator('#start').selectOption('leads');
+    must((await unsaved()).standing === 1, 'choices that are not saved leave no mark');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+    await saved();
+    const here = await look(page);
+    must(here.dark && here.kept === 'dark', `the page did not turn dark at once (${JSON.stringify(here)})`);
+    must(here.keys === 'off', 'single keys are still on in this page');
+    must((await unsaved()).standing === 0, 'saved preferences are still marked as not saved');
+    // N opens "New lead" from anywhere. Switched off, it does nothing.
+    await page.goto(`${base}/admin`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await page.keyboard.press('n');
+    await page.waitForTimeout(700);
+    must(onPath('/admin'), `N still acts with single keys switched off: ${page.url()}`);
+
+    // Another browser, never switched by hand: sign-in opens the chosen screen, and it is dark there too.
+    const other = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+    const second = await other.newPage();
+    watch(second, 'second browser: ');
+    try {
+      const owner = played('owner');
+      await second.goto(`${base}/admin/login`, { waitUntil: 'domcontentloaded' });
+      await second.locator('#email').fill(owner.email);
+      await second.locator('#password').fill(owner.password);
+      await Promise.all([second.waitForURL((url) => !url.pathname.endsWith('/login'), { timeout: 20000 }), second.getByRole('button', { name: 'Sign in', exact: true }).click()]);
+      await second.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+      must(new URL(second.url()).pathname === '/admin/leads', `sign-in opened ${new URL(second.url()).pathname}, not the chosen screen`);
+      const there = await look(second);
+      must(there.dark && there.kept === null, `the appearance did not follow the person to a browser that was never switched (${JSON.stringify(there)})`);
+      must(there.keys === 'off', 'single keys are on in the other browser');
+    } finally {
+      await other.close();
+    }
+
+    // Back to how it was: the next run of this journey starts as this one did.
+    await page.goto(`${base}/admin/system/preferences`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await page.getByLabel('As this device says', { exact: true }).check();
+    await page.getByLabel(/Single keys act as shortcuts/).check();
+    await page.locator('#start').selectOption('');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+    await saved();
+    must((await look(page)).keys === 'on', 'single keys did not come back');
+    // And with single keys on again, N acts: without this, "N does nothing" above would hold for a key that never did.
+    await page.goto(`${base}/admin`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await Promise.all([page.waitForURL(/\/admin\/leads\?/, { timeout: 15000 }), page.keyboard.press('n')]);
+    await quiet();
+    return 'dark at once, and in a second browser that was never switched; N does nothing with single keys off and opens "New lead" with them on; sign-in opened Leads; put back';
+  });
+
+  await step('team onboarding: an invited member stands as waiting, and the link is sent again', async () => {
+    await become('owner');
+    const mail = `joiner.${stamp}@woodex.test`;
+    await page.goto(`${base}/admin/users`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await page.getByRole('button', { name: 'Invite user' }).click();
+    await shown(page.locator('#name'), 15000, 'the form "Invite a team member"');
+    await page.locator('#name').fill(`Joiner ${stamp}`);
+    await page.locator('#email').fill(mail);
+    await page.getByRole('radio', { name: /^Sales\b(?! Manager)/ }).first().check();
+    await page.getByRole('button', { name: 'Send invitation' }).click();
+    await page.locator('#name').waitFor({ state: 'detached', timeout: 15000 });
+    await quiet();
+
+    await page.goto(`${base}/admin/system/onboarding`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    const row = page.locator(`tr[data-member="${mail}"]`);
+    await shown(row, 15000, 'the invited member on Team onboarding');
+    must((await row.getAttribute('data-through')) === 'no', 'a member who has never signed in stands as through');
+    const words = flat(await row.innerText());
+    must(/Link sent/.test(words) && /not used yet/.test(words) && /has not signed in/.test(words) && /Waiting to sign in/.test(words), `the row reads "${words.slice(0, 200)}"`);
+    // The one button of the list is on the screen at this width, not pushed out of sight to the right.
+    const fits = await row.evaluate((line) => { const frame = line.closest('table').parentElement; return { list: frame.scrollWidth, room: frame.clientWidth }; });
+    must(fits.list <= fits.room, `the list is ${fits.list} px wide in a frame of ${fits.room} px: its button is pushed out of sight`);
+    const me = page.locator(`tr[data-member="${played('owner').email}"]`);
+    must((await me.getAttribute('data-through')) === 'yes', 'the owner, who is signed in, does not stand as through');
+    const count = async (key) => Number(await page.locator(`[data-onboarding-count="${key}"]`).innerText());
+    must((await count('not_signed_in')) >= 1 && (await count('through')) >= 1, 'the numbers above the list do not count the two');
+    await row.getByRole('button', { name: `Send the link again to Joiner ${stamp}` }).click();
+    await shown(page.locator('.wx-toast-stack > div', { hasText: `A new link to set a password was sent to ${mail}.` }), 8000, 'the notice that the link was sent');
+    return `${mail}: link sent and not used, not signed in, waiting; the link was sent again; ${await count('through')} of ${await count('members')} members are through`;
+  });
+}
+
 await browser.close();
 const failed = steps.filter((entry) => entry.result === 'FAILED');
 const serverErrors = problems.filter((problem) => problem.startsWith('HTTP 5'));

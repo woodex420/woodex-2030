@@ -281,11 +281,16 @@ await step('The first owner signs in to an admin that holds no sample records', 
   await page.fill('#email', email);
   await page.fill('#password', password);
   await Promise.all([page.waitForURL((url) => !/\/login$/.test(url.pathname), { timeout: 30000 }), page.getByRole('button', { name: 'Sign in' }).click()]);
-  must(/\/admin$/.test(new URL(page.url()).pathname), `after the sign-in the owner is at ${new URL(page.url()).pathname}`);
+  // A first sign-in is led to the welcome of Workspace preferences (list line T-056): protect the sign-in, make
+  // the workspace yours, see what you can open. The owner who has just installed the site is such a person.
+  must(/\/admin\/system\/preferences$/.test(new URL(page.url()).pathname), `after the first sign-in the owner is at ${new URL(page.url()).pathname}, not at the welcome`);
+  await page.locator('[data-welcome]').waitFor({ timeout: 10000 });
+  must(!/NOT PRODUCTION|Demo workspace|sample data/i.test(await words()), 'a real installation shows the demo notice');
+  await page.goto(`${base}/admin`, { waitUntil: 'load' });
   const text = await words();
-  must(!/NOT PRODUCTION|Demo workspace|sample data/i.test(text), 'a real installation shows the demo notice');
-  must(/Dashboard/i.test(await page.title()) || /Dashboard/i.test(text), 'the first screen after the sign-in is not the dashboard');
-  return 'the dashboard, without the demo notice';
+  must(/Dashboard/i.test(await page.title()) || /Dashboard/i.test(text), 'the dashboard does not open after the welcome');
+  must(!/NOT PRODUCTION|Demo workspace|sample data/i.test(text), 'the dashboard of a real installation shows the demo notice');
+  return 'the welcome of a first sign-in, then the dashboard, without the demo notice';
 });
 
 await step('System health says what the site runs on', async () => {

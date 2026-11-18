@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\System;
 
 use App\Support\AdminNavigation;
+use App\Support\ReleaseNotes;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -34,6 +35,6 @@ class FeatureStatus extends Component
             }
         }
 
-        return view('livewire.admin.system.feature-status', ['groups' => $groups, 'counts' => $counts]);
+        return view('livewire.admin.system.feature-status', ['groups' => $groups, 'counts' => $counts, 'releases' => array_slice(ReleaseNotes::all(), 0, 5)]);
     }
 }

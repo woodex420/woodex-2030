@@ -9,7 +9,8 @@ it('redirects guests to the admin login', function () {
 });
 
 it('signs in an active staff member and blocks deactivated accounts', function () {
-    $user = $this->userWithRole('sales', ['email' => 'sales@woodex.test', 'password' => 'secret-pass-1']);
+    // Somebody who already works here: a first sign-in is led to the welcome instead (T-056).
+    $user = $this->userWithRole('sales', ['email' => 'sales@woodex.test', 'password' => 'secret-pass-1', 'last_login_at' => now()->subDay()]);
 
     $this->post(route('login.store'), ['email' => 'sales@woodex.test', 'password' => 'secret-pass-1'])
         ->assertRedirect(config('fortify.home'));

@@ -82,11 +82,16 @@ it('tells each person only about what their role could use', function () {
     $accountant = $this->userWithRole('accountant');
     $known = collect(AdminNavigation::status($accountant))->flatMap(fn (array $group): array => $group['items'])->pluck('id')->all();
 
-    expect($known)->toContain('ledger-reports', 'payables', 'feature-status')
-        ->and($known)->not->toContain('settings', 'access-team', 'chat-bot', 'workspace-preferences');
+    expect($known)->toContain('ledger-reports', 'payables', 'feature-status', 'workspace-preferences');
+    // One by one: "not to contain a, b, c" holds as soon as any one of them is missing.
+    foreach (['settings', 'access-team', 'chat-bot', 'team-onboarding'] as $id) {
+        expect($known)->not->toContain($id);
+    }
 
     $this->actingAs($accountant)->get(route('admin.system.features'))->assertOk()
-        ->assertSee('Ledger &amp; reports', false)->assertDontSee('Workspace preferences');
+        ->assertSee('Ledger &amp; reports', false)->assertSee('data-feature="workspace-preferences"', false)
+        // The news of a release may name a screen; the list of destinations names only what this role could use.
+        ->assertDontSee('data-feature="team-onboarding"', false);
 });
 
 it('keeps Feature status closed to someone with no access to the admin', function () {

@@ -2,6 +2,14 @@
     <x-admin.page-header title="Security & Telegram" description="Protect your account with two-factor authentication and receive Woodex alerts on Telegram."
                          :breadcrumbs="['Profile' => null, 'Security' => null]" />
 
+    @if ($enabled && session(\App\Support\WorkspacePreferences::FIRST_SIGN_IN) === true)
+        {{-- A first sign-in whose role needs two-factor was sent here before its welcome (T-056): the way on. --}}
+        <aside role="note" data-first-steps class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success-500/40 bg-success-50 px-4 py-3 text-theme-sm text-success-700 dark:bg-success-500/10">
+            <p>Two-factor sign-in is on. Two more things before you start.</p>
+            <x-admin.button size="sm" :href="route('admin.system.preferences', ['welcome' => 1])" wire:navigate>Continue</x-admin.button>
+        </aside>
+    @endif
+
     <x-admin.google-notice />
     @include('livewire.admin.profile.google-sign-in')
 
