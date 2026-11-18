@@ -1,25 +1,36 @@
-# Guarded Hostinger staging Git-root bridge.
-# Preferred deployment: private app source, document root platform/public.
-# Never enable directory listings or let existing repository files bypass rules.
+# The bridge from a website's folder into the Laravel application (platform/public).
+#
+# Hostinger's Git deployment copies the release into the website's own folder, so the application's files lie
+# inside a folder that the web server serves. Nothing of them may be handed out: an address is either a file of
+# Laravel's public folder or the application's. Where a host lets the document root be set, point it at
+# platform/public instead; then this file is not used.
+#
+# Tried with Apache on every push that touches it (workflow os-ci.yml, job "hostinger").
 Options -Indexes -MultiViews
 DirectoryIndex index.php
 
 RewriteEngine On
 
-# Block dotfiles and source/configuration paths, including direct public-path access.
+# Dotfiles, the application's folders and the files beside them: refused, also when asked for by their own path.
 RewriteRule (^|/)\. - [F,END]
 RewriteRule ^(?:platform|apps|api-source|deploy|docs|scripts|node_modules|vendor|storage|tests|resources|bootstrap|config|database)(?:/|$) - [F,END,NC]
-RewriteRule ^(?:install)(?:/|$) - [F,END,NC]
-RewriteRule ^(?:composer\.(?:json|lock)|package(?:-lock)?\.json|README\.md|AGENTS\.md|vercel\.json)$ - [F,END,NC]
+RewriteRule ^(?:composer\.(?:json|lock)|package(?:-lock)?\.json|README\.md|AGENTS\.md|vercel\.json|RELEASE\.json|WOODEX-SETUP-CODE\.txt)$ - [F,END,NC]
 
 # Keep the owner-approved frontend destination; do not forward private query strings.
 RewriteRule ^$ https://woodex-2030.vercel.app/ [R=302,END,QSD]
 
-# Only serve explicit public asset types from Laravel's public tree.
-RewriteCond %{DOCUMENT_ROOT}/platform/public/$1 -f
-RewriteRule ^((?:build|assets)/[a-zA-Z0-9_./-]+\.(?:css|js|mjs|png|jpe?g|webp|svg|ico|woff2?|ttf))$ platform/public/$1 [END]
+# Two addresses are always the application's, even if a file of that name was left behind by an older release.
+RewriteRule ^(?:robots\.txt|assets/theme\.css)$ index.php [END]
 
-# Real repository files must NOT win. Only the PHP front controller is executable.
+# A file of Laravel's public folder is served as it is: the built stylesheet and scripts, fonts, pictures, sounds,
+# the icons. Never a script.
+RewriteCond %{REQUEST_URI} !\.php$ [NC]
+RewriteCond %{DOCUMENT_ROOT}/platform/public/$1 -f
+RewriteRule ^([A-Za-z0-9_][A-Za-z0-9_./-]*)$ platform/public/$1 [END]
+
+# Everything else is the application's: the admin, the API, and the installer until the site is installed. The
+# installer is not closed here: the application closes it for good when the installation finishes, and until then
+# it asks for the setup code that only the hosting account can read.
 RewriteRule ^index\.php$ - [END]
 RewriteRule ^ index.php [END]
 

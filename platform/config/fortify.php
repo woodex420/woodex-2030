@@ -24,6 +24,16 @@ return [
 
     'home' => '/'.$adminPath,
 
+    /*
+    | Signing out leads to the sign-in page of the admin. Fortify's own answer is "/": the public website when the
+    | admin lives under /admin. In a website's folder on Hostinger "/" is forwarded to the shop on another address,
+    | and a browser that keeps the content policy (form-action 'self') does not let a form end there: the session
+    | was closed and the screen stayed as it was, as if "Sign out" did nothing (defect D-035).
+    */
+    'redirects' => [
+        'logout' => ($adminPath === '' ? '' : '/'.$adminPath).'/login',
+    ],
+
     'prefix' => $adminPath,
 
     'domain' => env('ADMIN_DOMAIN') ?: null,

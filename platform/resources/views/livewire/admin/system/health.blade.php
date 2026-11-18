@@ -4,7 +4,8 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         @foreach ($checks as $check)
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+                 data-health-check="{{ $check['label'] }}" data-health-state="{{ $check['ok'] ? 'ok' : 'check' }}">
                 <div class="flex items-center justify-between gap-3">
                     <span class="text-theme-sm text-gray-600 dark:text-gray-300">{{ $check['label'] }}</span>
                     <x-admin.badge :color="$check['ok'] ? 'success' : 'error'">{{ $check['ok'] ? 'OK' : 'Check' }}</x-admin.badge>

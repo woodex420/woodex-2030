@@ -1,4 +1,4 @@
 <?php
-// Hostinger Git checkout bridge. Prefer a document root set to platform/public.
-// No setup actions, database writes, migrations or environment generation here.
+// The bridge file of a website's folder (see .htaccess beside it): every address that is not a file of Laravel's
+// public folder starts the application here. It sets nothing up and writes nothing.
 require __DIR__.'/platform/public/index.php';

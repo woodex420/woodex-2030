@@ -6,6 +6,7 @@ use App\Support\Install\ProbesDatabase;
 use App\Support\Install\SiteState;
 use Dotenv\Dotenv;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Backup\Config\NotificationMailSenderConfig;
 
 /*
 | Web installer for Hostinger Git deploys without SSH (D-58). The site under test is a temporary Hostinger-like
@@ -359,4 +360,55 @@ it('names the site, the sender and the allowed origin after the address it is gi
         ->and($env['MAIL_MAILER'])->toBe('log')
         ->and($written)->not->toContain('woodex.com.pk')
         ->and($written)->not->toContain('Interior');
+});
+
+it('writes a sender that no part of the application refuses, also for a site opened by a number or a one-word name', function (string $address, string $sender) {
+    // Found by installing a release in a rehearsal at http://127.0.0.1: the sender became noreply@127.0.0.1, the
+    // backup package refused to start with it, and the second step stopped with "is not a valid email address".
+    $this->get('/install');
+    $this->post('/install', installerForm(['setup_code' => setupCode($this->data), 'app_url' => $address]))->assertOk();
+
+    $env = Dotenv::parse((string) file_get_contents($this->data.'/.env'));
+
+    expect($env['MAIL_FROM_ADDRESS'])->toBe($sender);
+    // The rule that stopped the installation, asked directly.
+    expect(NotificationMailSenderConfig::fromArray(['address' => $env['MAIL_FROM_ADDRESS'], 'name' => $env['MAIL_FROM_NAME']])->address)->toBe($sender);
+})->with([
+    'a domain' => ['https://admin.furniture.example', 'noreply@admin.furniture.example'],
+    'a domain with a port' => ['https://staging.furniture.example:8443', 'noreply@staging.furniture.example'],
+    'a number' => ['http://127.0.0.1:8195', 'noreply@woodex-os.invalid'],
+    'a one-word name' => ['http://localhost', 'noreply@woodex-os.invalid'],
+]);
+
+it('names the PHP of the website\'s own version in the cron line', function (string $binary, string $folder, string $expected) {
+    // A cron job's plain "php" can be an older version than the one chosen for the website; nothing of the
+    // application starts on it, and the only sign would be a heartbeat that never comes.
+    expect(Installer::phpForCron($binary, $folder))->toBe($expected);
+})->with([
+    'the command line itself' => ['/opt/alt/php84/usr/bin/php', '/opt/alt/php84/usr/bin', '/opt/alt/php84/usr/bin/php'],
+    'the web server\'s own program' => ['/opt/alt/php84/usr/bin/lsphp', '/opt/alt/php84/usr/bin', '/opt/alt/php84/usr/bin/php'],
+    'no program named, the folder says the version' => ['', '/opt/alt/php85/usr/bin', '/opt/alt/php85/usr/bin/php'],
+    'not a host with one folder per version' => ['/usr/sbin/php-fpm8.4', '/usr/bin', '/usr/bin/php'],
+]);
+
+it('checks on the server every PHP extension that the packages of a release ask for', function () {
+    // Composer checks only the PHP version when the application starts. An extension a package needs and the host
+    // has switched off shows much later, as a broken upload or a broken PDF. "exif" was not in the installer's
+    // list although two packages ask for it (found when the first release was put together, T-144).
+    $lock = json_decode((string) file_get_contents(base_path('composer.lock')), true);
+    $asked = [];
+
+    foreach ($lock['packages'] as $package) {
+        foreach (array_keys($package['require'] ?? []) as $requirement) {
+            if (str_starts_with($requirement, 'ext-')) {
+                $asked[substr($requirement, 4)][] = $package['name'];
+            }
+        }
+    }
+
+    $unchecked = array_diff(array_keys($asked), Installer::EXTENSIONS, Installer::ALWAYS_PRESENT);
+
+    expect($asked)->not->toBeEmpty()
+        ->and(array_values($unchecked))->toBe([])
+        ->and(Installer::EXTENSIONS)->toContain('exif', 'pdo_mysql', 'gd', 'intl', 'zip');
 });
