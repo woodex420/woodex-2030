@@ -1144,30 +1144,48 @@ final class TwoWritersWorld
  | What must hold after every run, whatever the step was.
  * ---------------------------------------------------------------------------------------------------------- */
 
-/** @return list<string> */
+/**
+ * What this run made wrong in the books. Each question counts the rows that are wrong; a run is charged with a
+ * question whose count rose while it ran, and is shown the newest of those rows. So a fault is reported once, by
+ * the run and the step that made it, and the runs and steps after it are judged on what they do themselves.
+ * (Asked as "is anything wrong?", the first invoice paid twice was reported again by every later run, and the
+ * next step stopped at its first run under that invoice's name: a reader was told the wrong step.)
+ *
+ * @return list<string>
+ */
 function twoWritersBooks(): array
 {
+    /** @var array<string, int> $known what was wrong when the run before this one ended */
+    static $known = [];
     $faults = [];
-    $ask = static function (string $what, string $sql) use (&$faults): void {
-        $rows = DB::select($sql.' LIMIT 3');
-        if ($rows !== []) {
+    $ask = static function (string $what, string $sql, string $newest) use (&$faults, &$known): void {
+        $wrong = (int) DB::selectOne("SELECT COUNT(*) AS wrong FROM ({$sql}) AS wrong_rows")->wrong;
+        if ($wrong > ($known[$what] ?? 0)) {
+            $rows = DB::select("{$sql} ORDER BY {$newest} DESC LIMIT 3");
             $faults[] = $what.': '.implode('; ', array_map(fn (object $row): string => implode(' ', array_map('strval', (array) $row)), $rows));
         }
+        $known[$what] = $wrong;
+    };
+    $differs = static function (string $what, int $by, string $words) use (&$faults, &$known): void {
+        if ($by !== ($known[$what] ?? 0)) {
+            $faults[] = $words;
+        }
+        $known[$what] = $by;
     };
 
-    $ask('a journal entry does not balance', 'SELECT e.entry_no, COALESCE(SUM(l.debit_minor), 0) AS debit, COALESCE(SUM(l.credit_minor), 0) AS credit FROM journal_entries e LEFT JOIN journal_lines l ON l.journal_entry_id = e.id GROUP BY e.id, e.entry_no HAVING COALESCE(SUM(l.debit_minor), 0) <> COALESCE(SUM(l.credit_minor), 0) OR COUNT(l.id) < 2');
-    $ask('a number of a journal entry is given twice', 'SELECT entry_no FROM journal_entries GROUP BY entry_no HAVING COUNT(*) > 1');
-    $ask('one document is in the journal twice', 'SELECT source_type, source_id, COUNT(*) AS times FROM journal_entries WHERE source_type IS NOT NULL GROUP BY source_type, source_id HAVING COUNT(*) > 1');
-    $ask('a journal entry is reversed twice', 'SELECT reverses_entry_id, COUNT(*) AS times FROM journal_entries WHERE reverses_entry_id IS NOT NULL GROUP BY reverses_entry_id HAVING COUNT(*) > 1');
-    $ask('a reversal and its entry do not name each other', 'SELECT e.entry_no FROM journal_entries e JOIN journal_entries r ON r.reverses_entry_id = e.id WHERE e.reversed_by_entry_id IS NULL OR e.reversed_by_entry_id <> r.id');
-    $ask('an invoice is paid beyond its total', 'SELECT number, paid_minor, balance_minor, total_minor FROM invoices WHERE paid_minor > total_minor OR balance_minor < 0 OR (status <> \'void\' AND paid_minor + balance_minor <> total_minor)');
-    $ask('an invoice and its allocations disagree', 'SELECT i.number, i.paid_minor, COALESCE(SUM(a.amount_minor), 0) AS allocated, i.total_minor FROM invoices i LEFT JOIN payment_allocations a ON a.invoice_id = i.id GROUP BY i.id, i.number, i.paid_minor, i.total_minor HAVING COALESCE(SUM(a.amount_minor), 0) <> i.paid_minor OR COALESCE(SUM(a.amount_minor), 0) > i.total_minor');
-    $ask('a payment is allocated beyond its amount', 'SELECT p.id, p.amount_minor, SUM(a.amount_minor) AS allocated FROM payments p JOIN payment_allocations a ON a.payment_id = p.id GROUP BY p.id, p.amount_minor HAVING SUM(a.amount_minor) > p.amount_minor');
-    $ask('a payment that is not verified is allocated', "SELECT p.id, p.status FROM payments p JOIN payment_allocations a ON a.payment_id = p.id WHERE p.status <> 'verified'");
-    $ask('a receipt number is given twice', 'SELECT receipt_number FROM payments WHERE receipt_number IS NOT NULL GROUP BY receipt_number HAVING COUNT(*) > 1');
-    $ask('a receipted payment is not in the journal', "SELECT p.id, p.receipt_number FROM payments p LEFT JOIN journal_entries e ON e.source_type = 'payment' AND e.source_id = p.id WHERE p.receipt_number IS NOT NULL AND e.id IS NULL");
-    $ask('an expense is not in the journal', 'SELECT id, description FROM expenses WHERE journal_entry_id IS NULL');
-    $ask('a bill and its payments disagree', 'SELECT b.number, b.paid_minor, COALESCE(SUM(p.amount_minor), 0) AS paid, b.total_minor FROM bills b LEFT JOIN bill_payments p ON p.bill_id = b.id GROUP BY b.id, b.number, b.paid_minor, b.total_minor HAVING COALESCE(SUM(p.amount_minor), 0) <> b.paid_minor OR COALESCE(SUM(p.amount_minor), 0) > b.total_minor');
+    $ask('a journal entry does not balance', 'SELECT e.entry_no, COALESCE(SUM(l.debit_minor), 0) AS debit, COALESCE(SUM(l.credit_minor), 0) AS credit FROM journal_entries e LEFT JOIN journal_lines l ON l.journal_entry_id = e.id GROUP BY e.id, e.entry_no HAVING COALESCE(SUM(l.debit_minor), 0) <> COALESCE(SUM(l.credit_minor), 0) OR COUNT(l.id) < 2', 'e.id');
+    $ask('a number of a journal entry is given twice', 'SELECT entry_no FROM journal_entries GROUP BY entry_no HAVING COUNT(*) > 1', 'MAX(id)');
+    $ask('one document is in the journal twice', 'SELECT source_type, source_id, COUNT(*) AS times FROM journal_entries WHERE source_type IS NOT NULL GROUP BY source_type, source_id HAVING COUNT(*) > 1', 'MAX(id)');
+    $ask('a journal entry is reversed twice', 'SELECT reverses_entry_id, COUNT(*) AS times FROM journal_entries WHERE reverses_entry_id IS NOT NULL GROUP BY reverses_entry_id HAVING COUNT(*) > 1', 'MAX(id)');
+    $ask('a reversal and its entry do not name each other', 'SELECT e.entry_no FROM journal_entries e JOIN journal_entries r ON r.reverses_entry_id = e.id WHERE e.reversed_by_entry_id IS NULL OR e.reversed_by_entry_id <> r.id', 'r.id');
+    $ask('an invoice is paid beyond its total', 'SELECT number, paid_minor, balance_minor, total_minor FROM invoices WHERE paid_minor > total_minor OR balance_minor < 0 OR (status <> \'void\' AND paid_minor + balance_minor <> total_minor)', 'id');
+    $ask('an invoice and its allocations disagree', 'SELECT i.number, i.paid_minor, COALESCE(SUM(a.amount_minor), 0) AS allocated, i.total_minor FROM invoices i LEFT JOIN payment_allocations a ON a.invoice_id = i.id GROUP BY i.id, i.number, i.paid_minor, i.total_minor HAVING COALESCE(SUM(a.amount_minor), 0) <> i.paid_minor OR COALESCE(SUM(a.amount_minor), 0) > i.total_minor', 'i.id');
+    $ask('a payment is allocated beyond its amount', 'SELECT p.id, p.amount_minor, SUM(a.amount_minor) AS allocated FROM payments p JOIN payment_allocations a ON a.payment_id = p.id GROUP BY p.id, p.amount_minor HAVING SUM(a.amount_minor) > p.amount_minor', 'p.id');
+    $ask('a payment that is not verified is allocated', "SELECT p.id, p.status FROM payments p JOIN payment_allocations a ON a.payment_id = p.id WHERE p.status <> 'verified'", 'a.id');
+    $ask('a receipt number is given twice', 'SELECT receipt_number FROM payments WHERE receipt_number IS NOT NULL GROUP BY receipt_number HAVING COUNT(*) > 1', 'MAX(id)');
+    $ask('a receipted payment is not in the journal', "SELECT p.id, p.receipt_number FROM payments p LEFT JOIN journal_entries e ON e.source_type = 'payment' AND e.source_id = p.id WHERE p.receipt_number IS NOT NULL AND e.id IS NULL", 'p.id');
+    $ask('an expense is not in the journal', 'SELECT id, description FROM expenses WHERE journal_entry_id IS NULL', 'id');
+    $ask('a bill and its payments disagree', 'SELECT b.number, b.paid_minor, COALESCE(SUM(p.amount_minor), 0) AS paid, b.total_minor FROM bills b LEFT JOIN bill_payments p ON p.bill_id = b.id GROUP BY b.id, b.number, b.paid_minor, b.total_minor HAVING COALESCE(SUM(p.amount_minor), 0) <> b.paid_minor OR COALESCE(SUM(p.amount_minor), 0) > b.total_minor', 'b.id');
 
     // No number left out: a number is taken inside the transaction that uses it, so a refusal gives it back.
     $year = now()->format('Y');
@@ -1175,9 +1193,7 @@ function twoWritersBooks(): array
         $sequence = DB::table('number_sequences')->where('key', $key)->first();
         $used = DB::table($table)->whereNotNull($column)->count();
         $next = $sequence->period === $year || $sequence->reset !== 'yearly' ? (int) $sequence->next_number : 1;
-        if ($next - 1 !== $used) {
-            $faults[] = "the series \"{$key}\" has given ".($next - 1)." numbers and {$used} documents carry one";
-        }
+        $differs("series {$key}", $next - 1 - $used, "the series \"{$key}\" has given ".($next - 1)." numbers and {$used} documents carry one");
     }
 
     // The control accounts say what the documents say.
@@ -1187,14 +1203,12 @@ function twoWritersBooks(): array
         ->whereColumn('source_id', $type === 'invoice' ? 'invoices.id' : ($type === 'payment' ? 'payments.id' : 'bills.id'));
     $invoiced = (int) DB::table('invoices')->whereExists($posted('invoice'))->sum('total_minor');
     $settled = (int) DB::table('payment_allocations')->join('payments', 'payments.id', '=', 'payment_allocations.payment_id')->whereExists($posted('payment'))->sum('payment_allocations.amount_minor');
-    if (($receivable = $balance('1100')) !== $invoiced - $settled) {
-        $faults[] = "the receivable account stands at {$receivable} paisa; the posted invoices less the posted payments allocated to them come to ".($invoiced - $settled).' paisa';
-    }
+    $receivable = $balance('1100');
+    $differs('receivable', $receivable - ($invoiced - $settled), "the receivable account stands at {$receivable} paisa; the posted invoices less the posted payments allocated to them come to ".($invoiced - $settled).' paisa');
     $billed = (int) DB::table('bills')->whereExists($posted('bill'))->sum('total_minor');
     $paid = (int) DB::table('bill_payments')->whereNotNull('journal_entry_id')->sum('amount_minor');
-    if (($payable = -$balance('2010')) !== $billed - $paid) {
-        $faults[] = "the payable account stands at {$payable} paisa; the posted bills less their posted payments come to ".($billed - $paid).' paisa';
-    }
+    $payable = -$balance('2010');
+    $differs('payable', $payable - ($billed - $paid), "the payable account stands at {$payable} paisa; the posted bills less their posted payments come to ".($billed - $paid).' paisa');
 
     return $faults;
 }
@@ -1441,7 +1455,13 @@ try {
     $cleanUp();
     fwrite(STDERR, 'two-writers: STOPPED. '.$problem->getMessage().PHP_EOL);
     if (getenv('GITHUB_ACTIONS') === 'true') {
-        $say('::error title=Two writers::'.str_replace(["\r", "\n"], ' ', $problem->getMessage()));
+        $before = [];
+        foreach ($report['steps'] ?? [] as $stepName => $step) {
+            if ($step['faults'] !== []) {
+                $before[] = "{$stepName}: {$step['held']} of {$runs} held, first \"".Str::limit($step['faults'][0]['fault'], 160).'"';
+            }
+        }
+        $say('::error title=Two writers — stopped::'.str_replace(["\r", "\n"], ' ', $problem->getMessage()).($before === [] ? '' : ' — Before it stopped, these steps did not hold: '.implode(' · ', $before)));
     }
     exit(3);
 }
@@ -1486,6 +1506,20 @@ if ($allFaults === []) {
 
 $say("{$held} of {$stepsRun} steps held; ".count($allFaults).' faults.');
 if ($onGitHub) {
+    // First of all one line for every step. GitHub shows no more than ten errors of one job step, and to a reader
+    // without the run's log or its artifact they are all there is: with eleven steps failing, the eleventh would
+    // not exist. "By the database" counts the runs in which the database ended a writer (a deadlock, a wait that
+    // ran out); the others are faults in what was written.
+    $table = [];
+    foreach ($report['steps'] as $stepName => $step) {
+        if ($step['faults'] === []) {
+            continue;
+        }
+        $byDatabase = count(array_unique(array_column(array_filter($step['faults'], fn (array $fault): bool => str_contains($fault['fault'], 'was answered by the database')), 'run')));
+        $table[] = "{$stepName}: {$step['held']} of {$runs} held".($byDatabase > 0 ? ", {$byDatabase} runs ended by the database" : '');
+    }
+    $heldNames = array_keys(array_filter($report['steps'], fn (array $step): bool => $step['faults'] === []));
+    $say($encode("::error title=Two writers on {$name} — ".($stepsRun - $held)." of {$stepsRun} steps did not hold::{$runs} runs each ({$isolation}).\n".implode("\n", $table)."\nHeld in every run: ".($heldNames === [] ? 'none' : implode(', ', $heldNames)).'.'));
     foreach ($report['steps'] as $stepName => $step) {
         if ($step['faults'] !== []) {
             $say($encode("::error title=Two writers on {$name} — {$stepName}::{$step['held']} of {$runs} runs held. ".implode("\n", array_map(fn (array $fault): string => "run {$fault['run']}: {$fault['fault']}", array_slice($step['faults'], 0, 6)))));

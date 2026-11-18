@@ -22,6 +22,15 @@ final class ReleaseNotes
         return [
             [
                 'date' => '2026-11-18',
+                'title' => 'Two people can work in the accounts at the same moment',
+                'notes' => [
+                    'Accounts and payments: when two people save in the same moment (two invoices issued, two bills paid, two payments recorded for one client), both are saved, one after the other. Before, the database could stop one of the two and show an error page.',
+                    'When two people work on the same record in the same moment, the first one is saved and the second is told what happened, in words: the invoice is paid already, the bill cannot take another payment, the entry is reversed already. Nothing is written twice.',
+                    'Everywhere else: if the database does stop a save because somebody else was saving the same records, the page now says so and asks you to do it again. It used to say that something went wrong on our side.',
+                ],
+            ],
+            [
+                'date' => '2026-11-18',
                 'title' => 'Catalogue products in quotations, a question before typed work is lost, your own preferences',
                 'notes' => [
                     'Quotations: a line can be chosen from the catalogue. It keeps the product\'s code, name and price as they were when it was chosen. A product without a price is added as "price on request" and must be priced before the quotation is sent.',
