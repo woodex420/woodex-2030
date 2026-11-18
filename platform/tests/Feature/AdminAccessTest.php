@@ -91,3 +91,15 @@ it('sends noindex headers on admin pages', function () {
         ->get(route('admin.leads.index'))
         ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
 });
+
+it('leads from "Sign out" to the sign-in page of the admin, never to the root of the site', function () {
+    // The root of the site is not the admin's: in a website's folder on Hostinger it is forwarded to the shop on
+    // another address, where the content policy stops the form (form-action 'self'). The session ended and the
+    // screen stayed as it was (D-035, found when a browser first signed out of an installed release).
+    $this->actingAs($this->userWithRole('sales'));
+
+    $this->post(route('logout'))->assertRedirect('/admin/login');
+    $this->assertGuest();
+
+    expect(config('fortify.redirects.logout'))->toBe(route('login', [], false));
+});

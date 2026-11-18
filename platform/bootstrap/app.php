@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RedirectToInstaller;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VerifyTelegramWebhook;
+use App\Support\Install\PackageLists;
 use App\Support\Install\SiteState;
 use App\Support\Modules;
 use App\Support\RequestNumber;
@@ -103,6 +104,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
             return null; // keep Laravel's normal rendering (errors + old input flashed to the session)
         });
     })->create();
+
+// A release copied over an older one brings its own packages and leaves Laravel's lists of the old ones behind:
+// a list older than the packages is dropped here, before Laravel reads it (see PackageLists).
+PackageLists::dropWhenStale($app->basePath('vendor/composer/installed.json'), [$app->getCachedPackagesPath(), $app->getCachedServicesPath()]);
 
 // Where .env and storage/ live: platform/ (classic: local, CI, SSH install) or, for a Hostinger Git deploy that
 // replaces the site folder on every push, ~/woodex-os/<site>/ outside every web folder (docs/06 §2, D-57).

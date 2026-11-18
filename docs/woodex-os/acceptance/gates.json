@@ -132,12 +132,12 @@
       "title": "Hostinger readiness",
       "passed": false,
       "owner_decision": null,
-      "needs": "The owner's Hostinger details and the two SSH secrets entered in GitHub (T-006). Nothing on the host can be proven before that.",
+      "needs": "The trial site on the owner's Hostinger account: the owner's ten steps of document 24 (T-006). Everything that can be proven away from the account is proven on every change (T-143, T-144); nothing on the host can be proven before the site is there.",
       "criteria": [
         {
           "text": "PHP/MySQL compatibility verified.",
           "state": "partly",
-          "evidence": "Verified away from the host: every migration from an empty database and the whole suite run on MySQL 8.4 in CI on every push (`.github/workflows/os-ci.yml`). Not verified on the account: its PHP version and extensions, MySQL or MariaDB.",
+          "evidence": "Verified away from the host, on every push: every migration from an empty database on MySQL 8.4, and the whole suite on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`.github/workflows/os-ci.yml`; Hostinger gives MariaDB under the name MySQL). Since 18 November a release as the host gets it is installed by a browser on Apache with PHP 8.4 and MariaDB 10.11 in the same workflow, and the installer's first page names every needed extension that is off (`scripts/os-install.mjs`). Not verified on the account: its PHP version and extensions, its MariaDB version, and its web server (LiteSpeed) reading the website folder's own rules.",
           "lines": [
             "T-131",
             "T-006"
@@ -145,10 +145,11 @@
         },
         {
           "text": "Cron/queue strategy proven.",
-          "state": "open",
-          "evidence": "Designed — one cron line calls the scheduler, two timed jobs drain the queue — and never run on the host.",
+          "state": "partly",
+          "evidence": "Designed: one cron line calls the scheduler, two timed jobs drain the queue. Proven in the rehearsal on 18 November: the line the installer prints, run as it is printed and as the hosting account, starts the scheduler, and System health shows its heartbeat (`.github/workflows/os-ci.yml`, job `hostinger`). Never run on the host: the path of PHP in that line rests on what is read about Hostinger, and no queued message has left a real installation.",
           "lines": [
-            "T-134"
+            "T-134",
+            "T-006"
           ]
         },
         {

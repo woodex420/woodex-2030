@@ -12,7 +12,7 @@
         <h2 class="text-theme-sm font-semibold text-gray-900 dark:text-white">Server check</h2>
         <ul class="mt-3 divide-y divide-gray-100 dark:divide-gray-800">
             @foreach ($requirements as $check)
-                <li class="flex items-start gap-3 py-2.5 text-theme-sm">
+                <li class="flex items-start gap-3 py-2.5 text-theme-sm" data-requirement="{{ $check['ok'] ? 'met' : 'missing' }}">
                     <span @class(['mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white', 'bg-success-500' => $check['ok'], 'bg-error-500' => ! $check['ok']])>{{ $check['ok'] ? '✓' : '!' }}</span>
                     <span>
                         <span class="font-medium text-gray-800 dark:text-white/90">{{ $check['label'] }}</span>

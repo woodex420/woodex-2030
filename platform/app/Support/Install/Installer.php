@@ -39,8 +39,14 @@ final class Installer
     /** No 0/O, 1/I/L: the code is read from a file and typed or pasted. 24 characters ≈ 119 bits. */
     private const string ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
-    /** PHP extensions the application needs on the server. */
-    public const array EXTENSIONS = ['ctype', 'curl', 'dom', 'fileinfo', 'gd', 'intl', 'mbstring', 'openssl', 'pdo_mysql', 'tokenizer', 'xml', 'zip'];
+    /**
+     * PHP extensions the application needs on the server: what its packages ask for and a host can switch off
+     * (exif is asked for by the packages that take in pictures), and the MySQL driver.
+     */
+    public const array EXTENSIONS = ['ctype', 'curl', 'dom', 'exif', 'fileinfo', 'gd', 'intl', 'mbstring', 'openssl', 'pdo_mysql', 'tokenizer', 'xml', 'zip'];
+
+    /** Extensions the packages name that are part of every PHP a host offers; the installer does not list them. */
+    public const array ALWAYS_PRESENT = ['date', 'filter', 'hash', 'iconv', 'json', 'libxml', 'pcre', 'session', 'zlib'];
 
     public const string FAILURES_FILE = 'install-failures.json';
 
@@ -390,7 +396,7 @@ final class Installer
                 'MAIL_PORT' => 465,
                 'MAIL_USERNAME' => '',
                 'MAIL_PASSWORD' => '',
-                'MAIL_FROM_ADDRESS' => 'noreply@'.$host,
+                'MAIL_FROM_ADDRESS' => self::senderFor($host),
                 'MAIL_FROM_NAME' => 'Woodex Furniture',
             ],
             'Website lead forms allowed to post enquiries' => [
@@ -419,6 +425,20 @@ final class Installer
 
         // .env last: its presence is what marks the site as configured.
         EnvFile::write($directory.'/.env', $contents);
+    }
+
+    /**
+     * The sender of the site's mail, named after its address. A site that is opened by a number or by a one-word
+     * name (a rehearsal, a server before its domain points to it) has no address that PHP accepts as an e-mail
+     * address, and the backup package refuses to start with one it does not accept: every command of the
+     * application then stops, the second step of this installer first. Such a site gets a sender that is plainly a
+     * placeholder. Mail is written to the log until a mailbox is set up, and the sender is set with it.
+     */
+    public static function senderFor(string $host): string
+    {
+        $sender = 'noreply@'.$host;
+
+        return filter_var($sender, FILTER_VALIDATE_EMAIL) !== false ? $sender : 'noreply@woodex-os.invalid';
     }
 
     /**
@@ -470,13 +490,28 @@ final class Installer
     /** The hPanel cron command for the scheduler (queue, reminders, heartbeat). */
     public function cronCommand(): string
     {
-        $php = '/usr/bin/php';
+        return self::phpForCron(PHP_BINARY, PHP_BINDIR).' '.$this->site->basePath.'/artisan schedule:run';
+    }
 
-        if (preg_match('#^(/opt/alt/php\d+)/#', PHP_BINARY, $match) === 1) {
-            $php = $match[1].'/usr/bin/php';
+    /**
+     * The command-line PHP of the version that serves the website.
+     *
+     * Hosts of Hostinger's kind keep one PHP per version under /opt/alt/phpNN (as read; not yet seen on the
+     * account, master list T-131). The plain "php" of a cron job can be an older one, on which nothing of this
+     * application starts, so the line names the version. The web server's own program (lsphp, php-fpm) is not the
+     * command line, and under some servers PHP names no program at all: then the folder PHP was built for says
+     * which version it is. Anywhere else the line names /usr/bin/php. System health shows within three minutes
+     * whether the line that was entered works.
+     */
+    public static function phpForCron(string $binary, string $binDir): string
+    {
+        foreach ([$binary, rtrim($binDir, '/').'/'] as $path) {
+            if (preg_match('#^(/opt/alt/php\d+)/#', $path, $match) === 1) {
+                return $match[1].'/usr/bin/php';
+            }
         }
 
-        return $php.' '.$this->site->basePath.'/artisan schedule:run';
+        return '/usr/bin/php';
     }
 
     private function privateFolder(): string

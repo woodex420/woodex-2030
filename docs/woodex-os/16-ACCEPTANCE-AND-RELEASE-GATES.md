@@ -25,9 +25,10 @@ sentence ("2,484 tests") are readings of 17 November 2026; the four release repo
 ## The short version
 
 1. **No gate is passed.** Gate A waits for the owner's approval of the design. Gate B is decided module by
-   module, on the sheets of §4. Gate C has not started. Gate D cannot start before the Hostinger details and the
-   two secrets are there. Gate E is blocked by one open critical defect, which only the owner can close:
-   the old dashboard's password (D-002).
+   module, on the sheets of §4. Gate C has not started. Gate D cannot start before the trial site is on the
+   Hostinger account, which is the owner's half hour (T-006, document 24); what can be proved away from the
+   account is proved on every change. Gate E is blocked by one open critical defect, which only the owner can
+   close: the old dashboard's password (D-002).
 2. **What 17 November changed.** The admin is Furniture-only and carries Woodex's real catalogue: 170 products as
    drafts, on the hosted workspace too. The React shop's database lost an open door (D-001), received catalogue
    migration 019, and its migration ledger agrees with the files again. The acceptance scenarios, the defect
@@ -56,11 +57,20 @@ sentence ("2,484 tests") are readings of 17 November 2026; the four release repo
    rounds, in order, each with what is built and how it is tested; the lines that wait for the owner; the lines
    that wait for an earlier line. A check in CI holds it to the list. Nothing was built in that round, and no
    screen or site behaves differently.
-7. **What only the owner can do now**, in this order: change the old dashboard's password (T-021) · look at the
+7. **What 18 November changed** (pull request #42; report 23). The admin can be put on Hostinger without a
+   programmer: a release that the host runs as it is, taken from the branch `hostinger-release`, and an installer
+   that asks for a code only the hosting account can read. On every change GitHub installs that release in a
+   browser on Apache and MariaDB, laid out like a Hostinger account, and deploys it a second time (T-144); the
+   whole suite also runs on MariaDB 10.11 and 11.4 (T-143). What that found: D-034 to D-036, all closed.
+   **Nothing has been done on the Hostinger account**; that is the owner's step, in
+   [`24-HOSTINGER-STEP-BY-STEP.md`](24-HOSTINGER-STEP-BY-STEP.md). On the demo, System → Health gains two rows
+   (the database server, the release) and signing out leads straight to the sign-in page; nothing of the shop
+   changes.
+8. **What only the owner can do now**, in this order: change the old dashboard's password (T-021) · look at the
    React shop as the merge rebuilt it, and say whether it stays (T-026) · load the real products into the React
    shop and withdraw the sample ones (T-091) · look at the hosted workspace and approve or return the design
-   (T-005) · read the sheets of §4 and approve or return each module's requirements · send the Hostinger details
-   (T-006).
+   (T-005) · read the sheets of §4 and approve or return each module's requirements · install the trial site on
+   Hostinger by document 24 and send its address (T-006).
 
 ---
 
@@ -75,7 +85,7 @@ of the decision log.
 | **A — Design foundation** | Not passed | 1 of 4 | The owner's approval of the design on the hosted workspace (T-005). The two other open points are the agent's work. |
 | **B — Module readiness** | Not passed | 0 of 4 | Passed module by module. Each open module has its sheet in §4; the owner signs or returns it (T-171). |
 | **C — Puck readiness** | Not passed | 0 of 3 | The prototype of T-115. Not started; it is wave 10. |
-| **D — Hostinger readiness** | Not passed | 0 of 4 | The owner's Hostinger details and the two SSH secrets entered in GitHub (T-006). Nothing on the host can be proven before that. |
+| **D — Hostinger readiness** | Not passed | 0 of 4 | The trial site on the owner's Hostinger account: the owner's ten steps of document 24 (T-006). Everything that can be proven away from the account is proven on every change (T-143, T-144); nothing on the host can be proven before the site is there. |
 | **E — Production cutover** | Not passed | 0 of 5 | The owner changes the old dashboard's password (T-021): the one open critical defect. Then gate D, and the owner's written approval of each module's move (T-181). |
 
 **Gate A — Design foundation**
@@ -108,8 +118,8 @@ of the decision log.
 
 | Criterion (document 10 §7) | State | Where it stands | Closed by |
 |---|---|---|---|
-| PHP/MySQL compatibility verified. | Partly | Verified away from the host: every migration from an empty database and the whole suite run on MySQL 8.4 in CI on every push (`.github/workflows/os-ci.yml`). Not verified on the account: its PHP version and extensions, MySQL or MariaDB. | T-131, T-006 |
-| Cron/queue strategy proven. | Open | Designed — one cron line calls the scheduler, two timed jobs drain the queue — and never run on the host. | T-134 |
+| PHP/MySQL compatibility verified. | Partly | Verified away from the host, on every push: every migration from an empty database on MySQL 8.4, and the whole suite on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`.github/workflows/os-ci.yml`; Hostinger gives MariaDB under the name MySQL). Since 18 November a release as the host gets it is installed by a browser on Apache with PHP 8.4 and MariaDB 10.11 in the same workflow, and the installer's first page names every needed extension that is off (`scripts/os-install.mjs`). Not verified on the account: its PHP version and extensions, its MariaDB version, and its web server (LiteSpeed) reading the website folder's own rules. | T-131, T-006 |
+| Cron/queue strategy proven. | Partly | Designed: one cron line calls the scheduler, two timed jobs drain the queue. Proven in the rehearsal on 18 November: the line the installer prints, run as it is printed and as the hosting account, starts the scheduler, and System health shows its heartbeat (`.github/workflows/os-ci.yml`, job `hostinger`). Never run on the host: the path of PHP in that line rests on what is read about Hostinger, and no queued message has left a real installation. | T-134, T-006 |
 | Backup and restore tested. | Open | The Laravel admin holds no real record yet, and no backup of it has been taken or restored. | T-137 |
 | Security and resource checks passed. | Partly | Security, on the hosted workspace: the outside check passes for the address on Vercel (`.github/workflows/vercel-live-check.yml`) and asks, since 17 November, for the Content-Security-Policy and the request number too; inside, the security tests of document 10 §4 and the content policy are pinned by tests (`tests/Feature/Security/`). Published advisories for the packages are asked of npm and Composer when a lock file changes and every week (`.github/workflows/audit.yml`); none that blocks is open. Not done: the outside check has not been pointed at Hostinger, and nothing has been measured against the plan's limits. | T-139, T-142, T-072 |
 
@@ -381,8 +391,8 @@ may not.
 |---|---|---|---|---|---|
 | **Critical** | Data loss, privilege bypass, financial corruption, site unavailable | Blocks release | 1 | 0 | 1 |
 | **High** | Core workflow broken, wrong totals or status, major security or privacy issue | Blocks the release it affects | 0 | 0 | 6 |
-| **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 6 | 0 | 12 |
-| **Low** | Cosmetic or a minor inconvenience | May be scheduled later | 4 | 0 | 3 |
+| **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 6 | 0 | 14 |
+| **Low** | Cosmetic or a minor inconvenience | May be scheduled later | 4 | 0 | 4 |
 
 **Not closed (11)**
 
@@ -398,9 +408,9 @@ may not.
 | D-023 | Medium | 2026-11-17 | **The project that a Furniture sale opens is an Interior project.** Accepting a quotation opens a project. Its screen carries the Interior module's stages (Planning, Design, Procurement, Execution, Finishing, Handover), a hand-over checklist that speaks of "the studio list", and site updates. The word "Interior" does not appear, so the Furniture-only check passes; but none of it is how a furniture order is made, delivered and installed. The project is named after the quotation's title, which is "Quotation" when nobody typed one. | T-033, T-010 |
 | D-028 | Low | 2026-11-17 | **One low advisory in Laravel, and eleven moderate ones in the shop's build tools.** `laravel/framework` 13.39.0 carries CVE-2026-128083 (low; fixed in 13.40.0): text injected into the output of a task run through the Concurrency process driver, which this application does not use. `npm audit` reports eleven moderate advisories, in the linter, in `react-router` and in a Tailwind plugin; the fix npm offers for `react-router` is a change of major version. None fails the audit, which stops at high. | T-071 |
 | D-029 | Low | 2026-11-17 | **Ten functions of the shop's database have no fixed search path.** The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today. Read from the database itself on 17 November, 20:04 UTC: nine functions and one aggregate (`group_concat`) in the public schema, none with a search path, none belonging to an extension. | T-172 |
-| D-033 | Low | 2026-11-17 | **The check of the live sites has never started by its timer.** The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Two times due passed, 12:23 and 18:23 UTC, and at 20:07 UTC GitHub's list held no timed run of any workflow. The workflow is active and was last changed under the owner's own GitHub name. The agent's session may not start it by hand (HTTP 403, tried at 19:54 UTC). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges is not. | T-142 |
+| D-033 | Low | 2026-11-17 | **The check of the live sites is started by its timer once in three times due.** The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Recorded on 17 November as "has never started": by 20:07 UTC two times due had passed, 12:23 and 18:23 UTC, without a timed run. Corrected on 18 November: GitHub started the run due at 18:23 at 21:06 UTC, 2 h 43 min late (run 44176315991, green: 41 of 41 for the admin, 14 of 14 for the shop). The time due at 00:23 UTC on 18 November brought no run; read at 04:21 UTC, GitHub's list of timed runs holds that one run. So the timer works and GitHub starts it late or drops it. The agent's session may not start the workflow by hand (HTTP 403). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges can stay unseen for longer than six hours. | T-142 |
 
-**Closed (22)**
+**Closed (25)**
 
 | # | Severity | Found | Defect | Closed |
 |---|---|---|---|---|
@@ -426,6 +436,9 @@ may not.
 | D-030 | Medium | 2026-11-17 | **Saving the sales rules switched the follow-up of quotations off.** Settings → Sales rules has a box "follow up quotations automatically". Whoever saved that screen, for any reason, switched it off: the box had no validation rule, so it was not among the checked values and was read as "off", ticked or not. It could not be switched on from the screen at all. Sent quotations were then no longer chased, and nothing said so. Found when every change of a setting began to be recorded (T-067): a save that changed nothing wrote a change. | 2026-11-17. The box has its rule (`SettingsPage::saveSales`). `SensitiveActionsLeaveATraceTest.php`: a screen saved as it was opened changes nothing, and the box saves as it says. |
 | D-031 | Low | 2026-11-17 | **Three smaller things the security tests found.** The invoice page kept the number of its invoice where the browser could change it: the page then showed another invoice without having been opened for it (today every person who may open one invoice may open them all, so nothing was gained by it). Two records handed out a secret when turned into an array for a browser or a log: the hash of a client's six-digit portal code, and a visitor's chat key. And the example settings file switches debugging on: copied by hand to a live site, a fault there would have shown the request, the queries and the code to whoever caused it. | 2026-11-17. The invoice's number is locked, and a test finds every page that keeps its record unlocked. The two columns are hidden, and a test finds every secret-looking column that is not. A site that calls itself production refuses the debugging switch and its health report says the settings file is wrong (`app/Support/DebugGuard.php`). Tests in `tests/Feature/Security/`. DL-029. |
 | D-032 | Medium | 2026-11-17 | **Six sensitive actions left no trace.** The list of changes (System → Audit log) had no row for an invitation, a change of role, a deactivation or a reactivation of a person, nor for any change of a setting: who may give which discount, what a document says, who signs it. Document 08 §7 asks for an audit event for each. | 2026-11-17. Each writes a row with who did it and what changed; a secret setting is recorded as changed, never with its value (`ManageStaff`, `RecordSettingsChange`). `SensitiveActionsLeaveATraceTest.php` lists nineteen sensitive actions and fails when one is silent. |
+| D-034 | Medium | 2026-11-18 | **The installer stopped at its second step on a site opened by a number or a one-word name.** Found by installing a release in a browser (T-144). The installer wrote `noreply@` and the site's host name as the sender of mail. For a site opened by its IP address or by a name without a dot that is not an address PHP accepts; the backup package refuses such a sender when it is loaded, so every command and the installer's second step answered with an error and the site stayed half installed. A site opened by a real domain was not affected. | 2026-11-18. The installer writes the sender only when PHP accepts it as an address and falls back to `noreply@woodex-os.invalid` otherwise (`Installer::senderFor`). `Feature/InstallerTest.php` installs by a number and by a one-word name; without the correction two of its tests fail. Proven in the rehearsal on Apache and MariaDB, where the site is opened by `127.0.0.1`. |
+| D-035 | Medium | 2026-11-18 | **"Sign out" ended the session and left the screen as it was, on a site whose first page is elsewhere.** Found by the same rehearsal. Signing out sent the browser to the first page of the site. In a website folder on a host that page forwards to the shop on another address, and the content policy of the admin stops a form that ends on another address. The session was ended on the server, the screen stayed, and the next click showed the sign-in page: a person could believe they were still signed in, or that the button did nothing. The hosted demo was not affected: there the first page is answered by the admin itself, on the same address. | 2026-11-18. Signing out leads to the admin's own sign-in page (`fortify.redirects.logout`). `Feature/AdminAccessTest.php` signs out and reads where the answer leads; it fails with the setting taken out. In the rehearsal a browser signs out twice under the enforced policy and arrives at the sign-in page. |
+| D-036 | Low | 2026-11-18 | **The installer did not check for one PHP extension that the packages need.** Found when the first release was put together. Two packages that take in pictures ask for the `exif` extension; the installer's list of extensions to check on the server did not hold it. Composer checks only the PHP version when the application starts, so a host with `exif` switched off would have installed without a word, and the fault would have shown only later, where a picture is taken in. | 2026-11-18. `exif` is in the installer's list, and `Feature/InstallerTest.php` reads the lock file: every extension a package of a release asks for is either checked by the installer or part of every PHP. |
 <!-- /generated:defects -->
 
 ---
@@ -478,5 +491,6 @@ write authority enabled · monitoring and rollback available · the owner accept
 The first report in this form is [`17-RELEASE-2026-11-17.md`](17-RELEASE-2026-11-17.md); the second is
 [`18-RELEASE-2026-11-17-SECOND.md`](18-RELEASE-2026-11-17-SECOND.md), written before its merge; the third,
 [`19-RELEASE-2026-11-17-THIRD.md`](19-RELEASE-2026-11-17-THIRD.md), the fourth,
-[`20-RELEASE-2026-11-17-FOURTH.md`](20-RELEASE-2026-11-17-FOURTH.md), and the fifth,
-[`22-RELEASE-2026-11-17-FIFTH.md`](22-RELEASE-2026-11-17-FIFTH.md), likewise.
+[`20-RELEASE-2026-11-17-FOURTH.md`](20-RELEASE-2026-11-17-FOURTH.md), the fifth,
+[`22-RELEASE-2026-11-17-FIFTH.md`](22-RELEASE-2026-11-17-FIFTH.md), and the sixth,
+[`23-RELEASE-2026-11-18.md`](23-RELEASE-2026-11-18.md), likewise.

@@ -2,13 +2,29 @@ name: WOODEX OS platform (Laravel)
 run-name: platform — ${{ github.sha }}
 
 # The Laravel application in platform/. Separate from ci.yml, which covers the existing Node applications.
-# Disposable MySQL in the runner only: no deployment, no hosted database, no provider credentials.
+# Disposable databases in the runner only: no hosted database, no provider credentials. Nothing is deployed to a
+# host. On main, after everything passed, the last job writes the release to the branch "hostinger-release" of this
+# repository, from where the hosting account takes it when its owner says so (docs/woodex-os/24).
 on:
   push:
     branches: [main, "arena/**"]
-    paths: ["platform/**", ".github/workflows/os-ci.yml"]
+    paths:
+      - "platform/**"
+      - ".htaccess"
+      - "index.php"
+      - "scripts/os-install.mjs"
+      - "scripts/os-notice.mjs"
+      - "scripts/lib/browser.mjs"
+      - ".github/workflows/os-ci.yml"
   pull_request:
-    paths: ["platform/**", ".github/workflows/os-ci.yml"]
+    paths:
+      - "platform/**"
+      - ".htaccess"
+      - "index.php"
+      - "scripts/os-install.mjs"
+      - "scripts/os-notice.mjs"
+      - "scripts/lib/browser.mjs"
+      - ".github/workflows/os-ci.yml"
   workflow_dispatch:
 
 permissions:
@@ -156,17 +172,24 @@ jobs:
           if-no-files-found: error
 
   tests:
-    name: Tests on MySQL 8.4 — ${{ matrix.group }}
+    name: Tests on ${{ matrix.db.name }} — ${{ matrix.group }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        # MySQL 8.4 is the authority for "done". MariaDB is what Hostinger's shared hosting gives under the name
+        # MySQL (master list T-143): its two long-term versions, so that the one found on the account lies
+        # between them. The application connects to both with the same driver, as the installer writes it.
+        db:
+          - { name: "MySQL 8.4", image: "mysql:8.4", ping: "mysqladmin" }
+          - { name: "MariaDB 10.11", image: "mariadb:10.11", ping: "mariadb-admin" }
+          - { name: "MariaDB 11.4", image: "mariadb:11.4", ping: "mariadb-admin" }
         group: [unit-arch, feature-a-f, feature-g-p, feature-q-z]
 
     services:
       mysql:
-        image: mysql:8.4
+        image: ${{ matrix.db.image }}
         env:
           MYSQL_DATABASE: woodex_test
           MYSQL_USER: woodex_test
@@ -175,7 +198,7 @@ jobs:
         ports: ["3306:3306"]
         options: >-
           --tmpfs /var/lib/mysql
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
+          --health-cmd="${{ matrix.db.ping }} ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=40
@@ -202,6 +225,12 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php artisan package:discover --ansi
 
+      - name: Which database server answers
+        if: matrix.group == 'unit-arch'
+        run: |
+          version=$(mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "SELECT VERSION()" 2>/dev/null)
+          echo "::notice title=Database server — ${{ matrix.db.name }}::${version:-no answer}"
+
       - name: Run the group
         run: |
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs storage/app/private
@@ -223,15 +252,15 @@ jobs:
       - name: Publish the result as annotations (the run log is not always reachable)
         if: always()
         run: |
-          python3 - "${{ matrix.group }}" <<'PY'
+          python3 - "${{ matrix.group }}" "${{ matrix.db.name }}" <<'PY'
           import re, sys
           import xml.etree.ElementTree as ET
-          group = sys.argv[1]
+          group, server = sys.argv[1], sys.argv[2]
           def enc(s): return s.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
           try:
               log = re.sub(r'\x1b\[[0-9;]*m', '', open('/tmp/pest.log', encoding='utf-8', errors='replace').read())
           except FileNotFoundError:
-              print(f"::error title=Tests on MySQL — {group}::no test output was produced"); sys.exit(0)
+              print(f"::error title=Tests on {server} — {group}::no test output was produced"); sys.exit(0)
           summary = ' | '.join(s.strip() for s in re.findall(r'(?m)^\s*(Tests:.*|Duration:.*)$', log)) or 'no summary line: ' + log[-600:]
           failures = []
           try:
@@ -243,21 +272,278 @@ jobs:
           except Exception as problem:
               failures += [f"(could not read the JUnit file: {problem})"] + [f"{c} > {n[:150]}\n    {' '.join(b.split())[:520]}" for c, n, b in re.findall(r'(?m)^\s+(?:FAILED|FAIL)\s+(Tests\\\S+)\s+>\s+(.*?)\s*\n((?:.*\n){0,7})', log)]
           if not failures and re.search(r'\b\d+ passed\b', summary) and 'failed' not in summary:
-              print(f"::notice title=Tests on MySQL — {group}::{enc(summary)}")
+              print(f"::notice title=Tests on {server} — {group}::{enc(summary)}")
           else:
               text = '\n'.join([summary, f"{len(failures)} failing", ''] + failures)
               for part, start in enumerate(range(0, min(len(text), 9 * 7000), 7000), 1):
-                  print(f"::error title=Tests on MySQL — {group} ({part})::{enc(text[start:start + 7000])}")
+                  print(f"::error title=Tests on {server} — {group} ({part})::{enc(text[start:start + 7000])}")
           PY
 
       - name: Summary
         if: always()
         run: |
           {
-            echo "## WOODEX OS platform — ${{ matrix.group }} on PHP 8.4 and MySQL 8.4"
+            echo "## WOODEX OS platform — ${{ matrix.group }} on PHP 8.4 and ${{ matrix.db.name }}"
             echo '```'
             sed 's/\x1b\[[0-9;]*m//g' /tmp/pest.log 2>/dev/null | grep -E 'Tests:|Duration:' || echo 'no test summary was produced'
             echo '```'
             echo 'Disposable database in the runner. No deployment, no hosted data, no provider credentials.'
-            echo 'A green run is evidence for this commit on MySQL. It is not approval to deploy.'
+            echo 'A green run is evidence for this commit on this database server. It is not approval to deploy.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  hostinger:
+    name: A release as the host gets it — Apache, the folder's own .htaccess, MariaDB, installed in a browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SITE_URL: http://127.0.0.1:8080
+      E2E_REQUIRED: "1"
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: disposable-ci-root
+        ports: ["3306:3306"]
+        options: >-
+          --tmpfs /var/lib/mysql
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=40
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: PHP 8.4 and Composer, to put the release together
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, pdo_sqlite, intl, mbstring, bcmath, zip, gd, exif, pcntl, dom, xml, xmlwriter, fileinfo, sodium
+          coverage: none
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: The scripts' packages and a browser
+        run: |
+          npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+          npx playwright install --with-deps chromium
+
+      - name: Put the release together — packages and built files inside, no settings, no data
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: |
+          set -o pipefail
+          bash platform/tools/hostinger/build-release.sh "$RUNNER_TEMP/built" | tee "$RUNNER_TEMP/release.txt"
+          echo "::notice title=Release::$(tail -1 "$RUNNER_TEMP/release.txt" | sed "s# in $RUNNER_TEMP/built##")"
+          echo "HOSTING_HOME=$RUNNER_TEMP/u123456789" >> "$GITHUB_ENV"
+          echo "SITE=$RUNNER_TEMP/u123456789/domains/staging.woodex.test/public_html" >> "$GITHUB_ENV"
+
+      - name: The release as Git carries it — what the host's Git page takes from the branch
+        run: |
+          # Everything below is done with the release after a journey through Git: the tree that the job "publish"
+          # writes to its branch and that hPanel's Git page delivers.
+          set -o pipefail
+          bash platform/tools/hostinger/carry-through-git.sh "$RUNNER_TEMP/built" "$RUNNER_TEMP/release" | tee "$RUNNER_TEMP/carried.txt"
+          echo "::notice title=The release as Git carries it::$(tail -1 "$RUNNER_TEMP/carried.txt" | sed 's/^the release as Git carries it: //')"
+
+      - name: The web server — Apache, PHP 8.4 as a module, running as the hosting account
+        run: |
+          # The account inside the container has this runner's user number: the website's folder is one folder
+          # for both, and the files PHP writes are the account's own, as on shared hosting.
+          docker build --quiet --build-arg ACCOUNT_UID="$(id -u)" --build-arg ACCOUNT_GID="$(id -g)" -t woodex-hostinger platform/tools/hostinger
+          docker run --rm woodex-hostinger php -r 'echo "PHP ", PHP_VERSION, " with ", implode(", ", array_intersect(["exif", "gd", "intl", "pdo_mysql", "zip"], get_loaded_extensions())), PHP_EOL;'
+
+      - name: A database and its user, named as hPanel names them
+        run: |
+          mysql --protocol=TCP -h 127.0.0.1 -uroot -pdisposable-ci-root -e "
+            CREATE DATABASE u123456789_woodex CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+            CREATE USER 'u123456789_woodex'@'%' IDENTIFIED BY 'disposable-ci-only';
+            GRANT ALL PRIVILEGES ON \`u123456789_woodex\`.* TO 'u123456789_woodex'@'%';"
+
+      - name: The first deployment — the release into the empty website folder
+        run: |
+          mkdir -p "$SITE"
+          cp -a "$RUNNER_TEMP/release/." "$SITE/"
+          docker run -d --name woodex-hostinger --network host -v "$HOSTING_HOME:/home/u123456789" woodex-hostinger
+          for attempt in $(seq 1 60); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/up")" = 200 ] && break
+            sleep 2
+          done
+          answer="$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/up")"
+          echo "the application answers $answer"
+          [ "$answer" = 200 ] || { docker logs --tail 60 woodex-hostinger; exit 1; }
+
+      # From here every stage runs even when an earlier one failed, and writes its name down if it did: one run
+      # then says everything that is wrong. The step "Every stage held" decides.
+      - name: What the folder hands out, asked from outside, before anything is installed
+        run: bash platform/tools/hostinger/check-bridge.sh "$SITE_URL" "$SITE" || echo "the folder's answers before the installation" >> "$RUNNER_TEMP/failed"
+
+      - name: The owner installs it in a browser — server check, setup code, database, first account, cron line
+        env:
+          OS_BASE: http://127.0.0.1:8080
+          OS_DB: mysql
+          OS_DB_HOST: 127.0.0.1
+          OS_DB_NAME: u123456789_woodex
+          OS_DB_USER: u123456789_woodex
+          OS_DB_PASSWORD: disposable-ci-only
+          OS_EXPECT_DB: MariaDB 10\.11
+          OS_CRON_VIA: docker exec -u u123456789 woodex-hostinger
+        run: |
+          value="Wx9$(openssl rand -hex 14)"
+          echo "::add-mask::$value"
+          echo "WX_PW_OWNER=$value" >> "$GITHUB_ENV"
+          export WX_PW_OWNER="$value" OS_SETUP_CODE_FILE="$SITE/WOODEX-SETUP-CODE.txt"
+          node scripts/os-install.mjs --out "$RUNNER_TEMP/install" || echo "the installation in a browser" >> "$RUNNER_TEMP/failed"
+          node scripts/os-notice.mjs "A release installed by its owner on Apache and MariaDB 10.11" "$RUNNER_TEMP/install"
+
+      - name: The same questions from outside, now that the site is installed
+        run: bash platform/tools/hostinger/check-bridge.sh "$SITE_URL" "$SITE" || echo "the folder's answers after the installation" >> "$RUNNER_TEMP/failed"
+
+      - name: Where the installation keeps what — settings outside the website's folder, nothing of them inside
+        run: |
+          state="$HOSTING_HOME/woodex-os/staging.woodex.test"
+          wrong=""
+          must() { "$@" || wrong="$wrong | not so: $*"; }
+          must test -s "$state/.env"
+          must test "$(stat -c %a "$state/.env" 2>/dev/null)" = 600
+          must test "$(stat -c %a "$state" 2>/dev/null)" = 750
+          must test -z "$(find "$SITE" -name '.env' -o -name '*.sqlite' -o -name 'WOODEX-SETUP-CODE.txt' | head -1)"
+          must grep -q '^APP_ENV=production$' "$state/.env"
+          must grep -q '^APP_DEBUG=false$' "$state/.env"
+          must grep -q '^DB_DATABASE=u123456789_woodex$' "$state/.env"
+          q() { mysql --protocol=TCP -h 127.0.0.1 -uu123456789_woodex -pdisposable-ci-only u123456789_woodex -N -e "$1" 2>/dev/null || true; }
+          tables=$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
+          users=$(q "SELECT COUNT(*) FROM users")
+          sample=$(q "SELECT (SELECT COUNT(*) FROM leads) + (SELECT COUNT(*) FROM quotes) + (SELECT COUNT(*) FROM invoices) + (SELECT COUNT(*) FROM commerce_products)")
+          must test "$users" = "1"
+          must test "$sample" = "0"
+          if [ -z "$wrong" ]; then
+            echo "::notice title=After the installation::$(q "SELECT VERSION()"): ${tables} tables, ${users} account, ${sample} leads, quotations, invoices and products; settings in woodex-os/staging.woodex.test/.env (mode 600), outside the website's folder"
+          else
+            echo "::error title=After the installation::${tables:-no} tables, ${users:-no} accounts${wrong}"
+            echo "where the installation keeps what" >> "$RUNNER_TEMP/failed"
+          fi
+
+      - name: The next deployment — the whole folder is replaced, and the new release brings a database change
+        run: bash platform/tools/hostinger/redeploy.sh "$RUNNER_TEMP/release" "$SITE" replace || echo "the next deployment" >> "$RUNNER_TEMP/failed"
+
+      - name: The owner after that deployment — still installed, same password, "Apply update", working on
+        env:
+          OS_BASE: http://127.0.0.1:8080
+          OS_EXPECT_DB: MariaDB 10\.11
+          OS_EXPECT_MIGRATION: 2099_01_01_000000_rehearsal_second_release
+        run: |
+          node scripts/os-install.mjs --after-deploy --out "$RUNNER_TEMP/after-deploy" || echo "the owner after the next deployment" >> "$RUNNER_TEMP/failed"
+          node scripts/os-notice.mjs "The next deployment on Apache and MariaDB 10.11" "$RUNNER_TEMP/after-deploy"
+
+      - name: What the web server and the application wrote
+        if: always()
+        run: |
+          docker logs woodex-hostinger > "$RUNNER_TEMP/apache.log" 2>&1 || true
+          answered=$(grep -c '" [1-5][0-9][0-9] ' "$RUNNER_TEMP/apache.log" || true)
+          faults=$(grep -c '" 5[0-9][0-9] ' "$RUNNER_TEMP/apache.log" || true)
+          # Two kinds of line are Apache refusing an address by itself, which the questions from outside ask for on
+          # purpose: a file it never hands out (AH01630) and an address that climbs out of the folder (AH10244).
+          refusals=$(grep -c -E 'AH01630|AH10244' "$RUNNER_TEMP/apache.log" || true)
+          complaints=$(grep -i -E 'php (fatal|warning|parse)|\[[a-z_0-9]+:(error|crit|alert|emerg)\]' "$RUNNER_TEMP/apache.log" | grep -v -E 'AH01630|AH10244' | sed -E 's/^\[[^]]*\] //; s/\[pid [0-9]+(:tid [0-9]+)?\] //; s/\[client [^]]*\] //' | sort | uniq -c | sort -rn | head -6 | tr '\n' '|' | cut -c1-900)
+          grep '" 5[0-9][0-9] ' "$RUNNER_TEMP/apache.log" | head -20 || true
+          tail -n 20 "$HOSTING_HOME"/woodex-os/staging.woodex.test/storage/logs/*.log 2>/dev/null | cut -c1-400 || true
+          if [ "${faults:-0}" = 0 ] && [ -z "$complaints" ]; then
+            echo "::notice title=The web server's own record::${answered} requests answered by Apache, none with a fault of the server; its error log holds ${refusals} refusals of its own and no complaint"
+          else
+            echo "::warning title=The web server's own record::${answered} requests, ${faults} answered with a fault of the server. Its error log: ${complaints:-nothing}"
+          fi
+
+      - name: Every stage held
+        run: |
+          if [ -s "$RUNNER_TEMP/failed" ]; then
+            echo "::error title=The release on a host — not everything held::$(paste -sd';' "$RUNNER_TEMP/failed")"
+            exit 1
+          fi
+
+      - name: Keep what the browser saw
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-rehearsal
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/install
+            ${{ runner.temp }}/after-deploy
+            ${{ runner.temp }}/apache.log
+
+      - name: Pack the release that was just installed, for the job that publishes it
+        run: tar -C "$RUNNER_TEMP/release" -cf "$RUNNER_TEMP/woodex-os-release.tar" .
+
+      - name: Keep the release
+        uses: actions/upload-artifact@v4
+        with:
+          name: woodex-os-release-${{ github.sha }}
+          path: ${{ runner.temp }}/woodex-os-release.tar
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 6
+
+  publish:
+    name: Publish the release for the host (branch hostinger-release)
+    # Only from main, and only the release that the job above installed, after the whole suite passed on the three
+    # database servers. The branch is a folder of files for the hosting account to take; nothing is sent to a host.
+    needs: [database, tests, hostinger]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: hostinger-release
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: woodex-os-release-${{ github.sha }}
+
+      - name: Write the release to its branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The run's log is not always reachable: what stopped this is written on the run's page. The command is
+          # named as it is written here, before any value is put into it.
+          trap 'echo "::error title=Release for the host::stopped at: $BASH_COMMAND"' ERR
+          mkdir release
+          tar -xf woodex-os-release.tar -C release
+          test -s release/RELEASE.json
+          grep -q "\"commit\": \"$GITHUB_SHA\"" release/RELEASE.json
+          grep -q '"uncommitted_changes": false' release/RELEASE.json
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$remote" hostinger-release >/dev/null 2>&1; then
+            git clone --quiet --depth 1 --branch hostinger-release "$remote" branch
+          else
+            git init --quiet branch
+            git -C branch checkout --quiet --orphan hostinger-release
+            git -C branch remote add origin "$remote"
+          fi
+          find branch -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a release/. branch/
+          cd branch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config core.autocrlf false
+          # --force: a release keeps the small ignore files that hold its empty folders, and they must not hide
+          # the package lists beside them.
+          git add --all --force .
+          git commit --quiet -m "Release of ${GITHUB_SHA::7} for the host" \
+            -m "Made from main at ${GITHUB_SHA} by the workflow \"WOODEX OS platform (Laravel)\", after its tests passed on MySQL and MariaDB and this release was installed in a browser on Apache and MariaDB. Not to be edited by hand: the next release replaces what is here."
+          git push --quiet origin HEAD:hostinger-release
+          echo "::notice title=Release for the host::branch hostinger-release holds main at ${GITHUB_SHA::7}: $(git ls-files | wc -l) files"
+

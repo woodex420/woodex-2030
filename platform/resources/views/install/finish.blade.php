@@ -3,7 +3,7 @@
 @section('title', 'Install')
 @section('step', 'Step 2 of 2 · Database')
 @section('heading', $error ? 'The installation stopped' : 'Creating the database tables')
-@section('subheading', $error ? 'Nothing is lost: fix the problem below and try again.' : 'Settings are saved. Now the tables, the reference data (roles, pipeline, rate book, templates) and the owner account are created.')
+@section('subheading', $error ? 'Nothing is lost: fix the problem below and try again.' : 'Settings are saved. Now the tables, the reference data (roles and permissions, the stages of the pipeline, number sequences, the chart of accounts) and the owner account are created.')
 
 @section('content')
     @if ($error)

@@ -11,7 +11,7 @@
     "T-003": "Give Furniture's price list, terms, quotation wording and who signs",
     "T-004": "Say who may approve what, and each role's discount limit",
     "T-005": "Approve the design on the live demo, or say what to change",
-    "T-006": "Send the Hostinger details and enter the two SSH secrets in GitHub",
+    "T-006": "Install the trial site on Hostinger (document 24) and send its address",
     "T-007": "Name the addresses for the shop, the admin and the API",
     "T-008": "Confirm the currency (PKR) and the tax rules",
     "T-009": "Give a mailbox for sending mail (SMTP) on the Furniture domain",
@@ -48,7 +48,7 @@
     "T-071": "Package updates, and the advisories the audit reports",
     "T-072": "The content policy without `eval`",
     "T-086": "A quotation line from the catalogue keeps its product and price",
-    "T-142": "The outside check on a timer: the first timed run",
+    "T-142": "The outside check on a timer: started once in three times due",
     "T-152": "Long caching for the stylesheet and scripts",
     "T-153": "A guard on the size of the Vercel function",
     "T-154": "A cold start on Vercel, measured",
@@ -111,6 +111,7 @@
     "T-139": "Behaviour within the hosting plan's limits",
     "T-140": "https, the domain, the admin's own host name",
     "T-141": "The shop's build served from the same Hostinger account",
+    "T-146": "The release is written to the branch hostinger-release from main",
     "T-155": "Richer sample data, Furniture's own",
     "T-156": "The demo removed or moved once the real admin exists",
     "T-161": "A sweep for records opened by their number as the wrong role",
@@ -355,13 +356,13 @@
         {
           "id": "T-142",
           "size": "S",
-          "found": "No timed run has started: GitHub's list holds none. The timer has been on `main` since 17 November, 10:22 UTC, and the two times due since then (12:23 and 18:23 UTC) passed without a run. The workflow is active and was last changed under the owner's own GitHub name, so nothing visible stands in its way. The check after a merge has run every time. Starting the check by hand is refused to this session (HTTP 403, tried on 17 November, 19:54 UTC).",
+          "found": "Read again on 18 November, 04:21 UTC, and corrected: until then this said that no timed run had ever started. GitHub's list holds one timed run, 44176315991, of 17 November, 21:06 UTC: green, 41 of 41 for the admin and 14 of 14 for the shop, started 2 h 43 min after the time due (18:23 UTC). The time due before it (12:23 UTC) and the one after it (00:23 UTC on 18 November) brought no run. So the timer works, and GitHub starts it late or drops it: one run in three times due. The check after a merge has run every time. Starting the check by hand is refused to this session (HTTP 403, tried on 17 November, 19:54 UTC).",
           "build": [
-            "GitHub's list of runs is read at the start of every round.",
-            "If no timed run has come by this round, the timer is written again on `main` at another minute, and the list is read after the next time due."
+            "GitHub's list of timed runs is read at the start of every round, and how many of the times due brought a run is written into the list.",
+            "If fewer than three of the last four times due brought a run, the timer is written again on `main` at another minute, and the list is read after the next times due."
           ],
           "tests": [
-            "A run started by the timer is in GitHub's list, and it is green."
+            "Runs started by the timer are in GitHub's list for at least three of the last four times due, and they are green."
           ],
           "browser": [],
           "against": "Done on 17 November: a forced failure opened issue #38, and the next proof closed it.",
@@ -556,9 +557,15 @@
   "standing": [
     {
       "check": "The Laravel test suite",
-      "where": "In the sandbox on SQLite; in CI on MySQL 8.4 (`os-ci.yml`), on every push that touches `platform/`",
-      "today": "2,484 pass, 36 skipped, none fails: run in the sandbox on 17 November, 19:32 to 19:39 UTC, on `dfc8369`. Green on MySQL in CI on the same commit",
+      "where": "In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/`",
+      "today": "2,508 pass, 36 skipped, none fails: run in the sandbox on 18 November, 04:33 to 04:38 UTC, on `d11e504`. In CI on the same commit, on each of the three servers: 2,509 pass, 35 skipped",
       "catches": "A rule, a screen or a permission that no longer does what its test says"
+    },
+    {
+      "check": "A release installed and deployed again by a browser (`scripts/os-install.mjs`)",
+      "where": "CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite",
+      "today": "the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d11e504`)",
+      "catches": "A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change"
     },
     {
       "check": "Two journeys in a browser (`scripts/os-journeys.mjs`)",

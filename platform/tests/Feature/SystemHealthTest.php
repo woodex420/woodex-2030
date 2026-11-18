@@ -6,6 +6,7 @@ use App\Domain\System\Models\ScheduledTaskRun;
 use App\Domain\System\Models\TelegramLink;
 use App\Integrations\Telegram\Fakes\FakeTelegramGateway;
 use App\Livewire\Admin\System\Health;
+use App\Support\Install\SiteState;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Mail\MailManager;
@@ -125,4 +126,52 @@ it('records a finished scheduler task and prunes the old runs', function () {
 
     expect(ScheduledTaskRun::query()->where('task', 'old:task')->exists())->toBeFalse()
         ->and(ScheduledTaskRun::query()->where('task', 'woodex:heartbeat')->exists())->toBeTrue();
+});
+
+it('names the database server by its own word, and the release the installation runs', function () {
+    // Asked for when a release was first installed in a rehearsal (T-144): a host that offers "MySQL" often runs
+    // MariaDB, and after a deployment the owner has to be able to read which code is live.
+    $environment = app(SystemHealthReport::class)->environment();
+
+    expect($environment['Database server'])->toMatch('/^(SQLite|MySQL|MariaDB) \d+\.\d+/')
+        ->and($environment['Release'])->toBe('not a packaged release');
+
+    Livewire::actingAs($this->userWithRole('owner'))->test(Health::class)
+        ->assertSee('Database server')
+        ->assertSee($environment['Database server'])
+        ->assertSee('Release')
+        ->assertSeeHtml('data-health-check="Cron heartbeat" data-health-state="check"')
+        ->assertSeeHtml('data-health-check="Front-end build" data-health-state="ok"');
+});
+
+it('shows the cron line again for as long as no heartbeat comes', function () {
+    // The installer prints the line once, on its last page. An owner who missed it finds it here.
+    Cache::forget(Heartbeat::CACHE_KEY);
+    $check = collect(app(SystemHealthReport::class)->checks())->firstWhere('label', 'Cron heartbeat');
+
+    expect($check['ok'])->toBeFalse()
+        ->and($check['hint'])->toContain('hPanel → Advanced → Cron Jobs')
+        ->and($check['hint'])->toEndWith('/artisan schedule:run');
+
+    Cache::put(Heartbeat::CACHE_KEY, now()->toIso8601String());
+    $check = collect(app(SystemHealthReport::class)->checks())->firstWhere('label', 'Cron heartbeat');
+
+    expect($check['ok'])->toBeTrue()
+        ->and($check['hint'])->not->toContain('/artisan schedule:run');
+});
+
+it('prints no cron line where the platform supplies the settings and no cron job can be entered', function () {
+    // The hosted demo: its files are the platform's, read-only, and nothing starts a scheduler there.
+    Cache::forget(Heartbeat::CACHE_KEY);
+    $_SERVER[SiteState::SERVER_CONFIG] = '1';
+
+    try {
+        $check = collect(app(SystemHealthReport::class)->checks())->firstWhere('label', 'Cron heartbeat');
+    } finally {
+        unset($_SERVER[SiteState::SERVER_CONFIG]);
+    }
+
+    expect($check['ok'])->toBeFalse()
+        ->and($check['hint'])->not->toContain('/artisan schedule:run')
+        ->and($check['hint'])->not->toContain(base_path());
 });

@@ -10,11 +10,14 @@ use App\Integrations\Telegram\Contracts\TelegramGateway;
 use App\Integrations\Turnstile\TurnstileVerifier;
 use App\Support\DebugGuard;
 use App\Support\Install\DatabaseUpdates;
+use App\Support\Install\Installer;
 use App\Support\Install\SiteState;
+use App\Support\Release;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * The one collector behind both System → Health and /health (SYS-008, S5): database size, last backup,
@@ -26,6 +29,7 @@ final class SystemHealthReport
     public function __construct(
         private readonly DatabaseUpdates $updates,
         private readonly SiteState $site,
+        private readonly Installer $installer,
     ) {}
 
     /**
@@ -62,10 +66,39 @@ final class SystemHealthReport
             'PHP' => PHP_VERSION,
             'Laravel' => app()->version(),
             'Database' => config('database.default'),
+            'Database server' => $this->databaseServer(),
             'Queue' => config('queue.default'),
             'Cache' => config('cache.default'),
             'Time zone' => config('app.timezone'),
+            'Release' => Release::describe(base_path(), self::serverVariable('VERCEL_GIT_COMMIT_SHA'), (string) config('app.timezone')),
         ];
+    }
+
+    /**
+     * The server that answers, by its own word: "MariaDB 10.11.19", "MySQL 8.4.13", "SQLite 3.46.1". A host that
+     * offers "MySQL" often runs MariaDB; which one it is decides what a failure means.
+     */
+    public function databaseServer(): string
+    {
+        try {
+            if (DB::connection()->getDriverName() === 'sqlite') {
+                return 'SQLite '.DB::scalar('select sqlite_version()');
+            }
+
+            $version = (string) DB::scalar('select version()');
+            $number = preg_match('/^\d+(?:\.\d+){1,2}/', $version, $match) === 1 ? $match[0] : $version;
+
+            return (stripos($version, 'mariadb') !== false ? 'MariaDB ' : 'MySQL ').$number;
+        } catch (Throwable) {
+            return 'no answer';
+        }
+    }
+
+    private static function serverVariable(string $name): ?string
+    {
+        $value = $_SERVER[$name] ?? getenv($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     /**
@@ -191,11 +224,18 @@ final class SystemHealthReport
         $heartbeat = Cache::get(Heartbeat::CACHE_KEY);
         $heartbeatAt = is_string($heartbeat) && $heartbeat !== '' ? CarbonImmutable::parse($heartbeat) : null;
 
+        $ok = $heartbeatAt !== null && $heartbeatAt->greaterThan(now()->subMinutes(3));
+
         return [
             'label' => 'Cron heartbeat',
-            'ok' => $heartbeatAt !== null && $heartbeatAt->greaterThan(now()->subMinutes(3)),
+            'ok' => $ok,
             'value' => $heartbeatAt?->diffForHumans() ?? 'never',
-            'hint' => 'hPanel cron must run "artisan schedule:run" every minute.',
+            // Without a heartbeat the line to enter is shown again: the installer prints it once, on its last page.
+            // Not where the platform supplies the settings (the hosted demo): no cron line can be entered there,
+            // and the folder the line would name is the platform's own.
+            'hint' => $ok || $this->installer->site()->configuredByServer()
+                ? 'hPanel cron must run "artisan schedule:run" every minute.'
+                : 'Reminders, the queue and alerts are not running. hPanel → Advanced → Cron Jobs → Custom, every minute: '.$this->installer->cronCommand(),
         ];
     }
 
@@ -367,7 +407,7 @@ final class SystemHealthReport
             $size = $row->size ?? null;
 
             return is_numeric($size) ? (int) $size : null;
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }
@@ -378,7 +418,7 @@ final class SystemHealthReport
             $row = DB::selectOne('SELECT (SELECT page_count FROM pragma_page_count()) * (SELECT page_size FROM pragma_page_size()) AS size');
 
             return is_object($row) && is_numeric($row->size ?? null) ? (int) $row->size : null;
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }
