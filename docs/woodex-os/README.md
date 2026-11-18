@@ -21,7 +21,9 @@ Read in this order:
 | 13 | [`22-RELEASE-2026-11-17-FIFTH.md`](22-RELEASE-2026-11-17-FIFTH.md) | The release report of pull request #41, written before its merge: the plan of the pending work and its check; no screen and no site behaves differently |
 | 14 | [`23-RELEASE-2026-11-18.md`](23-RELEASE-2026-11-18.md) | The release report of pull request #42, written before its merge: a release the host can run as it is, installed and deployed again by a browser on Apache and MariaDB on every change; the suite on MariaDB; what that found |
 | 15 | [`24-HOSTINGER-STEP-BY-STEP.md`](24-HOSTINGER-STEP-BY-STEP.md) | **The admin on Hostinger: what is ready, what is proved and where, and the owner's ten steps in hPanel** — about half an hour, without a programmer; what to send afterwards; the way back |
-| 16 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
+| 16 | [`25-INTERIOR-ADMIN-REUSE-AND-UPGRADE-PLAN.md`](25-INTERIOR-ADMIN-REUSE-AND-UPGRADE-PLAN.md) | **The Interior studio's admin, analysed, and the plan to finish the upgrade from it without its theme**: first the short list of what is still held, pending or missing; then what the attached archive is, what of it is in this admin, the 21 destinations that are in the code and switched off and what each needs before it opens, what is not reused, and the order |
+| 17 | [`26-RELEASE-2026-11-18-SECOND.md`](26-RELEASE-2026-11-18-SECOND.md) | The release report of the pull request that carries document 25, written before its merge: an analysis, three new lines and the records; no screen and no site behaves differently. It also says what was read after merge #42 |
+| 18 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
 
 Related, elsewhere in this repository:
 

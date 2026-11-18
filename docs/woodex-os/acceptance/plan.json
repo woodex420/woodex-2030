@@ -1,7 +1,7 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
-  "written": "2026-11-17",
-  "commit": "dfc8369",
+  "written": "2026-11-18",
+  "commit": "115e29b",
   "sizes": {
     "S": "small",
     "M": "medium",
@@ -30,44 +30,31 @@
     "T-024": "Send the AI-agent failure example, if you want that diagnosis",
     "T-025": "The old dashboard's address: leave it, or add a link to the new admin",
     "T-026": "Look at the React shop as it was rebuilt, and say whether it stays",
-    "T-090": "Review the imported catalogue: points to check, prices, categories",
-    "T-091": "Load the 170 real products into the React shop; withdraw the samples",
-    "T-151": "Add the demo owner's password as a GitHub secret, for a signed-in check",
-    "T-171": "Read the eight module sheets: approve or return each",
-    "T-181": "Approve in writing before any real record moves, and before production",
-    "T-187": "Say whether Supabase keeps backups, or give the database address as a secret",
+    "T-027": "Say whether Google sign-in, the AI bridge and the old site bridge are wanted",
+    "T-033": "Interior lists and fields in open screens replaced by Furniture's wording",
     "T-041": "One table component for every list, with the five states",
+    "T-042": "On a phone, the key lists show cards instead of a wide table",
     "T-043": "A warning before leaving a form with unsaved changes",
     "T-044": "The dashboard as a widget framework, with the missing widgets",
     "T-045": "Screen pass, area by area: theme colours, page patterns, dark theme",
     "T-046": "Help, pinned screens and recently opened screens in the top bar",
-    "T-049": "No text smaller than 12 px",
-    "T-052": "Page weight: a near-empty page under 60 KB of HTML",
-    "T-054": "Keyboard and screen-reader tests in a browser",
-    "T-063": "The rules of `/api/v1`, held by a contract test",
-    "T-071": "Package updates, and the advisories the audit reports",
-    "T-072": "The content policy without `eval`",
-    "T-086": "A quotation line from the catalogue keeps its product and price",
-    "T-142": "The outside check on a timer: started once in three times due",
-    "T-152": "Long caching for the stylesheet and scripts",
-    "T-153": "A guard on the size of the Vercel function",
-    "T-154": "A cold start on Vercel, measured",
-    "T-172": "A fixed search path for the functions of the shop's database",
-    "T-175": "Every table of the old system mapped to its Laravel owner",
-    "T-189": "Close pull request #29: its work is already in `main`",
-    "T-033": "Interior lists and fields in open screens replaced by Furniture's wording",
-    "T-042": "On a phone, the key lists show cards instead of a wide table",
     "T-047": "Search finds a screen by keyword and by its old name",
     "T-048": "The signed-in person and Settings at the foot of the sidebar",
+    "T-049": "No text smaller than 12 px",
     "T-050": "A reference screen showing every shared component and state",
     "T-051": "Placeholders while a list loads; a notice when the connection is lost",
+    "T-052": "Page weight: a near-empty page under 60 KB of HTML",
     "T-053": "Phones with real amounts of data: no page wider than the window",
+    "T-054": "Keyboard and screen-reader tests in a browser",
     "T-055": "The notification bell's request every 30 seconds, measured on the real host",
     "T-056": "Workspace preferences, Team onboarding and release notes",
     "T-060": "One role and permission matrix from the two systems",
+    "T-063": "The rules of `/api/v1`, held by a contract test",
     "T-064": "Business settings in one screen: currency, time zone, tax rules",
     "T-065": "A screen for sign-in locks and open sessions",
     "T-066": "A currency code on payments, bills, expenses and journal lines",
+    "T-071": "Package updates, and the advisories the audit reports",
+    "T-072": "The content policy without `eval`",
     "T-073": "\"Connect\" of a connector that signs in at another site",
     "T-080": "The sale end to end on staging, with real test records",
     "T-081": "Approvals as one queue for every kind",
@@ -75,9 +62,13 @@
     "T-083": "Contacts with several phone numbers and e-mail addresses",
     "T-084": "Documents issued with Furniture's real terms and signers",
     "T-085": "Estimations with Furniture's rates; the module switched on",
+    "T-086": "A quotation line from the catalogue keeps its product and price",
     "T-087": "Tax rules on quotations and invoices; credit notes; payment schedules",
     "T-088": "Commerce readiness: the command exits clean on staging",
     "T-089": "The catalogue's photographs copied into the media library",
+    "T-090": "Review the imported catalogue: points to check, prices, categories",
+    "T-091": "Load the 170 real products into the React shop; withdraw the samples",
+    "T-093": "The ledger holds with two people writing at once",
     "T-100": "The shop's enquiry and quote-request forms write to Laravel",
     "T-101": "Import of leads, contacts, companies, tasks and meetings",
     "T-102": "The old system stops writing CRM records: one writer",
@@ -111,20 +102,31 @@
     "T-139": "Behaviour within the hosting plan's limits",
     "T-140": "https, the domain, the admin's own host name",
     "T-141": "The shop's build served from the same Hostinger account",
-    "T-146": "The release is written to the branch hostinger-release from main",
+    "T-142": "The outside check on a timer: started once in three times due",
+    "T-151": "Add the demo owner's password as a GitHub secret, for a signed-in check",
+    "T-152": "Long caching for the stylesheet and scripts",
+    "T-153": "A guard on the size of the Vercel function",
+    "T-154": "A cold start on Vercel, measured",
     "T-155": "Richer sample data, Furniture's own",
     "T-156": "The demo removed or moved once the real admin exists",
     "T-161": "A sweep for records opened by their number as the wrong role",
     "T-165": "Browser journeys for the remaining flows of document 10",
     "T-168": "Performance: query budgets and a run with realistic volumes",
+    "T-171": "Read the eight module sheets: approve or return each",
+    "T-172": "A fixed search path for the functions of the shop's database",
+    "T-174": "The documents the code points at are in this repository",
+    "T-175": "Every table of the old system mapped to its Laravel owner",
     "T-176": "The differences between PostgreSQL and MySQL, tested",
     "T-177": "One rule for identifiers; old-to-new numbers kept",
     "T-178": "An importer per module, repeatable, with a dry run",
     "T-179": "A reconciliation report per domain",
     "T-180": "One full rehearsal of the data move, and of going back",
+    "T-181": "Approve in writing before any real record moves, and before production",
     "T-185": "A runbook: deploy, roll back, restore, passwords, accounts",
     "T-186": "Training and handover",
-    "T-188": "The shop's old previews are gone"
+    "T-187": "Say whether Supabase keeps backups, or give the database address as a secret",
+    "T-188": "The shop's old previews are gone",
+    "T-189": "Close pull request #29: its work is already in `main`"
   },
   "notes": {
     "T-080": "Done on the rehearsal on 17 November. What is left is the same journey on staging.",
@@ -184,6 +186,30 @@
           ],
           "against": "With the copy taken out, so that the line reads the product's price of the day, the second test fails.",
           "back": "The migration only adds columns and its way back removes them. No existing line is changed."
+        }
+      ]
+    },
+    {
+      "name": "The ledger with two people writing at once",
+      "why": "P1 and about money. The code came from the Interior studio's system, whose own list says this was never tried on a real database server; the first place where two people work at the same moment is the trial site on Hostinger. It needs nobody, and CI has the two servers since T-143.",
+      "lines": [
+        {
+          "id": "T-093",
+          "size": "M",
+          "found": "Recording and verifying a payment, allocating it to an invoice, paying a supplier's bill, posting to the ledger and reversing an entry each run inside a database transaction and several lock the rows they change. Their tests call them one after another. The Interior studio's list of open work, written by the people who built this code, says of the same actions: \"real MySQL concurrent writer checks pending\" (document 25 §8). The suite runs on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 since T-143, always one request at a time. SQLite, which the sandbox uses, lets one writer in at a time and cannot show the fault.",
+          "build": [
+            "A test command of its own, `platform/tools/ci/two-writers.php`, run by CI's database job against MySQL 8.4 and MariaDB 10.11: it starts two PHP processes that wait at the same gate and then call the same action on the same record, and it repeats that for each step fifty times.",
+            "The steps: allocating one payment to one invoice; verifying one payment; paying one supplier's bill; posting one invoice to the ledger; reversing one journal entry; taking the next number of a document series.",
+            "Where a run shows a second writer getting through, the action is repaired in the same round (a lock on the right row, or a unique key in a migration that only adds), and the run that showed it is kept as its test."
+          ],
+          "tests": [
+            "For each step and each of the fifty runs: exactly one of the two writers succeeds; the other is refused with the action's own message or, having waited, sees what the first one wrote.",
+            "After every run: each journal entry balances, an invoice is never paid beyond its total, a bill is never paid twice, and no document number is given twice.",
+            "The whole suite still passes on the three servers and on SQLite."
+          ],
+          "browser": [],
+          "against": "With the lock taken out of the payment allocation in a copy, the two-writers run reports an invoice paid twice within the fifty runs; the test of the check requires that.",
+          "back": "A test command and, only if a fault is found, a lock or a migration that adds a unique key. A migration that adds a key says in its way back how the key is removed; no row is changed."
         }
       ]
     },
@@ -284,7 +310,7 @@
       ]
     },
     {
-      "name": "Packages, and the demo's housekeeping",
+      "name": "Packages, the demo's housekeeping, the documents the code points at",
       "why": "Small lines, P2 and P3, taken together. They stand here and not at the end because packages fall further behind with every week, and because every later merge then adds a reading of a cold start.",
       "lines": [
         {
@@ -381,6 +407,23 @@
           "browser": [],
           "against": "Nothing to take away: it is one action, read back from GitHub.",
           "back": "A closed pull request can be opened again."
+        },
+        {
+          "id": "T-174",
+          "size": "S",
+          "found": "Counted in `platform/app`, `routes`, `config`, `resources`, `database`, `tests` and `bootstrap`: 37 decisions named by number 108 times (D-58 the most), 200 mentions of a numbered document of the Interior studio (docs/09, docs/14 and docs/06 the most), 642 mentions of 120 requirement codes in seventeen families (QUO, CRM, WAP, PRJ and others). None of these documents is in this repository. Read against the archive the owner attached on 18 November: 119 of the 120 requirement codes are in the studio's requirements document and 31 of the 37 decisions in its decisions document; of the other six, four are named in other documents of the studio, two in none (D-111, D-112). The documents are also in the studio's public repository `woodex420/woodexinterior` at `603428c`, the commit this admin was copied from.",
+          "build": [
+            "Three documents copied unchanged from that commit into `docs/laravel-os/source/`: the decisions (`07-DECISIONS.md`), the requirements (`02-MASTER-PRD.md`) and the Hostinger guide (`06-DEPLOYMENT-HOSTINGER.md`). Each gets a first paragraph that says whose system it describes, the commit it was taken from and its checksum, and that this admin's own decisions are document 12.",
+            "Before the copy each is read for a name, a number, an address or a password that should not be repeated here; the secret scan runs over them like over every file.",
+            "A check, `scripts/verify-code-references.mjs`, lists what the code names and fails when a decision number, a numbered document or a requirement code is in none of the three and not in this repository's own documents. What it cannot resolve is listed once, by hand, with the reason."
+          ],
+          "tests": [
+            "The check passes on the repository as it is after the copy, and names every mention it had to leave unresolved.",
+            "The check's own test changes one thing at a time in a copy: a decision number that does not exist, a requirement code of an unknown family, a document removed. Each time the check must fail and name the file and the line."
+          ],
+          "browser": [],
+          "against": "With `07-DECISIONS.md` taken out of a copy, the check fails and names D-58 with the first file that mentions it.",
+          "back": "Three documents and one script; putting the commit back removes them. No code changes."
         }
       ]
     },

@@ -255,6 +255,18 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   the owner says otherwise. When a line is done: mark it done in the list, take it out of its round and its
   title out of `plan.json`, give a round to every line it sets free, and run the script with `--write`. A line
   enters a round only with what is built, its tests, what the tests are tried against and the way back.
+- **Push before you merge, and merge last.** When the pull request of your branch is merged, the branch is
+  closed to you: no push, no new pull request, and the sandbox with whatever was not pushed can be gone with the
+  next message. Work written after a merge and never pushed was lost that way on 18 November (two lines of round
+  1). So: commit and push every piece of work to the branch first; merge only when nothing uncommitted is left;
+  begin the next piece on the next branch.
+- **What came from the Interior studio, and what may be switched on** is
+  `docs/woodex-os/25-INTERIOR-ADMIN-REUSE-AND-UPGRADE-PLAN.md`: 21 destinations are in the code behind a switch
+  (`config/modules.php`). A switched-off part opens only when the five conditions of DL-034 are true: the owner
+  said Furniture uses it; its content is Furniture's own; its screens carry this admin's look (DL-017) and
+  Furniture's wording, nothing of the studio's theme; its outside service is tried without reaching a client; it
+  is proved with the switch on and its sheet is signed. Never load the studio's reference content outside the
+  tests, and copy nothing from the studio's archive into this repository without a line that says so.
 - **Furniture only.** The code came from the Woodex Interior application. One setting names the lines an
   installation sells: `WOODEX_BUSINESS_LINES`, default `furniture` (DL-021). With one line there is no line
   chooser, filter or column, and a line that is not sold is refused. The test suite runs with all three lines;

@@ -492,5 +492,6 @@ The first report in this form is [`17-RELEASE-2026-11-17.md`](17-RELEASE-2026-11
 [`18-RELEASE-2026-11-17-SECOND.md`](18-RELEASE-2026-11-17-SECOND.md), written before its merge; the third,
 [`19-RELEASE-2026-11-17-THIRD.md`](19-RELEASE-2026-11-17-THIRD.md), the fourth,
 [`20-RELEASE-2026-11-17-FOURTH.md`](20-RELEASE-2026-11-17-FOURTH.md), the fifth,
-[`22-RELEASE-2026-11-17-FIFTH.md`](22-RELEASE-2026-11-17-FIFTH.md), and the sixth,
-[`23-RELEASE-2026-11-18.md`](23-RELEASE-2026-11-18.md), likewise.
+[`22-RELEASE-2026-11-17-FIFTH.md`](22-RELEASE-2026-11-17-FIFTH.md), the sixth,
+[`23-RELEASE-2026-11-18.md`](23-RELEASE-2026-11-18.md), and the seventh,
+[`26-RELEASE-2026-11-18-SECOND.md`](26-RELEASE-2026-11-18-SECOND.md), likewise.
