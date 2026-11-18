@@ -156,17 +156,24 @@ jobs:
           if-no-files-found: error
 
   tests:
-    name: Tests on MySQL 8.4 — ${{ matrix.group }}
+    name: Tests on ${{ matrix.db.name }} — ${{ matrix.group }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        # MySQL 8.4 is the authority for "done". MariaDB is what Hostinger's shared hosting gives under the name
+        # MySQL (master list T-143): its two long-term versions, so that the one found on the account lies
+        # between them. The application connects to both with the same driver, as the installer writes it.
+        db:
+          - { name: "MySQL 8.4", image: "mysql:8.4", ping: "mysqladmin" }
+          - { name: "MariaDB 10.11", image: "mariadb:10.11", ping: "mariadb-admin" }
+          - { name: "MariaDB 11.4", image: "mariadb:11.4", ping: "mariadb-admin" }
         group: [unit-arch, feature-a-f, feature-g-p, feature-q-z]
 
     services:
       mysql:
-        image: mysql:8.4
+        image: ${{ matrix.db.image }}
         env:
           MYSQL_DATABASE: woodex_test
           MYSQL_USER: woodex_test
@@ -175,7 +182,7 @@ jobs:
         ports: ["3306:3306"]
         options: >-
           --tmpfs /var/lib/mysql
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
+          --health-cmd="${{ matrix.db.ping }} ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=40
@@ -202,6 +209,12 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php artisan package:discover --ansi
 
+      - name: Which database server answers
+        if: matrix.group == 'unit-arch'
+        run: |
+          version=$(mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "SELECT VERSION()" 2>/dev/null)
+          echo "::notice title=Database server — ${{ matrix.db.name }}::${version:-no answer}"
+
       - name: Run the group
         run: |
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs storage/app/private
@@ -223,15 +236,15 @@ jobs:
       - name: Publish the result as annotations (the run log is not always reachable)
         if: always()
         run: |
-          python3 - "${{ matrix.group }}" <<'PY'
+          python3 - "${{ matrix.group }}" "${{ matrix.db.name }}" <<'PY'
           import re, sys
           import xml.etree.ElementTree as ET
-          group = sys.argv[1]
+          group, server = sys.argv[1], sys.argv[2]
           def enc(s): return s.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
           try:
               log = re.sub(r'\x1b\[[0-9;]*m', '', open('/tmp/pest.log', encoding='utf-8', errors='replace').read())
           except FileNotFoundError:
-              print(f"::error title=Tests on MySQL — {group}::no test output was produced"); sys.exit(0)
+              print(f"::error title=Tests on {server} — {group}::no test output was produced"); sys.exit(0)
           summary = ' | '.join(s.strip() for s in re.findall(r'(?m)^\s*(Tests:.*|Duration:.*)$', log)) or 'no summary line: ' + log[-600:]
           failures = []
           try:
@@ -243,21 +256,21 @@ jobs:
           except Exception as problem:
               failures += [f"(could not read the JUnit file: {problem})"] + [f"{c} > {n[:150]}\n    {' '.join(b.split())[:520]}" for c, n, b in re.findall(r'(?m)^\s+(?:FAILED|FAIL)\s+(Tests\\\S+)\s+>\s+(.*?)\s*\n((?:.*\n){0,7})', log)]
           if not failures and re.search(r'\b\d+ passed\b', summary) and 'failed' not in summary:
-              print(f"::notice title=Tests on MySQL — {group}::{enc(summary)}")
+              print(f"::notice title=Tests on {server} — {group}::{enc(summary)}")
           else:
               text = '\n'.join([summary, f"{len(failures)} failing", ''] + failures)
               for part, start in enumerate(range(0, min(len(text), 9 * 7000), 7000), 1):
-                  print(f"::error title=Tests on MySQL — {group} ({part})::{enc(text[start:start + 7000])}")
+                  print(f"::error title=Tests on {server} — {group} ({part})::{enc(text[start:start + 7000])}")
           PY
 
       - name: Summary
         if: always()
         run: |
           {
-            echo "## WOODEX OS platform — ${{ matrix.group }} on PHP 8.4 and MySQL 8.4"
+            echo "## WOODEX OS platform — ${{ matrix.group }} on PHP 8.4 and ${{ matrix.db.name }}"
             echo '```'
             sed 's/\x1b\[[0-9;]*m//g' /tmp/pest.log 2>/dev/null | grep -E 'Tests:|Duration:' || echo 'no test summary was produced'
             echo '```'
             echo 'Disposable database in the runner. No deployment, no hosted data, no provider credentials.'
-            echo 'A green run is evidence for this commit on MySQL. It is not approval to deploy.'
+            echo 'A green run is evidence for this commit on this database server. It is not approval to deploy.'
           } >> "$GITHUB_STEP_SUMMARY"
