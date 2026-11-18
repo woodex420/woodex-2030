@@ -86,7 +86,7 @@ status="$(ask /robots.txt)"; case "$status" in 200|302|404) ;; *) wrong "/robots
 status="$(ask /admin/login)"; case "$status" in 200|302) ;; *) wrong "/admin/login answered $status" ;; esac
 
 # On GitHub the result is also written as one line on the run page, readable without the log.
-note() { [ "${GITHUB_ACTIONS:-}" = true ] && echo "::$1 title=The website's folder, asked from outside::$(echo "$2" | tr '\n' ' ' | cut -c1-1500)"; return 0; }
+note() { [ "${GITHUB_ACTIONS:-}" = true ] && echo "::$1 title=The website's folder asked from outside::$(echo "$2" | tr '\n' ' ' | cut -c1-1500)"; return 0; }
 if [ "$failed" -gt 0 ]; then
   echo "$failed of $asked answers are not what the folder's .htaccess promises"
   note error "$failed of $asked answers are not what the folder's .htaccess promises$found"

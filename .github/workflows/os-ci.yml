@@ -393,7 +393,7 @@ jobs:
           echo "WX_PW_OWNER=$value" >> "$GITHUB_ENV"
           export WX_PW_OWNER="$value" OS_SETUP_CODE_FILE="$SITE/WOODEX-SETUP-CODE.txt"
           node scripts/os-install.mjs --out "$RUNNER_TEMP/install" || echo "the installation in a browser" >> "$RUNNER_TEMP/failed"
-          node scripts/os-notice.mjs "A release installed by its owner (Apache, MariaDB 10.11)" "$RUNNER_TEMP/install"
+          node scripts/os-notice.mjs "A release installed by its owner on Apache and MariaDB 10.11" "$RUNNER_TEMP/install"
 
       - name: The same questions from outside, now that the site is installed
         run: bash platform/tools/hostinger/check-bridge.sh "$SITE_URL" "$SITE" || echo "the folder's answers after the installation" >> "$RUNNER_TEMP/failed"
@@ -433,7 +433,7 @@ jobs:
           OS_EXPECT_MIGRATION: 2099_01_01_000000_rehearsal_second_release
         run: |
           node scripts/os-install.mjs --after-deploy --out "$RUNNER_TEMP/after-deploy" || echo "the owner after the next deployment" >> "$RUNNER_TEMP/failed"
-          node scripts/os-notice.mjs "The next deployment (Apache, MariaDB 10.11)" "$RUNNER_TEMP/after-deploy"
+          node scripts/os-notice.mjs "The next deployment on Apache and MariaDB 10.11" "$RUNNER_TEMP/after-deploy"
 
       - name: What the web server and the application wrote
         if: always()

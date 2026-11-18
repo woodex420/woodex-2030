@@ -6,6 +6,7 @@ use App\Domain\System\Models\ScheduledTaskRun;
 use App\Domain\System\Models\TelegramLink;
 use App\Integrations\Telegram\Fakes\FakeTelegramGateway;
 use App\Livewire\Admin\System\Health;
+use App\Support\Install\SiteState;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Mail\MailManager;
@@ -157,4 +158,20 @@ it('shows the cron line again for as long as no heartbeat comes', function () {
 
     expect($check['ok'])->toBeTrue()
         ->and($check['hint'])->not->toContain('/artisan schedule:run');
+});
+
+it('prints no cron line where the platform supplies the settings and no cron job can be entered', function () {
+    // The hosted demo: its files are the platform's, read-only, and nothing starts a scheduler there.
+    Cache::forget(Heartbeat::CACHE_KEY);
+    $_SERVER[SiteState::SERVER_CONFIG] = '1';
+
+    try {
+        $check = collect(app(SystemHealthReport::class)->checks())->firstWhere('label', 'Cron heartbeat');
+    } finally {
+        unset($_SERVER[SiteState::SERVER_CONFIG]);
+    }
+
+    expect($check['ok'])->toBeFalse()
+        ->and($check['hint'])->not->toContain('/artisan schedule:run')
+        ->and($check['hint'])->not->toContain(base_path());
 });

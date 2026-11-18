@@ -496,10 +496,12 @@ final class Installer
     /**
      * The command-line PHP of the version that serves the website.
      *
-     * Hostinger keeps one PHP per version under /opt/alt/phpNN. The plain "php" of a cron job can be an older one,
-     * on which nothing of this application starts, so the line names the version. The web server's own program
-     * (lsphp, php-fpm) is not the command line, and under some servers PHP names no program at all: then the folder
-     * PHP was built for says which version it is.
+     * Hosts of Hostinger's kind keep one PHP per version under /opt/alt/phpNN (as read; not yet seen on the
+     * account, master list T-131). The plain "php" of a cron job can be an older one, on which nothing of this
+     * application starts, so the line names the version. The web server's own program (lsphp, php-fpm) is not the
+     * command line, and under some servers PHP names no program at all: then the folder PHP was built for says
+     * which version it is. Anywhere else the line names /usr/bin/php. System health shows within three minutes
+     * whether the line that was entered works.
      */
     public static function phpForCron(string $binary, string $binDir): string
     {

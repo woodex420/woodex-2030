@@ -231,7 +231,9 @@ final class SystemHealthReport
             'ok' => $ok,
             'value' => $heartbeatAt?->diffForHumans() ?? 'never',
             // Without a heartbeat the line to enter is shown again: the installer prints it once, on its last page.
-            'hint' => $ok
+            // Not where the platform supplies the settings (the hosted demo): no cron line can be entered there,
+            // and the folder the line would name is the platform's own.
+            'hint' => $ok || $this->installer->site()->configuredByServer()
                 ? 'hPanel cron must run "artisan schedule:run" every minute.'
                 : 'Reminders, the queue and alerts are not running. hPanel → Advanced → Cron Jobs → Custom, every minute: '.$this->installer->cronCommand(),
         ];
