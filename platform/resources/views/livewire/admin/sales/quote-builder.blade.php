@@ -769,7 +769,7 @@
                                 Price on request
                             @endif
                         </p>
-                        <x-admin.button size="sm" variant="secondary" icon="plus" wire:click="addFromProduct({{ $choice['product_id'] }}, {{ \Illuminate\Support\Js::from($choice['code']) }})" aria-label="Add {{ $choice['name'] }}{{ $choice['code'] !== '' ? ', code '.$choice['code'] : '' }}">Add</x-admin.button>
+                        <x-admin.button size="sm" variant="secondary" icon="plus" wire:click="addFromProduct({{ $choice['product_id'] }}, {{ $choice['code_number'] }})" aria-label="Add {{ $choice['name'] }}{{ $choice['code'] !== '' ? ', code '.$choice['code'] : '' }}">Add</x-admin.button>
                     </div>
                 @empty
                     <x-admin.empty icon="tag" title="Nothing found" description="Try another word or the product's code. Archived products are not offered." />

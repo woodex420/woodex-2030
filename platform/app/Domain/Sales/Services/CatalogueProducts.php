@@ -18,7 +18,7 @@ use InvalidArgumentException;
  * What is read is the product's draft, which is what staff edit; the shop's published copy can be older.
  * Nothing here writes, and nothing here is kept: a quotation line takes its own copy (QuoteEditor).
  *
- * @phpstan-type Choice array{product_id: int, code: string, name: string, option: string, price_minor: int|null, was_minor: int|null, to_check: int, published: bool}
+ * @phpstan-type Choice array{product_id: int, code: string, code_number: int, name: string, option: string, price_minor: int|null, was_minor: int|null, to_check: int, published: bool}
  */
 final class CatalogueProducts
 {
@@ -77,6 +77,7 @@ final class CatalogueProducts
         $base = [
             'product_id' => (int) $product->id,
             'code' => '',
+            'code_number' => self::codeNumber(''),
             'name' => (string) $product->name,
             'option' => '',
             // Points of the import that nobody has looked at yet: a doubtful price is seen before it is used.
@@ -91,7 +92,8 @@ final class CatalogueProducts
 
         return array_map(fn (array $option): array => [
             ...$base,
-            'code' => trim((string) ($option['sku'] ?? '')),
+            'code' => $code = trim((string) ($option['sku'] ?? '')),
+            'code_number' => self::codeNumber($code),
             'option' => implode(' · ', array_filter(array_map(fn (string $key): string => trim((string) ($option[$key] ?? '')), ['colour', 'material', 'size']))),
             // An option with a price of its own is sold at that price; otherwise the product's price holds.
             ...$this->price(filled($option['price'] ?? '') ? $option : $draft),
@@ -119,6 +121,33 @@ final class CatalogueProducts
         throw new InvalidArgumentException($code === ''
             ? 'Choose one of the options of that product.'
             : "The catalogue no longer has the code {$code} for that product. Search again.");
+    }
+
+    /**
+     * The choice a button of the screen stands for. The button says the product's number and the number of the
+     * code; the code itself, which a person typed, is never printed into the button's script.
+     *
+     * @return Choice
+     */
+    public function choiceByNumber(Product $product, int $codeNumber): array
+    {
+        foreach ($this->choices($product) as $choice) {
+            if ($choice['code_number'] === $codeNumber) {
+                return $this->choice($product, $choice['code']);
+            }
+        }
+
+        throw new InvalidArgumentException('The catalogue no longer has that option of the product. Search again.');
+    }
+
+    /**
+     * A number that stands for a code in the one place where typed text may not be printed: an attribute the
+     * browser runs as script (tests/Feature/Security/StoredScriptTest.php). It tells the options of one product
+     * apart; it is not a secret and proves nothing.
+     */
+    public static function codeNumber(string $code): int
+    {
+        return crc32($code);
     }
 
     /**

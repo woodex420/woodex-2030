@@ -320,16 +320,21 @@ class QuoteBuilder extends Component
     }
 
     /** Writes a line from one product of the catalogue; $code names the option where the product has several. */
-    public function addFromProduct(int $productId, string $code = ''): void
+    /**
+     * @param  int  $codeNumber  stands for the code of the option (CatalogueProducts::codeNumber): the button's
+     *                           script carries numbers only, never the code a person typed
+     */
+    public function addFromProduct(int $productId, int $codeNumber = 0): void
     {
-        $this->attempt(function () use ($productId, $code): void {
+        $this->attempt(function () use ($productId, $codeNumber): void {
             if ($this->productSectionId === null) {
                 return;
             }
 
             /** @var Product $product */
             $product = Product::query()->whereNull('archived_at')->findOrFail($productId);
-            $line = $this->editor()->addProductLine($this->section($this->productSectionId), $product, mb_substr($code, 0, 100));
+            $choice = app(CatalogueProducts::class)->choiceByNumber($product, $codeNumber);
+            $line = $this->editor()->addProductLine($this->section($this->productSectionId), $product, $choice['code']);
             $this->refreshAll();
             $this->toast($line->price_on_request
                 ? 'Added without a price: '.str((string) $line->product_name)->limit(40).'. Type its rate before sending.'

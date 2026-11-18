@@ -136,7 +136,7 @@ it('copies the name, the code and the price of the chosen product onto the line'
         ->set('productSearch', $code)
         ->assertSee($product->name)
         ->assertSee($code)
-        ->call('addFromProduct', $product->id, $code)
+        ->call('addFromProduct', $product->id, CatalogueProducts::codeNumber($code))
         ->assertHasNoErrors()
         ->assertSee('From the catalogue')
         ->assertDontSee('Price on request');
@@ -157,11 +157,13 @@ it('copies the name, the code and the price of the chosen product onto the line'
 });
 
 it('hands the browser a choice it can read, whatever characters the code holds', function () {
-    // The button of a choice says what to add in the words of a script: addFromProduct(12, 'WST-10001'). The
-    // browser reads those words before anything reaches the server, so a test that calls the component never sees
-    // them. The journey in the browser did (18 November): the page carried "@js($choice['code'])" as written, the
-    // browser refused it, and no product could be added. A code is free text, so it is tried with the characters
-    // that end an attribute or a script's text.
+    // The button of a choice says what to add in the words of a script. The browser reads those words before
+    // anything reaches the server, so a test that calls the component never sees them. The journey in the browser
+    // did (18 November): the page carried "@js($choice['code'])" as written, the browser refused it, and no
+    // product could be added. A code is text somebody typed, and typed text does not belong in a script at all
+    // (tests/Feature/Security/StoredScriptTest.php): the button says two numbers, addFromProduct(12, 3405691582),
+    // and the server finds the code by them. Tried with a code made of the characters that end an attribute or a
+    // script's text.
     [$product] = pricedProduct();
     $awkward = 'WX-30"×60\' <b>&';
     $options = $product->draft['variants'];
@@ -178,14 +180,17 @@ it('hands the browser a choice it can read, whatever characters the code holds',
 
     $said = [];
     foreach ($buttons[1] as $words) {
-        // What the browser makes of the attribute, and then of the script's text in it.
-        $words = html_entity_decode($words, ENT_QUOTES | ENT_HTML5);
-        expect(preg_match('/^addFromProduct\((\d+), \'([^\'"]*)\'\)$/', $words, $parts))->toBe(1);
-        $said[] = [(int) $parts[1], json_decode('"'.$parts[2].'"', flags: JSON_THROW_ON_ERROR)];
+        // Numbers and nothing else: no character of the code is in the script.
+        expect(preg_match('/^addFromProduct\((\d+), (\d+)\)$/', $words, $parts))->toBe(1);
+        $said[] = [(int) $parts[1], (int) $parts[2]];
     }
-    expect($said)->toContain([$product->id, $awkward]);
+    $number = CatalogueProducts::codeNumber($awkward);
+    expect($said)->toContain([$product->id, $number])
+        // Every option of the product has a button of its own: no two say the same.
+        ->and(count(array_unique($said, SORT_REGULAR)))->toBe(count($said));
 
-    $screen->call('addFromProduct', $product->id, $awkward)->assertHasNoErrors();
+    // What the button says is what the server is sent.
+    $screen->call('addFromProduct', $product->id, $number)->assertHasNoErrors();
 
     expect($this->quote->items()->sole()->product_code)->toBe($awkward);
 });
@@ -384,7 +389,7 @@ it('marks a product without a price as price on request and refuses to send it u
         ->call('openProducts', $this->section->id)
         ->set('productSearch', $code)
         ->assertSee('Price on request')
-        ->call('addFromProduct', $product->id, $code)
+        ->call('addFromProduct', $product->id, CatalogueProducts::codeNumber($code))
         ->assertSee('No price in the catalogue: type the rate before sending.');
 
     $line = $this->quote->items()->sole();
@@ -422,7 +427,7 @@ it('lets nobody add a product who may not edit the quotation', function () {
     Livewire::test(QuoteBuilder::class, ['quote' => $this->quote])->assertOk()
         ->call('openProducts', $this->section->id)->assertForbidden();
     Livewire::test(QuoteBuilder::class, ['quote' => $this->quote])
-        ->call('addFromProduct', $product->id, $code)->assertForbidden();
+        ->call('addFromProduct', $product->id, CatalogueProducts::codeNumber($code))->assertForbidden();
 
     expect($this->quote->items()->count())->toBe(0);
 
@@ -436,7 +441,7 @@ it('lets nobody add a product who may not edit the quotation', function () {
     Livewire::test(QuoteBuilder::class, ['quote' => $this->quote->refresh()])
         ->assertDontSee('Add a product')
         ->call('openProducts', $this->section->id)
-        ->call('addFromProduct', $product->id, $code);
+        ->call('addFromProduct', $product->id, CatalogueProducts::codeNumber($code));
 
     expect($this->quote->items()->count())->toBe(1);
 });
@@ -458,9 +463,11 @@ it('asks the catalogue again when the line is written: a code that is gone is re
     expect(fn () => app(QuoteEditor::class)->addProductLine($this->section, $product, 'NOT-A-CODE'))
         ->toThrow(InvalidArgumentException::class, 'no longer has the code NOT-A-CODE');
 
+    // The same from the screen: a number that stands for no option of the product adds nothing, and says why.
     Livewire::test(QuoteBuilder::class, ['quote' => $this->quote])
         ->call('openProducts', $this->section->id)
-        ->call('addFromProduct', $product->id, 'NOT-A-CODE');
+        ->call('addFromProduct', $product->id, CatalogueProducts::codeNumber('NOT-A-CODE'))
+        ->assertDispatched('toast', type: 'error');
 
     expect($this->quote->items()->count())->toBe(0);
 });
