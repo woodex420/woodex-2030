@@ -111,6 +111,16 @@ async function step(name, run) {
 }
 const must = (condition, message) => { if (!condition) throw new Error(message); };
 /**
+ * A sum of rupees as the admin prints it, grouped in thousands or in lakhs, and not as a part of a longer number:
+ * 15,000 is not found in 115,000 nor in 15,000,000.
+ */
+const amount = (rupees) => {
+  const digits = String(Math.round(rupees));
+  const thousands = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const lakhs = digits.length > 3 ? `${digits.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${digits.slice(-3)}` : digits;
+  return new RegExp(`(?<!\\d)(?<!\\d,)(?:${thousands}|${lakhs})(?!,?\\d)`);
+};
+/**
  * Wait until something is on the screen, asking four times a second, and say in the failure what was expected.
  * (A Livewire answer changes the page without a navigation, so there is no load event to wait for.)
  */
@@ -175,6 +185,7 @@ const flat = (text) => String(text).replace(/\s+/g, ' ').trim();
 console.log(`WOODEX OS journeys against ${base}`);
 let leadPath = null;
 let quotePath = null;
+let quoted = null;
 let contactId = null;
 
 const signedIn = await step('sign in as the owner', async () => {
@@ -269,10 +280,40 @@ if (signedIn) {
     const rate = page.getByLabel('Rate in rupees').first();
     await rate.fill('12500'); await rate.blur(); await quiet();
     await shown(page.getByText(/37,500/), 15000, 'the total of the priced line');
+
+    // A second line, chosen from the real catalogue by its code (master list T-086): the name, the code and the
+    // price are copied onto the line as the catalogue has them now.
+    const wanted = catalogue.items.find((item) => item.sku && item.price > 0);
+    const add = page.getByRole('button', { name: 'Add a product' }).first();
+    must((await add.count()) > 0, 'the quotation offers no "Add a product"');
+    await add.click();
+    const search = page.getByLabel('Search the catalogue by name or code');
+    await shown(search, 15000, 'the search of the catalogue');
+    await search.fill(wanted.sku);
+    const choices = page.locator('[data-product-choice]');
+    const until = Date.now() + 15000;
+    while (Date.now() < until && (await choices.count()) !== 1) await page.waitForTimeout(250);
+    if ((await choices.count()) === 0) return { leftOut: 'this workspace holds no catalogue' };
+    must((await choices.count()) === 1, `the code ${wanted.sku} offered ${await choices.count()} choices, not one`);
+    const choice = page.locator(`[data-product-choice="${wanted.sku}"]`);
+    const offered = (await choice.innerText()).replace(/\s+/g, ' ');
+    must(offered.includes(wanted.name), `the code ${wanted.sku} offered another product: ${offered.slice(0, 80)}`);
+    must(amount(wanted.price).test(offered), `the choice does not show the catalogue's price ${wanted.price}: ${offered.slice(0, 120)}`);
+    await choice.getByRole('button', { name: /^Add / }).click();
+    const line = page.locator(`[data-line-product="${wanted.sku}"]`);
+    await shown(line, 15000, 'the line of the chosen product');
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    await quiet();
+    const total = 37500 + wanted.price;
+    await shown(page.getByText(amount(total)).first(), 15000, `the total with the product, ${total}`);
+
     await page.reload({ waitUntil: 'domcontentloaded' });
     await quiet();
     must(await page.getByText(/37,500/).first().isVisible(), 'the priced line is gone after a reload');
-    return '3 × 12,500 = 37,500';
+    must(await line.isVisible(), 'the line from the catalogue is gone after a reload');
+    must(await page.getByText(amount(total)).first().isVisible(), 'the total with the product is gone after a reload');
+    quoted = { sku: wanted.sku, name: wanted.name, price: wanted.price, total };
+    return `3 × 12,500 = 37,500; ${wanted.sku} "${wanted.name}" from the catalogue at ${wanted.price}; total ${total}`;
   });
 
   await step('the quotation PDF', async () => {
@@ -306,9 +347,33 @@ if (signedIn) {
     must(drawn.length > 0 && drawn.every((sheet) => sheet.width > 200 && sheet.height > 200), `no page was drawn (${JSON.stringify(drawn).slice(0, 120)})`);
     must(drawn[0].ink > 500, `the first page is blank (${drawn[0].ink} dark dots in its top part)`);
     const said = (await ready.innerText()).trim();
+
+    // What the PDF says, read with the reader the preview has just loaded: the product chosen from the catalogue
+    // is in it with its code and its price, and the total is the one the screen showed.
+    let read = '';
+    if (quoted) {
+      const words = await page.evaluate(async (address) => {
+        const built = await (await fetch('/build/manifest.json')).json();
+        const reader = await import(`/build/${built['node_modules/pdfjs-dist/build/pdf.mjs'].file}`);
+        const bytes = new Uint8Array(await (await fetch(address, { credentials: 'same-origin' })).arrayBuffer());
+        const file = await reader.getDocument({ data: bytes, isEvalSupported: false }).promise;
+        let text = '';
+        for (let number = 1; number <= file.numPages; number += 1) {
+          const content = await (await file.getPage(number)).getTextContent();
+          text += `${content.items.map((item) => item.str).join(' ')}\n`;
+        }
+        return text;
+      }, `${quotePath}/pdf`);
+      const text = words.replace(/\s+/g, ' ');
+      must(text.includes(quoted.sku), `the PDF does not name the code ${quoted.sku}`);
+      must(amount(quoted.price).test(text), `the PDF does not show the product's price ${quoted.price}`);
+      must(amount(quoted.total).test(text), `the PDF does not show the total ${quoted.total}`);
+      read = `; the PDF names ${quoted.sku} at ${quoted.price} and the total ${quoted.total}`;
+    }
+
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'detached', timeout: 10000 });
-    return `${said}; first page ${drawn[0].width} × ${drawn[0].height}, drawn`;
+    return `${said}; first page ${drawn[0].width} × ${drawn[0].height}, drawn${read}`;
   });
 
   await step('the client statement PDF', async () => {

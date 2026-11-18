@@ -12,15 +12,18 @@ use App\Domain\Sales\Actions\CreateFurnitureInvoice;
 use App\Domain\Sales\Actions\CreateQuote;
 use App\Domain\Sales\Actions\DuplicateQuote;
 use App\Domain\Sales\Actions\ReviseQuote;
+use App\Domain\Sales\Actions\SaveQuoteAsTemplate;
 use App\Domain\Sales\Actions\SendQuote;
 use App\Domain\Sales\Enums\AcceptanceChannel;
 use App\Domain\Sales\Enums\QuoteStatus;
 use App\Domain\Sales\Exceptions\QuoteLocked;
 use App\Domain\Sales\Models\QuoteItem;
 use App\Domain\Sales\Services\CatalogueProducts;
+use App\Domain\Sales\Services\InvoiceSnapshot;
 use App\Domain\Sales\Services\QuoteEditor;
 use App\Domain\Sales\Services\QuotePdf;
 use App\Livewire\Admin\Sales\QuoteBuilder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
@@ -78,6 +81,13 @@ function editProduct(Product $product, array $changes): void
 it('adds columns to the lines of quotations and invoices, and takes them away again', function () {
     expect(Schema::hasColumns('quote_items', ['product_id', 'product_code', 'price_on_request']))->toBeTrue()
         ->and(Schema::hasColumns('invoice_items', ['product_id', 'product_code']))->toBeTrue();
+
+    // On MySQL and MariaDB a change to a table ends the transaction this test runs in, and what it had written
+    // (170 products among it) would stay for every later test. There the way back is tried by CI's database job,
+    // on a database of its own: "The newest migration is taken back and applied again".
+    if (DB::connection()->getDriverName() !== 'sqlite') {
+        return;
+    }
 
     $migration = require database_path('migrations/2026_11_18_010000_add_catalogue_product_to_document_lines.php');
     $migration->down();
@@ -144,6 +154,40 @@ it('copies the name, the code and the price of the chosen product onto the line'
         ->and($line->description)->toBe("Code {$code}")
         ->and($line->line_total_minor)->toBe($price)
         ->and($this->quote->refresh()->total_minor)->toBe($price);
+});
+
+it('hands the browser a choice it can read, whatever characters the code holds', function () {
+    // The button of a choice says what to add in the words of a script: addFromProduct(12, 'WST-10001'). The
+    // browser reads those words before anything reaches the server, so a test that calls the component never sees
+    // them. The journey in the browser did (18 November): the page carried "@js($choice['code'])" as written, the
+    // browser refused it, and no product could be added. A code is free text, so it is tried with the characters
+    // that end an attribute or a script's text.
+    [$product] = pricedProduct();
+    $awkward = 'WX-30"×60\' <b>&';
+    $options = $product->draft['variants'];
+    $options[0]['sku'] = $awkward;
+    editProduct($product, ['variants' => $options]);
+
+    $screen = Livewire::test(QuoteBuilder::class, ['quote' => $this->quote])
+        ->call('openProducts', $this->section->id)
+        ->set('productSearch', $product->name);
+    $html = $screen->html();
+
+    expect($html)->not->toContain('@js(')
+        ->and(preg_match_all('/wire:click="(addFromProduct\([^"]*\))"/', $html, $buttons))->toBeGreaterThan(0);
+
+    $said = [];
+    foreach ($buttons[1] as $words) {
+        // What the browser makes of the attribute, and then of the script's text in it.
+        $words = html_entity_decode($words, ENT_QUOTES | ENT_HTML5);
+        expect(preg_match('/^addFromProduct\((\d+), \'([^\'"]*)\'\)$/', $words, $parts))->toBe(1);
+        $said[] = [(int) $parts[1], json_decode('"'.$parts[2].'"', flags: JSON_THROW_ON_ERROR)];
+    }
+    expect($said)->toContain([$product->id, $awkward]);
+
+    $screen->call('addFromProduct', $product->id, $awkward)->assertHasNoErrors();
+
+    expect($this->quote->items()->sole()->product_code)->toBe($awkward);
 });
 
 it('says in the search when a product still carries points to check', function () {
@@ -298,6 +342,39 @@ it('carries the product into a revision, a copy and the invoice made from the qu
         ->and($billed->product_name)->toBe($line->product_name)
         ->and($billed->rate_minor)->toBe($price)
         ->and($invoice->total_minor)->toBe($price * 2);
+
+    // The copy that is frozen when the invoice is issued holds them too.
+    $frozen = app(InvoiceSnapshot::class)->build($invoice->refresh())['items'][0];
+    expect($frozen['product_id'])->toBe($product->id)
+        ->and($frozen['product_code'])->toBe($code);
+});
+
+it('keeps the words and the price in a template, not the link to the catalogue', function () {
+    [$product, $code, $price] = pricedProduct();
+    [$onRequest, $otherCode] = productOnRequest();
+    $editor = app(QuoteEditor::class);
+    $editor->addProductLine($this->section, $product, $code);
+    $editor->addProductLine($this->section, $onRequest, $otherCode);
+
+    $template = app(SaveQuoteAsTemplate::class)->handle($this->quote->refresh(), 'Office set');
+    $made = app(CreateQuote::class)->handle($this->lead->contact, BusinessLine::Furniture, $this->owner, $this->lead, $template, 'From the template');
+    $lines = $made->items()->orderBy('position')->get();
+
+    // A template is used for months. What it holds is its own text and its own price. A line made from it does
+    // not say "from the catalogue", because its price is not the catalogue's price of that day.
+    expect($lines)->toHaveCount(2)
+        ->and($lines[0]->product_name)->toBe($product->name)
+        ->and($lines[0]->description)->toBe("Code {$code}")
+        ->and($lines[0]->rate_minor)->toBe($price)
+        ->and($lines[0]->product_id)->toBeNull()
+        ->and($lines[0]->product_code)->toBeNull()
+        ->and($lines[1]->product_name)->toBe($onRequest->name)
+        ->and($lines[1]->product_id)->toBeNull()
+        ->and($lines[1]->price_on_request)->toBeFalse()
+        ->and($lines[1]->rate_minor)->toBe(0);
+
+    // The line without a price is still refused at sending, as any line without a rate is.
+    expect(app(SendQuote::class)->problems($made->refresh()))->toContain('1 line has no quantity or rate.');
 });
 
 it('marks a product without a price as price on request and refuses to send it until a rate is typed', function () {

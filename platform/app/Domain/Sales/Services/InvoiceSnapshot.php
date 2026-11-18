@@ -75,6 +75,9 @@ final class InvoiceSnapshot
             ->values()
             ->map(fn (InvoiceItem $item): array => [
                 'product_name' => (string) $item->product_name,
+                // The catalogue's product the line was chosen from, and its code as copied then (T-086).
+                'product_id' => $item->product_id,
+                'product_code' => $item->product_code,
                 'description' => $item->description,
                 'unit' => $item->unit,
                 'unit_label' => Unit::normalize((string) $item->unit)->pdfLabel(),

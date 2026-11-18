@@ -145,6 +145,29 @@ jobs:
       - name: Rebuild from nothing a second time
         run: php artisan migrate:fresh --force | tail -3
 
+      # A migration says how it is taken back. Here the newest one is: on the real database server, where a change
+      # to a table cannot be undone by a test's transaction, so the suite does not try it there.
+      - name: The newest migration is taken back and applied again
+        run: |
+          set -euo pipefail
+          q() { mysql --protocol=TCP -h 127.0.0.1 -uwoodex_test -pdisposable-ci-only woodex_test -N -e "$1" 2>/dev/null; }
+          shape() { q "SELECT table_name, column_name, column_type, is_nullable, IFNULL(column_default, '') FROM information_schema.columns WHERE table_schema = DATABASE() ORDER BY table_name, ordinal_position" | sha256sum | cut -c1-16; }
+          columns() { q "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE()"; }
+          keys() { q "SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema = DATABASE()"; }
+          newest=$(q "SELECT migration FROM migrations ORDER BY batch DESC, migration DESC LIMIT 1")
+          before="$(shape) $(columns) columns $(keys) keys"
+          php artisan migrate:rollback --step=1 --force | tail -3
+          test "$(q "SELECT COUNT(*) FROM migrations WHERE migration = '${newest}'")" = "0"
+          back="$(shape) $(columns) columns $(keys) keys"
+          php artisan migrate --force | tail -3
+          again="$(shape) $(columns) columns $(keys) keys"
+          echo "before: ${before} / taken back: ${back} / applied again: ${again}"
+          if [ "$again" != "$before" ]; then
+            echo "::error title=The newest migration does not come back as it was::${newest}: ${before} before and ${again} after going back and forward"
+            exit 1
+          fi
+          echo "::notice title=The newest migration back and forward::${newest}: ${before#* } before; ${back#* } when taken back; ${again#* } when applied again and the same tables and columns as before"
+
       - name: Export rebuilt disposable schema and migration records
         env:
           MYSQL_PWD: disposable-ci-only
