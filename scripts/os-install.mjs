@@ -37,6 +37,7 @@
  * Browser: see scripts/lib/browser.mjs (E2E_CHROMIUM_PATH, E2E_CHROMIUM_ARGS, E2E_REQUIRED).
  */
 import { execSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { launchBrowser } from './lib/browser.mjs';
@@ -102,15 +103,15 @@ function setupCode() {
   return text.match(/[A-Z2-9]{4}(?:-[A-Z2-9]{4}){5}/)?.[0] ?? null;
 }
 
-async function fillForm(code) {
+async function fillForm(code, { connection = database, databasePassword = process.env.OS_DB_PASSWORD || '' } = {}) {
   await page.fill('#setup_code', code);
-  await page.check(`input[name="connection"][value="${database}"]`);
-  if (database === 'mysql') {
+  await page.check(`input[name="connection"][value="${connection}"]`);
+  if (connection === 'mysql') {
     await page.fill('#db_host', process.env.OS_DB_HOST || '127.0.0.1');
     await page.fill('#db_port', process.env.OS_DB_PORT || '3306');
     await page.fill('#db_database', process.env.OS_DB_NAME || '');
     await page.fill('#db_username', process.env.OS_DB_USER || '');
-    await page.fill('#db_password', process.env.OS_DB_PASSWORD || '');
+    await page.fill('#db_password', databasePassword);
   }
   await page.fill('#owner_name', 'Rehearsal Owner');
   await page.fill('#owner_email', email);
@@ -215,24 +216,37 @@ await step('The setup code is where only the hosting account reads it, and the w
   for (const address of closed) {
     const answer = await context.request.get(`${base}${address}`, { maxRedirects: 0 });
     // An address the web server does not refuse itself reaches the application, which sends it to the installer
-    // like every other page of a site that is not installed. Either way nothing of the file is handed out.
-    must([302, 403, 404].includes(answer.status()), `${address} answered ${answer.status()}`);
+    // like every other page of a site that is not installed. Laravel's public folder asked for by its own path
+    // is sent to the clean address by that folder's own .htaccess (Apache reads the innermost one). In each
+    // case nothing of the file is handed out.
+    const cleanAddress = answer.status() === 301 && address.startsWith('/platform/public/') && !/platform/i.test(answer.headers().location ?? 'platform');
+    must([302, 403, 404].includes(answer.status()) || cleanAddress, `${address} answered ${answer.status()}`);
     const body = await answer.text();
     must(!body.includes(code) && !/"require"\s*:|APP_KEY=|<\?php/.test(body), `${address} handed out a file`);
   }
   return `${closed.length} addresses asked, none handed out`;
 });
 
-await step('A wrong setup code installs nothing', async () => {
-  await fillForm('AAAA-BBBB-CCCC-DDDD-EEEE-FFFF');
-  expected = 422;
-  await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.getByRole('button', { name: 'Install Woodex OS' }).click()]);
-  expected = null;
-  must(/does not match/i.test(await words()), 'a wrong setup code was not refused with a reason');
-  must(await page.locator('#setup_code').count() === 1, 'the form of step 1 is no longer shown after a wrong code');
-  const answer = await context.request.get(`${base}/admin/login`, { maxRedirects: 0 });
-  must(answer.status() === 302 && /\/install$/.test(answer.headers().location ?? ''), 'after a wrong code the site no longer sends its pages to the installer');
-  return 'refused with its reason; the site is still not installed';
+await step('Without the setup code nothing is installed', async () => {
+  const refused = async (what) => {
+    expected = 422;
+    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.getByRole('button', { name: 'Install Woodex OS' }).click()]);
+    expected = null;
+    must(await page.locator('#setup_code').count() === 1, `${what}: the form of step 1 is no longer shown`);
+    const answer = await context.request.get(`${base}/admin/login`, { maxRedirects: 0 });
+    must(answer.status() === 302 && /\/install$/.test(answer.headers().location ?? ''), `${what}: the site no longer sends its pages to the installer`);
+    return words();
+  };
+  // A wrong code, and no database that could stand in for it (the SQLite file is nobody's proof).
+  await fillForm('AAAA-BBBB-CCCC-DDDD-EEEE-FFFF', { connection: 'sqlite' });
+  must(/does not match/i.test(await refused('a wrong code')), 'a wrong setup code was not refused with a reason');
+  if (database !== 'mysql') return 'a wrong code is refused with its reason; the site is still not installed';
+  // On MySQL the installer takes a database user of the hosting account in place of the code, for an owner who
+  // cannot find the file: only the account can create such a user. Knowing its name must open nothing.
+  await fillForm('', { databasePassword: `not-${randomBytes(9).toString('hex')}` });
+  const text = await refused("no code, and the account's database user with a wrong password");
+  must(!/is installed|creating the tables|step 2/i.test(text), "the account's database user with a wrong password was let through");
+  return "a wrong code is refused with its reason; so is the account's database user with a wrong password; the site is still not installed";
 });
 
 await step('The owner installs: the database, the address of the site, the first account', async () => {
@@ -289,6 +303,7 @@ await step('System health says what the site runs on', async () => {
 
 if (process.env.OS_CRON_VIA || process.env.OS_CRON_CMD) {
   await step("The installer's cron line starts the scheduler, and its heartbeat is seen", async () => {
+    must(cron, 'no cron line was read from the last page of the installer, so none can be run');
     execSync(process.env.OS_CRON_VIA ? `${process.env.OS_CRON_VIA} ${cron}` : process.env.OS_CRON_CMD, { stdio: ['ignore', 'ignore', 'pipe'], timeout: 180000 });
     await page.reload({ waitUntil: 'load' });
     const card = page.locator('[data-health-check="Cron heartbeat"]');

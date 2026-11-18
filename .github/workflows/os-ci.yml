@@ -441,11 +441,14 @@ jobs:
           docker logs woodex-hostinger > "$RUNNER_TEMP/apache.log" 2>&1 || true
           answered=$(grep -c '" [1-5][0-9][0-9] ' "$RUNNER_TEMP/apache.log" || true)
           faults=$(grep -c '" 5[0-9][0-9] ' "$RUNNER_TEMP/apache.log" || true)
-          complaints=$(grep -i -E 'php (fatal|warning|parse)|\[(core|rewrite|php|authz_core):(error|crit|alert|emerg)\]' "$RUNNER_TEMP/apache.log" | sed -E 's/^\[[^]]*\] //; s/\[pid [0-9]+(:tid [0-9]+)?\] //; s/\[client [^]]*\] //' | sort | uniq -c | sort -rn | head -6 | tr '\n' '|' | cut -c1-900)
+          # Two kinds of line are Apache refusing an address by itself, which the questions from outside ask for on
+          # purpose: a file it never hands out (AH01630) and an address that climbs out of the folder (AH10244).
+          refusals=$(grep -c -E 'AH01630|AH10244' "$RUNNER_TEMP/apache.log" || true)
+          complaints=$(grep -i -E 'php (fatal|warning|parse)|\[[a-z_0-9]+:(error|crit|alert|emerg)\]' "$RUNNER_TEMP/apache.log" | grep -v -E 'AH01630|AH10244' | sed -E 's/^\[[^]]*\] //; s/\[pid [0-9]+(:tid [0-9]+)?\] //; s/\[client [^]]*\] //' | sort | uniq -c | sort -rn | head -6 | tr '\n' '|' | cut -c1-900)
           grep '" 5[0-9][0-9] ' "$RUNNER_TEMP/apache.log" | head -20 || true
           tail -n 20 "$HOSTING_HOME"/woodex-os/staging.woodex.test/storage/logs/*.log 2>/dev/null | cut -c1-400 || true
           if [ "${faults:-0}" = 0 ] && [ -z "$complaints" ]; then
-            echo "::notice title=The web server's own record::${answered} requests answered by Apache, none with a fault of the server, and no complaint in its error log"
+            echo "::notice title=The web server's own record::${answered} requests answered by Apache, none with a fault of the server; its error log holds ${refusals} refusals of its own and no complaint"
           else
             echo "::warning title=The web server's own record::${answered} requests, ${faults} answered with a fault of the server. Its error log: ${complaints:-nothing}"
           fi
