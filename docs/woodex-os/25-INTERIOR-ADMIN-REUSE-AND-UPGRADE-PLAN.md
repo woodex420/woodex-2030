@@ -72,7 +72,7 @@ Eleven more lines wait only for one of these.
 | What | Where it stands | Lines |
 |---|---|---|
 | **13 destinations exist only in the old dashboard**: orders, delivery and installation, support and warranty, the operations board, suppliers, purchase orders, goods receipts, supplier invoices, production, the stock ledger, warehouses, stock transfers, reservations | To be built in this admin. The Interior admin has none of them: there is nothing to reuse | T-106 to T-111 |
-| **5 destinations are built nowhere**: site overview, navigation, sections and templates, workspace preferences, team onboarding | To be built | T-116, T-056 |
+| **5 destinations are built nowhere**: site overview, navigation, sections and templates, workspace preferences, team onboarding | To be built. **Since 18 November, later the same day: 3.** Workspace preferences and Team onboarding are built (T-056, report 27) | T-116, T-056 |
 | **21 destinations are in the code and switched off** | §5 and §9 of this page | T-085, T-112, T-118, T-119, T-120, T-115 to T-117 |
 | The shop reading its products from this admin, and its forms writing to it | The rules of the API come first | T-063, T-100, T-105 |
 | Moving the old system's records, and the cutover | The old database holds almost none (1 lead, 1 client, 148 sample products) | T-175 to T-181, T-121 |

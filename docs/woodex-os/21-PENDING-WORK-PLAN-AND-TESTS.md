@@ -21,8 +21,8 @@ four of them. A large line can take more than one.
 ## The short version
 
 <!-- generated:short — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-1. **119 lines of the list are not done.** 21 can start now and need nobody: they are planned in 11 rounds (§2). 29 wait for you (§3). 69 wait for an earlier line (§4), and 49 of those stand behind an answer of yours.
-2. **The next round** is round 1: T-043, A warning before leaving a form with unsaved changes · T-086, A quotation line from the catalogue keeps its product and price.
+1. **116 lines of the list are not done.** 19 can start now and need nobody: they are planned in 10 rounds (§2). 29 wait for you (§3). 68 wait for an earlier line (§4), and 49 of those stand behind an answer of yours.
+2. **The next round** is round 1: T-093, The ledger holds with two people writing at once.
 3. **The answers of yours that the most lines stand behind:** T-006, Install the trial site on Hostinger (document 24) and send its address (20 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (4 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
 4. **1 critical defect is open:** D-002, The owner password of the old dashboard was printed in a public document — T-021, which waits for you.
 5. **Every line has its test.** A line that can start now says in §2 what is built, which tests are written, what a browser does, and what the tests are tried against. A waiting line carries the list's own "done when" (§4). §5 names the checks every round passes before it is merged.
@@ -36,11 +36,11 @@ four of them. A large line can take more than one.
 |  |  |
 |---|---|
 | Lines on the list | 152 |
-| Done | 33 |
-| **Can start now, needing nobody** | **21**, in 11 rounds (§2) |
+| Done | 36 |
+| **Can start now, needing nobody** | **19**, in 10 rounds (§2) |
 | **Wait for you** | **29** (§3) |
-| Wait for an earlier line | 69 (§4): 49 stand behind an answer of yours · 11 stand behind lines that need nobody · 9 go with a wave, a date or an event |
-| Not done, by priority | 24 P0, 57 P1, 28 P2, 10 P3 |
+| Wait for an earlier line | 68 (§4): 49 stand behind an answer of yours · 11 stand behind lines that need nobody · 8 go with a wave, a date or an event |
+| Not done, by priority | 24 P0, 55 P1, 27 P2, 10 P3 |
 <!-- /generated:numbers -->
 
 ---
@@ -63,53 +63,7 @@ or read on the sites on the day the plan was written. **Tried against** is the p
 protection is taken away once, by hand, and the test must go red.
 
 <!-- generated:rounds — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-### Round 1 — What is typed is not lost; a quotation takes its products from the catalogue
-
-**Lines:** T-043, T-086 · **Why here:** Both are P1 and on the path of a sale, and neither needs anybody. · **When it is merged, these can start:** no waiting line.
-
-#### T-043 · P1 · medium — A warning before leaving a form with unsaved changes
-
-- **Done when** (the list): Leaving a changed create or edit form asks first; tested in a browser
-- **Found on 18 November 2026:** 41 views hold a form that is sent through Livewire. The menu, the top bar and most links open the next screen without loading a whole page (116 places), so the browser's own question on leaving a page would never be asked for them. Six editors mention unsaved edits on the screen; none asks before the screen is left.
-- **What is built:**
-  1. One small script in the admin's own bundle watches every create and edit form, and every editor that saves without a form: typing in a field or changing it marks it as changed, and a save that succeeds clears the mark.
-  2. Leaving a changed form asks first, in both ways a person leaves: by a link inside the admin (the admin's own dialog, "Stay" or "Leave without saving") and by closing or reloading the tab (the browser's own question).
-  3. Search and filter forms, the sign-in forms and the client's pages are left out, by a written list.
-- **Tests written:**
-  1. A test reads every view that holds a form or an editor and fails when one is neither watched nor on the written list of exceptions.
-  2. A test opens a screen with a watched form and a list screen: the first carries the mark in its page, the second does not.
-- **In a browser:**
-  1. New journey steps: text is typed into "New lead" and a menu link is pressed. The dialog shows; "Stay" keeps the screen and the text; "Leave without saving" opens the other screen.
-  2. An untouched form lets go without asking. After a save, leaving does not ask.
-  3. Closing the tab on a changed form raises the browser's own question.
-  4. The same at 390 px, and the dialog by keyboard only: Tab, Enter, and Escape for "Stay".
-- **Tried against:** With the watch taken out of the script, the first and third browser steps fail. With the clearing after a save taken out, "after a save" fails.
-- **The way back:** No record changes. The script is part of the built bundle (`platform/public/build`), rebuilt and committed; putting the commit back removes it.
-
-#### T-086 · P1 · medium — A quotation line from the catalogue keeps its product and price
-
-- **Done when** (the list): A later price change does not alter a sent quotation (tested for rate-book lines today)
-- **Found on 18 November 2026:** The quotation builder adds a line from the rate book, which is a price list of its own, or by hand. It cannot take one of the 170 products of the catalogue: a line holds a product's name as typed text, with no link to the product. In the catalogue 137 products have a price and 33 are "price on request"; every product has a code; 116 still carry points to check (T-090).
-- **What is built:**
-  1. "Add a product" in the quotation builder: a search by name or code over the catalogue. Any product that is not archived can be chosen, published in the shop or not: all 170 are drafts today. Choosing one writes a line with its name, its code and its price as they are at that moment: the reduced price where the product has one.
-  2. A product that still carries points to check says so in the search, so that a doubtful price is seen before it is used. The price on the line can be changed by hand, as on any line.
-  3. The line keeps a link to the product and its own copy of name, code and price: new columns on quotation and invoice lines, in one migration that only adds.
-  4. A product without a price adds a line marked "price on request"; the quotation cannot be sent until a price is typed.
-  5. The invoice made from the quotation carries the same link and the same copies.
-- **Tests written:**
-  1. Choosing a product copies its name, code and price onto the line.
-  2. Changing the product's price or name afterwards changes neither a draft's line nor a sent quotation, its total or its PDF.
-  3. Archiving the product afterwards leaves the line as it was.
-  4. The invoice made from the quotation, and a revision of the quotation, keep the product.
-  5. A quotation with a "price on request" line is refused at sending, with the reason on the screen.
-  6. A role that may not edit quotations cannot add a product.
-  7. The migration runs forward and back on MySQL in CI.
-- **In a browser:**
-  1. The working-day journey prices its line by choosing a product of the real catalogue by its code, and reads the price on the screen and in the PDF.
-- **Tried against:** With the copy taken out, so that the line reads the product's price of the day, the second test fails.
-- **The way back:** The migration only adds columns and its way back removes them. No existing line is changed.
-
-### Round 2 — The ledger with two people writing at once
+### Round 1 — The ledger with two people writing at once
 
 **Lines:** T-093 · **Why here:** P1 and about money. The code came from the Interior studio's system, whose own list says this was never tried on a real database server; the first place where two people work at the same moment is the trial site on Hostinger. It needs nobody, and CI has the two servers since T-143. · **When it is merged, these can start:** no waiting line.
 
@@ -129,7 +83,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the lock taken out of the payment allocation in a copy, the two-writers run reports an invoice paid twice within the fifty runs; the test of the check requires that.
 - **The way back:** A test command and, only if a fault is found, a lock or a migration that adds a unique key. A migration that adds a key says in its way back how the key is removed; no row is changed.
 
-### Round 3 — The rules of the API the shop will use
+### Round 2 — The rules of the API the shop will use
 
 **Lines:** T-063 · **Why here:** P1, and of the lines that need nobody the one the most other work stands behind: the shop's reading of the catalogue (T-105), and after it the page builder. · **When it is merged, these can start:** T-105 (The shop reads products, categories and series from `/api/v1`).
 
@@ -153,7 +107,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one endpoint left in its old shape, the contract test names it.
 - **The way back:** On the live shop the switches are off, so no visitor's request reaches these endpoints. The round changes files of the React shop, its callers: the release report names them before the merge. The endpoints of the old website's bridge keep their shape; that module is switched off.
 
-### Round 4 — One table for every list
+### Round 3 — One table for every list
 
 **Lines:** T-041 · **Why here:** P1 and part of gate A. Three lines wait for it (T-042, T-050, T-051), and the screen pass (T-045) builds on it. · **When it is merged, these can start:** T-042 (On a phone, the key lists show cards instead of a wide table); T-050 (A reference screen showing every shared component and state); T-051 (Placeholders while a list loads; a notice when the connection is lost).
 
@@ -175,7 +129,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the empty state taken out of the component, the first test fails. With a hand-written table put back, the count fails.
 - **The way back:** Views only. Each list moves in its own commit and can be put back alone.
 
-### Round 5 — The shop's database: its functions and the map of its tables
+### Round 4 — The shop's database: its functions and the map of its tables
 
 **Lines:** T-172, T-175 · **Why here:** One reading of the live database serves both lines. T-175 is P1, and the two lines about moving data wait for it (T-176, T-177). · **When it is merged, these can start:** T-176 (The differences between PostgreSQL and MySQL, tested); T-177 (One rule for identifiers; old-to-new numbers kept).
 
@@ -210,7 +164,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one row taken out of the file, the check names the table.
 - **The way back:** A document and a check. Nothing runs against any data.
 
-### Round 6 — Packages, the demo's housekeeping, the documents the code points at
+### Round 5 — Packages, the demo's housekeeping, the documents the code points at
 
 **Lines:** T-071, T-152, T-153, T-154, T-142, T-189, T-174 · **Why here:** Small lines, P2 and P3, taken together. They stand here and not at the end because packages fall further behind with every week, and because every later merge then adds a reading of a cold start. · **When it is merged, these can start:** no waiting line.
 
@@ -311,7 +265,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With `07-DECISIONS.md` taken out of a copy, the check fails and names D-58 with the first file that mentions it.
 - **The way back:** Three documents and one script; putting the commit back removes them. No code changes.
 
-### Round 7 — The dashboard
+### Round 6 — The dashboard
 
 **Lines:** T-044 · **Why here:** P1. The first screen every person sees. In the order you set for the design work it comes before the areas (DL-008). · **When it is merged, these can start:** no waiting line.
 
@@ -334,7 +288,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one widget's count changed to include one more state, the first test fails.
 - **The way back:** Views and queries that only read. No record changes.
 
-### Round 8 — Without a mouse; help, pinned and recent screens
+### Round 7 — Without a mouse; help, pinned and recent screens
 
 **Lines:** T-054, T-046 · **Why here:** T-054 is P1, and the accessibility review of gate A waits for it. The new entries of the top bar get their keyboard tests from the first day. · **When it is merged, these can start:** T-047 (Search finds a screen by keyword and by its old name).
 
@@ -371,7 +325,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the check of the person's rights taken out, "is not offered" fails.
 - **The way back:** One migration that only adds; its way back removes the table.
 
-### Round 9 — Lighter pages; nothing smaller than 12 px
+### Round 8 — Lighter pages; nothing smaller than 12 px
 
 **Lines:** T-052, T-049 · **Why here:** Both change the same shared parts: the menu, the top bar, the search. · **When it is merged, these can start:** no waiting line.
 
@@ -406,7 +360,7 @@ protection is taken away once, by hand, and the test must go red.
 - **The way back:** Views and the stylesheets; the bundle is rebuilt and committed.
 - **Yours:** If a place cannot take 12 px, it is shown to you as a named exception to accept or refuse.
 
-### Round 10 — The content policy without `eval`
+### Round 9 — The content policy without `eval`
 
 **Lines:** T-072 · **Why here:** After the rounds that replace whole parts of the views (the table, the dashboard, the top bar, the menu), so that nothing is converted twice; and before the screen pass, which its test then holds to the strict form from the first view. · **When it is merged, these can start:** no waiting line.
 
@@ -428,7 +382,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one arrow function left in a view, the crawl reports the refusal and fails.
 - **The way back:** `SECURITY_CSP=report` or `off` on the site; or the strict build off and the word back in the policy, in one commit.
 
-### Round 11 — The screen pass, area by area
+### Round 10 — The screen pass, area by area
 
 **Lines:** T-045 · **Why here:** P1, and last all the same: it is the largest line, several rounds of its own, one for each area in the order you set (DL-008): E-commerce, CRM, Sales, then the others. Every round before it changes a part it builds on. · **When it is merged, these can start:** no waiting line.
 
@@ -568,23 +522,22 @@ answer is added here.
 
 | # | Pri | Task | Waits for | Stands behind | Done when |
 |---|---|---|---|---|---|
-| T-042 | P1 | On a phone, the key lists show cards instead of a wide table | T-041 | T-041 (round 4) | At 390 px each row's main facts and its action are visible without sideways scrolling |
-| T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 8) | "stock" finds Stock Ledger; "clients" finds Contacts |
-| T-050 | P2 | A reference screen showing every shared component and state | T-041 | T-041 (round 4) | One screen under System, for owner and admin |
-| T-051 | P2 | Placeholders while a list loads; a notice when the connection is lost | T-041 | T-041 (round 4) | Seen in a browser with the network slowed and cut |
-| T-105 | P1 | The shop reads products, categories and series from `/api/v1` | T-063 — It can be built and proven on the rehearsal as soon as T-063 is done. Switching the live shop over also needs the real admin on Hostinger (T-133). | T-063 (round 3) | The shop shows only what Laravel has published |
-| T-115 | P2 | The page-builder prototype (gate C) | T-105 — Building the prototype needs nobody. Accepting it is yours: gate C. | T-063 (round 3) | The owner accepts the prototype before any broad build |
-| T-116 | P2 | Website Studio on Puck | T-115 | T-063 (round 3) | A page is edited, approved, published and rolled back |
-| T-117 | P2 | Today's pages moved into the page builder | T-116 | T-063 (round 3) | Selected pages are approved; the old content is kept |
-| T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-063 (round 3) | A lead shows the campaign it came from |
-| T-176 | P1 | The differences between PostgreSQL and MySQL, tested | T-175 | T-175 (round 5) | A test per kind on MySQL in CI |
-| T-177 | P1 | One rule for identifiers; old-to-new numbers kept | T-175 | T-175 (round 5) | Every importer writes the mapping |
+| T-042 | P1 | On a phone, the key lists show cards instead of a wide table | T-041 | T-041 (round 3) | At 390 px each row's main facts and its action are visible without sideways scrolling |
+| T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 7) | "stock" finds Stock Ledger; "clients" finds Contacts |
+| T-050 | P2 | A reference screen showing every shared component and state | T-041 | T-041 (round 3) | One screen under System, for owner and admin |
+| T-051 | P2 | Placeholders while a list loads; a notice when the connection is lost | T-041 | T-041 (round 3) | Seen in a browser with the network slowed and cut |
+| T-105 | P1 | The shop reads products, categories and series from `/api/v1` | T-063 — It can be built and proven on the rehearsal as soon as T-063 is done. Switching the live shop over also needs the real admin on Hostinger (T-133). | T-063 (round 2) | The shop shows only what Laravel has published |
+| T-115 | P2 | The page-builder prototype (gate C) | T-105 — Building the prototype needs nobody. Accepting it is yours: gate C. | T-063 (round 2) | The owner accepts the prototype before any broad build |
+| T-116 | P2 | Website Studio on Puck | T-115 | T-063 (round 2) | A page is edited, approved, published and rolled back |
+| T-117 | P2 | Today's pages moved into the page builder | T-116 | T-063 (round 2) | Selected pages are approved; the old content is kept |
+| T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-063 (round 2) | A lead shows the campaign it came from |
+| T-176 | P1 | The differences between PostgreSQL and MySQL, tested | T-175 | T-175 (round 4) | A test per kind on MySQL in CI |
+| T-177 | P1 | One rule for identifiers; old-to-new numbers kept | T-175 | T-175 (round 4) | Every importer writes the mapping |
 
-#### With a wave, a date or an event (9)
+#### With a wave, a date or an event (8)
 
 | # | Pri | Task | Waits for | Done when |
 |---|---|---|---|---|
-| T-056 | P2 | Workspace preferences, Team onboarding and release notes | wave 2 | Both open; a new member is led through first sign-in and two-factor |
 | T-073 | P3 | "Connect" of a connector that signs in at another site | when the Google module is opened | Pressed in a browser with the module on: the button opens the other site's sign-in page |
 | T-082 | P1 | Reports: definitions, time zone, currency, exports by permission | wave 9 | Each report names its definition; an export leaves an audit row |
 | T-083 | P1 | Contacts with several phone numbers and e-mail addresses | wave 3 | A contact holds any number of methods; duplicate detection reads all of them |

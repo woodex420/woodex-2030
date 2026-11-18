@@ -610,7 +610,9 @@
         "Connections",
         "Platform",
         "Audit & activity",
-        "Feature status"
+        "Feature status",
+        "Workspace preferences",
+        "Team onboarding"
       ],
       "section": "§14",
       "signoff": null,

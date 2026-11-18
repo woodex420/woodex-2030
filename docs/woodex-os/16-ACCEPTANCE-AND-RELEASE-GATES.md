@@ -201,14 +201,14 @@ and on a phone. A flow counts as pressed only when the journey does what a perso
 merely opens.
 
 <!-- generated:flows — written by scripts/verify-acceptance.mjs --write; do not edit by hand -->
-**11 flows: 4 pressed in full, 2 in part, 5 not pressed.** The journey has 28 steps.
+**11 flows: 4 pressed in full, 2 in part, 5 not pressed.** The journey has 36 steps.
 
 | Flow (document 10 §2) | State | Steps of `scripts/os-journeys.mjs` that press it | Note | Closed by |
 |---|---|---|---|---|
 | Lead capture. | Partly | create a lead from the New menu<br>the lead is still there after a reload, and its page opens | A member of staff creates the lead, in both journeys. The shop's public form is not in a journey: the React shop does not write to Laravel yet. | T-100, T-165 |
 | Lead assignment and conversion. | Pressed in full | an enquiry is taken and handed to a sales person, with the reason on record<br>the sales person finds the enquiry among their own leads<br>the lead is won and the contact has become a client | The assignment rule gives a new enquiry to somebody; the owner hands it on, is asked why, and the reason is on the timeline. The client's yes moves the lead to Won and makes the contact a client. | — |
 | Estimate to quotation. | Not pressed | — | Estimations is switched off. | T-085 |
-| Quotation approval and issue. | Pressed in full | write a draft quotation for that client<br>price one line; the total follows<br>the quotation PDF<br>the same PDF is drawn on the screen (the preview: a worker, a later script, the fonts)<br>documents can be issued here: terms and a signer are in place<br>a quotation above the discount limit cannot be sent: approval is asked for<br>the approver finds the request in the queue and approves it<br>the approved quotation is sent: frozen, with its PDF<br>the client says yes | Pressed on the rehearsal both ways: with the client's own pages open (the demo) the client accepts on a phone without a sign-in; with them off (the product as it ships) the sales person writes the answer down. On a site whose owner has not confirmed terms and signers nothing can be sent, and the journey reports the site's reason instead of failing (T-084). | T-084 |
+| Quotation approval and issue. | Pressed in full | write a draft quotation for that client<br>price one line; the total follows<br>a figure typed into the quotation is kept when a menu link is pressed at once<br>the quotation PDF<br>the same PDF is drawn on the screen (the preview: a worker, a later script, the fonts)<br>documents can be issued here: terms and a signer are in place<br>a quotation above the discount limit cannot be sent: approval is asked for<br>the approver finds the request in the queue and approves it<br>the approved quotation is sent: frozen, with its PDF<br>the client says yes | Pressed on the rehearsal both ways: with the client's own pages open (the demo) the client accepts on a phone without a sign-in; with them off (the product as it ships) the sales person writes the answer down. On a site whose owner has not confirmed terms and signers nothing can be sent, and the journey reports the site's reason instead of failing (T-084). | T-084 |
 | Invoice and payment allocation. | Pressed in full | accounts bill the sale in full and issue the invoice; the ledger has it<br>the advance is paid and confirmed against the invoice<br>the receipt is a numbered PDF<br>the sales person sees on the lead that the invoice went out and the money came in | One invoice of 496,800 and one payment of 372,600 set against it: balance 124,200, status Partially Paid, receipt as a PDF. With the client's pages open the client reports the payment with a bank slip and accounts confirm it; with them off accounts take it on the invoice. A payment spread over several invoices is proven by tests (AS-08, AS-09), not pressed. | — |
 | Product browse and order creation. | Partly | find a product of the real catalogue by its code, and open it | Browsing only, on the real catalogue. Orders do not exist in Laravel. | T-106 |
 | Purchase order and goods receipt. | Not pressed | — | No module. | T-110 |
@@ -237,9 +237,9 @@ with remarks — §7 says how.
 | 4.5 **Operations** | Projects, Board, Vendors & costs, Handovers | 1 | 5 | 3 | 1 | Not asked yet |
 | 4.6 **Accounts** | Ledger & reports, Payables, Income & expenses | 2 | 4 | 3 | 1 | Not asked yet |
 | 4.7 **Website Studio — the two open screens** | Shop customization, Media | 1 | 6 | 3 | 0 | Not asked yet |
-| 4.8 **System** | Settings, Access & team, Connections, Platform, Audit & activity, Feature status | 2 | 5 | 2 | 1 | Not asked yet |
+| 4.8 **System** | Settings, Access & team, Connections, Platform, Audit & activity, Feature status, Workspace preferences, Team onboarding | 2 | 5 | 2 | 1 | Not asked yet |
 
-29 screens are open in the menu, and each is on exactly one sheet.
+31 screens are open in the menu, and each is on exactly one sheet.
 
 ### 4.1 Customers
 
@@ -362,7 +362,7 @@ Screens: Shop customization, Media · document 07 §13 · owner's decision: Not 
 
 ### 4.8 System
 
-Screens: Settings, Access & team, Connections, Platform, Audit & activity, Feature status · document 07 §14 · owner's decision: Not asked yet
+Screens: Settings, Access & team, Connections, Platform, Audit & activity, Feature status, Workspace preferences, Team onboarding · document 07 §14 · owner's decision: Not asked yet
 
 | # | Condition (document 07 §15) | State | Where it stands | Closed by |
 |---|---|---|---|---|
@@ -391,7 +391,7 @@ may not.
 |---|---|---|---|---|---|
 | **Critical** | Data loss, privilege bypass, financial corruption, site unavailable | Blocks release | 1 | 0 | 1 |
 | **High** | Core workflow broken, wrong totals or status, major security or privacy issue | Blocks the release it affects | 0 | 0 | 6 |
-| **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 6 | 0 | 14 |
+| **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 6 | 0 | 17 |
 | **Low** | Cosmetic or a minor inconvenience | May be scheduled later | 4 | 0 | 4 |
 
 **Not closed (11)**
@@ -410,7 +410,7 @@ may not.
 | D-029 | Low | 2026-11-17 | **Ten functions of the shop's database have no fixed search path.** The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today. Read from the database itself on 17 November, 20:04 UTC: nine functions and one aggregate (`group_concat`) in the public schema, none with a search path, none belonging to an extension. | T-172 |
 | D-033 | Low | 2026-11-17 | **The check of the live sites is started by its timer once in three times due.** The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Recorded on 17 November as "has never started": by 20:07 UTC two times due had passed, 12:23 and 18:23 UTC, without a timed run. Corrected on 18 November: GitHub started the run due at 18:23 at 21:06 UTC, 2 h 43 min late (run 44176315991, green: 41 of 41 for the admin, 14 of 14 for the shop). The time due at 00:23 UTC on 18 November brought no run; read at 04:21 UTC, GitHub's list of timed runs holds that one run. So the timer works and GitHub starts it late or drops it. The agent's session may not start the workflow by hand (HTTP 403). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges can stay unseen for longer than six hours. | T-142 |
 
-**Closed (25)**
+**Closed (28)**
 
 | # | Severity | Found | Defect | Closed |
 |---|---|---|---|---|
@@ -439,6 +439,9 @@ may not.
 | D-034 | Medium | 2026-11-18 | **The installer stopped at its second step on a site opened by a number or a one-word name.** Found by installing a release in a browser (T-144). The installer wrote `noreply@` and the site's host name as the sender of mail. For a site opened by its IP address or by a name without a dot that is not an address PHP accepts; the backup package refuses such a sender when it is loaded, so every command and the installer's second step answered with an error and the site stayed half installed. A site opened by a real domain was not affected. | 2026-11-18. The installer writes the sender only when PHP accepts it as an address and falls back to `noreply@woodex-os.invalid` otherwise (`Installer::senderFor`). `Feature/InstallerTest.php` installs by a number and by a one-word name; without the correction two of its tests fail. Proven in the rehearsal on Apache and MariaDB, where the site is opened by `127.0.0.1`. |
 | D-035 | Medium | 2026-11-18 | **"Sign out" ended the session and left the screen as it was, on a site whose first page is elsewhere.** Found by the same rehearsal. Signing out sent the browser to the first page of the site. In a website folder on a host that page forwards to the shop on another address, and the content policy of the admin stops a form that ends on another address. The session was ended on the server, the screen stayed, and the next click showed the sign-in page: a person could believe they were still signed in, or that the button did nothing. The hosted demo was not affected: there the first page is answered by the admin itself, on the same address. | 2026-11-18. Signing out leads to the admin's own sign-in page (`fortify.redirects.logout`). `Feature/AdminAccessTest.php` signs out and reads where the answer leads; it fails with the setting taken out. In the rehearsal a browser signs out twice under the enforced policy and arrives at the sign-in page. |
 | D-036 | Low | 2026-11-18 | **The installer did not check for one PHP extension that the packages need.** Found when the first release was put together. Two packages that take in pictures ask for the `exif` extension; the installer's list of extensions to check on the server did not hold it. Composer checks only the PHP version when the application starts, so a host with `exif` switched off would have installed without a word, and the fault would have shown only later, where a picture is taken in. | 2026-11-18. `exif` is in the installer's list, and `Feature/InstallerTest.php` reads the lock file: every extension a package of a release asks for is either checked by the installer or part of every PHP. |
+| D-037 | Medium | 2026-11-18 | **The "Add" button of a catalogue product did nothing, and its first cure printed typed text into a script.** Found twice within the round that built it, before any release. First by the journey in a browser: the button's `wire:click` held a Blade directive inside a component tag, which Blade does not compile, so the browser got the directive as written and the press did nothing; every component test passed, because a component test never reads `wire:click`. Then by CI, after only the neighbouring tests had been run before a push: the cure printed the code of the product's option, which is text a person typed, into `wire:click`, an attribute the browser runs as script, and `Feature/Security/StoredScriptTest.php` refused it on the three database servers. | 2026-11-18. The button says two numbers, the product's and one that stands for the option's code; the server finds the option and asks the catalogue again. `Unit/BladeComponentTagsTest.php` refuses a directive inside a component tag in any view; the journey presses the button and reads the product in the PDF. The whole suite is run before a push, not the neighbours. |
+| D-038 | Medium | 2026-11-18 | **Eight notices that reported a failure were shown in green as "Saved".** On `main`. Three screens (change requests, system health, prepared replies) sent their notices without names: `dispatch('toast', '…', 'error')`. The browser read only named arguments, found neither a message nor a type, and showed its default: a green "Saved". A person was told that something was saved when it had been refused. Found while reading every early return of the saving actions for the warning before unsaved work is lost, which must know whether a save was refused. | 2026-11-18. The eight are written with names, the browser reads both forms (`toastOf` in `resources/js/admin/unsaved.js`), `Unit/ToastsCanBeReadTest.php` refuses a notice without names anywhere in `app/`, and the journey sends one written the old way and reads it on the screen as a failure. |
+| D-039 | Medium | 2026-11-18 | **A figure typed into a quotation was lost when a menu link was pressed straight away.** On `main`. Every field of the quotation is stored when it is left. A press on a menu link does not leave the field: Livewire stops the browser's own handling of that press so that the page is not loaded twice, and the cursor stays where it was. The screen was swapped, nothing was sent, and the figure was gone without a word. Seen by pressing it in a browser, with the watch on unsaved work taken out of the page: 12,501 typed, the quotation still held 12,500. | 2026-11-18. Leaving is held while a part of the screen holds unsaved work: the watch leaves the field itself, waits for the save and for its answer to be worked into the page, and then lets the person go without a question. The journey types a figure, presses the link at once, counts every opening of the question (none) and reads the figure back from the quotation. |
 <!-- /generated:defects -->
 
 ---
@@ -493,5 +496,6 @@ The first report in this form is [`17-RELEASE-2026-11-17.md`](17-RELEASE-2026-11
 [`19-RELEASE-2026-11-17-THIRD.md`](19-RELEASE-2026-11-17-THIRD.md), the fourth,
 [`20-RELEASE-2026-11-17-FOURTH.md`](20-RELEASE-2026-11-17-FOURTH.md), the fifth,
 [`22-RELEASE-2026-11-17-FIFTH.md`](22-RELEASE-2026-11-17-FIFTH.md), the sixth,
-[`23-RELEASE-2026-11-18.md`](23-RELEASE-2026-11-18.md), and the seventh,
-[`26-RELEASE-2026-11-18-SECOND.md`](26-RELEASE-2026-11-18-SECOND.md), likewise.
+[`23-RELEASE-2026-11-18.md`](23-RELEASE-2026-11-18.md), the seventh,
+[`26-RELEASE-2026-11-18-SECOND.md`](26-RELEASE-2026-11-18-SECOND.md), and the eighth,
+[`27-RELEASE-2026-11-18-THIRD.md`](27-RELEASE-2026-11-18-THIRD.md), likewise.
