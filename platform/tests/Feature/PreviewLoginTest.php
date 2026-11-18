@@ -73,7 +73,8 @@ it('renders failed-login feedback as an accessible alert', function () {
 
 it('still requires an active staff account and authenticates the correct password normally', function () {
     config(['preview.synthetic' => true]);
-    $user = $this->userWithRole('owner', ['password' => Hash::make('correct-fixture-password'), 'is_active' => true]);
+    // Somebody who already works here: a first sign-in is led to the welcome instead (T-056).
+    $user = $this->userWithRole('owner', ['password' => Hash::make('correct-fixture-password'), 'is_active' => true, 'last_login_at' => now()->subDay()]);
     $this->post(route('login.store'), ['email' => $user->email, 'password' => 'correct-fixture-password'])->assertRedirect('/admin');
     $this->assertAuthenticatedAs($user);
 });

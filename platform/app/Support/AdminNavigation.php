@@ -161,8 +161,9 @@ final class AdminNavigation
                 self::item('platform', 'Platform', 'activity', 'admin.system.platform', 'system.health'),
                 self::item('audit', 'Audit & activity', 'activity', 'admin.system.audit', 'audit.view'),
                 self::item('feature-status', 'Feature status', 'layers', 'admin.system.features', 'dashboard.view'),
-                self::item('workspace-preferences', 'Workspace preferences', 'settings', null, 'settings.manage'),
-                self::item('team-onboarding', 'Team onboarding', 'users', null, 'users.manage'),
+                // Each person's own (T-056): open to everybody who can open the admin.
+                self::item('workspace-preferences', 'Workspace preferences', 'settings', 'admin.system.preferences', 'dashboard.view'),
+                self::item('team-onboarding', 'Team onboarding', 'users', 'admin.system.onboarding', 'users.manage'),
             ]),
         ];
     }

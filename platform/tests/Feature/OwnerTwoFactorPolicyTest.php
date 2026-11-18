@@ -84,7 +84,8 @@ it('still challenges owners at sign-in after they voluntarily enable and confirm
 });
 
 it('lets an owner with unconfirmed setup sign in without an authenticator challenge', function () {
-    $owner = $this->userWithRole('owner', ['email' => 'owner-pending@woodex.test', 'password' => 'test-password']);
+    // Somebody who already works here: a first sign-in is led to the welcome instead (T-056).
+    $owner = $this->userWithRole('owner', ['email' => 'owner-pending@woodex.test', 'password' => 'test-password', 'last_login_at' => now()->subDay()]);
     app(EnableTwoFactorAuthentication::class)($owner);
 
     $this->post(route('login.store'), ['email' => $owner->email, 'password' => 'test-password'])

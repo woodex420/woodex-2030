@@ -29,7 +29,7 @@
         <x-admin.card :title="$editingId ? 'Edit draft bill' : 'New received invoice'"
                       description="The vendor's own number is kept. Tax is added on top of the lines and booked to input tax (1210) — leave it at zero when the vendor charged none."
                       class="mb-6">
-            <form wire:submit="saveReceived" class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <form wire:submit="saveReceived" data-unsaved="saveDraft" class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 @if ($projects->isNotEmpty())
                     <div>
                         <label class="wx-label" for="bill-project">Project (optional, whole bill)</label>
@@ -122,7 +122,7 @@
     @if ($payingId)
         @php $payingBill = $bills->firstWhere('id', $payingId); @endphp
         <x-admin.card title="Pay a received invoice" description="Dr Accounts payable / Cr the account the money left. Pay part of it now and the rest later — the bill stays open until the balance is zero." class="mb-6">
-            <form wire:submit="pay" class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <form wire:submit="pay" data-unsaved class="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <div>
                     <label class="wx-label" for="pay-amount">Amount (Rs)</label>
                     <input id="pay-amount" type="number" step="0.01" min="0.01" wire:model="payAmount" class="wx-input" />
@@ -153,7 +153,7 @@
 
     @if ($voidingId)
         <x-admin.card title="Void this bill" description="The document stays, the reason is recorded and its journal entry is reversed. A bill with money against it cannot be voided." class="mb-6">
-            <form wire:submit="voidBill" class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <form wire:submit="voidBill" data-unsaved class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div class="md:col-span-2">
                     <label class="wx-label" for="void-reason">Why is it void?</label>
                     <input id="void-reason" type="text" wire:model="voidReason" class="wx-input" placeholder="Duplicate of INV-2291" />

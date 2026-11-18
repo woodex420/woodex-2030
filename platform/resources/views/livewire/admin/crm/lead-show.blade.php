@@ -97,7 +97,7 @@
             @if ($canUpdate)
                 {{-- Quick log (CRM-016): two taps for a call outcome --}}
                 <x-admin.card title="Log activity" description="Calls, messages and notes go on the timeline. The first call or message counts as the response.">
-                    <form wire:submit="logActivity" class="space-y-4">
+                    <form wire:submit="logActivity" data-unsaved class="space-y-4">
                         <div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Activity type">
                             @foreach (['call' => ['Call', 'phone'], 'whatsapp' => ['WhatsApp', 'whatsapp'], 'email' => ['Email', 'mail'], 'meeting' => ['Meeting', 'users'], 'note' => ['Note', 'note']] as $type => [$label, $icon])
                                 <label class="cursor-pointer">
@@ -265,7 +265,7 @@
                 @endif
 
                 @if ($canUpdate && ! $isClosed)
-                    <form wire:submit="saveNextAction" class="space-y-3">
+                    <form wire:submit="saveNextAction" data-unsaved class="space-y-3">
                         <div class="grid grid-cols-2 gap-2">
                             <select wire:model="nextType" class="wx-input" aria-label="Next action type">
                                 @foreach ($nextTypes as $value => $label)
@@ -357,7 +357,7 @@
                     <p class="text-theme-sm text-gray-500">No tasks.</p>
                 @endif
                 @if ($canUpdate)
-                    <form wire:submit="addTask" class="mt-3 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                    <form wire:submit="addTask" data-unsaved class="mt-3 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
                         <input type="text" wire:model="taskTitle" class="wx-input" placeholder="Add a task…" aria-label="New task">
                         @error('taskTitle') <p class="text-theme-xs text-error-600">{{ $message }}</p> @enderror
                         <div class="flex gap-2">

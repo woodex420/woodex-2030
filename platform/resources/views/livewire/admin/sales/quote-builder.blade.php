@@ -150,7 +150,8 @@
     @endif
 
     <div class="quotation-workbench">
-    <div class="quotation-editor grid grid-cols-1 gap-6">
+    {{-- Every field here is sent when it is left, and stored then: any answer of the server saves it (T-043). --}}
+    <div class="quotation-editor grid grid-cols-1 gap-6" data-unsaved="*">
         {{-- Main column: scope, sections and lines, totals --}}
         <div class="min-w-0 space-y-5">
             <x-admin.card title="Scope of work" description="Printed before the price list. Blank line = new paragraph; start lines with “-” for bullets.">
@@ -243,6 +244,16 @@
                                                               x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
                                                               placeholder="Describe the work or item"
                                                               class="block w-full resize-none overflow-hidden rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-theme-sm text-gray-800 hover:border-gray-200 focus:border-navy-300 focus:bg-white focus:outline-hidden dark:text-white/90 dark:hover:border-gray-700 dark:focus:bg-gray-900"></textarea>
+                                                    @if ($item->product_id !== null || $item->product_code !== null)
+                                                        {{-- A line chosen from the catalogue (T-086): what it says is its own copy. --}}
+                                                        <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 px-2 text-theme-xs text-gray-500" data-line-product="{{ $item->product_code }}">
+                                                            <span>From the catalogue @if ($item->product_code)· code <span class="font-medium text-gray-700 dark:text-gray-300">{{ $item->product_code }}</span>@endif</span>
+                                                            @if ($item->price_on_request)
+                                                                <x-admin.badge color="warning">Price on request</x-admin.badge>
+                                                                <span class="text-warning-700 dark:text-warning-400">No price in the catalogue: type the rate before sending.</span>
+                                                            @endif
+                                                        </p>
+                                                    @endif
                                                 </div>
                                                 <div class="shrink-0 pt-1.5 text-right">
                                                     <p @class(['font-medium tabular-nums', 'text-gray-900 dark:text-white' => ! $item->is_optional, 'text-gray-400 line-through decoration-gray-300' => $item->is_optional])>{{ $money($item->line_total_minor) }}</p>
@@ -333,6 +344,7 @@
                         @unless ($ro)
                             <footer class="flex flex-wrap gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
                                 <x-admin.button size="sm" variant="ghost" icon="plus" wire:click="addLine({{ $section->id }})">Add line</x-admin.button>
+                                <x-admin.button size="sm" variant="ghost" icon="tag" wire:click="openProducts({{ $section->id }})">Add a product</x-admin.button>
                                 <x-admin.button size="sm" variant="ghost" icon="book" wire:click="openCatalog({{ $section->id }})">From rate book</x-admin.button>
                                 <x-admin.button size="sm" variant="ghost" icon="templates" wire:click="openDescriptions({{ $section->id }})">Description library</x-admin.button>
                             </footer>
@@ -730,6 +742,49 @@
         </aside>
     </div>
 
+    {{-- Product picker: a line from the catalogue (T-086) --}}
+    @if ($showProducts)
+        <x-admin.modal name="showProducts" title="Add a product from the catalogue" description="The name, the code and the price are copied into the quotation as they are now. A later change in the catalogue never alters it." width="max-w-3xl">
+            <div class="relative mb-4">
+                <x-icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gray-400" />
+                <input type="search" wire:model.live.debounce.300ms="productSearch" placeholder="Search by name or code" class="wx-input pl-10" aria-label="Search the catalogue by name or code" autofocus>
+            </div>
+            <div class="max-h-[50vh] divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-100 dark:divide-gray-800 dark:border-gray-800" data-product-choices>
+                @forelse ($productChoices as $choice)
+                    <div wire:key="product-{{ $choice['product_id'] }}-{{ $choice['code'] }}" class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5" data-product-choice="{{ $choice['code'] }}">
+                        <div class="min-w-0 flex-1 basis-48">
+                            <p class="text-theme-sm text-gray-800 dark:text-white/90">{{ $choice['name'] }} @if ($choice['option'] !== '')<span class="text-gray-500">— {{ $choice['option'] }}</span>@endif</p>
+                            <p class="text-theme-xs text-gray-500">
+                                @if ($choice['code'] !== '')<span class="font-medium text-gray-700 dark:text-gray-300">{{ $choice['code'] }}</span>@else No code @endif
+                                · {{ $choice['published'] ? 'In the shop' : 'Draft, not in the shop' }}
+                            </p>
+                            @if ($choice['to_check'] > 0)
+                                <p class="text-theme-xs text-warning-700 dark:text-warning-400">{{ $choice['to_check'] }} {{ $choice['to_check'] === 1 ? 'point' : 'points' }} of this product still to check in the catalogue: look at the price before you use it.</p>
+                            @endif
+                        </div>
+                        <p class="shrink-0 text-right text-theme-sm tabular-nums {{ $choice['price_minor'] !== null ? 'text-gray-800 dark:text-white/90' : 'text-gray-500' }}">
+                            @if ($choice['price_minor'] !== null)
+                                {{ $money($choice['price_minor']) }}
+                                @if ($choice['was_minor'] !== null)<span class="block text-theme-xs text-gray-500">reduced from {{ $money($choice['was_minor']) }}</span>@endif
+                            @else
+                                Price on request
+                            @endif
+                        </p>
+                        <x-admin.button size="sm" variant="secondary" icon="plus" wire:click="addFromProduct({{ $choice['product_id'] }}, {{ $choice['code_number'] }})" aria-label="Add {{ $choice['name'] }}{{ $choice['code'] !== '' ? ', code '.$choice['code'] : '' }}">Add</x-admin.button>
+                    </div>
+                @empty
+                    <x-admin.empty icon="tag" title="Nothing found" description="Try another word or the product's code. Archived products are not offered." />
+                @endforelse
+            </div>
+            @if (count($productChoices) >= $productChoiceLimit)
+                <p class="mt-2 text-theme-xs text-gray-500">The first {{ $productChoiceLimit }} are shown. Type more of the name or the code to narrow the list.</p>
+            @endif
+            <x-slot:footer>
+                <x-admin.button variant="secondary" wire:click="$set('showProducts', false)">Done</x-admin.button>
+            </x-slot:footer>
+        </x-admin.modal>
+    @endif
+
     {{-- Rate book picker (QUO-001) --}}
     @if ($showCatalog)
         <x-admin.modal name="showCatalog" title="Add from the rate book" description="Rates are copied into the quotation; later rate changes never alter it." width="max-w-3xl">
@@ -801,7 +856,7 @@
     @endif
 
     @if ($showSend)
-        <x-admin.modal name="showSend" :title="$sendable ? 'Send '.$quote->label() : ($clientPages ? 'Share '.$quote->label() : 'Give '.$quote->label().' to the client')" width="max-w-xl"
+        <x-admin.modal name="showSend" unsaved="requestApproval send" :title="$sendable ? 'Send '.$quote->label() : ($clientPages ? 'Share '.$quote->label() : 'Give '.$quote->label().' to the client')" width="max-w-xl"
                        :description="match (true) {
                            $sendable && $clientPages => 'A frozen copy (PDF + client page) is made now; later changes become the next revision.',
                            $sendable => 'A frozen copy (PDF) is made now; later changes become the next revision.',
@@ -830,11 +885,11 @@
                         <div><dt class="text-theme-xs text-gray-500">Will be sent as</dt><dd>{{ $quote->number }}{{ $versions->contains('revision', $quote->revision) ? ' R'.($quote->revision + 1) : ($quote->revision > 0 ? ' R'.$quote->revision : '') }}</dd></div>
                     </dl>
                     <label class="mt-4 flex items-start gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
-                        <input type="checkbox" wire:model="sendEmail" @disabled(blank($contact->email)) class="mt-0.5 size-4 rounded border-gray-300">
+                        <input type="checkbox" wire:model="sendEmail" data-unsaved-skip @disabled(blank($contact->email)) class="mt-0.5 size-4 rounded border-gray-300">
                         <span>Also email the PDF{{ $clientPages ? ' and link' : '' }}{{ $contact->email ? ' to '.$contact->email : ' (the client has no email address)' }}</span>
                     </label>
                     <label class="mt-2 flex items-start gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
-                        <input type="checkbox" wire:model="sendWhatsapp" @disabled(! $this->whatsappReady()) class="mt-0.5 size-4 rounded border-gray-300">
+                        <input type="checkbox" wire:model="sendWhatsapp" data-unsaved-skip @disabled(! $this->whatsappReady()) class="mt-0.5 size-4 rounded border-gray-300">
                         <span>Send the link on WhatsApp{{ $this->whatsappReady() ? ' to '.$contact->whatsappNumber() : ($clientPages ? ' (no WhatsApp number, or the API is not connected)' : ' (there is no link while the client pages are switched off)') }}</span>
                     </label>
                     @if ($clientPages)

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Sales;
 
+use App\Domain\Commerce\Models\Product;
 use App\Domain\Sales\Actions\AcceptQuote;
 use App\Domain\Sales\Actions\CreateFurnitureInvoice;
 use App\Domain\Sales\Actions\DecideQuoteApproval;
@@ -34,6 +35,7 @@ use App\Domain\Sales\Models\QuoteMilestone;
 use App\Domain\Sales\Models\QuoteSection;
 use App\Domain\Sales\Models\QuoteTemplate;
 use App\Domain\Sales\Models\QuoteVersion;
+use App\Domain\Sales\Services\CatalogueProducts;
 use App\Domain\Sales\Services\DocumentStyles;
 use App\Domain\Sales\Services\FurnitureDocument;
 use App\Domain\Sales\Services\QuoteApprovalRules;
@@ -113,6 +115,17 @@ class QuoteBuilder extends Component
     public string $catalogSearch = '';
 
     public string $catalogCategory = '';
+
+    // Product picker: a line from the catalogue (T-086)
+    public bool $showProducts = false;
+
+    #[Locked]
+    public ?int $productSectionId = null;
+
+    public string $productSearch = '';
+
+    /** How many choices the picker shows at once. */
+    private const int PRODUCT_CHOICES = 30;
 
     // Save as template
     public bool $showTemplate = false;
@@ -293,6 +306,39 @@ class QuoteBuilder extends Component
             $this->editor()->addCatalogLine($this->section($this->catalogSectionId), $catalogItem);
             $this->refreshAll();
             $this->toast('Added: '.str($catalogItem->description)->limit(48));
+        });
+    }
+
+    // ----- Catalogue (T-086) -------------------------------------------------------------------------------
+
+    public function openProducts(int $sectionId): void
+    {
+        $this->authorize('update', $this->quote);
+        $this->productSectionId = $this->section($sectionId)->id;
+        $this->productSearch = '';
+        $this->showProducts = true;
+    }
+
+    /** Writes a line from one product of the catalogue; $code names the option where the product has several. */
+    /**
+     * @param  int  $codeNumber  stands for the code of the option (CatalogueProducts::codeNumber): the button's
+     *                           script carries numbers only, never the code a person typed
+     */
+    public function addFromProduct(int $productId, int $codeNumber = 0): void
+    {
+        $this->attempt(function () use ($productId, $codeNumber): void {
+            if ($this->productSectionId === null) {
+                return;
+            }
+
+            /** @var Product $product */
+            $product = Product::query()->whereNull('archived_at')->findOrFail($productId);
+            $choice = app(CatalogueProducts::class)->choiceByNumber($product, $codeNumber);
+            $line = $this->editor()->addProductLine($this->section($this->productSectionId), $product, $choice['code']);
+            $this->refreshAll();
+            $this->toast($line->price_on_request
+                ? 'Added without a price: '.str((string) $line->product_name)->limit(40).'. Type its rate before sending.'
+                : 'Added: '.str((string) $line->product_name)->limit(48));
         });
     }
 
@@ -800,6 +846,8 @@ class QuoteBuilder extends Component
             'invoices' => $quote->invoices()->with('projectMilestone')->latest('id')->get(),
             'descriptionTemplates' => $this->showDescriptions ? DescriptionTemplate::query()->where('is_active', true)->where('business_line', $quote->business_line->value === 'furniture' ? 'furniture' : 'interior')->when($this->descriptionSearch !== '', fn (Builder $q) => $q->where(fn (Builder $q) => $q->where('title', 'like', '%'.$this->descriptionSearch.'%')->orWhere('section', 'like', '%'.$this->descriptionSearch.'%')->orWhere('body', 'like', '%'.$this->descriptionSearch.'%')))->orderBy('section')->orderBy('title')->limit(30)->get() : collect(),
             'catalogItems' => $this->showCatalog ? $this->catalogResults() : collect(),
+            'productChoices' => $this->showProducts ? app(CatalogueProducts::class)->search($this->productSearch, self::PRODUCT_CHOICES) : [],
+            'productChoiceLimit' => self::PRODUCT_CHOICES,
             'catalogCategories' => $this->showCatalog ? CatalogItem::query()->where('is_active', true)->distinct()->orderBy('category')->pluck('category') : collect(),
             'templates' => $this->showTemplate ? QuoteTemplate::query()->whereIn('business_line', $quote->business_line->value === 'furniture' ? ['furniture'] : ['interior', 'project'])->orderBy('position')->get(['id', 'name']) : collect(),
             'previewHtml' => $this->previewHtml(),

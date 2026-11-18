@@ -1,4 +1,4 @@
-<div>
+<div data-unsaved="save applyPreset resetToV1">
     <x-admin.page-header title="Theme builder" description="The site's design tokens — v1's own palette. Saving re-skins every public page at once, no rebuild."
                          :breadcrumbs="['Website' => null, 'Theme builder' => null]">
         <x-slot:actions>

@@ -22,7 +22,7 @@
 
     {{-- Business --}}
     @if ($tab === 'business')
-        <form wire:submit="saveBusiness" class="space-y-6">
+        <form wire:submit="saveBusiness" data-unsaved data-unsaved-tab class="space-y-6">
             <x-admin.card title="Identity" description="Shown on documents and the website footer.">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <x-admin.field label="Legal name" for="business.legal_name"><input id="business.legal_name" type="text" wire:model="business.legal_name" class="wx-input"></x-admin.field>
@@ -87,7 +87,7 @@
     {{-- Sales --}}
     {{-- WhatsApp --}}
     @if ($tab === 'whatsapp' && isset($sections['whatsapp']))
-        <form wire:submit="saveWhatsApp" class="space-y-6">
+        <form wire:submit="saveWhatsApp" data-unsaved data-unsaved-tab class="space-y-6">
             <x-admin.card title="WhatsApp Cloud API" description="The number the studio writes from. Saved here, it is encrypted in the database; left empty, the server .env is used instead. Nothing saved here is ever shown back.">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <x-admin.field label="Phone number id" for="whatsapp.phone_number_id" hint="Meta → WhatsApp → API Setup. A long number.">
@@ -178,7 +178,7 @@
         </x-admin.card>
     @endif
     @if ($tab === 'sales')
-        <form wire:submit="saveSales" class="space-y-6">
+        <form wire:submit="saveSales" data-unsaved data-unsaved-tab class="space-y-6">
             <x-admin.card title="Quotations and invoices">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <x-admin.field label="Quotation valid for (days)" for="sales.quote_validity_days"><input id="sales.quote_validity_days" type="number" min="1" wire:model="sales.quote_validity_days" class="wx-input"></x-admin.field>
@@ -274,7 +274,7 @@
 
     {{-- Notifications --}}
     @if ($tab === 'notifications')
-        <form wire:submit="saveNotifications" class="space-y-6">
+        <form wire:submit="saveNotifications" data-unsaved data-unsaved-tab class="space-y-6">
             <x-admin.card title="Telegram alerts" description="Each person links their own Telegram under Security & Telegram.">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <label class="flex items-center gap-2 text-theme-sm text-gray-700 md:col-span-3 dark:text-gray-300"><input type="checkbox" wire:model="notifications.telegram_enabled" class="rounded border-gray-300"> Send alerts to Telegram</label>
@@ -314,7 +314,7 @@
         @php($botSettings = app(\App\Settings\BotSettings::class))
         @php($botUsageRows = \App\Domain\Bot\Models\BotUsage::query()->whereDate('usage_date', today())->get())
         @php($botKnowledge = \App\Domain\Bot\Models\BotKnowledge::query()->orderByDesc('id')->limit(30)->get())
-        <form wire:submit="saveBot">
+        <form wire:submit="saveBot" data-unsaved data-unsaved-tab>
             <x-admin.card title="Website assistant" description="The chat widget's brain (BOT-002). It ships keyless: with no provider key, every question gets an honest 'a human will reply' and the team is alerted — the machinery works today, the thinking starts the day a key arrives. Guardrails are enforced in code, not asked for politely: no invented prices, no promised dates, no discounts, no other client's data.">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <x-admin.field label="Assistant" for="bot.enabled" hint="Off: the widget stays the rule-based intake and the team answers live threads. On: the bot answers live threads too.">
@@ -365,6 +365,7 @@
                 <x-admin.button variant="secondary" icon="refresh" wire:click="syncBotKnowledge" wire:confirm.lazy="Re-read every published page into the bot's knowledge?">Sync from published pages</x-admin.button>
                 <span class="text-theme-xs text-gray-500">{{ $botKnowledge->where('source', 'cms')->count() }} page entries · {{ $botKnowledge->where('source', 'manual')->count() }} manual</span>
             </div>
+            <div data-unsaved="addBotKnowledge">
             <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <x-admin.field label="Add your own answer" for="botKnowledgeTitle">
                     <input id="botKnowledgeTitle" type="text" wire:model="botKnowledgeTitle" class="wx-input" placeholder="Question or topic, e.g. 'Do you work in DHA Lahore?'">
@@ -374,6 +375,7 @@
                 </x-admin.field>
             </div>
             <div class="mt-2"><x-admin.button variant="secondary" icon="plus" wire:click="addBotKnowledge">Add entry</x-admin.button></div>
+            </div>
             <ul class="mt-4 divide-y divide-gray-100 dark:divide-gray-800">
                 @forelse ($botKnowledge as $entry)
                     <li class="flex items-start gap-3 py-2.5" wire:key="botk-{{ $entry->id }}">

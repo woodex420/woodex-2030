@@ -313,6 +313,10 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   `#4f9d21` carries no white text (3.4 : 1); `brand-500` does.
 - **`public/build` is committed** — the production host has no Node.js. After changing CSS or JavaScript run
   `npm ci && npm run build` in `platform/` and commit the new files with the old ones removed.
+- **A release that changes what a person sees says so on Feature status.** Add its entry to
+  `platform/app/Support/ReleaseNotes.php` in the same pull request: the date, a title, and lines in the words
+  of the person at the screen (no list line, no commit: `tests/Feature/WorkspacePreferencesTest.php` refuses
+  them).
 - **A changed requirement changes a test; it does not delete one.** When the roadmap left the sidebar, the
   tests that expected "Soon" entries were rewritten to expect them on Feature status.
 - The root `index.php` and `.htaccess` are the Hostinger entry of this application. Vercel does not use them.

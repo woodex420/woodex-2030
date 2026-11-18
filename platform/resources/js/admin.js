@@ -11,8 +11,12 @@ import 'preline/plugins/dropdown';
 import { createThemeStore, readStorage, writeStorage } from './admin/theme';
 import { registerQuoteWorkbench } from './admin/quote-workbench';
 import { registerDocumentPreview } from './admin/document-preview';
+import { registerUnsavedChanges, toastOf } from './admin/unsaved';
 
 const PRELINE_PLUGINS = ['HSDropdown'];
+
+// What is typed is not lost without a question (T-043). Registered once: the script outlives every screen.
+registerUnsavedChanges();
 
 const initPreline = () => {
     PRELINE_PLUGINS.forEach((name) => window[name]?.autoInit?.());
@@ -81,8 +85,8 @@ document.addEventListener('alpine:init', () => {
 
 /* ---------- Toasts dispatched from Livewire: $this->dispatch('toast', message: '…', type: 'success') ---------- */
 window.addEventListener('toast', (event) => {
-    const detail = Array.isArray(event.detail) ? event.detail[0] : event.detail;
-    window.Alpine?.store('toasts')?.push(detail?.message ?? 'Saved', detail?.type ?? 'success');
+    const { message, type } = toastOf(event.detail);
+    window.Alpine?.store('toasts')?.push(message ?? 'Saved', type ?? 'success');
 });
 
 /* ---------- Live website chat (P10.2): toast + optional sound when a visitor texts the bubble.
@@ -217,6 +221,16 @@ const chartTheme = (element) => {
         theme: { mode: dark ? 'dark' : 'light' },
     };
 };
+// Workspace preferences were saved: this page follows at once, and this browser keeps the appearance.
+window.addEventListener('wx-preferences-saved', (event) => {
+    const { appearance, shortcuts } = event.detail ?? {};
+    if (['light', 'dark', 'system'].includes(appearance)) {
+        document.documentElement.dataset.themeDefault = appearance;
+        window.Alpine?.store('theme')?.setMode(appearance);
+    }
+    document.documentElement.dataset.shortcuts = shortcuts === false ? 'off' : 'on';
+});
+
 window.addEventListener('wx-theme-changed', () => {
     for (const [element, chart] of activeCharts) {
         if (element.isConnected) chart.updateOptions(chartTheme(element), false, false);
@@ -333,6 +347,8 @@ document.addEventListener('alpine:init', () => {
         onKeydown(event) {
             // Never fight the browser or another handler's modifiers.
             if (event.ctrlKey || event.metaKey || event.altKey) return;
+            // Every shortcut here is a single key. A person can switch them off (Workspace preferences).
+            if (document.documentElement.dataset.shortcuts === 'off') { this.pendingG = false; return; }
             if (this.typing(event.target)) { this.pendingG = false; return; }
 
             const key = event.key;

@@ -83,8 +83,10 @@ use App\Livewire\Admin\System\Health;
 use App\Livewire\Admin\System\Integrations;
 use App\Livewire\Admin\System\RecycleBin;
 use App\Livewire\Admin\System\SettingsPage;
+use App\Livewire\Admin\System\TeamOnboarding;
 use App\Livewire\Admin\System\UsersIndex;
 use App\Livewire\Admin\System\WhatsAppTemplates;
+use App\Livewire\Admin\System\WorkspacePreferences;
 use App\Livewire\Admin\Website\FindReplaceIndex;
 use App\Livewire\Admin\Website\MediaLibrary;
 use App\Livewire\Admin\Website\PagesIndex;
@@ -255,6 +257,9 @@ Route::livewire('/system/alert-rules', AlertRulesIndex::class)->name('system.ale
 Route::livewire('/system/audit', AuditLog::class)->name('system.audit')->middleware('can:audit.view');
 // Every destination and where it stands today; the sidebar shows only what can be opened here.
 Route::livewire('/system/features', FeatureStatus::class)->name('system.features')->middleware('can:dashboard.view');
+// T-056: each person's own preferences (and the welcome of a first sign-in); the team's way in, for who manages it.
+Route::livewire('/system/preferences', WorkspacePreferences::class)->name('system.preferences')->middleware('can:dashboard.view');
+Route::livewire('/system/onboarding', TeamOnboarding::class)->name('system.onboarding')->middleware('can:users.manage');
 // Database update after a deploy (D-58): reachable while migrations are pending and before 2FA setup.
 Route::get('/system/updates', [SystemUpdateController::class, 'show'])->name('system.updates')
     ->middleware('can:system.health')->withoutMiddleware(['db-current', 'two-factor']);

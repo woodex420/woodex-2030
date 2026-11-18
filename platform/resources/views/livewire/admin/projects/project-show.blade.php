@@ -178,14 +178,14 @@
                     </ul>
 
                     @can('update', $project)
-                        <form wire:submit="addHandoverItem" class="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+                        <form wire:submit="addHandoverItem" data-unsaved class="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
                             <input type="text" wire:model="newItem" class="wx-input" placeholder="A line this project needs (e.g. AC vents cleaned)" aria-label="New checklist line">
                             <x-admin.button variant="secondary" size="sm" type="submit" icon="plus">Add</x-admin.button>
                         </form>
                         @error('newItem') <p class="px-4 pb-3 text-theme-xs text-error-600">{{ $message }}</p> @enderror
 
                         @if ($project->client_ok_at === null)
-                            <div class="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+                            <div class="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800" data-unsaved="recordHandoverSignature">
                                 <input type="text" wire:model="signatureName" class="wx-input" placeholder="Client's name (signed on site)" aria-label="Client name">
                                 <x-admin.button variant="primary" size="sm" icon="check" wire:click="recordHandoverSignature"
                                                 wire:confirm="Record the client's signature for the handover?">Record signature</x-admin.button>
@@ -198,7 +198,7 @@
             {{-- The site diary --}}
             <x-admin.card title="Site diary" :padding="false">
                 @can('update', $project)
-                    <form wire:submit="post" class="border-b border-gray-100 p-4 dark:border-gray-800">
+                    <form wire:submit="post" data-unsaved class="border-b border-gray-100 p-4 dark:border-gray-800">
                         <label class="sr-only" for="update-body">What happened on site</label>
                         <textarea id="update-body" wire:model="body" rows="3" class="wx-input"
                                   placeholder="What happened on site today? (e.g. Wood work in the drawing room is complete, electrical rough-in starts tomorrow.)"></textarea>
@@ -442,7 +442,7 @@
                 @can('update', $project)
                     @cannot('accounts.manage')
                     <p class="mt-3 text-theme-xs text-gray-500">Legacy cost recording credits accounts payable but has no supplier/payment link. Ask finance to use linked costs for supplier purchases.</p>
-                    <form wire:submit.prevent="addExpense" class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-12">
+                    <form wire:submit.prevent="addExpense" data-unsaved class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-12">
                         <input type="text" wire:model="expenseDescription" placeholder="What was bought or paid" class="wx-input sm:col-span-4" aria-label="Description">
                         <select wire:model="expenseCategory" class="wx-input sm:col-span-2" aria-label="Category">
                             @foreach (\App\Domain\Projects\Enums\ProjectExpenseCategory::cases() as $category)
@@ -506,10 +506,12 @@
             {{-- Internal notes --}}
             @can('update', $project)
                 <x-admin.card title="Internal notes">
-                    <label class="sr-only" for="project-notes">Notes</label>
-                    <textarea id="project-notes" wire:model="notes" rows="5" class="wx-input" placeholder="Anything the team should know about this job."></textarea>
-                    <div class="mt-3 flex justify-end">
-                        <x-admin.button variant="secondary" icon="save" wire:click="saveDetails">Save notes</x-admin.button>
+                    <div data-unsaved="saveDetails">
+                        <label class="sr-only" for="project-notes">Notes</label>
+                        <textarea id="project-notes" wire:model="notes" rows="5" class="wx-input" placeholder="Anything the team should know about this job."></textarea>
+                        <div class="mt-3 flex justify-end">
+                            <x-admin.button variant="secondary" icon="save" wire:click="saveDetails">Save notes</x-admin.button>
+                        </div>
                     </div>
                 </x-admin.card>
             @endcan

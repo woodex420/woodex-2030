@@ -11,7 +11,7 @@
 
     @if ($showForm)
         <x-admin.card class="mb-6 border-brand-200 dark:border-brand-800" title="Manual journal entry">
-            <form wire:submit="post" class="space-y-4">
+            <form wire:submit="post" data-unsaved class="space-y-4">
                 <div class="grid gap-4 sm:grid-cols-3">
                     <div>
                         <label class="wx-label">Business date</label>
@@ -81,7 +81,7 @@
             <p class="mb-4 text-theme-sm text-gray-600 dark:text-gray-400">
                 A reversal posts a mirrored entry and keeps the original untouched. Every line swaps sides.
             </p>
-            <form wire:submit="reverse" class="flex flex-wrap items-end gap-3">
+            <form wire:submit="reverse" data-unsaved class="flex flex-wrap items-end gap-3">
                 <div class="flex-1 min-w-64">
                     <label class="wx-label">Reason (kept with the entry)</label>
                     <input wire:model="reversalReason" class="wx-input" placeholder="e.g. posted to the wrong account" maxlength="500" />

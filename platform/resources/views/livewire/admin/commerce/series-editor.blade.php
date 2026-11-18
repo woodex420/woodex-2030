@@ -1,4 +1,4 @@
-<div>
+<div data-unsaved="saveDraft">
 <x-admin.page-header :title="'Series draft · '.$series->name" description="Native collection content with manual or automatic published-product membership. Does not change legacy Series identity, product classifications or the React storefront."><x-slot:actions><x-admin.button variant="secondary" :href="route('admin.commerce.series.organize')">Back to organizer</x-admin.button></x-slot:actions></x-admin.page-header>
 <div class="grid gap-5 lg:grid-cols-2">
 <x-admin.card title="Collection content">
@@ -13,7 +13,7 @@
 <x-admin.button variant="secondary" wire:click="uploadHero" wire:loading.attr="disabled">Stage uploaded hero</x-admin.button>
 @if($heroPath)<x-admin.button variant="secondary" wire:click="removeHero">Remove staged hero</x-admin.button>@endif
 @can('website.edit')
-<label class="wx-label" for="series-hero-search">Website Media hero search</label><input id="series-hero-search" wire:model.live.debounce.300ms="heroSearch" class="wx-input" placeholder="Search image titles">
+<label class="wx-label" for="series-hero-search">Website Media hero search</label><input id="series-hero-search" wire:model.live.debounce.300ms="heroSearch" data-unsaved-skip class="wx-input" placeholder="Search image titles">
 <div class="grid grid-cols-3 gap-2">@foreach($heroMedia ?? [] as $media)<button type="button" wire:click="selectHero({{ $media->id }})" class="rounded border p-2 text-sm" aria-label="Use hero {{ $media->title }}"><img src="{{ route('admin.commerce.website-library', $media, false) }}" alt="{{ $media->alt ?? '' }}" class="h-16 w-full object-contain"><span class="break-words">{{ $media->title }}</span></button>@endforeach</div>
 @if($heroMedia){{ $heroMedia->links() }}@endif
 <p class="text-sm">Search and paginate Website Media; unavailable or unsupported files are omitted. A private immutable copy is retained; shared originals are never overwritten or deleted.</p>
@@ -54,8 +54,8 @@
 </div>
 @can('commerce.catalog.publish')
 <div class="mt-5"><x-admin.card title="Native publication">
-<div class="space-y-3"><label class="flex gap-2"><input type="checkbox" wire:model="confirmPublish"> I reviewed the exact saved collection preview and confirm native publication.</label><x-admin.button wire:click="publish" wire:loading.attr="disabled">Publish native collection</x-admin.button>
-@if($series->published_revision_id)<p>Published native revision {{ $series->published_revision_id }}. Saving another draft does not replace it.</p><label class="flex gap-2"><input type="checkbox" wire:model="confirmWithdraw"> Confirm withdrawal; keep all history.</label><x-admin.button variant="secondary" wire:click="withdraw">Withdraw native collection</x-admin.button>@endif</div>
+<div class="space-y-3"><label class="flex gap-2"><input type="checkbox" wire:model="confirmPublish" data-unsaved-skip> I reviewed the exact saved collection preview and confirm native publication.</label><x-admin.button wire:click="publish" wire:loading.attr="disabled">Publish native collection</x-admin.button>
+@if($series->published_revision_id)<p>Published native revision {{ $series->published_revision_id }}. Saving another draft does not replace it.</p><label class="flex gap-2"><input type="checkbox" wire:model="confirmWithdraw" data-unsaved-skip> Confirm withdrawal; keep all history.</label><x-admin.button variant="secondary" wire:click="withdraw">Withdraw native collection</x-admin.button>@endif</div>
 </x-admin.card></div>
 @endcan
 </div>

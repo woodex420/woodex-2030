@@ -247,6 +247,9 @@ it('puts only numbers and fixed words into attributes that are run as script', f
         .'|\\\\Illuminate\\\\Support\\\\Str::singular\(\$tab\)'
         // Looked at one by one: a page\'s path, a theme\'s name and an import folder, each made by the application.
         .'|\$page\[\'path\'\]|\$preset\[\'name\'\]|\$report\[\'directory\'\]'
+        // A product\'s number, and the number that stands for the code of its option (CatalogueProducts): both
+        // whole numbers by construction. The code itself is typed text and is not printed there.
+        .'|\$choice\[\'product_id\'\]|\$choice\[\'code_number\'\]'
         .')$/';
     $attribute = '/(?<![\w-])(x-data|x-init|x-on:[\w.\-]+|@[\w.\-]+|x-show|x-effect|x-text|x-html|x-bind:[\w\-]+|wire:(?:click|submit|change|input|keydown|keyup|blur|init|poll)[\w.\-]*|onclick|onchange|oninput)\s*=\s*"([^"]*)"/s';
     $directives = ['@if', '@foreach', '@endif', '@php', '@class', '@can', '@js', '@json', '@error', '@include', '@props', '@endforeach', '@forelse', '@unless', '@else', '@elseif', '@style', '@checked', '@selected', '@disabled'];

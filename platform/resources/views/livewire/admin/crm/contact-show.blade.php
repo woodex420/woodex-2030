@@ -114,7 +114,7 @@
                     @endforelse
                 </div>
                 @if ($canUpdate)
-                    <form wire:submit="addTag" class="mt-3 flex gap-2">
+                    <form wire:submit="addTag" data-unsaved class="mt-3 flex gap-2">
                         <input type="text" wire:model="newTag" class="wx-input" placeholder="VIP, architect, DHA…" aria-label="New tag">
                         <x-admin.button type="submit" variant="secondary" icon="tag">Add</x-admin.button>
                     </form>

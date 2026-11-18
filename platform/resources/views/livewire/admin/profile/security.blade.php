@@ -2,6 +2,14 @@
     <x-admin.page-header title="Security & Telegram" description="Protect your account with two-factor authentication and receive Woodex alerts on Telegram."
                          :breadcrumbs="['Profile' => null, 'Security' => null]" />
 
+    @if ($enabled && session(\App\Support\WorkspacePreferences::FIRST_SIGN_IN) === true)
+        {{-- A first sign-in whose role needs two-factor was sent here before its welcome (T-056): the way on. --}}
+        <aside role="note" data-first-steps class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success-500/40 bg-success-50 px-4 py-3 text-theme-sm text-success-700 dark:bg-success-500/10">
+            <p>Two-factor sign-in is on. Two more things before you start.</p>
+            <x-admin.button size="sm" :href="route('admin.system.preferences', ['welcome' => 1])" wire:navigate>Continue</x-admin.button>
+        </aside>
+    @endif
+
     <x-admin.google-notice />
     @include('livewire.admin.profile.google-sign-in')
 
@@ -21,7 +29,7 @@
                 <p class="text-theme-sm text-gray-600 dark:text-gray-300">Cannot scan? In your authenticator, choose Enter a setup key, select Time based, and enter this key. This QR code is not for Telegram.</p>
                 <p class="my-4 font-mono text-theme-sm text-gray-800 dark:text-white/90">{{ $setupKey }}</p>
                 <p class="text-theme-xs text-gray-500">Keep this key private. Set your phone date and time to automatic. Use the latest 6-digit code from the authenticator, not a Telegram or SMS code.</p>
-                <form wire:submit="confirmTwoFactor" class="flex max-w-sm gap-2">
+                <form wire:submit="confirmTwoFactor" data-unsaved="off" class="flex max-w-sm gap-2">
                     <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" wire:model="code" class="wx-input" placeholder="123456" aria-label="Authentication code">
                     <x-admin.button type="submit">Confirm</x-admin.button>
                 </form>

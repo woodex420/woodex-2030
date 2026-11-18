@@ -91,7 +91,7 @@
     @if ($collectId !== 0)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" wire:key="collect-modal">
             <x-admin.card class="w-full max-w-lg" title="Collect a payment">
-                <form wire:submit="collect" class="grid gap-4 sm:grid-cols-2">
+                <form wire:submit="collect" data-unsaved class="grid gap-4 sm:grid-cols-2">
                     <div>
                         <label class="wx-label">Amount (rupees)</label>
                         <input wire:model="collectAmount" class="wx-input" inputmode="decimal" />

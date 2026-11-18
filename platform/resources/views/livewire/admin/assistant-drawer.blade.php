@@ -69,7 +69,7 @@
                     @endforeach
                 </div>
 
-                <form wire:submit="askDraft" class="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+                <form wire:submit="askDraft" data-unsaved="off" class="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
                     <input x-ref="question" type="text" wire:model="draft" placeholder="Ask, e.g. what is overdue?"
                            class="h-11 flex-1 rounded-lg border border-gray-200 bg-transparent px-3 text-theme-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-400 focus:ring-0 focus:outline-none dark:border-gray-700 dark:text-white"
                            autocomplete="off" aria-label="Ask the assistant">

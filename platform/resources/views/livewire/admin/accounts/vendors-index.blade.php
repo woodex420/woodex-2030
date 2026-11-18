@@ -13,7 +13,7 @@
         <x-admin.card :title="$editingId ? 'Edit vendor' : 'Add a vendor'"
                       description="Only the name is required. Payment terms decide the due date a new bill starts from; the default expense account pre-fills the first line."
                       class="mb-6">
-            <form wire:submit="save" x-on:keydown.enter="if ($event.target.tagName === 'INPUT' &amp;&amp; !['checkbox','radio','file'].includes($event.target.type)) { $event.preventDefault(); $el.querySelector('[data-explicit-save]')?.click(); }" class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <form wire:submit="save" data-unsaved x-on:keydown.enter="if ($event.target.tagName === 'INPUT' &amp;&amp; !['checkbox','radio','file'].includes($event.target.type)) { $event.preventDefault(); $el.querySelector('[data-explicit-save]')?.click(); }" class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                     <label class="wx-label" for="vendor-name">Name</label>
                     <input id="vendor-name" type="text" wire:model="name" class="wx-input" placeholder="Chughtai Timber" />

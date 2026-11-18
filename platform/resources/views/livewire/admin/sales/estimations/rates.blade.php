@@ -1,4 +1,4 @@
-<div class="space-y-5">
+<div data-unsaved="publishRates namedBook reloadRates" class="space-y-5">
     <x-admin.card title="Public estimator service rates" description="Draft edits do not change prices. Publish explicitly to update the existing public-v1 file and staff/bot service rates. Public catalogue add-ons are preserved; they are not the staff quotation catalogue.">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <span class="text-theme-sm {{ ($rates['consistent'] ?? false) ? 'text-success-700' : 'text-warning-700' }}">{{ ($rates['consistent'] ?? false) ? 'Public file and database are in sync' : 'Needs attention: public file and database differ, or the rate book cannot be read' }}</span>

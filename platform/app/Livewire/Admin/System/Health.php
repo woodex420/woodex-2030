@@ -42,7 +42,7 @@ class Health extends Component
         $user = auth()->user();
 
         if ($user === null || $user->email === null || $user->email === '') {
-            $this->dispatch('toast', 'Your profile has no email address to send to.', 'error');
+            $this->dispatch('toast', message: 'Your profile has no email address to send to.', type: 'error');
 
             return;
         }
@@ -58,10 +58,10 @@ class Health extends Component
                 },
             );
 
-            $this->dispatch('toast', "Test email sent to {$user->email}.", 'success');
+            $this->dispatch('toast', message: "Test email sent to {$user->email}.", type: 'success');
         } catch (\Throwable $exception) {
             report($exception);
-            $this->dispatch('toast', 'Sending failed: '.$exception->getMessage(), 'error');
+            $this->dispatch('toast', message: 'Sending failed: '.$exception->getMessage(), type: 'error');
         }
     }
 }

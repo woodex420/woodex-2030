@@ -25,7 +25,7 @@
         <x-admin.card title="New recurring schedule"
                       description="The first run is the start date; each run advances from the date it posted, so a late catch-up does not drift the series."
                       class="mb-6">
-            <form wire:submit="save" class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <form wire:submit="save" data-unsaved class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div class="md:col-span-2">
                     <label class="wx-label" for="rec-description">What it is</label>
                     <input id="rec-description" type="text" wire:model="description" class="wx-input" placeholder="Studio rent — DHA Phase 5" />

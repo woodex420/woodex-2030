@@ -525,6 +525,51 @@
     "on": "2026-11-18",
     "how": "`exif` is in the installer's list, and `Feature/InstallerTest.php` reads the lock file: every extension a package of a release asks for is either checked by the installer or part of every PHP."
    }
+  },
+  {
+   "id": "D-037",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-18",
+   "title": "The \"Add\" button of a catalogue product did nothing, and its first cure printed typed text into a script",
+   "detail": "Found twice within the round that built it, before any release. First by the journey in a browser: the button's `wire:click` held a Blade directive inside a component tag, which Blade does not compile, so the browser got the directive as written and the press did nothing; every component test passed, because a component test never reads `wire:click`. Then by CI, after only the neighbouring tests had been run before a push: the cure printed the code of the product's option, which is text a person typed, into `wire:click`, an attribute the browser runs as script, and `Feature/Security/StoredScriptTest.php` refused it on the three database servers.",
+   "lines": [
+    "T-086"
+   ],
+   "closed": {
+    "on": "2026-11-18",
+    "how": "The button says two numbers, the product's and one that stands for the option's code; the server finds the option and asks the catalogue again. `Unit/BladeComponentTagsTest.php` refuses a directive inside a component tag in any view; the journey presses the button and reads the product in the PDF. The whole suite is run before a push, not the neighbours."
+   }
+  },
+  {
+   "id": "D-038",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-18",
+   "title": "Eight notices that reported a failure were shown in green as \"Saved\"",
+   "detail": "On `main`. Three screens (change requests, system health, prepared replies) sent their notices without names: `dispatch('toast', '…', 'error')`. The browser read only named arguments, found neither a message nor a type, and showed its default: a green \"Saved\". A person was told that something was saved when it had been refused. Found while reading every early return of the saving actions for the warning before unsaved work is lost, which must know whether a save was refused.",
+   "lines": [
+    "T-043"
+   ],
+   "closed": {
+    "on": "2026-11-18",
+    "how": "The eight are written with names, the browser reads both forms (`toastOf` in `resources/js/admin/unsaved.js`), `Unit/ToastsCanBeReadTest.php` refuses a notice without names anywhere in `app/`, and the journey sends one written the old way and reads it on the screen as a failure."
+   }
+  },
+  {
+   "id": "D-039",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-18",
+   "title": "A figure typed into a quotation was lost when a menu link was pressed straight away",
+   "detail": "On `main`. Every field of the quotation is stored when it is left. A press on a menu link does not leave the field: Livewire stops the browser's own handling of that press so that the page is not loaded twice, and the cursor stays where it was. The screen was swapped, nothing was sent, and the figure was gone without a word. Seen by pressing it in a browser, with the watch on unsaved work taken out of the page: 12,501 typed, the quotation still held 12,500.",
+   "lines": [
+    "T-043"
+   ],
+   "closed": {
+    "on": "2026-11-18",
+    "how": "Leaving is held while a part of the screen holds unsaved work: the watch leaves the field itself, waits for the save and for its answer to be worked into the page, and then lets the person go without a question. The journey types a figure, presses the link at once, counts every opening of the question (none) and reads the figure back from the quotation."
+   }
   }
  ]
 }

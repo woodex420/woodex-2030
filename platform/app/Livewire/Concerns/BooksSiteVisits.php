@@ -84,6 +84,8 @@ trait BooksSiteVisits
                     $visit->endsAt()->format('g:i a'),
                     $visit->contact->name ?? 'a client',
                 ))->values()->all();
+                // Nothing is booked yet: the form keeps its mark "not saved" in the browser (T-043).
+                $this->nothingSavedYet();
 
                 return;
             }

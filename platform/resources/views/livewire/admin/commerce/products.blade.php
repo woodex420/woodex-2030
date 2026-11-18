@@ -31,7 +31,7 @@ $photograph = str_starts_with($photograph, 'https://woodexfurniture.pk/') ? $pho
 </div><div class="mt-5">{{ $products->links() }}</div>
 </x-admin.card>
 @if($showQuickEdit)
-<x-admin.modal name="showQuickEdit" title="Quick edit product" description="Draft changes only. Existing descriptions, photos, variants and published snapshots are preserved." width="max-w-3xl">
+<x-admin.modal name="showQuickEdit" unsaved="saveQuickEdit" title="Quick edit product" description="Draft changes only. Existing descriptions, photos, variants and published snapshots are preserved." width="max-w-3xl">
 @if($errors->any())<div role="alert" class="mb-4">@foreach($errors->all() as $error)<p class="text-red-600">{{ $error }}</p>@endforeach</div>@endif
 <div class="grid gap-4 md:grid-cols-2">
 <x-admin.field label="Product name" for="quick.name"><input id="quick.name" wire:model="quick.name" class="wx-input"></x-admin.field>

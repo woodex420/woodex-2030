@@ -35,7 +35,7 @@ it('folds the eleven System entries into four hubs, beside the audit log and Fea
     // The four hubs keep their buttons inside. The audit log is named on its own because the owner's
     // navigation lists it (spec 05 §2); Feature status is where everything not in the sidebar is told.
     expect(collect($system['items'])->pluck('label')->all())
-        ->toBe(['Settings', 'Access & team', 'Connections', 'Platform', 'Audit & activity', 'Feature status'])
+        ->toBe(['Settings', 'Access & team', 'Connections', 'Platform', 'Audit & activity', 'Feature status', 'Workspace preferences', 'Team onboarding'])
         ->and(collect($system['items'])->whereNull('route'))->toBeEmpty();
 });
 

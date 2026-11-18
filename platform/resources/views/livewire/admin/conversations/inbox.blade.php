@@ -238,12 +238,12 @@
                         </div>
                     @endif
 
-                    <div class="flex items-end gap-2">
+                    <div class="flex items-end gap-2" data-unsaved="send">
                         <textarea wire:model="draft" rows="2" placeholder="{{ $attachment ? 'Caption (optional)…' : 'Write a reply… (type / for saved replies)' }}" class="wx-input" aria-label="Reply" @disabled(! $selected->allowsFreeFormReply())></textarea>
                         <x-admin.button variant="primary" wire:click="send" wire:loading.attr="disabled" wire:target="send,attachment" icon="send" :disabled="! $selected->allowsFreeFormReply()">Send</x-admin.button>
                     </div>
 
-                    <div class="mt-2 flex items-end gap-2">
+                    <div class="mt-2 flex items-end gap-2" data-unsaved="addNote">
                         <input type="text" wire:model="note" placeholder="Internal note — the client never sees it" class="wx-input text-theme-sm" aria-label="Internal note">
                         <x-admin.button variant="secondary" wire:click="addNote">Add note</x-admin.button>
                     </div>

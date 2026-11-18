@@ -58,7 +58,10 @@ if ($mode === 'staff') {
             if (strlen($password) < 16) {
                 throw new RuntimeException("{$env} must hold a generated password");
             }
-            $user = User::query()->updateOrCreate(['email' => $email], ['name' => $name, 'password' => Hash::make($password), 'is_active' => true]);
+            // The sample people already work here. A demo keeps nothing between two of Vercel's copies, so without
+            // a sign-in on record every visit would begin with the welcome of a first sign-in (T-056) instead of
+            // the dashboard. That welcome is tried on a real installation (scripts/os-install.mjs).
+            $user = User::query()->updateOrCreate(['email' => $email], ['name' => $name, 'password' => Hash::make($password), 'is_active' => true, 'last_login_at' => now()->subDay()]);
             $user->syncRoles([$role]);
         }
     });

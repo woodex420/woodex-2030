@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domain\Sales\Models;
 
+use App\Domain\Commerce\Models\Product;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** @property string|null $product_name */
+/**
+ * @property string|null $product_name
+ * @property int|null $product_id
+ * @property string|null $product_code
+ */
 class InvoiceItem extends Model
 {
     protected $guarded = ['id'];
@@ -25,6 +30,7 @@ class InvoiceItem extends Model
             'tax_bp' => 'integer',
             'line_total_minor' => 'integer',
             'position' => 'integer',
+            'product_id' => 'integer',
         ];
     }
 
@@ -34,5 +40,15 @@ class InvoiceItem extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    /**
+     * The product of the catalogue the quotation's line was chosen from (T-086). Only a link.
+     *
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 }

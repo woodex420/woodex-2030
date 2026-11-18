@@ -98,6 +98,9 @@ final class QuoteSnapshot
                 'subtotal_minor' => (int) $section->subtotal_minor,
                 'items' => $section->items->map(fn (QuoteItem $item): array => [
                     'product_name' => (string) $item->product_name,
+                    // The catalogue's product this line was chosen from, and its code as copied then (T-086).
+                    'product_id' => $item->product_id,
+                    'product_code' => $item->product_code,
                     'description' => $item->description,
                     'image' => self::imageDataUri($item->image_path),
                     'unit' => $item->unit,

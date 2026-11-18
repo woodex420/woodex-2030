@@ -1,7 +1,7 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
   "written": "2026-11-18",
-  "commit": "115e29b",
+  "commit": "db91415",
   "sizes": {
     "S": "small",
     "M": "medium",
@@ -34,7 +34,6 @@
     "T-033": "Interior lists and fields in open screens replaced by Furniture's wording",
     "T-041": "One table component for every list, with the five states",
     "T-042": "On a phone, the key lists show cards instead of a wide table",
-    "T-043": "A warning before leaving a form with unsaved changes",
     "T-044": "The dashboard as a widget framework, with the missing widgets",
     "T-045": "Screen pass, area by area: theme colours, page patterns, dark theme",
     "T-046": "Help, pinned screens and recently opened screens in the top bar",
@@ -47,7 +46,6 @@
     "T-053": "Phones with real amounts of data: no page wider than the window",
     "T-054": "Keyboard and screen-reader tests in a browser",
     "T-055": "The notification bell's request every 30 seconds, measured on the real host",
-    "T-056": "Workspace preferences, Team onboarding and release notes",
     "T-060": "One role and permission matrix from the two systems",
     "T-063": "The rules of `/api/v1`, held by a contract test",
     "T-064": "Business settings in one screen: currency, time zone, tax rules",
@@ -62,7 +60,6 @@
     "T-083": "Contacts with several phone numbers and e-mail addresses",
     "T-084": "Documents issued with Furniture's real terms and signers",
     "T-085": "Estimations with Furniture's rates; the module switched on",
-    "T-086": "A quotation line from the catalogue keeps its product and price",
     "T-087": "Tax rules on quotations and invoices; credit notes; payment schedules",
     "T-088": "Commerce readiness: the command exits clean on staging",
     "T-089": "The catalogue's photographs copied into the media library",
@@ -135,60 +132,6 @@
     "T-188": "Nobody acts: Vercel deletes each preview 30 days after it was built. The outside check watches one of them."
   },
   "rounds": [
-    {
-      "name": "What is typed is not lost; a quotation takes its products from the catalogue",
-      "why": "Both are P1 and on the path of a sale, and neither needs anybody.",
-      "lines": [
-        {
-          "id": "T-043",
-          "size": "M",
-          "found": "41 views hold a form that is sent through Livewire. The menu, the top bar and most links open the next screen without loading a whole page (116 places), so the browser's own question on leaving a page would never be asked for them. Six editors mention unsaved edits on the screen; none asks before the screen is left.",
-          "build": [
-            "One small script in the admin's own bundle watches every create and edit form, and every editor that saves without a form: typing in a field or changing it marks it as changed, and a save that succeeds clears the mark.",
-            "Leaving a changed form asks first, in both ways a person leaves: by a link inside the admin (the admin's own dialog, \"Stay\" or \"Leave without saving\") and by closing or reloading the tab (the browser's own question).",
-            "Search and filter forms, the sign-in forms and the client's pages are left out, by a written list."
-          ],
-          "tests": [
-            "A test reads every view that holds a form or an editor and fails when one is neither watched nor on the written list of exceptions.",
-            "A test opens a screen with a watched form and a list screen: the first carries the mark in its page, the second does not."
-          ],
-          "browser": [
-            "New journey steps: text is typed into \"New lead\" and a menu link is pressed. The dialog shows; \"Stay\" keeps the screen and the text; \"Leave without saving\" opens the other screen.",
-            "An untouched form lets go without asking. After a save, leaving does not ask.",
-            "Closing the tab on a changed form raises the browser's own question.",
-            "The same at 390 px, and the dialog by keyboard only: Tab, Enter, and Escape for \"Stay\"."
-          ],
-          "against": "With the watch taken out of the script, the first and third browser steps fail. With the clearing after a save taken out, \"after a save\" fails.",
-          "back": "No record changes. The script is part of the built bundle (`platform/public/build`), rebuilt and committed; putting the commit back removes it."
-        },
-        {
-          "id": "T-086",
-          "size": "M",
-          "found": "The quotation builder adds a line from the rate book, which is a price list of its own, or by hand. It cannot take one of the 170 products of the catalogue: a line holds a product's name as typed text, with no link to the product. In the catalogue 137 products have a price and 33 are \"price on request\"; every product has a code; 116 still carry points to check (T-090).",
-          "build": [
-            "\"Add a product\" in the quotation builder: a search by name or code over the catalogue. Any product that is not archived can be chosen, published in the shop or not: all 170 are drafts today. Choosing one writes a line with its name, its code and its price as they are at that moment: the reduced price where the product has one.",
-            "A product that still carries points to check says so in the search, so that a doubtful price is seen before it is used. The price on the line can be changed by hand, as on any line.",
-            "The line keeps a link to the product and its own copy of name, code and price: new columns on quotation and invoice lines, in one migration that only adds.",
-            "A product without a price adds a line marked \"price on request\"; the quotation cannot be sent until a price is typed.",
-            "The invoice made from the quotation carries the same link and the same copies."
-          ],
-          "tests": [
-            "Choosing a product copies its name, code and price onto the line.",
-            "Changing the product's price or name afterwards changes neither a draft's line nor a sent quotation, its total or its PDF.",
-            "Archiving the product afterwards leaves the line as it was.",
-            "The invoice made from the quotation, and a revision of the quotation, keep the product.",
-            "A quotation with a \"price on request\" line is refused at sending, with the reason on the screen.",
-            "A role that may not edit quotations cannot add a product.",
-            "The migration runs forward and back on MySQL in CI."
-          ],
-          "browser": [
-            "The working-day journey prices its line by choosing a product of the real catalogue by its code, and reads the price on the screen and in the PDF."
-          ],
-          "against": "With the copy taken out, so that the line reads the product's price of the day, the second test fails.",
-          "back": "The migration only adds columns and its way back removes them. No existing line is changed."
-        }
-      ]
-    },
     {
       "name": "The ledger with two people writing at once",
       "why": "P1 and about money. The code came from the Interior studio's system, whose own list says this was never tried on a real database server; the first place where two people work at the same moment is the trial site on Hostinger. It needs nobody, and CI has the two servers since T-143.",

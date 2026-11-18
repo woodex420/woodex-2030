@@ -47,6 +47,7 @@
    "steps": [
     "write a draft quotation for that client",
     "price one line; the total follows",
+    "a figure typed into the quotation is kept when a menu link is pressed at once",
     "the quotation PDF",
     "the same PDF is drawn on the screen (the preview: a worker, a later script, the fonts)",
     "documents can be issued here: terms and a signer are in place",

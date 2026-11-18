@@ -4,10 +4,12 @@
  *
  * scripts/os-screens.mjs opens every screen and measures it; it presses nothing. This script presses.
  *
- * 1. A working day. One person signs in, creates a lead, finds it again, adds a task, searches for it, writes a
- *    quotation with one priced line, opens the PDFs and the CSV export, uploads a sheet, finds a product of the
- *    real catalogue by its code and opens it, asks for a page that does not exist and one it may not see, and
- *    signs out.
+ * 1. A working day. One person signs in, creates a lead, finds it again, adds a task, tries to walk away from
+ *    text that is not saved (a menu link, the Back button, a reload, a click beside the form; on a phone and by
+ *    keyboard too), searches for the lead, writes a quotation with one priced line and one product of the
+ *    catalogue, presses a menu link with a figure half entered, opens the PDFs and the CSV export, uploads a
+ *    sheet, finds a product of the real catalogue by its code and opens it, asks for a page that does not exist
+ *    and one it may not see, and signs out.
  * 2. The sale (list line T-080), with the people who do each part: the owner takes an enquiry and hands it to a
  *    sales person; the sales person quotes above their discount limit and must ask; the approver approves; the
  *    quotation is sent; the client says yes; the lead is won; accounts bill the sale and issue the invoice; the
@@ -67,6 +69,11 @@ let expected = null;
 // Questions the admin asked before an act that cannot be undone ("Issue this invoice? …"). Each is answered yes;
 // the step that pressed the button checks that the question was asked.
 const questions = [];
+const BEFORE_LEAVING = '(the browser asks before the page is left)';
+const ASKED_WRONGLY = 'the browser asked "leave this page?" where nothing was unsaved:';
+let leavingExpected = false;
+/** The step that is running, for a problem that is noticed outside it. */
+let current = null;
 /** Everything that goes wrong on a page is a problem of the run, whoever's page it is. */
 function watch(target, whose = '') {
   target.on('pageerror', (error) => problems.push(`${whose}page error: ${error.message.slice(0, 200)}`));
@@ -77,7 +84,16 @@ function watch(target, whose = '') {
     problems.push(`${whose}console: ${message.text().replace(/'nonce-[^']+'/g, "'nonce-…'").slice(0, 220)}`);
   });
   target.on('response', (response) => { if (response.status() >= 500) problems.push(`HTTP ${response.status()} ${new URL(response.url()).pathname}`); });
-  target.on('dialog', (dialog) => { questions.push(dialog.message()); dialog.accept().catch(() => {}); });
+  // The browser's own question before a page is left has no words a page can choose: it is recorded by its kind.
+  // The admin raises it when it believes that typed text is not saved (list line T-043). One step asks for it on
+  // purpose; anywhere else the admin believed so wrongly, after a save or on a form nobody touched, and people
+  // would be asked on every page they leave. That fails the run.
+  target.on('dialog', (dialog) => {
+    const leaving = dialog.type() === 'beforeunload';
+    if (leaving && !leavingExpected) problems.push(`${whose}${ASKED_WRONGLY} during "${current ?? 'the start'}"`);
+    questions.push(leaving ? BEFORE_LEAVING : dialog.message());
+    dialog.accept().catch(() => {});
+  });
 }
 watch(page);
 if (process.env.OS_TRACE === '1') {
@@ -95,6 +111,7 @@ if (process.env.OS_TRACE === '1') {
 async function step(name, run) {
   const started = Date.now();
   const entry = { name, result: 'ok', note: '' };
+  current = name;
   try {
     const note = await run();
     if (note && note.leftOut) { entry.result = process.env.OS_STRICT === '1' ? 'FAILED' : 'left out'; entry.note = `${process.env.OS_STRICT === '1' ? 'left out, and nothing may be here: ' : ''}${note.leftOut}`; } else entry.note = note || '';
@@ -110,6 +127,16 @@ async function step(name, run) {
   return entry.result === 'ok';
 }
 const must = (condition, message) => { if (!condition) throw new Error(message); };
+/**
+ * A sum of rupees as the admin prints it, grouped in thousands or in lakhs, and not as a part of a longer number:
+ * 15,000 is not found in 115,000 nor in 15,000,000.
+ */
+const amount = (rupees) => {
+  const digits = String(Math.round(rupees));
+  const thousands = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const lakhs = digits.length > 3 ? `${digits.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${digits.slice(-3)}` : digits;
+  return new RegExp(`(?<!\\d)(?<!\\d,)(?:${thousands}|${lakhs})(?!,?\\d)`);
+};
 /**
  * Wait until something is on the screen, asking four times a second, and say in the failure what was expected.
  * (A Livewire answer changes the page without a navigation, so there is no load event to wait for.)
@@ -168,6 +195,23 @@ async function become(role) {
   }
   return names[person.email] || person.email;
 }
+/**
+ * The watch on text that is not saved (list line T-043, platform/resources/js/admin/unsaved.js): what it believes,
+ * the question it asks, and a link of the menu at the side.
+ */
+const unsaved = () => page.evaluate(() => (window.wxUnsaved ? { standing: window.wxUnsaved.standing(), ...window.wxUnsaved.state() } : { standing: null }));
+const question = page.locator('dialog[data-unsaved-dialog]');
+const asking = () => question.evaluate((box) => box.open).catch(() => false);
+async function questionIs(open, otherwise) {
+  const until = Date.now() + 8000;
+  while (Date.now() < until) {
+    if ((await asking()) === open) return;
+    await page.waitForTimeout(100);
+  }
+  throw new Error(`${otherwise} (the watch: ${JSON.stringify(await unsaved().catch(() => null))})`);
+}
+const menuLink = (target) => page.locator(`#wx-sidebar a[href$="${target}"]`).first();
+const onPath = (wanted) => new URL(page.url()).pathname === wanted;
 /** Digits only, so that "Rs 4,96,800" and "Rs 496,800" are the same amount. */
 const figures = (text) => String(text).replace(/[^0-9]/g, '');
 const flat = (text) => String(text).replace(/\s+/g, ' ').trim();
@@ -175,6 +219,7 @@ const flat = (text) => String(text).replace(/\s+/g, ' ').trim();
 console.log(`WOODEX OS journeys against ${base}`);
 let leadPath = null;
 let quotePath = null;
+let quoted = null;
 let contactId = null;
 
 const signedIn = await step('sign in as the owner', async () => {
@@ -220,6 +265,221 @@ if (signedIn) {
     await quiet();
     must(await page.getByText(title).first().isVisible(), 'the task is gone after a reload');
     return title;
+  });
+
+  // ---- What is typed is not left behind without a question (list line T-043) ----
+  const half = `Half a thought ${stamp}`;
+  await step('typed text is not left behind without a question: "Stay" keeps it, "Leave without saving" goes', async () => {
+    must(leadPath, 'no lead was created');
+    await page.goto(base + leadPath, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    must((await unsaved()).standing === 0, 'a page nobody typed on says it holds unsaved text, or the watch is not there');
+    await page.getByLabel('New task').click();
+    await page.keyboard.type(half);
+    must((await unsaved()).standing === 1, 'typing into the task form left no mark');
+    await menuLink('/admin/contacts').click();
+    await questionIs(true, 'a menu link was pressed over typed text and nothing asked');
+    must(onPath(leadPath), `the screen changed before the answer: ${page.url()}`);
+    const words = flat(await question.innerText());
+    must(/^Leave without saving\?/.test(words) && /not saved yet/.test(words), `the question reads "${words}"`);
+    must(await page.locator('[data-unsaved-stay]').evaluate((button) => button === document.activeElement), '"Stay" does not have the focus');
+    // A key that opens another screen from anywhere (N: a new lead) must not act behind the question.
+    await page.keyboard.press('n');
+    await page.waitForTimeout(400);
+    must(onPath(leadPath) && (await asking()), 'a shortcut key acted behind the question');
+    await page.locator('[data-unsaved-stay]').click();
+    await questionIs(false, '"Stay" did not close the question');
+    must(onPath(leadPath), `"Stay" left the screen: ${page.url()}`);
+    must((await page.getByLabel('New task').inputValue()) === half, '"Stay" kept the screen and lost the text');
+    must((await unsaved()).standing === 1, 'after "Stay" the text is no longer marked as not saved');
+    // The watch takes the cursor out of the field before it asks (a field that is stored when it is left must be
+    // left); "Stay" puts it back where the person was.
+    must(await page.getByLabel('New task').evaluate((field) => field === document.activeElement), 'after "Stay" the cursor is not back in the field');
+    await menuLink('/admin/contacts').click();
+    await questionIs(true, 'the second press of the link did not ask');
+    await Promise.all([page.waitForURL(/\/admin\/contacts(\?|$)/, { timeout: 20000 }), page.locator('[data-unsaved-leave]').click()]);
+    await quiet();
+    must(!(await asking()) && (await unsaved()).standing === 0, 'the question or the mark followed to the next screen');
+    return `"${half}" kept by "Stay"; "Leave without saving" opened ${new URL(page.url()).pathname}`;
+  });
+
+  await step('an untouched form and a saved one let go without a question; a refused save does not', async () => {
+    must(leadPath, 'no lead was created');
+    const leaves = async (what) => {
+      await Promise.all([page.waitForURL(/\/admin\/contacts(\?|$)/, { timeout: 20000 }), menuLink('/admin/contacts').click()]);
+      await quiet();
+      must(!(await asking()), `${what}: the question is on the screen`);
+    };
+    // Untouched: the task that was left behind in the step before is not there, and nothing asks.
+    await page.goto(base + leadPath, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    must((await page.getByLabel('New task').inputValue()) === '', 'the text that was left without saving is back');
+    must((await page.getByText(half).count()) === 0, 'the task that was left without saving was saved');
+    await leaves('an untouched form');
+    // Saved: typed, added, and then left.
+    await page.goto(base + leadPath, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    const kept = `Ring the site ${stamp}`;
+    await page.getByLabel('New task').click();
+    await page.keyboard.type(kept);
+    must((await unsaved()).standing === 1, 'typing into the task form left no mark');
+    await page.getByRole('button', { name: 'Add task' }).click();
+    await shown(page.getByText(kept), 15000, 'the task that was added');
+    must((await unsaved()).standing === 0, 'the task was saved and its form is still marked as not saved');
+    await leaves('a saved form');
+    // Refused: a new lead without a name. The answer carries a complaint, and the mark must stay.
+    await page.goto(`${base}/admin/leads?tab=list&new=1`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await page.locator('#newMessage').click();
+    await page.keyboard.type('A message, and no name.');
+    await page.getByRole('button', { name: 'Create lead' }).click();
+    await shown(page.locator('form[wire\\:submit="createLead"]').getByText(/name field is required/i), 15000, 'the complaint under the name');
+    must((await unsaved()).standing === 1, 'a save that was refused took the mark away: leaving would not ask');
+    return `left twice without a question; "${kept}" saved; a lead without a name refused and still marked`;
+  });
+
+  await step("closing or reloading the tab on a changed form raises the browser's own question", async () => {
+    // The screen of the step before: "New lead" with a message typed and refused.
+    must((await unsaved()).standing === 1, 'the form of the step before is not marked as not saved');
+    questions.length = 0;
+    leavingExpected = true;
+    await page.reload({ waitUntil: 'domcontentloaded' }).finally(() => { leavingExpected = false; });
+    await quiet();
+    const asked = questions.filter((text) => text === BEFORE_LEAVING).length;
+    must(asked === 1, `a reload over typed text raised ${asked} questions of the browser`);
+    // The form came back empty. Nothing was typed since: a reload asks nothing.
+    questions.length = 0;
+    must((await unsaved()).standing === 0, 'a freshly loaded form is marked as not saved');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await quiet();
+    must(questions.length === 0, `a reload of an untouched form asked: ${questions.join(' | ')}`);
+    return 'asked once over typed text, not at all over an untouched form';
+  });
+
+  await step('the Back button asks too, and a click beside a changed form does not close it', async () => {
+    await page.goto(`${base}/admin/contacts`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    // A click beside the window of a form: with text in it the window stays, without it closes as before.
+    await page.getByRole('button', { name: 'New contact' }).click();
+    const name = page.locator('[id="form.name"]');
+    await shown(name, 15000, 'the form "New contact"');
+    await page.mouse.click(8, 8);
+    // Waited for, not slept through: a browser that stands still for a few seconds (seen on a machine that draws
+    // without a graphics card, a second after a page was loaded) answers the click late, and that is no fault.
+    await name.waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
+    await quiet();
+    must((await name.count()) === 0, 'a click beside an untouched form no longer closes it');
+    await page.getByRole('button', { name: 'New contact' }).click();
+    await shown(name, 15000, 'the form "New contact", opened again');
+    await name.click();
+    await page.keyboard.type(`Beside ${stamp}`);
+    await page.mouse.click(8, 8);
+    await page.waitForTimeout(600);
+    await quiet();
+    must((await name.inputValue().catch(() => null)) === `Beside ${stamp}`, 'a click beside the form closed it and the typed text is gone');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.waitForTimeout(300);
+    await quiet();
+    must((await name.count()) === 0 && (await unsaved()).standing === 0, '"Cancel" did not close the form, or left its mark');
+
+    // The Back button: the address has already changed when the admin hears of it, and is put back on "Stay".
+    if (!(await page.evaluate(() => 'navigation' in window))) return { leftOut: 'this browser keeps no record of where a move in its history started; Back is let through' };
+    await Promise.all([page.waitForURL(/\/admin\/leads(\?|$)/, { timeout: 20000 }), menuLink('/admin/leads').click()]);
+    await quiet();
+    const leads = page.url();
+    await page.getByRole('button', { name: 'New lead' }).first().click();
+    await shown(page.locator('#newName'), 15000, 'the form "New lead"');
+    await page.locator('#newName').click();
+    await page.keyboard.type(`Back ${stamp}`);
+    await page.goBack({ waitUntil: 'commit' }).catch(() => {});
+    await questionIs(true, 'Back was pressed over typed text and nothing asked');
+    // Escape answers "Stay", and must not reach the form behind, which Escape closes.
+    await page.keyboard.press('Escape');
+    await questionIs(false, 'Escape did not close the question');
+    await page.waitForFunction((wanted) => window.location.href === wanted, leads, { timeout: 8000 }).catch(() => {});
+    must(page.url() === leads, `"Stay" did not put the address back: ${page.url()} instead of ${leads}`);
+    must((await page.locator('#newName').inputValue().catch(() => null)) === `Back ${stamp}`, 'Escape closed the form behind the question, or the text is gone');
+    // A second Back asks again; "Leave without saving" shows the page the address names.
+    await page.goBack({ waitUntil: 'commit' }).catch(() => {});
+    await questionIs(true, 'the second Back did not ask');
+    await page.locator('[data-unsaved-leave]').click();
+    await shown(page.getByRole('heading', { level: 1, name: 'Contacts' }), 20000, 'the contacts screen after "Leave without saving"');
+    await quiet();
+    must(/\/admin\/contacts(\?|$)/.test(page.url()) && (await page.locator('#newName').count()) === 0, `after leaving by Back the screen is ${page.url()}`);
+    return 'a click beside: an empty form closes, a changed one stays; Back: Escape keeps the form and its text, "Leave without saving" shows the page before';
+  });
+
+  await step('the same on a phone, and with the keyboard only', async () => {
+    must(leadPath, 'no lead was created');
+    const desk = page.viewportSize();
+    await page.setViewportSize({ width: 390, height: 844 });
+    try {
+      await page.goto(base + leadPath, { waitUntil: 'domcontentloaded' });
+      await quiet();
+      await page.getByLabel('New task').click();
+      await page.keyboard.type(half);
+      // The menu is a drawer here. A finger opens it and taps the link.
+      await page.getByRole('button', { name: 'Open or close the menu' }).click();
+      await shown(menuLink('/admin/contacts'), 8000, 'the link in the menu drawer');
+      await menuLink('/admin/contacts').click();
+      await questionIs(true, 'on a phone a menu link was pressed over typed text and nothing asked');
+      const box = await question.boundingBox();
+      must(box && box.x >= 0 && box.x + box.width <= 390 && box.y >= 0 && box.y + box.height <= 844, `the question does not fit a phone: ${JSON.stringify(box)}`);
+      for (const button of ['[data-unsaved-stay]', '[data-unsaved-leave]']) {
+        const size = await page.locator(button).boundingBox();
+        must(size && size.height >= 40 && size.x >= box.x && size.x + size.width <= box.x + box.width, `${button} is cut off or too small for a finger: ${JSON.stringify(size)}`);
+      }
+      // Keyboard only from here. Tab never reaches the page behind: the focus is on one of the two buttons, or
+      // with the browser's own bar (which a page sees as "nowhere").
+      const focus = () => page.evaluate(() => {
+        const at = document.activeElement;
+        return at?.hasAttribute('data-unsaved-stay') ? 'stay' : at?.hasAttribute('data-unsaved-leave') ? 'leave' : at === document.body || at === null ? 'outside the page' : `the page behind: ${at.tagName.toLowerCase()} "${(at.innerText || at.getAttribute('aria-label') || '').trim().slice(0, 30)}"`;
+      });
+      const visited = [await focus()];
+      for (let press = 0; press < 6; press += 1) {
+        await page.keyboard.press('Tab');
+        visited.push(await focus());
+      }
+      must(visited.every((place) => ['stay', 'leave', 'outside the page'].includes(place)), `Tab reached ${visited.join(' → ')}`);
+      must(visited.includes('stay') && visited.includes('leave'), `Tab did not reach both buttons: ${visited.join(' → ')}`);
+      // Enter on "Stay" keeps the screen and the text.
+      await page.locator('[data-unsaved-stay]').focus();
+      await page.keyboard.press('Enter');
+      await questionIs(false, 'Enter on "Stay" did not close the question');
+      must(onPath(leadPath) && (await page.getByLabel('New task').inputValue()) === half, 'Enter on "Stay" lost the screen or the text');
+      // The link again, by the keyboard: Enter on it asks, Escape stays, Enter on "Leave without saving" goes.
+      await menuLink('/admin/contacts').focus();
+      await page.keyboard.press('Enter');
+      await questionIs(true, 'Enter on a menu link over typed text did not ask');
+      await page.keyboard.press('Escape');
+      await questionIs(false, 'Escape did not close the question');
+      must(onPath(leadPath) && (await page.getByLabel('New task').inputValue()) === half, 'Escape lost the screen or the text');
+      await menuLink('/admin/contacts').focus();
+      await page.keyboard.press('Enter');
+      await questionIs(true, 'the third press of the link did not ask');
+      for (let press = 0; press < 4 && (await focus()) !== 'leave'; press += 1) await page.keyboard.press('Tab');
+      must((await focus()) === 'leave', 'Tab did not reach "Leave without saving"');
+      await Promise.all([page.waitForURL(/\/admin\/contacts(\?|$)/, { timeout: 20000 }), page.keyboard.press('Enter')]);
+      await quiet();
+      return `390 px: the question is ${Math.round(box.width)} × ${Math.round(box.height)} px and inside the screen; Tab went ${visited.join(' → ')}; Enter, Escape and Enter did the rest`;
+    } finally {
+      await page.setViewportSize(desk);
+    }
+  });
+
+  await step('a notice written without names says what it says', async () => {
+    // $this->dispatch('toast', 'Sending failed.', 'error') reaches the browser as a list. The admin used to show a
+    // green "Saved" for it (defect D-038). Sent here the way Livewire sends it.
+    const text = `Sending failed ${stamp}: the host refused.`;
+    await page.evaluate((message) => window.dispatchEvent(new CustomEvent('toast', { detail: [message, 'error'] })), text);
+    const notice = page.locator('.wx-toast-stack > div', { hasText: text });
+    await shown(notice, 8000, 'the notice with its own words');
+    must(/text-error-700/.test(await notice.first().getAttribute('class')), 'the notice of a failure is not drawn as a failure');
+    must((await page.locator('.wx-toast-stack > div', { hasText: /^Saved$/ }).count()) === 0, 'the notice reads "Saved"');
+    // The usual way still reads the same.
+    await page.evaluate((message) => window.dispatchEvent(new CustomEvent('toast', { detail: { message: `${message} (named)`, type: 'warning' } })), text);
+    await shown(page.locator('.wx-toast-stack > div.text-warning-700', { hasText: `${text} (named)` }), 8000, 'the notice written with names');
+    return `"${text}" shown as a failure`;
   });
 
   await step('find the lead with the search in the top bar', async () => {
@@ -269,10 +529,76 @@ if (signedIn) {
     const rate = page.getByLabel('Rate in rupees').first();
     await rate.fill('12500'); await rate.blur(); await quiet();
     await shown(page.getByText(/37,500/), 15000, 'the total of the priced line');
+
+    // A second line, chosen from the real catalogue by its code (master list T-086): the name, the code and the
+    // price are copied onto the line as the catalogue has them now.
+    const wanted = catalogue.items.find((item) => item.sku && item.price > 0);
+    const add = page.getByRole('button', { name: 'Add a product' }).first();
+    must((await add.count()) > 0, 'the quotation offers no "Add a product"');
+    await add.click();
+    const search = page.getByLabel('Search the catalogue by name or code');
+    await shown(search, 15000, 'the search of the catalogue');
+    await search.fill(wanted.sku);
+    const choices = page.locator('[data-product-choice]');
+    const until = Date.now() + 15000;
+    while (Date.now() < until && (await choices.count()) !== 1) await page.waitForTimeout(250);
+    if ((await choices.count()) === 0) return { leftOut: 'this workspace holds no catalogue' };
+    must((await choices.count()) === 1, `the code ${wanted.sku} offered ${await choices.count()} choices, not one`);
+    const choice = page.locator(`[data-product-choice="${wanted.sku}"]`);
+    const offered = (await choice.innerText()).replace(/\s+/g, ' ');
+    must(offered.includes(wanted.name), `the code ${wanted.sku} offered another product: ${offered.slice(0, 80)}`);
+    must(amount(wanted.price).test(offered), `the choice does not show the catalogue's price ${wanted.price}: ${offered.slice(0, 120)}`);
+    await choice.getByRole('button', { name: /^Add / }).click();
+    const line = page.locator(`[data-line-product="${wanted.sku}"]`);
+    await shown(line, 15000, 'the line of the chosen product');
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    await quiet();
+    const total = 37500 + wanted.price;
+    await shown(page.getByText(amount(total)).first(), 15000, `the total with the product, ${total}`);
+
     await page.reload({ waitUntil: 'domcontentloaded' });
     await quiet();
     must(await page.getByText(/37,500/).first().isVisible(), 'the priced line is gone after a reload');
-    return '3 × 12,500 = 37,500';
+    must(await line.isVisible(), 'the line from the catalogue is gone after a reload');
+    must(await page.getByText(amount(total)).first().isVisible(), 'the total with the product is gone after a reload');
+    quoted = { sku: wanted.sku, name: wanted.name, price: wanted.price, total };
+    return `3 × 12,500 = 37,500; ${wanted.sku} "${wanted.name}" from the catalogue at ${wanted.price}; total ${total}`;
+  });
+
+  await step('a figure typed into the quotation is kept when a menu link is pressed at once', async () => {
+    if (!quoted) return { leftOut: 'no quotation was priced' };
+    // Every field of the quotation is stored when it is left. A menu link pressed with the cursor still in the
+    // field does not leave the field: Livewire stops the browser's own handling of that press, and the cursor stays
+    // where it was. Before the watch on unsaved text (T-043) the screen went and the figure was lost without a
+    // word. Now the watch leaves the field itself, waits for the save, and asks nothing.
+    const rate = () => page.getByLabel('Rate in rupees').first();
+    const seen = problems.length;
+    // The question must not come up at all, not even for the moment the save takes: every opening is counted.
+    await page.evaluate(() => {
+      const box = document.querySelector('dialog[data-unsaved-dialog]');
+      window.wxAskedHere = 0;
+      new MutationObserver(() => { if (box.open) window.wxAskedHere += 1; }).observe(box, { attributes: true, attributeFilter: ['open'] });
+    });
+    await rate().click();
+    await rate().fill('12600');
+    await Promise.all([page.waitForURL(/\/admin\/contacts(\?|$)/, { timeout: 20000 }), menuLink('/admin/contacts').click()]);
+    const flashed = await page.evaluate(() => window.wxAskedHere);
+    must(!(await asking()), 'the question is on the screen: the figure was not saved in time');
+    await quiet();
+    // The answer of the save was still being drawn into the page when the first version left: the page that was
+    // going away threw errors. Leaving waits for that now.
+    must(problems.length === seen, `leaving threw on the page: ${[...new Set(problems.slice(seen))].join(' | ').slice(0, 200)}`);
+    await page.goto(base + quotePath, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    const kept = await rate().inputValue();
+    // Back to the price of this journey, the usual way: type, leave the field, see the total. This comes before
+    // the verdict, so that a fault found here does not also fail the steps that read the total afterwards.
+    await rate().fill('12500'); await rate().blur(); await quiet();
+    await shown(page.getByText(amount(quoted.total)).first(), 15000, `the total again, ${quoted.total}`);
+    must(kept === '12600', `the figure is lost: the rate read ${kept}, not 12600`);
+    must(flashed === 0, `the question came up ${flashed === 1 ? 'once' : `${flashed} times`} while the figure was being saved, and closed by itself`);
+    must((await unsaved()).standing === 0, 'the quotation is stored and still marked as not saved');
+    return '12600 typed and the link pressed at once: Contacts opened, the question never came up, and the quotation holds 12600; put back to 12,500';
   });
 
   await step('the quotation PDF', async () => {
@@ -306,9 +632,33 @@ if (signedIn) {
     must(drawn.length > 0 && drawn.every((sheet) => sheet.width > 200 && sheet.height > 200), `no page was drawn (${JSON.stringify(drawn).slice(0, 120)})`);
     must(drawn[0].ink > 500, `the first page is blank (${drawn[0].ink} dark dots in its top part)`);
     const said = (await ready.innerText()).trim();
+
+    // What the PDF says, read with the reader the preview has just loaded: the product chosen from the catalogue
+    // is in it with its code and its price, and the total is the one the screen showed.
+    let read = '';
+    if (quoted) {
+      const words = await page.evaluate(async (address) => {
+        const built = await (await fetch('/build/manifest.json')).json();
+        const reader = await import(`/build/${built['node_modules/pdfjs-dist/build/pdf.mjs'].file}`);
+        const bytes = new Uint8Array(await (await fetch(address, { credentials: 'same-origin' })).arrayBuffer());
+        const file = await reader.getDocument({ data: bytes, isEvalSupported: false }).promise;
+        let text = '';
+        for (let number = 1; number <= file.numPages; number += 1) {
+          const content = await (await file.getPage(number)).getTextContent();
+          text += `${content.items.map((item) => item.str).join(' ')}\n`;
+        }
+        return text;
+      }, `${quotePath}/pdf`);
+      const text = words.replace(/\s+/g, ' ');
+      must(text.includes(quoted.sku), `the PDF does not name the code ${quoted.sku}`);
+      must(amount(quoted.price).test(text), `the PDF does not show the product's price ${quoted.price}`);
+      must(amount(quoted.total).test(text), `the PDF does not show the total ${quoted.total}`);
+      read = `; the PDF names ${quoted.sku} at ${quoted.price} and the total ${quoted.total}`;
+    }
+
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'detached', timeout: 10000 });
-    return `${said}; first page ${drawn[0].width} × ${drawn[0].height}, drawn`;
+    return `${said}; first page ${drawn[0].width} × ${drawn[0].height}, drawn${read}`;
   });
 
   await step('the client statement PDF', async () => {
@@ -343,7 +693,14 @@ if (signedIn) {
     await shown(page.getByRole('heading', { name: /Match the columns/ }), 15000, 'the column matching');
     const refused = await page.locator('.text-error-600:visible').allInnerTexts();
     must(refused.length === 0, `the screen shows an error: ${refused.join(' / ')}`);
-    return `sent in ${uploaded} ms, read (1 row, 5 columns) after ${Date.now() - started} ms`;
+    const read = Date.now() - started;
+    // The sheet is read and not imported. Leaving now loses it, so the browser asks first (list line T-043).
+    questions.length = 0;
+    leavingExpected = true;
+    await page.goto(`${base}/admin`, { waitUntil: 'domcontentloaded' }).finally(() => { leavingExpected = false; });
+    await quiet();
+    must(questions.includes(BEFORE_LEAVING), 'a sheet that was read and not imported was left without a question');
+    return `sent in ${uploaded} ms, read (1 row, 5 columns) after ${read} ms; leaving it without importing asks first`;
   });
 
   await step('find a product of the real catalogue by its code, and open it', async () => {
@@ -755,14 +1112,114 @@ if (signedIn) {
   });
 }
 
+// The workspace as each person wants it, and the team's way in (list line T-056).
+{
+  const saved = () => shown(page.locator('.wx-toast-stack > div', { hasText: 'Your preferences are saved.' }).last(), 8000, 'the notice of the save');
+  const look = (where) => where.evaluate(() => ({ dark: document.documentElement.classList.contains('dark'), keys: document.documentElement.dataset.shortcuts, kept: localStorage.getItem('wx.theme') }));
+
+  await step('preferences are kept with the person: the appearance, the single keys, the screen after sign-in', async () => {
+    await become('owner');
+    await page.goto(`${base}/admin/system/preferences`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    must((await look(page)).keys === 'on', 'single keys are off before anybody chose so');
+    await page.getByLabel('Dark', { exact: true }).check();
+    await page.getByLabel(/Single keys act as shortcuts/).uncheck();
+    await page.locator('#start').selectOption('leads');
+    must((await unsaved()).standing === 1, 'choices that are not saved leave no mark');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+    await saved();
+    const here = await look(page);
+    must(here.dark && here.kept === 'dark', `the page did not turn dark at once (${JSON.stringify(here)})`);
+    must(here.keys === 'off', 'single keys are still on in this page');
+    must((await unsaved()).standing === 0, 'saved preferences are still marked as not saved');
+    // N opens "New lead" from anywhere. Switched off, it does nothing.
+    await page.goto(`${base}/admin`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await page.keyboard.press('n');
+    await page.waitForTimeout(700);
+    must(onPath('/admin'), `N still acts with single keys switched off: ${page.url()}`);
+
+    // Another browser, never switched by hand: sign-in opens the chosen screen, and it is dark there too.
+    const other = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+    const second = await other.newPage();
+    watch(second, 'second browser: ');
+    try {
+      const owner = played('owner');
+      await second.goto(`${base}/admin/login`, { waitUntil: 'domcontentloaded' });
+      await second.locator('#email').fill(owner.email);
+      await second.locator('#password').fill(owner.password);
+      await Promise.all([second.waitForURL((url) => !url.pathname.endsWith('/login'), { timeout: 20000 }), second.getByRole('button', { name: 'Sign in', exact: true }).click()]);
+      await second.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+      must(new URL(second.url()).pathname === '/admin/leads', `sign-in opened ${new URL(second.url()).pathname}, not the chosen screen`);
+      const there = await look(second);
+      must(there.dark && there.kept === null, `the appearance did not follow the person to a browser that was never switched (${JSON.stringify(there)})`);
+      must(there.keys === 'off', 'single keys are on in the other browser');
+    } finally {
+      await other.close();
+    }
+
+    // Back to how it was: the next run of this journey starts as this one did.
+    await page.goto(`${base}/admin/system/preferences`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await page.getByLabel('As this device says', { exact: true }).check();
+    await page.getByLabel(/Single keys act as shortcuts/).check();
+    await page.locator('#start').selectOption('');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+    await saved();
+    must((await look(page)).keys === 'on', 'single keys did not come back');
+    // And with single keys on again, N acts: without this, "N does nothing" above would hold for a key that never did.
+    await page.goto(`${base}/admin`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await Promise.all([page.waitForURL(/\/admin\/leads\?/, { timeout: 15000 }), page.keyboard.press('n')]);
+    await quiet();
+    return 'dark at once, and in a second browser that was never switched; N does nothing with single keys off and opens "New lead" with them on; sign-in opened Leads; put back';
+  });
+
+  await step('team onboarding: an invited member stands as waiting, and the link is sent again', async () => {
+    await become('owner');
+    const mail = `joiner.${stamp}@woodex.test`;
+    await page.goto(`${base}/admin/users`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    await page.getByRole('button', { name: 'Invite user' }).click();
+    await shown(page.locator('#name'), 15000, 'the form "Invite a team member"');
+    await page.locator('#name').fill(`Joiner ${stamp}`);
+    await page.locator('#email').fill(mail);
+    await page.getByRole('radio', { name: /^Sales\b(?! Manager)/ }).first().check();
+    await page.getByRole('button', { name: 'Send invitation' }).click();
+    await page.locator('#name').waitFor({ state: 'detached', timeout: 15000 });
+    await quiet();
+
+    await page.goto(`${base}/admin/system/onboarding`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    const row = page.locator(`tr[data-member="${mail}"]`);
+    await shown(row, 15000, 'the invited member on Team onboarding');
+    must((await row.getAttribute('data-through')) === 'no', 'a member who has never signed in stands as through');
+    const words = flat(await row.innerText());
+    must(/Link sent/.test(words) && /not used yet/.test(words) && /has not signed in/.test(words) && /Waiting to sign in/.test(words), `the row reads "${words.slice(0, 200)}"`);
+    // The one button of the list is on the screen at this width, not pushed out of sight to the right.
+    const fits = await row.evaluate((line) => { const frame = line.closest('table').parentElement; return { list: frame.scrollWidth, room: frame.clientWidth }; });
+    must(fits.list <= fits.room, `the list is ${fits.list} px wide in a frame of ${fits.room} px: its button is pushed out of sight`);
+    const me = page.locator(`tr[data-member="${played('owner').email}"]`);
+    must((await me.getAttribute('data-through')) === 'yes', 'the owner, who is signed in, does not stand as through');
+    const count = async (key) => Number(await page.locator(`[data-onboarding-count="${key}"]`).innerText());
+    must((await count('not_signed_in')) >= 1 && (await count('through')) >= 1, 'the numbers above the list do not count the two');
+    await row.getByRole('button', { name: `Send the link again to Joiner ${stamp}` }).click();
+    await shown(page.locator('.wx-toast-stack > div', { hasText: `A new link to set a password was sent to ${mail}.` }), 8000, 'the notice that the link was sent');
+    return `${mail}: link sent and not used, not signed in, waiting; the link was sent again; ${await count('through')} of ${await count('members')} members are through`;
+  });
+}
+
 await browser.close();
 const failed = steps.filter((entry) => entry.result === 'FAILED');
 const serverErrors = problems.filter((problem) => problem.startsWith('HTTP 5'));
 // What the browser refused under a page's Content-Security-Policy (master list T-068). A step can hold while a
 // button beside it has stopped working, so a refusal anywhere on the way fails the run.
 const blocked = [...new Set(problems.filter((problem) => /Content[ -]Security[ -]Policy/i.test(problem)))];
+// Where the admin asked "leave this page?" over nothing (T-043): see the note at the dialog handler.
+const askedWrongly = [...new Set(problems.filter((problem) => problem.includes(ASKED_WRONGLY)))];
 console.log(`\n${steps.filter((entry) => entry.result === 'ok').length} of ${steps.length} steps held, ${failed.length} failed, ${steps.filter((entry) => entry.result === 'left out').length} left out.`);
 if (problems.length) console.log(`Seen on the way (${problems.length}):\n  ${[...new Set(problems)].slice(0, 12).join('\n  ')}`);
 if (out) writeFileSync(path.join(out, 'journeys.json'), JSON.stringify({ base, at: new Date().toISOString(), steps, problems }, null, 1));
 if (blocked.length) console.log(`Blocked by the content policy (${blocked.length}):\n  ${blocked.slice(0, 8).join('\n  ')}`);
-process.exit(failed.length > 0 || serverErrors.length > 0 || blocked.length > 0 ? 1 : 0);
+if (askedWrongly.length) console.log(`Asked without a reason (${askedWrongly.length}):\n  ${askedWrongly.slice(0, 8).join('\n  ')}`);
+process.exit(failed.length > 0 || serverErrors.length > 0 || blocked.length > 0 || askedWrongly.length > 0 ? 1 : 0);

@@ -81,7 +81,7 @@ class CannedRepliesIndex extends Component
         );
 
         $this->showEditor = false;
-        $this->dispatch('toast', $this->editingId !== null ? 'Saved reply updated.' : 'Saved reply added.');
+        $this->dispatch('toast', message: $this->editingId !== null ? 'Saved reply updated.' : 'Saved reply added.', type: 'success');
     }
 
     public function toggle(int $id): void
@@ -91,7 +91,7 @@ class CannedRepliesIndex extends Component
         $reply = CannedReply::query()->findOrFail($id);
         $reply->update(['is_active' => ! $reply->is_active]);
 
-        $this->dispatch('toast', $reply->is_active ? 'Back in the picker.' : 'Hidden from the picker.');
+        $this->dispatch('toast', message: $reply->is_active ? 'Back in the picker.' : 'Hidden from the picker.', type: 'success');
     }
 
     public function render(): View

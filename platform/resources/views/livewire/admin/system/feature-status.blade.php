@@ -22,6 +22,27 @@
         @endforeach
     </div>
 
+    @if ($groups !== [] && $releases !== [])
+        {{-- Release notes (T-056): what changed for the person at the screen, newest first. --}}
+        <x-admin.card class="mb-5" title="What is new" description="What changed for the people who work here, release by release." data-release-notes>
+            <div class="space-y-5">
+                @foreach ($releases as $release)
+                    <section data-release="{{ $release['date'] }}">
+                        <h3 class="text-theme-sm font-semibold text-gray-900 dark:text-white">
+                            <time datetime="{{ $release['date'] }}">{{ \Illuminate\Support\Carbon::parse($release['date'])->format('j F Y') }}</time>
+                            <span class="font-normal text-gray-500">·</span> {{ $release['title'] }}
+                        </h3>
+                        <ul class="mt-2 list-disc space-y-1.5 pl-5 text-theme-sm text-gray-700 dark:text-gray-200">
+                            @foreach ($release['notes'] as $note)
+                                <li>{{ $note }}</li>
+                            @endforeach
+                        </ul>
+                    </section>
+                @endforeach
+            </div>
+        </x-admin.card>
+    @endif
+
     @forelse ($groups as $group)
         <x-admin.card class="mb-5" :padding="false">
             <h2 class="border-b border-gray-200 px-5 py-3 text-theme-sm font-semibold text-gray-900 dark:border-gray-800 dark:text-white">{{ $group['title'] }}</h2>
