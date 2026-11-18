@@ -14,6 +14,7 @@ use App\Support\Install\PackageLists;
 use App\Support\Install\SiteState;
 use App\Support\Modules;
 use App\Support\RequestNumber;
+use App\Support\TwoWritersMet;
 use App\Support\Website\ContactFormResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
@@ -81,6 +82,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->is('webhooks/*') || $request->expectsJson(),
         );
+
+        // The database ended this request because somebody else was writing the same records in that moment: the
+        // person is told so and to do it again, with 409 and not "something went wrong on our side" (T-093).
+        $exceptions->render(fn (Throwable $exception, Request $request) => TwoWritersMet::respond($request, $exception));
 
         // Only the explicitly marked, URL-encoded native Contact POST receives private HTML errors.
         $exceptions->render(fn (Throwable $exception, Request $request) => ContactFormResponse::fromException($request, $exception));

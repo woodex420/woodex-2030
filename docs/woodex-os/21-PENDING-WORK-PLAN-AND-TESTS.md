@@ -21,8 +21,8 @@ four of them. A large line can take more than one.
 ## The short version
 
 <!-- generated:short — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-1. **116 lines of the list are not done.** 19 can start now and need nobody: they are planned in 10 rounds (§2). 29 wait for you (§3). 68 wait for an earlier line (§4), and 49 of those stand behind an answer of yours.
-2. **The next round** is round 1: T-093, The ledger holds with two people writing at once.
+1. **115 lines of the list are not done.** 18 can start now and need nobody: they are planned in 9 rounds (§2). 29 wait for you (§3). 68 wait for an earlier line (§4), and 49 of those stand behind an answer of yours.
+2. **The next round** is round 1: T-063, The rules of `/api/v1`, held by a contract test.
 3. **The answers of yours that the most lines stand behind:** T-006, Install the trial site on Hostinger (document 24) and send its address (20 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (4 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
 4. **1 critical defect is open:** D-002, The owner password of the old dashboard was printed in a public document — T-021, which waits for you.
 5. **Every line has its test.** A line that can start now says in §2 what is built, which tests are written, what a browser does, and what the tests are tried against. A waiting line carries the list's own "done when" (§4). §5 names the checks every round passes before it is merged.
@@ -36,11 +36,11 @@ four of them. A large line can take more than one.
 |  |  |
 |---|---|
 | Lines on the list | 152 |
-| Done | 36 |
-| **Can start now, needing nobody** | **19**, in 10 rounds (§2) |
+| Done | 37 |
+| **Can start now, needing nobody** | **18**, in 9 rounds (§2) |
 | **Wait for you** | **29** (§3) |
 | Wait for an earlier line | 68 (§4): 49 stand behind an answer of yours · 11 stand behind lines that need nobody · 8 go with a wave, a date or an event |
-| Not done, by priority | 24 P0, 55 P1, 27 P2, 10 P3 |
+| Not done, by priority | 24 P0, 54 P1, 27 P2, 10 P3 |
 <!-- /generated:numbers -->
 
 ---
@@ -63,27 +63,7 @@ or read on the sites on the day the plan was written. **Tried against** is the p
 protection is taken away once, by hand, and the test must go red.
 
 <!-- generated:rounds — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-### Round 1 — The ledger with two people writing at once
-
-**Lines:** T-093 · **Why here:** P1 and about money. The code came from the Interior studio's system, whose own list says this was never tried on a real database server; the first place where two people work at the same moment is the trial site on Hostinger. It needs nobody, and CI has the two servers since T-143. · **When it is merged, these can start:** no waiting line.
-
-#### T-093 · P1 · medium — The ledger holds with two people writing at once
-
-- **Done when** (the list): In CI's database job, on MySQL 8.4 and MariaDB 10.11, two connections try the same step at the same moment, many times over: allocating one payment to one invoice, paying one bill, posting one document, reversing one entry. Each time exactly one succeeds, the other is refused or waits and then sees the first; every journal balances; no number of a document is given twice
-- **Found on 18 November 2026:** Recording and verifying a payment, allocating it to an invoice, paying a supplier's bill, posting to the ledger and reversing an entry each run inside a database transaction and several lock the rows they change. Their tests call them one after another. The Interior studio's list of open work, written by the people who built this code, says of the same actions: "real MySQL concurrent writer checks pending" (document 25 §8). The suite runs on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 since T-143, always one request at a time. SQLite, which the sandbox uses, lets one writer in at a time and cannot show the fault.
-- **What is built:**
-  1. A test command of its own, `platform/tools/ci/two-writers.php`, run by CI's database job against MySQL 8.4 and MariaDB 10.11: it starts two PHP processes that wait at the same gate and then call the same action on the same record, and it repeats that for each step fifty times.
-  2. The steps: allocating one payment to one invoice; verifying one payment; paying one supplier's bill; posting one invoice to the ledger; reversing one journal entry; taking the next number of a document series.
-  3. Where a run shows a second writer getting through, the action is repaired in the same round (a lock on the right row, or a unique key in a migration that only adds), and the run that showed it is kept as its test.
-- **Tests written:**
-  1. For each step and each of the fifty runs: exactly one of the two writers succeeds; the other is refused with the action's own message or, having waited, sees what the first one wrote.
-  2. After every run: each journal entry balances, an invoice is never paid beyond its total, a bill is never paid twice, and no document number is given twice.
-  3. The whole suite still passes on the three servers and on SQLite.
-- **In a browser:** nothing; this line has no screen.
-- **Tried against:** With the lock taken out of the payment allocation in a copy, the two-writers run reports an invoice paid twice within the fifty runs; the test of the check requires that.
-- **The way back:** A test command and, only if a fault is found, a lock or a migration that adds a unique key. A migration that adds a key says in its way back how the key is removed; no row is changed.
-
-### Round 2 — The rules of the API the shop will use
+### Round 1 — The rules of the API the shop will use
 
 **Lines:** T-063 · **Why here:** P1, and of the lines that need nobody the one the most other work stands behind: the shop's reading of the catalogue (T-105), and after it the page builder. · **When it is merged, these can start:** T-105 (The shop reads products, categories and series from `/api/v1`).
 
@@ -107,7 +87,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one endpoint left in its old shape, the contract test names it.
 - **The way back:** On the live shop the switches are off, so no visitor's request reaches these endpoints. The round changes files of the React shop, its callers: the release report names them before the merge. The endpoints of the old website's bridge keep their shape; that module is switched off.
 
-### Round 3 — One table for every list
+### Round 2 — One table for every list
 
 **Lines:** T-041 · **Why here:** P1 and part of gate A. Three lines wait for it (T-042, T-050, T-051), and the screen pass (T-045) builds on it. · **When it is merged, these can start:** T-042 (On a phone, the key lists show cards instead of a wide table); T-050 (A reference screen showing every shared component and state); T-051 (Placeholders while a list loads; a notice when the connection is lost).
 
@@ -129,7 +109,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the empty state taken out of the component, the first test fails. With a hand-written table put back, the count fails.
 - **The way back:** Views only. Each list moves in its own commit and can be put back alone.
 
-### Round 4 — The shop's database: its functions and the map of its tables
+### Round 3 — The shop's database: its functions and the map of its tables
 
 **Lines:** T-172, T-175 · **Why here:** One reading of the live database serves both lines. T-175 is P1, and the two lines about moving data wait for it (T-176, T-177). · **When it is merged, these can start:** T-176 (The differences between PostgreSQL and MySQL, tested); T-177 (One rule for identifiers; old-to-new numbers kept).
 
@@ -164,7 +144,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one row taken out of the file, the check names the table.
 - **The way back:** A document and a check. Nothing runs against any data.
 
-### Round 5 — Packages, the demo's housekeeping, the documents the code points at
+### Round 4 — Packages, the demo's housekeeping, the documents the code points at
 
 **Lines:** T-071, T-152, T-153, T-154, T-142, T-189, T-174 · **Why here:** Small lines, P2 and P3, taken together. They stand here and not at the end because packages fall further behind with every week, and because every later merge then adds a reading of a cold start. · **When it is merged, these can start:** no waiting line.
 
@@ -265,7 +245,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With `07-DECISIONS.md` taken out of a copy, the check fails and names D-58 with the first file that mentions it.
 - **The way back:** Three documents and one script; putting the commit back removes them. No code changes.
 
-### Round 6 — The dashboard
+### Round 5 — The dashboard
 
 **Lines:** T-044 · **Why here:** P1. The first screen every person sees. In the order you set for the design work it comes before the areas (DL-008). · **When it is merged, these can start:** no waiting line.
 
@@ -288,7 +268,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one widget's count changed to include one more state, the first test fails.
 - **The way back:** Views and queries that only read. No record changes.
 
-### Round 7 — Without a mouse; help, pinned and recent screens
+### Round 6 — Without a mouse; help, pinned and recent screens
 
 **Lines:** T-054, T-046 · **Why here:** T-054 is P1, and the accessibility review of gate A waits for it. The new entries of the top bar get their keyboard tests from the first day. · **When it is merged, these can start:** T-047 (Search finds a screen by keyword and by its old name).
 
@@ -325,7 +305,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the check of the person's rights taken out, "is not offered" fails.
 - **The way back:** One migration that only adds; its way back removes the table.
 
-### Round 8 — Lighter pages; nothing smaller than 12 px
+### Round 7 — Lighter pages; nothing smaller than 12 px
 
 **Lines:** T-052, T-049 · **Why here:** Both change the same shared parts: the menu, the top bar, the search. · **When it is merged, these can start:** no waiting line.
 
@@ -360,7 +340,7 @@ protection is taken away once, by hand, and the test must go red.
 - **The way back:** Views and the stylesheets; the bundle is rebuilt and committed.
 - **Yours:** If a place cannot take 12 px, it is shown to you as a named exception to accept or refuse.
 
-### Round 9 — The content policy without `eval`
+### Round 8 — The content policy without `eval`
 
 **Lines:** T-072 · **Why here:** After the rounds that replace whole parts of the views (the table, the dashboard, the top bar, the menu), so that nothing is converted twice; and before the screen pass, which its test then holds to the strict form from the first view. · **When it is merged, these can start:** no waiting line.
 
@@ -382,7 +362,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one arrow function left in a view, the crawl reports the refusal and fails.
 - **The way back:** `SECURITY_CSP=report` or `off` on the site; or the strict build off and the word back in the policy, in one commit.
 
-### Round 10 — The screen pass, area by area
+### Round 9 — The screen pass, area by area
 
 **Lines:** T-045 · **Why here:** P1, and last all the same: it is the largest line, several rounds of its own, one for each area in the order you set (DL-008): E-commerce, CRM, Sales, then the others. Every round before it changes a part it builds on. · **When it is merged, these can start:** no waiting line.
 
@@ -522,17 +502,17 @@ answer is added here.
 
 | # | Pri | Task | Waits for | Stands behind | Done when |
 |---|---|---|---|---|---|
-| T-042 | P1 | On a phone, the key lists show cards instead of a wide table | T-041 | T-041 (round 3) | At 390 px each row's main facts and its action are visible without sideways scrolling |
-| T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 7) | "stock" finds Stock Ledger; "clients" finds Contacts |
-| T-050 | P2 | A reference screen showing every shared component and state | T-041 | T-041 (round 3) | One screen under System, for owner and admin |
-| T-051 | P2 | Placeholders while a list loads; a notice when the connection is lost | T-041 | T-041 (round 3) | Seen in a browser with the network slowed and cut |
-| T-105 | P1 | The shop reads products, categories and series from `/api/v1` | T-063 — It can be built and proven on the rehearsal as soon as T-063 is done. Switching the live shop over also needs the real admin on Hostinger (T-133). | T-063 (round 2) | The shop shows only what Laravel has published |
-| T-115 | P2 | The page-builder prototype (gate C) | T-105 — Building the prototype needs nobody. Accepting it is yours: gate C. | T-063 (round 2) | The owner accepts the prototype before any broad build |
-| T-116 | P2 | Website Studio on Puck | T-115 | T-063 (round 2) | A page is edited, approved, published and rolled back |
-| T-117 | P2 | Today's pages moved into the page builder | T-116 | T-063 (round 2) | Selected pages are approved; the old content is kept |
-| T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-063 (round 2) | A lead shows the campaign it came from |
-| T-176 | P1 | The differences between PostgreSQL and MySQL, tested | T-175 | T-175 (round 4) | A test per kind on MySQL in CI |
-| T-177 | P1 | One rule for identifiers; old-to-new numbers kept | T-175 | T-175 (round 4) | Every importer writes the mapping |
+| T-042 | P1 | On a phone, the key lists show cards instead of a wide table | T-041 | T-041 (round 2) | At 390 px each row's main facts and its action are visible without sideways scrolling |
+| T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 6) | "stock" finds Stock Ledger; "clients" finds Contacts |
+| T-050 | P2 | A reference screen showing every shared component and state | T-041 | T-041 (round 2) | One screen under System, for owner and admin |
+| T-051 | P2 | Placeholders while a list loads; a notice when the connection is lost | T-041 | T-041 (round 2) | Seen in a browser with the network slowed and cut |
+| T-105 | P1 | The shop reads products, categories and series from `/api/v1` | T-063 — It can be built and proven on the rehearsal as soon as T-063 is done. Switching the live shop over also needs the real admin on Hostinger (T-133). | T-063 (round 1) | The shop shows only what Laravel has published |
+| T-115 | P2 | The page-builder prototype (gate C) | T-105 — Building the prototype needs nobody. Accepting it is yours: gate C. | T-063 (round 1) | The owner accepts the prototype before any broad build |
+| T-116 | P2 | Website Studio on Puck | T-115 | T-063 (round 1) | A page is edited, approved, published and rolled back |
+| T-117 | P2 | Today's pages moved into the page builder | T-116 | T-063 (round 1) | Selected pages are approved; the old content is kept |
+| T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-063 (round 1) | A lead shows the campaign it came from |
+| T-176 | P1 | The differences between PostgreSQL and MySQL, tested | T-175 | T-175 (round 3) | A test per kind on MySQL in CI |
+| T-177 | P1 | One rule for identifiers; old-to-new numbers kept | T-175 | T-175 (round 3) | Every importer writes the mapping |
 
 #### With a wave, a date or an event (8)
 
@@ -558,15 +538,16 @@ of them pass on its last commit.
 <!-- generated:standing — written by scripts/verify-plan.mjs --write; do not edit by hand -->
 | Check | Where it runs | On 18 November 2026 | What it stops |
 |---|---|---|---|
-| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,508 pass, 36 skipped, none fails: run in the sandbox on 18 November, 04:33 to 04:38 UTC, on `d11e504`. In CI on the same commit, on each of the three servers: 2,509 pass, 35 skipped | A rule, a screen or a permission that no longer does what its test says |
-| A release installed and deployed again by a browser (`scripts/os-install.mjs`) | CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite | the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d11e504`) | A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change |
-| Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 28 of 28 steps hold, both ways (CI, `dfc8369`) | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
-| Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 248 pages, none fails (CI, `dfc8369`) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
-| The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes (CI, `dfc8369`) | A site that starts without its settings, hands out a file, or loses the session |
-| The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `dfc8369`) | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository |
+| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,568 pass, 36 skipped, none fails: run in the sandbox on 18 November, 15:19 to 15:26 UTC, on the code of pull request #45. In CI on `8549036`, on each of the three servers: 2,569 pass, 35 skipped | A rule, a screen or a permission that no longer does what its test says |
+| Two people writing in the accounts at the same moment (`platform/tools/ci/two-writers.php`) | CI, job `two-writers` of `os-ci.yml`, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, on every push that touches `platform/`. In the sandbox on the server that `platform/tools/preview/sandbox/database.sh` builds (MariaDB 10.2) | 29 steps of 50 runs hold on each of the three servers; with a lock taken out, each of four checks reports the fault it is for (CI, `8549036`) | What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, or one of two people stopped by the database with an error page |
+| A release installed and deployed again by a browser (`scripts/os-install.mjs`) | CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite | the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `8549036`) | A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change |
+| Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 37 of 37 steps hold, both ways (CI, `8549036`) | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
+| Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 253 pages, none fails (CI, `8549036`) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
+| The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes (CI, `8549036`) | A site that starts without its settings, hands out a file, or loses the session |
+| The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `8549036`) | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository |
 | Known weaknesses in the packages (`audit.yml`) | CI, when a lock file changes and every Monday | last run green on 17 November (`ef31589`); it reports one low and eleven moderate advisories (T-071) | A package with a known high or critical weakness |
 | The live sites from outside (`live-check-after-merge.yml`) | GitHub, eight minutes after every merge into `main` | the admin: 41 questions, all hold; the shop: 14, all hold (run 44156136251, 17 November, 19:21 UTC) | A live site that does not answer as it should after a merge. A failure opens an issue |
-| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November | A test that would pass whatever the code does |
+| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27) and for the two-writers command and its tests (report 28) | A test that would pass whatever the code does |
 | Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39 and #40 | A change to the React shop that the report does not name; a merge with a check still red |
 <!-- /generated:standing -->
 

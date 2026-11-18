@@ -317,6 +317,19 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   `platform/app/Support/ReleaseNotes.php` in the same pull request: the date, a title, and lines in the words
   of the person at the screen (no list line, no commit: `tests/Feature/WorkspacePreferencesTest.php` refuses
   them).
+- **Where the books are written, the ORDER of locks is the design** (master list T-093). The suite cannot show
+  what two requests do to each other: it calls one action after another, and SQLite lets one writer in at a
+  time. `platform/tools/ci/two-writers.php` can: two processes, one gate, fifty runs a step, on MySQL and
+  MariaDB (CI job "Two writers"; in a sandbox, `platform/tools/preview/sandbox/database.sh` brings a server).
+  Three rules came out of its first run, and `tests/Feature/Accounts/TwoWritersOrderTest.php` keeps them:
+  (1) a lock names **one row by its own key**; "the rows like this, with a lock" also holds the empty places
+  between them, and two writers holding the same empty place stop each other; (2) a question that must still
+  be true when it is acted on ("is this document posted already?") is asked **inside the ledger's turn**
+  (`App\Domain\Accounts\Services\LedgerTurn`), which is taken after the document's own row and before the
+  question; (3) every invoice a client's money may reach is locked **lowest number first, before the first row
+  is written** (`App\Domain\Sales\Services\InvoiceLocks`), because a row that points at an invoice holds that
+  invoice for reading. A new action that writes money gets a step in the command, and the check of that step
+  (the same run with the lock taken out must report the fault) goes into the CI job.
 - **A changed requirement changes a test; it does not delete one.** When the roadmap left the sidebar, the
   tests that expected "Soon" entries were rewritten to expect them on Feature status.
 - The root `index.php` and `.htaccess` are the Hostinger entry of this application. Vercel does not use them.

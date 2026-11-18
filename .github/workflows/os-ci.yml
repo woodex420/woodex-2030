@@ -314,6 +314,105 @@ jobs:
             echo 'A green run is evidence for this commit on this database server. It is not approval to deploy.'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # Two people writing to the ledger at the same moment (master list T-093). The jobs above call one action after
+  # another. Here two processes of the application are handed the same record, wait at one gate and call the same
+  # action, fifty times a step: exactly one of them writes and the other is refused in the action's own words, the
+  # books balance and no number is given twice. Then the check is checked: with one class's locks taken out, in a
+  # copy, the same run must report the fault that lock is there to prevent.
+  two-writers:
+    name: Two writers at once on ${{ matrix.db.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          - { name: "MySQL 8.4", image: "mysql:8.4", ping: "mysqladmin" }
+          - { name: "MariaDB 10.11", image: "mariadb:10.11", ping: "mariadb-admin" }
+          - { name: "MariaDB 11.4", image: "mariadb:11.4", ping: "mariadb-admin" }
+
+    services:
+      mysql:
+        image: ${{ matrix.db.image }}
+        env:
+          MYSQL_DATABASE: woodex_test
+          MYSQL_USER: woodex_test
+          MYSQL_PASSWORD: disposable-ci-only
+          MYSQL_ROOT_PASSWORD: disposable-ci-root
+        ports: ["3306:3306"]
+        options: >-
+          --tmpfs /var/lib/mysql
+          --health-cmd="${{ matrix.db.ping }} ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=40
+
+    defaults:
+      run:
+        working-directory: platform
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: PHP 8.4 with the extensions the lock file requires
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, pdo_sqlite, intl, mbstring, bcmath, zip, gd, exif, pcntl, dom, xml, xmlwriter, fileinfo, sodium
+          coverage: none
+          tools: composer:v2
+
+      - name: Install the locked dependencies (no scripts)
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          php artisan package:discover --ansi
+          mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs storage/app/private
+
+      - name: Every step, fifty times, two writers at once
+        run: |
+          set -o pipefail
+          php tools/ci/two-writers.php --runs=50 --json=/tmp/two-writers.json | tee /tmp/two-writers.log
+
+      # Each line: the runs, a step, the class whose locks the writers do without, and the fault that must then be
+      # reported at least once. Without its lock a bill is paid twice in about one run of eight (in the others the
+      # database stops one of the two): that line gets 150 runs, so that "never in all of them" does not happen by
+      # chance.
+      - name: The check of the check — without the lock the fault is reported
+        run: |
+          set -euo pipefail
+          bites() { php tools/ci/two-writers.php --runs="$1" --only="$2" --without-locks="$3" --expect-fault="$4" | tee -a /tmp/two-writers-bites.log; }
+          bites 50 two-payments-one-invoice app/Domain/Sales/Services/InvoiceLocks.php 'paid beyond its total'
+          bites 50 number app/Support/Numbering.php 'a number was given twice'
+          bites 50 reverse app/Domain/Accounts/Actions/ReverseJournalEntry.php 'an entry is reversed once'
+          bites 150 pay-bill app/Domain/Accounts/Actions/PayBill.php 'the bill is paid twice'
+
+      - name: Keep the result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: two-writers-${{ strategy.job-index }}-${{ github.sha }}
+          path: |
+            /tmp/two-writers.json
+            /tmp/two-writers.log
+            /tmp/two-writers-bites.log
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Two writers at once — ${{ matrix.db.name }}"
+            echo '```'
+            cut -c1-240 /tmp/two-writers.log 2>/dev/null || echo 'the run produced no output'
+            echo
+            grep -h 'The check bites\|THE CHECK DOES NOT BITE' /tmp/two-writers-bites.log 2>/dev/null | cut -c1-240 || true
+            echo '```'
+            echo 'Disposable database in the runner. A green run says what two writers did on this server; it is not approval to deploy.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   hostinger:
     name: A release as the host gets it — Apache, the folder's own .htaccess, MariaDB, installed in a browser
     runs-on: ubuntu-24.04
@@ -520,7 +619,7 @@ jobs:
     name: Publish the release for the host (branch hostinger-release)
     # Only from main, and only the release that the job above installed, after the whole suite passed on the three
     # database servers. The branch is a folder of files for the hosting account to take; nothing is sent to a host.
-    needs: [database, tests, hostinger]
+    needs: [database, tests, two-writers, hostinger]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15

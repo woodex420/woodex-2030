@@ -24,7 +24,8 @@ Read in this order:
 | 16 | [`25-INTERIOR-ADMIN-REUSE-AND-UPGRADE-PLAN.md`](25-INTERIOR-ADMIN-REUSE-AND-UPGRADE-PLAN.md) | **The Interior studio's admin, analysed, and the plan to finish the upgrade from it without its theme**: first the short list of what is still held, pending or missing; then what the attached archive is, what of it is in this admin, the 21 destinations that are in the code and switched off and what each needs before it opens, what is not reused, and the order |
 | 17 | [`26-RELEASE-2026-11-18-SECOND.md`](26-RELEASE-2026-11-18-SECOND.md) | The release report of the pull request that carries document 25, written before its merge: an analysis, three new lines and the records; no screen and no site behaves differently. It also says what was read after merge #42 |
 | 18 | [`27-RELEASE-2026-11-18-THIRD.md`](27-RELEASE-2026-11-18-THIRD.md) | The release report of pull request #44, written before its merge: a quotation line from the catalogue (T-086), the question before typed work is lost (T-043), Workspace preferences, Team onboarding and release notes (T-056). It also answers the owner's message about Feature status and the deployment: where each of the 68 destinations stands and what completes it |
-| 19 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
+| 19 | [`28-RELEASE-2026-11-18-FOURTH.md`](28-RELEASE-2026-11-18-FOURTH.md) | The release report of pull request #45, written before its merge: the ledger with two people writing at once (T-093). What two writers did to the code as it was on three database servers, the four causes, the cure, the check that now runs on every change, and what was not tried |
+| 20 | [`spec/`](spec/README.md) | The owner's specification set, stored unchanged |
 
 Related, elsewhere in this repository:
 

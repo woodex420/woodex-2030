@@ -103,6 +103,34 @@ running in its old form. Measured on 2026-11-16: the whole suite passes with it 
 none failed), with nothing excused.
 MySQL itself is still only in CI: the two installer tests need the driver, not a server.
 
+### A database server, from GitHub: two writers at once
+
+SQLite lets one writer in at a time. What two people do to the books when they write at the same moment shows
+only on MySQL or MariaDB, and that is what `tools/ci/two-writers.php` tries (master list T-093). CI runs it on
+MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, and that run is the proof. To see a fault in seconds instead of
+waiting for CI, one server can be had in such a sandbox: MariaDB 10.2.11, kept as a file in the Git tree of the
+MariaDB4j project. It asks for `libaio`, which cannot be installed there; the script compiles a stand-in.
+
+```
+bash platform/tools/preview/sandbox/database.sh            # once, a few seconds: ~/.cache/woodex-os/mariadb
+bash platform/tools/preview/sandbox/database.sh --serve    # as a background process: 127.0.0.1:33106
+bash platform/tools/preview/sandbox/database.sh --create   # the database woodex_test and bin/wxdb
+cd ~/.cache/woodex-os/work/platform && . ../../bin/wxdb
+../../php85 tools/ci/two-writers.php --runs=10              # --list names the steps, --only=a,b picks some
+```
+
+Three things cost an hour each when this was built, on 2026-11-18:
+
+- **It is an old server.** It deadlocks where a newer one may only wait (a writer that holds one row and then
+  asks for the rows around it) and it needs `--explicit-defaults-for-timestamp=1` to take the migrations. A step
+  that holds here and fails in CI, or the other way round, is to be expected; CI decides.
+- **The writers are started with PHP's own binary, not with the small script.** Without `-d opcache.enable_cli=0`
+  they ran the files as they were BEFORE an edit (see "Keep the two opcache switches" above): a repair seemed to
+  change nothing. The command passes the switch itself now.
+- **Read a deadlock, do not guess it.** `SHOW ENGINE INNODB STATUS` as root prints, under LATEST DETECTED
+  DEADLOCK, the two statements, the lock each one holds and the lock each one waits for. `SET GLOBAL general_log`
+  with `log_output=FILE` shows the order in which each writer really sent its statements.
+
 A real browser is available too: `npm install @sparticuz/chromium puppeteer-core` ships a headless Chromium inside the npm package, and it runs with `AWS_EXECUTION_ENV=AWS_Lambda_nodejs22.x` set so that its bundled libraries are unpacked.
 
 ## Looking at every screen, and pressing through the main jobs
