@@ -160,7 +160,7 @@ The open 23 can be used on the demo, and none is accepted yet: the eight module 
 | Customers | Leads with pipeline and import, contacts, tasks and visits | Furniture's wording in lists and fields; several numbers per contact | T-033, T-083, T-101 |
 | Sales | Quotations with versions, approval and PDF, invoices, payments, document designs | **An installation starts with no quotation template and no price book: the studio's are loaded only in tests, and nothing was invented in their place.** Furniture's terms and signers; a line from the catalogue; tax | T-003, T-084, T-086, T-087 |
 | Operations | Projects, board, vendors and costs, handovers | Made for the studio's fit-out jobs. Whether delivery and installation are jobs of their own is yours to say | T-010, T-107, T-112 |
-| Accounts | Ledger, payables, income and expenses, periods, journals | Who reviews the accounting; **two writers at once, never tried** | T-013, T-093, T-113 |
+| Accounts | Ledger, payables, income and expenses, periods, journals | Who reviews the accounting. (Two writers at once: never tried when this was written, tried and repaired later the same day, T-093) | T-013, T-093, T-113 |
 | System | Settings, access and team, connections, platform, audit, the installer | One role matrix; business settings in one screen; sessions | T-060, T-064, T-065, T-073 |
 
 **The switched-off parts.** Each is closed at the door: its addresses answer "not found", its screens are out of
@@ -231,7 +231,7 @@ about the studio's own preview, workbooks and archives do not concern this admin
 
 | The studio's entry | What it says | Here | Line |
 |---|---|---|---|
-| F03, F04, V01, V02 | Posting, reversal and payments hardened; "real MySQL concurrent writer checks pending" | The suite passes on MySQL and MariaDB, one request at a time. No test with two writers | **T-093** (new) |
+| F03, F04, V01, V02 | Posting, reversal and payments hardened; "real MySQL concurrent writer checks pending" | **Tried later the same day (T-093, pull request #45).** Two writers at one moment, 29 steps of fifty runs, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4. Nothing was written twice. In ten steps the database stopped one of the two with a deadlock; cured by the order of locks, and the check now runs on every change (report 28, D-040) | T-093, done |
 | Q03 | Whole actions in a browser and the frozen PDFs: partly accepted | Two journeys of 28 steps press a working day and a sale and read the PDF, in CI on every change. The other flows are not pressed | T-165 |
 | Q01 | Every new migration tested fresh and as an upgrade | A fresh database on three servers; a release installed and then deployed again with a new migration, in CI | Done: T-143, T-144 |
 | R01, A05 | No staging rehearsal; backup and restore only a checklist | A release rehearsed on Apache and MariaDB away from the host. No staging, no backup, no restore | T-130, T-137 |

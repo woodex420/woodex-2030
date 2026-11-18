@@ -1,7 +1,7 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
   "written": "2026-11-18",
-  "commit": "db91415",
+  "commit": "ea9dd71",
   "sizes": {
     "S": "small",
     "M": "medium",
@@ -65,7 +65,6 @@
     "T-089": "The catalogue's photographs copied into the media library",
     "T-090": "Review the imported catalogue: points to check, prices, categories",
     "T-091": "Load the 170 real products into the React shop; withdraw the samples",
-    "T-093": "The ledger holds with two people writing at once",
     "T-100": "The shop's enquiry and quote-request forms write to Laravel",
     "T-101": "Import of leads, contacts, companies, tasks and meetings",
     "T-102": "The old system stops writing CRM records: one writer",
@@ -132,30 +131,6 @@
     "T-188": "Nobody acts: Vercel deletes each preview 30 days after it was built. The outside check watches one of them."
   },
   "rounds": [
-    {
-      "name": "The ledger with two people writing at once",
-      "why": "P1 and about money. The code came from the Interior studio's system, whose own list says this was never tried on a real database server; the first place where two people work at the same moment is the trial site on Hostinger. It needs nobody, and CI has the two servers since T-143.",
-      "lines": [
-        {
-          "id": "T-093",
-          "size": "M",
-          "found": "Recording and verifying a payment, allocating it to an invoice, paying a supplier's bill, posting to the ledger and reversing an entry each run inside a database transaction and several lock the rows they change. Their tests call them one after another. The Interior studio's list of open work, written by the people who built this code, says of the same actions: \"real MySQL concurrent writer checks pending\" (document 25 §8). The suite runs on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 since T-143, always one request at a time. SQLite, which the sandbox uses, lets one writer in at a time and cannot show the fault.",
-          "build": [
-            "A test command of its own, `platform/tools/ci/two-writers.php`, run by CI's database job against MySQL 8.4 and MariaDB 10.11: it starts two PHP processes that wait at the same gate and then call the same action on the same record, and it repeats that for each step fifty times.",
-            "The steps: allocating one payment to one invoice; verifying one payment; paying one supplier's bill; posting one invoice to the ledger; reversing one journal entry; taking the next number of a document series.",
-            "Where a run shows a second writer getting through, the action is repaired in the same round (a lock on the right row, or a unique key in a migration that only adds), and the run that showed it is kept as its test."
-          ],
-          "tests": [
-            "For each step and each of the fifty runs: exactly one of the two writers succeeds; the other is refused with the action's own message or, having waited, sees what the first one wrote.",
-            "After every run: each journal entry balances, an invoice is never paid beyond its total, a bill is never paid twice, and no document number is given twice.",
-            "The whole suite still passes on the three servers and on SQLite."
-          ],
-          "browser": [],
-          "against": "With the lock taken out of the payment allocation in a copy, the two-writers run reports an invoice paid twice within the fifty runs; the test of the check requires that.",
-          "back": "A test command and, only if a fault is found, a lock or a migration that adds a unique key. A migration that adds a key says in its way back how the key is removed; no row is changed."
-        }
-      ]
-    },
     {
       "name": "The rules of the API the shop will use",
       "why": "P1, and of the lines that need nobody the one the most other work stands behind: the shop's reading of the catalogue (T-105), and after it the page builder.",
@@ -544,37 +519,43 @@
     {
       "check": "The Laravel test suite",
       "where": "In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/`",
-      "today": "2,508 pass, 36 skipped, none fails: run in the sandbox on 18 November, 04:33 to 04:38 UTC, on `d11e504`. In CI on the same commit, on each of the three servers: 2,509 pass, 35 skipped",
+      "today": "2,568 pass, 36 skipped, none fails: run in the sandbox on 18 November, 15:19 to 15:26 UTC, on the code of pull request #45. In CI on `8549036`, on each of the three servers: 2,569 pass, 35 skipped",
       "catches": "A rule, a screen or a permission that no longer does what its test says"
+    },
+    {
+      "check": "Two people writing in the accounts at the same moment (`platform/tools/ci/two-writers.php`)",
+      "where": "CI, job `two-writers` of `os-ci.yml`, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, on every push that touches `platform/`. In the sandbox on the server that `platform/tools/preview/sandbox/database.sh` builds (MariaDB 10.2)",
+      "today": "29 steps of 50 runs hold on each of the three servers; with a lock taken out, each of four checks reports the fault it is for (CI, `8549036`)",
+      "catches": "What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, or one of two people stopped by the database with an error page"
     },
     {
       "check": "A release installed and deployed again by a browser (`scripts/os-install.mjs`)",
       "where": "CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite",
-      "today": "the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d11e504`)",
+      "today": "the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `8549036`)",
       "catches": "A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change"
     },
     {
       "check": "Two journeys in a browser (`scripts/os-journeys.mjs`)",
       "where": "On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's",
-      "today": "28 of 28 steps hold, both ways (CI, `dfc8369`)",
+      "today": "37 of 37 steps hold, both ways (CI, `8549036`)",
       "catches": "A step of a working day or of a sale that a person can no longer do; anything the content policy refuses"
     },
     {
       "check": "Every screen as four roles (`scripts/os-screens.mjs`)",
       "where": "The same rehearsal, at 1366 px and at 390 px",
-      "today": "248 pages, none fails (CI, `dfc8369`)",
+      "today": "253 pages, none fails (CI, `8549036`)",
       "catches": "A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch"
     },
     {
       "check": "The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`)",
       "where": "CI, job \"Vercel's PHP runtime: build the demo, sign in, open every screen\"",
-      "today": "passes (CI, `dfc8369`)",
+      "today": "passes (CI, `8549036`)",
       "catches": "A site that starts without its settings, hands out a file, or loses the session"
     },
     {
       "check": "The React shop's gate (`ci.yml`)",
       "where": "CI, on every push",
-      "today": "passes (CI, `dfc8369`)",
+      "today": "passes (CI, `8549036`)",
       "catches": "A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository"
     },
     {
@@ -592,7 +573,7 @@
     {
       "check": "Each new test, tried once against its protection taken away",
       "where": "By hand, when the test is written; recorded in the round's report",
-      "today": "done for the security, policy and request-number tests of 17 November",
+      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27) and for the two-writers command and its tests (report 28)",
       "catches": "A test that would pass whatever the code does"
     },
     {

@@ -570,6 +570,21 @@
     "on": "2026-11-18",
     "how": "Leaving is held while a part of the screen holds unsaved work: the watch leaves the field itself, waits for the save and for its answer to be worked into the page, and then lets the person go without a question. The journey types a figure, presses the link at once, counts every opening of the question (none) and reads the figure back from the quotation."
    }
+  },
+  {
+   "id": "D-040",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-18",
+   "title": "Two people saving in the accounts at the same moment: the database stopped one of them with an error page",
+   "detail": "On `main`, and in the code since it was copied from the Interior studio, whose own list calls the check pending (document 25 §8). Nothing wrong was ever written: no money twice, no entry out of balance, no number given twice. But when two people saved at the same moment, the database found each waiting for the other, ended one of the two (a deadlock) and that person got the page that says something went wrong; nothing of theirs was saved, and a second try worked. Tried by `platform/tools/ci/two-writers.php`, two processes at one gate, fifty runs a step, with the classes as they are on `main` (the commits `7fe80c2` and `e820e31`, both taken back): on MySQL 8.4.13, MariaDB 10.11.19 and MariaDB 11.4.13 alike, 10 of the 29 steps did not hold, and every run that failed was a run ended by the database. Runs of 50 that held, on the three servers in that order: two payments recorded for one invoice 0, 0, 0 · two payments recorded for two invoices of one client 0, 0, 0 · one invoice posted by two people 12, 12, 12 · two expenses 12, 12, 13 · two suppliers' bills paid 16, 18, 13 · one payment request sent for two bills 17, 18, 16 · two invoices of one client collected 26, 26, 26 · two new bills of two suppliers saved 26, 26, 22 · two paid costs of two suppliers 28, 26, 25 · two draft invoices issued 35, 39, 29. Four causes, each an order of locks. (1) A posting asked \"is this document in the journal already?\" with a lock, and only then waited for the row every posting needs: a question asked with a lock about a row that is not there holds the empty place where it would go, two writers may hold the same place, and neither can then write into it. (2) The allocation locked \"the open invoices of this client\" as a list, which locks every row the database reads on its way; collecting held its own invoice first; recording wrote the payment first, and a written row that points at an invoice holds that invoice for reading. (3) Paying a bill asked for the request's key with a lock. (4) A supplier's cost asked its two questions with locks before any turn was taken. On the sandbox's older server (MariaDB 10.2.11) the same ten failed and one more, which holds on the three servers CI uses: the whole of one invoice collected by two people (8 of 20 runs held).",
+   "lines": [
+    "T-093"
+   ],
+   "closed": {
+    "on": "2026-11-18",
+    "how": "The order is the same everywhere now: the document's own row, then the ledger's turn (`LedgerTurn`: the row every posting takes its number from), then the question. Every open invoice of the client and every named one is locked by its own key, lowest first, before anything is written (`InvoiceLocks`). No migration. In CI on each of the three servers all 29 steps hold in every one of 50 runs (`8549036`), and the same job fails when a lock is taken out: an invoice paid twice in 34 to 38 of 50 runs, a number given twice in 48 to 50, an entry reversed twice in 46 to 50, a bill paid twice in 6. `TwoWritersOrderTest` keeps the order of the statements and refuses a new lock in the accounts, sales or projects code that is not on one row by its key until it is listed with its reason. For every place no step reaches, a request the database ends for another writer is answered 409 in words and is still reported."
+   }
   }
  ]
 }
