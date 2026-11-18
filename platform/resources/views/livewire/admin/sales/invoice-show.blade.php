@@ -189,7 +189,7 @@
         <div class="space-y-6">
             @if ($canCollect)
                 <x-admin.card title="Collect a payment" description="Recorded, verified, receipted and posted to the ledger in one act.">
-                    <form wire:submit="collect" class="space-y-4">
+                    <form wire:submit="collect" data-unsaved class="space-y-4">
                         <div>
                             <label class="wx-label" for="collect-amount">Amount (Rs)</label>
                             <input id="collect-amount" type="text" inputmode="decimal" wire:model="amount" class="wx-input" />
@@ -217,7 +217,7 @@
 
             @if ($showVoid)
                 <x-admin.card title="Void this invoice" description="The invoice stays readable and marked void. Its ledger entry is reversed, not deleted.">
-                    <form wire:submit="void" class="space-y-4">
+                    <form wire:submit="void" data-unsaved class="space-y-4">
                         <div>
                             <label class="wx-label" for="void-reason">Reason</label>
                             <textarea id="void-reason" rows="3" wire:model="voidReason" class="wx-input" placeholder="Why this invoice is being voided"></textarea>

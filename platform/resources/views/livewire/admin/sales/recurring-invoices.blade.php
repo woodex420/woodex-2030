@@ -8,7 +8,7 @@
 
     @if ($showForm)
         <x-admin.card title="New recurring schedule" description="Set it once — the scheduler bills it every period" class="mb-6">
-            <form wire:submit="save" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <form wire:submit="save" data-unsaved class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label class="wx-label" for="ri-contact">Client</label>
                     <select id="ri-contact" wire:model="contactId" class="wx-input">

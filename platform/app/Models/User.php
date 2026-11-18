@@ -41,7 +41,14 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
+            'preferences' => 'array',
         ];
+    }
+
+    /** What this person chose on Workspace preferences (App\Support\WorkspacePreferences), or the default. */
+    public function preference(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->preferences, $key, $default);
     }
 
     /**

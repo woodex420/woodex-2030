@@ -89,7 +89,7 @@ class ChangeRequests extends Component
         $next = ChangeRequestStatus::tryFrom($status);
 
         if ($next === null || ! in_array($next->value, array_column($this->nextStatuses($request), 'value'), true)) {
-            $this->dispatch('toast', 'That move is not on this card.', 'error');
+            $this->dispatch('toast', message: 'That move is not on this card.', type: 'error');
 
             return;
         }
@@ -105,7 +105,7 @@ class ChangeRequests extends Component
         }
 
         $action->handle($request, $next, $by);
-        $this->dispatch('toast', $request->reference().' → '.$next->label().'. The requester has been told.');
+        $this->dispatch('toast', message: $request->reference().' → '.$next->label().'. The requester has been told.', type: 'success');
     }
 
     public function saveNote(SetChangeRequestStatus $action): void
@@ -135,7 +135,7 @@ class ChangeRequests extends Component
 
         $this->showNote = false;
         $this->note = '';
-        $this->dispatch('toast', $request->reference().' → '.$next->label().'. The requester has been told.');
+        $this->dispatch('toast', message: $request->reference().' → '.$next->label().'. The requester has been told.', type: 'success');
     }
 
     /**

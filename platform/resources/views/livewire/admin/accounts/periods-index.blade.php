@@ -10,7 +10,7 @@
 
     @if ($showForm)
         <x-admin.card class="mb-6 border-brand-200 dark:border-brand-800" title="New period">
-            <form wire:submit="save" class="grid gap-4 sm:grid-cols-4">
+            <form wire:submit="save" data-unsaved class="grid gap-4 sm:grid-cols-4">
                 <div>
                     <label class="wx-label">Name</label>
                     <input wire:model="name" class="wx-input" placeholder="e.g. July 2027" maxlength="60" />

@@ -67,7 +67,7 @@
     @if ($chaseQuoteId !== 0)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" wire:key="chase-modal">
             <x-admin.card class="w-full max-w-lg" title="Log a follow-up">
-                <form wire:submit="logChase" class="space-y-4">
+                <form wire:submit="logChase" data-unsaved class="space-y-4">
                     <div>
                         <label class="wx-label">What happened on this call or message?</label>
                         <textarea wire:model="chaseNote" class="wx-input" rows="3" maxlength="500" placeholder="e.g. Called — client reviewing with family, will decide by Friday"></textarea>

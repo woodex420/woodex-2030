@@ -92,7 +92,7 @@
     @if ($completing)
         <div class="fixed inset-0 z-[9999] flex items-end justify-center bg-gray-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="complete-title"
              x-data x-on:keydown.escape.window="$wire.closeModals()">
-            <form wire:submit="complete" class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-theme-lg dark:bg-gray-900">
+            <form wire:submit="complete" data-unsaved class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-theme-lg dark:bg-gray-900">
                 <div class="mb-5 flex items-start justify-between">
                     <div>
                         <h2 id="complete-title" class="text-theme-xl font-medium text-gray-900 dark:text-white">Visit outcome · {{ $completing->contact->name }}</h2>
@@ -138,7 +138,7 @@
     @if ($reschedulingId)
         <div class="fixed inset-0 z-[9999] flex items-end justify-center bg-gray-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="reschedule-title"
              x-data x-on:keydown.escape.window="$wire.closeModals()">
-            <form wire:submit="reschedule" class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-theme-lg dark:bg-gray-900">
+            <form wire:submit="reschedule" data-unsaved class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-theme-lg dark:bg-gray-900">
                 <h2 id="reschedule-title" class="mb-4 text-theme-xl font-medium text-gray-900 dark:text-white">Move visit</h2>
                 <x-admin.field label="New date and time" for="rescheduleAt">
                     <input id="rescheduleAt" type="datetime-local" wire:model="rescheduleAt" class="wx-input">

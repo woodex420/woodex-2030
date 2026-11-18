@@ -1,4 +1,4 @@
-<div>
+<div data-unsaved="apply startOver">
     <x-admin.page-header title="Import a lead sheet"
                          description="Bring a historical enquiry sheet (CSV) into Leads. Nothing is written until the final step, and existing contacts are never changed."
                          :breadcrumbs="['CRM' => null, 'Leads' => route('admin.leads.index'), 'Import sheet' => null]">

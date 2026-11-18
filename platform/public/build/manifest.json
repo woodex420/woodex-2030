@@ -6,7 +6,7 @@
     "isDynamicEntry": true
   },
   "node_modules/pdfjs-dist/build/pdf.mjs": {
-    "file": "assets/pdf-CSBLqX4g.js",
+    "file": "assets/pdf-BHZFxrwi.js",
     "name": "pdf",
     "src": "node_modules/pdfjs-dist/build/pdf.mjs",
     "isDynamicEntry": true,
@@ -25,7 +25,7 @@
     "isDynamicEntry": true
   },
   "resources/css/admin.css": {
-    "file": "assets/admin-DnvnsNEB.css",
+    "file": "assets/admin-B3DCJbRO.css",
     "name": "admin",
     "names": [
       "admin.css"
@@ -53,7 +53,7 @@
     "src": "resources/fonts/Inter.woff2"
   },
   "resources/js/admin.js": {
-    "file": "assets/admin-BYe8tm-R.js",
+    "file": "assets/admin-CuP0HN98.js",
     "name": "admin",
     "src": "resources/js/admin.js",
     "isEntry": true,

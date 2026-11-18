@@ -15,14 +15,15 @@ export function themeColor(dark) { return dark ? '#171717' : '#f6f6f6'; }
 export function createThemeStore() {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     return {
-        mode: themeMode(readStorage('wx.theme')),
+        // A browser that was never switched by hand follows the person's own choice (Workspace preferences).
+        mode: themeMode(readStorage('wx.theme') ?? document.documentElement.dataset.themeDefault),
         dark: document.documentElement.classList.contains('dark'),
         init() {
             this.apply();
             media.addEventListener('change', () => { if (this.mode === 'system') this.apply(); });
             window.addEventListener('storage', (event) => {
                 if (event.key === 'wx.theme' || event.key === null) {
-                    this.mode = themeMode(event.newValue);
+                    this.mode = themeMode(event.newValue ?? document.documentElement.dataset.themeDefault);
                     this.apply();
                 }
             });

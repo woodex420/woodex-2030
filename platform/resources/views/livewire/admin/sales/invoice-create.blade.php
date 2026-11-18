@@ -1,5 +1,5 @@
 @use('App\Support\Money')
-<div>
+<div data-unsaved="saveDraft saveAndIssue">
     <x-admin.page-header title="New invoice" description="Bill work that has no quotation — a repair, a supply, a fee. Save it as a draft, or issue it now and it is frozen and booked like every other invoice."
                          :breadcrumbs="['Sales' => null, 'Invoices' => route('admin.invoices.index'), 'New invoice' => null]">
 
@@ -17,7 +17,7 @@
                                 <button type="button" wire:click="clearContact" class="text-theme-xs font-medium text-gray-500 hover:text-gray-900 dark:hover:text-white">Change</button>
                             </div>
                         @else
-                            <input type="search" wire:model.live.debounce.300ms="contactSearch" placeholder="Search by name or phone" class="wx-input mt-1" aria-label="Search clients">
+                            <input type="search" wire:model.live.debounce.300ms="contactSearch" data-unsaved-skip placeholder="Search by name or phone" class="wx-input mt-1" aria-label="Search clients">
                             @if ($contactResults->isNotEmpty())
                                 <ul class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
                                     @foreach ($contactResults as $contact)

@@ -1,4 +1,4 @@
-<div>
+<div data-unsaved="saveDraft">
 <x-admin.page-header title="Shop customization · Native section drafts" description="Save and preview native Shop configuration. Full storefront Shop customization/cutover remains Soon; live content, product prices and checkout are unchanged." />
 @if($publishedId)<x-admin.button variant="secondary" :href="route('admin.commerce.shop-content.preview', $publishedId)">View native Shop publication</x-admin.button>@else<p class="mb-4">No native Shop publication yet.</p>@endif
 @can('commerce.catalog.manage')
@@ -37,7 +37,7 @@
 @foreach($errors->all() as $message)<p role="alert" class="text-red-600">{{ $message }}</p>@endforeach
 <div class="flex flex-wrap gap-3"><x-admin.button wire:click="saveDraft" wire:loading.attr="disabled">Save Shop draft</x-admin.button>@if($revisionId)<x-admin.button variant="secondary" :href="route('admin.commerce.shop-content.preview', $revisionId)" target="_blank" rel="noopener">Open saved Shop preview</x-admin.button>@endif</div>
 <p class="mt-3 text-sm">Preview shows saved content only. Automatic sources/Series resolve current publications; results may change after publication. Save and review again before publishing changed configuration. Active-sale membership and source/name/featured ordering are available natively. Heroes, sidebar/footer and public React rendering remain Soon.</p>
-@can('commerce.catalog.publish')<div class="mt-4 space-y-3"><label class="flex gap-2"><input type="checkbox" wire:model="confirmPublish"> I reviewed the saved preview and confirm native publication only.</label><x-admin.button wire:click="publish">Publish native Shop configuration</x-admin.button>@if($publishedId)<label class="flex gap-2"><input type="checkbox" wire:model="confirmWithdraw"> Confirm withdrawal; retain history.</label><x-admin.button variant="secondary" wire:click="withdraw">Withdraw native Shop publication</x-admin.button>@endif</div>@endcan
+@can('commerce.catalog.publish')<div class="mt-4 space-y-3"><label class="flex gap-2"><input type="checkbox" wire:model="confirmPublish" data-unsaved-skip> I reviewed the saved preview and confirm native publication only.</label><x-admin.button wire:click="publish">Publish native Shop configuration</x-admin.button>@if($publishedId)<label class="flex gap-2"><input type="checkbox" wire:model="confirmWithdraw" data-unsaved-skip> Confirm withdrawal; retain history.</label><x-admin.button variant="secondary" wire:click="withdraw">Withdraw native Shop publication</x-admin.button>@endif</div>@endcan
 </x-admin.card>
 </div>
 @else

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Sales\Services;
 
+use App\Domain\Commerce\Models\Product;
 use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Sales\Actions\RecalculateQuote;
 use App\Domain\Sales\Enums\DiscountType;
@@ -208,8 +209,9 @@ final class QuoteEditor
      * Adds a line at the end of the section, or right after $after (Enter in the builder).
      *
      * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $also  columns only this class may set: the link to a product of the catalogue
      */
-    public function addLine(QuoteSection $section, array $attributes = [], ?QuoteItem $after = null): QuoteItem
+    public function addLine(QuoteSection $section, array $attributes = [], ?QuoteItem $after = null, array $also = []): QuoteItem
     {
         $quote = $this->quoteOf($section);
 
@@ -217,7 +219,7 @@ final class QuoteEditor
             throw new InvalidArgumentException('That line is in another section.');
         }
 
-        return $this->change($quote, function () use ($section, $attributes, $after): QuoteItem {
+        return $this->change($quote, function () use ($section, $attributes, $after, $also): QuoteItem {
             $this->refreshChild($section);
             if ($after !== null) {
                 $this->refreshChild($after);
@@ -236,7 +238,7 @@ final class QuoteEditor
                 'qty' => '1',
                 'rate_minor' => 0,
                 'position' => $index,
-            ], array_intersect_key($attributes, array_flip([...self::LINE_FIELDS, 'catalog_item_id']))));
+            ], array_intersect_key($attributes, array_flip([...self::LINE_FIELDS, 'catalog_item_id'])), $also));
 
             $items->splice($index, 0, [$item]);
             $this->renumber($items);
@@ -263,6 +265,39 @@ final class QuoteEditor
     }
 
     /**
+     * A line from the catalogue (T-086): the product's name, its code and the price it has now are copied onto the
+     * line, which keeps a link to the product. Nothing is read from the catalogue for this line afterwards: what
+     * the product is called or costs next month changes neither a draft nor anything a client was sent.
+     *
+     * A product without a price gives a line marked "price on request", with no rate; it cannot be sent until a
+     * rate is typed (SendQuote).
+     *
+     * @param  string  $code  the code of the option chosen; '' for a product without options
+     */
+    public function addProductLine(QuoteSection $section, Product $product, string $code = ''): QuoteItem
+    {
+        // Asked from the catalogue here and now, never taken from what a screen showed.
+        $choice = app(CatalogueProducts::class)->choice($product, $code);
+        $name = mb_substr($choice['name'], 0, 160);
+        $says = trim(($choice['option'] !== '' ? $choice['option'].' · ' : '').($choice['code'] !== '' ? 'Code '.$choice['code'] : ''), ' ·');
+        // A furniture document prints the product's name in a column of its own; elsewhere the description is all
+        // the client reads of the line.
+        $furniture = $this->quoteOf($section)->business_line === BusinessLine::Furniture;
+
+        return $this->addLine($section, [
+            'product_name' => $name,
+            'description' => $furniture ? $says : trim($name.($says !== '' ? ' · '.$says : '')),
+            'unit' => 'nos',
+            'qty' => '1',
+            'rate_minor' => $choice['price_minor'] ?? 0,
+        ], null, [
+            'product_id' => $product->id,
+            'product_code' => $choice['code'] !== '' ? $choice['code'] : null,
+            'price_on_request' => $choice['price_minor'] === null,
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $attributes
      */
     public function updateLine(QuoteItem $item, array $attributes): void
@@ -280,7 +315,12 @@ final class QuoteEditor
                 throw new InvalidArgumentException('A line discount cannot be more than 100%.');
             }
 
-            $item->fill($values)->save();
+            $item->fill($values);
+            // A rate has been typed for a product the catalogue had no price for: the line is priced now.
+            if ($item->price_on_request && (int) $item->rate_minor > 0) {
+                $item->price_on_request = false;
+            }
+            $item->save();
         });
     }
 

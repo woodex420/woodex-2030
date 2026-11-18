@@ -11,7 +11,7 @@
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <x-admin.card title="The change" description="Plain text, not a pattern — type it exactly as the pages hold it." class="xl:col-span-1">
-            <form wire:submit="runPreview" class="space-y-3">
+            <form wire:submit="runPreview" data-unsaved="off" class="space-y-3">
                 <x-admin.field label="Find" for="find" hint="At least 3 characters. It changes every occurrence, including tel: and mailto: links and the structured data.">
                     <input id="find" type="text" wire:model="find" class="wx-input" placeholder="+92 322 4000768">
                 </x-admin.field>

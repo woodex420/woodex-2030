@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Sales\Actions;
 
+use App\Domain\Commerce\Models\Product;
 use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Sales\Enums\InvoiceKind;
 use App\Domain\Sales\Enums\InvoiceStatus;
@@ -83,6 +84,9 @@ final class CreateFurnitureInvoice
                     }
                     $invoice->items()->create([
                         'position' => $position++, 'product_name' => (string) ($item['product_name'] ?? ''),
+                        // The product and its code as the sent quotation holds them. A product removed from the
+                        // catalogue since then leaves the code and no link.
+                        'product_id' => $this->productStillThere($item['product_id'] ?? null), 'product_code' => $item['product_code'] ?? null,
                         'description' => (string) $item['description'], 'unit' => $item['unit'], 'qty' => $item['qty'],
                         'rate_minor' => (int) $item['rate_minor'], 'discount_minor' => (int) ($item['discount_minor'] ?? 0),
                         'tax_bp' => (int) $t['tax_bp'], 'line_total_minor' => (int) $item['line_total_minor'],
@@ -95,5 +99,10 @@ final class CreateFurnitureInvoice
 
             return $invoice->refresh();
         });
+    }
+
+    private function productStillThere(mixed $id): ?int
+    {
+        return is_int($id) && Product::query()->whereKey($id)->exists() ? $id : null;
     }
 }

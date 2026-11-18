@@ -263,7 +263,7 @@
     @if ($showCreate)
         <div class="fixed inset-0 z-[9999] flex items-end justify-center bg-gray-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="new-lead-title"
              x-data x-on:keydown.escape.window="$wire.set('showCreate', false)">
-            <form wire:submit="createLead" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-theme-lg dark:bg-gray-900">
+            <form wire:submit="createLead" data-unsaved class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-theme-lg dark:bg-gray-900">
                 <div class="mb-5 flex items-start justify-between">
                     <div>
                         <h2 id="new-lead-title" class="text-theme-xl font-medium text-gray-900 dark:text-white">New lead</h2>
@@ -423,7 +423,7 @@
                 @endif
 
                 @if ($drawerTab === 'log')
-                <form wire:submit="drawerLog" class="space-y-4">
+                <form wire:submit="drawerLog" data-unsaved class="space-y-4">
                     <div>
                         <label class="wx-label" for="drawer-log-type">What happened</label>
                         <select id="drawer-log-type" wire:model.live="drawerLogType" class="wx-input">

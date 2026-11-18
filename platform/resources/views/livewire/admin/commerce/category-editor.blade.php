@@ -4,7 +4,7 @@
     </x-admin.page-header>
     <p class="mb-4 text-sm">Category: {{ $category->slug }} · Content version {{ $version }} · {{ $category->published_revision_id ? 'Native published revision #'.$category->published_revision_id : 'No native publication yet' }}. Office/Home are category parents; Series remain separate collections.</p>
     @if($errors->any())<div role="alert" class="mb-4 rounded-lg border border-error-500 p-4"><h2 class="font-semibold">Please correct these issues</h2><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
-    <form wire:submit="saveDraft" class="space-y-5">
+    <form wire:submit="saveDraft" data-unsaved class="space-y-5">
         <x-admin.card title="Page metadata" description="Preview always remains noindex. These settings drive the published category page on connected storefronts.">
             <div class="grid gap-4 md:grid-cols-2">
                 @foreach(['seo_title' => 'SEO title', 'seo_description' => 'Meta description', 'og_title' => 'Social / Open Graph title', 'og_description' => 'Social / Open Graph description', 'canonical_path' => 'Canonical local path'] as $key => $label)

@@ -17,7 +17,7 @@
     @if ($showForm)
         <x-admin.card :title="$editingId ? 'Edit bank account' : 'Add a bank account'"
                       description="Only the title and the bank or wallet name are required — add the account number or IBAN so the client can actually pay." class="mb-6">
-            <form wire:submit="save" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <form wire:submit="save" data-unsaved class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label class="wx-label" for="ba-title">Account title</label>
                     <input id="ba-title" type="text" wire:model="title" class="wx-input" placeholder="{{ mb_strtoupper(\App\Support\Brand::name()) }}" />
