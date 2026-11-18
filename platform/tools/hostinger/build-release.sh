@@ -58,6 +58,11 @@ APP_ENV=production APP_DEBUG=false "$php" artisan package:discover >/dev/null
 [ -s bootstrap/cache/packages.php ] && [ -s bootstrap/cache/services.php ] || { echo "the package lists were not written" >&2; exit 1; }
 if grep -l "$out" bootstrap/cache/*.php >/dev/null 2>&1; then echo "a package list holds this machine's folder name" >&2; exit 1; fi
 
+# A release travels through Git: the branch that carries it, the host's Git page, GitHub's ZIP of that branch. An
+# attributes file inside a package would have Git rewrite line ends on the way, or leave folders out of the ZIP.
+# Nothing reads these files when the application runs.
+find "$out" -name .gitattributes -type f -delete
+
 # 4. Vercel builds every branch it sees. The branch that carries this folder is not a Vercel site.
 printf '{\n  "git": { "deploymentEnabled": false }\n}\n' > "$out/vercel.json"
 printf '{\n  "git": { "deploymentEnabled": false }\n}\n' > "$out/platform/vercel.json"
@@ -84,6 +89,7 @@ done
 [ -z "$(find . -name '.env' -o -name '.env.*' -o -name '*.sqlite' -o -name '*.sqlite-*' -o -name '*.pem' -o -name 'id_rsa*' | head -1)" ] || fail "a settings file, a database or a key is in the tree"
 [ -z "$(find . -type l | head -1)" ] || fail "a link is in the tree: $(find . -type l | head -1)"
 [ -z "$(find . -name .git | head -1)" ] || fail "a Git folder is in the tree: $(find . -name .git | head -1)"
+[ -z "$(find . -name .gitattributes | head -1)" ] || fail "a Git attributes file is in the tree: $(find . -name .gitattributes | head -1)"
 [ -z "$(find . -type f -size +50M | head -1)" ] || fail "a file of more than 50 MB is in the tree: $(find . -type f -size +50M | head -1)"
 "$php" -r '
 $manifest = json_decode((string) file_get_contents("platform/public/build/manifest.json"), true);

@@ -2,7 +2,7 @@
 # WOODEX OS: a fresh release in a folder laid out like a Hostinger account, served without Apache.
 #
 # For a machine that has PHP and nothing else (the sandbox). It puts a release together
-# (build-release.sh) into
+# (build-release.sh), carries it through Git as a deployment does (carry-through-git.sh), into
 #
 #   <folder>/home/u123456789/domains/staging.woodex.test/public_html     the website's folder
 #   <folder>/home/u123456789/woodex-os/staging.woodex.test/              where the installer writes the settings
@@ -28,7 +28,9 @@ site="$home/domains/staging.woodex.test/public_html"
 
 rm -rf "$folder"
 mkdir -p "$(dirname "$site")"
-bash "$here/build-release.sh" "$site"
+# What is served is the release as Git delivers it to a host, as in CI.
+bash "$here/build-release.sh" "$folder/built"
+bash "$here/carry-through-git.sh" "$folder/built" "$site"
 
 echo "the website's folder: $site"
 echo "the setup code, once the installer has been opened: $site/WOODEX-SETUP-CODE.txt"

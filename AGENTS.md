@@ -273,8 +273,8 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   by its name.
 - **A release for the host** is a folder the host can run as it is: `platform/tools/hostinger/build-release.sh`
   (the bridge of the website's folder, the application with its packages and built files, no settings, no
-  data). CI installs it in a browser on Apache with the folder's own `.htaccess` and MariaDB, and deploys it a
-  second time (job `hostinger` of `os-ci.yml`; the browser is `scripts/os-install.mjs`). That job is the proof
+  data). CI carries it through Git, as a deployment does, installs it in a browser on Apache with the folder's
+  own `.htaccess` and MariaDB, and deploys it a second time (job `hostinger` of `os-ci.yml`; the browser is `scripts/os-install.mjs`). That job is the proof
   for a change to the installer, the root `.htaccess` or `index.php`, System health, signing in or out. In a
   sandbox `platform/tools/hostinger/rehearse.sh` serves the same folder without Apache. From `main` only, the
   job `publish` writes the release to the branch `hostinger-release`: never push to that branch by hand. The

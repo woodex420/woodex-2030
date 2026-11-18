@@ -340,10 +340,17 @@ jobs:
         env:
           COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
         run: |
-          bash platform/tools/hostinger/build-release.sh "$RUNNER_TEMP/release" | tee "$RUNNER_TEMP/release.txt"
-          echo "::notice title=Release::$(tail -1 "$RUNNER_TEMP/release.txt" | sed "s#$RUNNER_TEMP/##")"
+          bash platform/tools/hostinger/build-release.sh "$RUNNER_TEMP/built" | tee "$RUNNER_TEMP/release.txt"
+          echo "::notice title=Release::$(tail -1 "$RUNNER_TEMP/release.txt" | sed "s# in $RUNNER_TEMP/built##")"
           echo "HOSTING_HOME=$RUNNER_TEMP/u123456789" >> "$GITHUB_ENV"
           echo "SITE=$RUNNER_TEMP/u123456789/domains/staging.woodex.test/public_html" >> "$GITHUB_ENV"
+
+      - name: The release as Git carries it — what the host's Git page takes from the branch
+        run: |
+          # Everything below is done with the release after a journey through Git: the tree that the job "publish"
+          # writes to its branch and that hPanel's Git page delivers.
+          bash platform/tools/hostinger/carry-through-git.sh "$RUNNER_TEMP/built" "$RUNNER_TEMP/release" | tee "$RUNNER_TEMP/carried.txt"
+          echo "::notice title=The release as Git carries it::$(tail -1 "$RUNNER_TEMP/carried.txt" | sed 's/^the release as Git carries it: //')"
 
       - name: The web server — Apache, PHP 8.4 as a module, running as the hosting account
         run: |
