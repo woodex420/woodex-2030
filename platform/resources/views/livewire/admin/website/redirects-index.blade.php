@@ -28,7 +28,7 @@
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <x-admin.card title="Add a redirect" class="xl:col-span-1">
-            <form wire:submit="add" class="space-y-3">
+            <form wire:submit="add" data-unsaved class="space-y-3">
                 <x-admin.field label="Old URL" for="fromPath" hint="The address from the previous website, for example /apartment-interior-design/. An address that is still a page cannot be redirected — delete the page first.">
                     <input id="fromPath" type="text" wire:model="fromPath" class="wx-input" placeholder="/apartment-interior-design/">
                 </x-admin.field>
@@ -55,7 +55,7 @@
         </x-admin.card>
 
         <x-admin.card title="Import a CSV" description="One redirect per line: old URL, new URL, optional 301/302, optional note. A spreadsheet copy (tab-separated) works too. Re-running an import updates the rows it already knows." class="xl:col-span-2">
-            <div class="space-y-3">
+            <div class="space-y-3" data-unsaved="importCsv">
                 <textarea rows="6" wire:model="csv" class="wx-input font-mono text-theme-xs" placeholder="/apartment-interior-design/,/interior-design/,301,was a separate service page"></textarea>
                 <div class="flex items-center gap-3">
                     <x-admin.button variant="secondary" icon="upload" wire:click="importCsv" :disabled="trim($csv) === ''">Import</x-admin.button>

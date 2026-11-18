@@ -72,7 +72,7 @@
     @if ($logLeadId !== 0)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" wire:key="follow-up-modal">
             <x-admin.card class="w-full max-w-lg" title="Log follow-up">
-                <form wire:submit="logFollowUp" class="space-y-4">
+                <form wire:submit="logFollowUp" data-unsaved class="space-y-4">
                     <div>
                         <label class="wx-label">What happened?</label>
                         <select wire:model="logType" class="wx-input">

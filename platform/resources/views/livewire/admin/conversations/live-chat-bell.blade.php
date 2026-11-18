@@ -66,7 +66,7 @@
                             @endforelse
                         </div>
                         @can('reply', $selectedConversation)
-                            <form wire:submit="send" wire:key="livechat-composer-{{ $selectedId }}" class="shrink-0 border-t border-gray-100 p-3 dark:border-gray-800"><div class="flex items-end gap-2"><textarea wire:model="draft" rows="2" class="wx-input max-h-28 min-w-0 flex-1 resize-none" placeholder="Reply to the visitor…" aria-label="Reply"></textarea><x-admin.button type="button" wire:click="send" icon="send" wire:loading.attr="disabled" wire:target="send">Send</x-admin.button></div>@error('draft')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror<p class="mt-2 text-[11px] text-gray-400">Replies appear on the visitor's next poll. No WhatsApp send.</p></form>
+                            <form wire:submit="send" data-unsaved wire:key="livechat-composer-{{ $selectedId }}" class="shrink-0 border-t border-gray-100 p-3 dark:border-gray-800"><div class="flex items-end gap-2"><textarea wire:model="draft" rows="2" class="wx-input max-h-28 min-w-0 flex-1 resize-none" placeholder="Reply to the visitor…" aria-label="Reply"></textarea><x-admin.button type="button" wire:click="send" icon="send" wire:loading.attr="disabled" wire:target="send">Send</x-admin.button></div>@error('draft')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror<p class="mt-2 text-[11px] text-gray-400">Replies appear on the visitor's next poll. No WhatsApp send.</p></form>
                         @else
                             <p class="border-t border-gray-100 p-4 text-theme-xs text-gray-500 dark:border-gray-800">Read-only access</p>
                         @endcan

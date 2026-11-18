@@ -17,7 +17,7 @@
     @if (! $pageSpeedReady)
         <x-admin.card class="mb-4" title="PageSpeed is asleep">
             <p class="text-theme-sm text-gray-600 dark:text-gray-300">The checks above are the studio's own — they always run. A Google PageSpeed API key wakes the score buttons below and adds mobile and desktop runs to each page's history. Save it right here; it is stored encrypted and never shown back.</p>
-            <form wire:submit="saveKey" class="mt-3 flex flex-wrap items-end gap-3">
+            <form wire:submit="saveKey" data-unsaved class="mt-3 flex flex-wrap items-end gap-3">
                 <x-admin.field label="Google PageSpeed API key" for="apiKey">
                     <input id="apiKey" type="password" wire:model="apiKey" class="wx-input" placeholder="AIza…" autocomplete="off">
                 </x-admin.field>

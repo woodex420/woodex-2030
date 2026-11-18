@@ -11,7 +11,7 @@
 
     @if ($showForm)
         <x-admin.card title="Record a payment" description="Cash, a transfer you saw in the bank, a cheque. It is verified at once and the receipt is written.">
-            <form wire:submit="save" class="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <form wire:submit="save" data-unsaved class="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <div class="relative md:col-span-2">
                     <label for="contact-search" class="mb-1 block text-theme-xs text-gray-500">Client</label>
                     <input id="contact-search" type="search" wire:model.live.debounce.300ms="contactSearch" autocomplete="off"
@@ -186,7 +186,7 @@
 
     {{-- Sending a payment back needs a reason the client will read --}}
     @if ($showReject)
-        <x-admin.modal name="showReject" title="Send this payment back" description="The client receives an email with this reason: what did not match?">
+        <x-admin.modal name="showReject" unsaved="reject" title="Send this payment back" description="The client receives an email with this reason: what did not match?">
             <label for="reject-reason" class="mb-1 block text-theme-xs text-gray-500">Reason</label>
             <textarea id="reject-reason" wire:model="rejectReason" rows="4" maxlength="500" class="wx-input"
                       placeholder="We cannot see this transfer in our account yet. Please check the reference and send the slip again."></textarea>

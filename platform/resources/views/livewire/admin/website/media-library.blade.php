@@ -11,7 +11,7 @@
     </x-admin.card>
 
     <x-admin.card title="Add images" description="JPG, PNG, WebP or AVIF, up to 5 MB each. Large photographs slow a page down: keep them under 300 KB where you can.">
-        <div class="flex flex-wrap items-end gap-3"><x-admin.field label="Upload folder" for="media-upload-folder" hint="Use website/products, website/banners, website/categories or your own folder."><input id="media-upload-folder" wire:model="uploadFolder" class="wx-input" placeholder="website/products">@error('uploadFolder')<p>{{ $message }}</p>@enderror</x-admin.field>
+        <div class="flex flex-wrap items-end gap-3" data-unsaved="save"><x-admin.field label="Upload folder" for="media-upload-folder" hint="Use website/products, website/banners, website/categories or your own folder."><input id="media-upload-folder" wire:model="uploadFolder" class="wx-input" placeholder="website/products">@error('uploadFolder')<p>{{ $message }}</p>@enderror</x-admin.field>
             <x-admin.field label="Choose images" for="media-uploads" class="grow">
                 <input id="media-uploads" type="file" wire:model="uploads" multiple accept="image/jpeg,image/png,image/webp,image/avif" class="wx-input">
                 @error('uploads.*') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
@@ -39,7 +39,7 @@
                 <a href="{{ route('admin.website.media.image', $image, false) }}" target="_blank" rel="noopener" class="block">
                     <img src="{{ route('admin.website.media.image', $image, false) }}" alt="{{ $image->alt }}" loading="lazy" class="aspect-[4/3] w-full bg-gray-50 object-cover">
                 </a>
-                <div class="space-y-2 p-4">
+                <div class="space-y-2 p-4" data-unsaved="updateMeta">
                     <x-admin.field label="Alt text" :for="'media-alt-'.$image->id" hint="{{ strlen($alt[$image->id] ?? '') }} characters · describe what the photo shows, then press Save to write it into the pages.">
                         <input id="media-alt-{{ $image->id }}" type="text" wire:model.blur="alt.{{ $image->id }}" class="wx-input @if (trim($alt[$image->id] ?? '') === '') border-warning-400 @endif" placeholder="Warm living room with timber panelling and linen seating">
                     </x-admin.field>

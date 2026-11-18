@@ -74,7 +74,7 @@
 
     @if ($pendingLeadId)
         <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/50 p-4" role="dialog" aria-modal="true" aria-labelledby="lost-title">
-            <form wire:submit="confirmLost" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-theme-lg dark:bg-gray-900">
+            <form wire:submit="confirmLost" data-unsaved class="w-full max-w-md rounded-2xl bg-white p-6 shadow-theme-lg dark:bg-gray-900">
                 <h2 id="lost-title" class="text-theme-xl font-medium text-gray-900 dark:text-white">Why was this lead lost?</h2>
                 <p class="mt-1 text-theme-sm text-gray-500">The reason feeds the funnel report and the lost-lead nurture sequence.</p>
                 <select wire:model="lostReason" class="wx-input mt-4" aria-label="Lost reason">

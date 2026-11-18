@@ -21,7 +21,7 @@
                 <p class="text-theme-sm text-gray-600 dark:text-gray-300">Cannot scan? In your authenticator, choose Enter a setup key, select Time based, and enter this key. This QR code is not for Telegram.</p>
                 <p class="my-4 font-mono text-theme-sm text-gray-800 dark:text-white/90">{{ $setupKey }}</p>
                 <p class="text-theme-xs text-gray-500">Keep this key private. Set your phone date and time to automatic. Use the latest 6-digit code from the authenticator, not a Telegram or SMS code.</p>
-                <form wire:submit="confirmTwoFactor" class="flex max-w-sm gap-2">
+                <form wire:submit="confirmTwoFactor" data-unsaved="off" class="flex max-w-sm gap-2">
                     <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" wire:model="code" class="wx-input" placeholder="123456" aria-label="Authentication code">
                     <x-admin.button type="submit">Confirm</x-admin.button>
                 </form>

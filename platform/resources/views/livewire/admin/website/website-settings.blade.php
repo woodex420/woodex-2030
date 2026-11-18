@@ -3,7 +3,7 @@
                          :breadcrumbs="['Website' => null, 'Settings' => null]" />
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <form wire:submit="save" class="contents">
+        <form wire:submit="save" data-unsaved class="contents">
             <x-admin.card title="Tracking" class="xl:col-span-2">
                 <div class="space-y-4">
                     <x-admin.field label="Google Analytics 4 measurement ID" for="ga4_id" hint="Analytics → Admin → Data streams. Looks like G-XXXXXXXXXX. Only used when Tag Manager is empty.">

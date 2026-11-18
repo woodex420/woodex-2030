@@ -11,7 +11,7 @@
 
     @if ($showForm)
         <x-admin.card class="mb-6 border-brand-200 dark:border-brand-800" title="{{ $editingId ? 'Edit account' : 'New account' }}">
-            <form wire:submit="save" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <form wire:submit="save" data-unsaved class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                     <label class="wx-label">Code</label>
                     <input wire:model="code" class="wx-input" placeholder="e.g. 1050" maxlength="12" />

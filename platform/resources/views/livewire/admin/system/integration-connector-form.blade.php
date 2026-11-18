@@ -1,6 +1,6 @@
     @if ($showConnectorModal && $connectorForm)
         <x-admin.modal name="showConnectorModal" :title="'Connect '.$connectorForm['name']" description="The provider is asked first; nothing is stored until it answers.">
-            <form wire:submit="connectConnector" class="space-y-4">
+            <form wire:submit="connectConnector" data-unsaved class="space-y-4">
                 @foreach ($connectorForm['fields'] as $field)
                     <x-admin.field :label="$field['label']" :for="'connector-'.$field['name']">
                         <input id="connector-{{ $field['name'] }}" type="{{ $field['type'] }}" wire:model="connectorInput.{{ $field['name'] }}"

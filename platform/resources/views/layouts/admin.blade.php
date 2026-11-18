@@ -91,6 +91,7 @@
     </div>
 
     <x-admin.toasts />
+    <x-admin.unsaved-dialog />
 
     @livewireScripts
     <x-admin.pdf-preview />

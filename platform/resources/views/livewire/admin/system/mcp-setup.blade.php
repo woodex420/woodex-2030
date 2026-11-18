@@ -21,7 +21,7 @@
         <div class="min-w-0">
             @if (auth()->user()->hasRole('owner'))
                 <h3 class="mb-3 font-medium text-gray-900 dark:text-white">Create an expiring, read-only key</h3>
-                <form wire:submit="createBridgeKey" class="space-y-4">
+                <form wire:submit="createBridgeKey" data-unsaved class="space-y-4">
                     <x-admin.field label="Key name" for="bridgeName"><input id="bridgeName" wire:model="bridgeName" class="wx-input w-full" maxlength="80" required placeholder="e.g. Studio laptop · Cursor"></x-admin.field>
                     <fieldset><legend class="mb-2 text-theme-sm font-medium text-gray-700 dark:text-gray-300">Allowed tools</legend>
                         @foreach (['status.read' => 'Status', 'site.read' => 'Site health', 'pages.read' => 'Website pages and SEO', 'leads.read' => 'Lead summaries', 'quotes.read' => 'Quote summaries and totals'] as $ability => $label)

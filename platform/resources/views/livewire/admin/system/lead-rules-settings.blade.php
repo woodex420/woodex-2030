@@ -1,4 +1,4 @@
-<form wire:submit="save" class="space-y-6">
+<form wire:submit="save" data-unsaved class="space-y-6">
     <div class="flex flex-col gap-3 rounded-2xl border border-navy-100 bg-navy-50/60 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[0.03]">
         <p class="text-theme-sm text-gray-700 dark:text-gray-300"><span class="font-medium">Who gets new leads?</span> Route by line, service, city/area and source, round robin or fewest open leads, with workload caps.</p>
         <x-admin.button variant="secondary" icon="users" :href="route('admin.assignment-rules')" wire:navigate>Lead assignment rules</x-admin.button>

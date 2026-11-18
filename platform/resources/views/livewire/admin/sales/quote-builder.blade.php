@@ -150,7 +150,8 @@
     @endif
 
     <div class="quotation-workbench">
-    <div class="quotation-editor grid grid-cols-1 gap-6">
+    {{-- Every field here is sent when it is left, and stored then: any answer of the server saves it (T-043). --}}
+    <div class="quotation-editor grid grid-cols-1 gap-6" data-unsaved="*">
         {{-- Main column: scope, sections and lines, totals --}}
         <div class="min-w-0 space-y-5">
             <x-admin.card title="Scope of work" description="Printed before the price list. Blank line = new paragraph; start lines with “-” for bullets.">
@@ -855,7 +856,7 @@
     @endif
 
     @if ($showSend)
-        <x-admin.modal name="showSend" :title="$sendable ? 'Send '.$quote->label() : ($clientPages ? 'Share '.$quote->label() : 'Give '.$quote->label().' to the client')" width="max-w-xl"
+        <x-admin.modal name="showSend" unsaved="requestApproval send" :title="$sendable ? 'Send '.$quote->label() : ($clientPages ? 'Share '.$quote->label() : 'Give '.$quote->label().' to the client')" width="max-w-xl"
                        :description="match (true) {
                            $sendable && $clientPages => 'A frozen copy (PDF + client page) is made now; later changes become the next revision.',
                            $sendable => 'A frozen copy (PDF) is made now; later changes become the next revision.',
@@ -884,11 +885,11 @@
                         <div><dt class="text-theme-xs text-gray-500">Will be sent as</dt><dd>{{ $quote->number }}{{ $versions->contains('revision', $quote->revision) ? ' R'.($quote->revision + 1) : ($quote->revision > 0 ? ' R'.$quote->revision : '') }}</dd></div>
                     </dl>
                     <label class="mt-4 flex items-start gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
-                        <input type="checkbox" wire:model="sendEmail" @disabled(blank($contact->email)) class="mt-0.5 size-4 rounded border-gray-300">
+                        <input type="checkbox" wire:model="sendEmail" data-unsaved-skip @disabled(blank($contact->email)) class="mt-0.5 size-4 rounded border-gray-300">
                         <span>Also email the PDF{{ $clientPages ? ' and link' : '' }}{{ $contact->email ? ' to '.$contact->email : ' (the client has no email address)' }}</span>
                     </label>
                     <label class="mt-2 flex items-start gap-2 text-theme-sm text-gray-700 dark:text-gray-300">
-                        <input type="checkbox" wire:model="sendWhatsapp" @disabled(! $this->whatsappReady()) class="mt-0.5 size-4 rounded border-gray-300">
+                        <input type="checkbox" wire:model="sendWhatsapp" data-unsaved-skip @disabled(! $this->whatsappReady()) class="mt-0.5 size-4 rounded border-gray-300">
                         <span>Send the link on WhatsApp{{ $this->whatsappReady() ? ' to '.$contact->whatsappNumber() : ($clientPages ? ' (no WhatsApp number, or the API is not connected)' : ' (there is no link while the client pages are switched off)') }}</span>
                     </label>
                     @if ($clientPages)

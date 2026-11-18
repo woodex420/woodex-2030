@@ -41,7 +41,7 @@
 
             <x-admin.card title="4 · Run the import">
                 <p class="text-theme-sm text-gray-600 dark:text-gray-400">Needs a dry run from the last 24 hours. Take a database backup first (System → Health).</p>
-                <form wire:submit="import" class="mt-3 space-y-3">
+                <form wire:submit="import" data-unsaved class="mt-3 space-y-3">
                     <x-admin.field label="Type IMPORT to confirm" for="confirmation">
                         <input id="confirmation" type="text" wire:model="confirmation" class="wx-input" autocomplete="off">
                     </x-admin.field>

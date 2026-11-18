@@ -1,4 +1,4 @@
-<div>
+<div data-unsaved="save">
     <x-admin.page-header title="Payment methods" description="Where each payment method's money lands in the ledger. A verified receipt debits the account mapped here — an unmapped method is a hard stop, so keep all eight mapped."
                          :breadcrumbs="['Accounts' => null, 'Payment methods' => null]">
         <x-slot:actions>

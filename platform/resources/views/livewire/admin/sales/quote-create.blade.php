@@ -4,7 +4,7 @@
     <x-admin.page-header title="New quotation" description="Choose the client and a template. You can change every line afterwards."
                          :breadcrumbs="['Sales' => null, 'Quotations' => route('admin.quotes.index'), 'New' => null]" />
 
-    <form wire:submit="create" class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <form wire:submit="create" data-unsaved class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div class="min-w-0 space-y-6">
             {{-- A brand is chosen only where more than one is sold. Woodex Furniture sells one: no chooser. --}}
             @if (count($brands) > 1)

@@ -5,7 +5,7 @@
     @endif
     <div class="grid gap-5 lg:grid-cols-2">
         <x-admin.card>
-            <form wire:submit="save" class="space-y-4">
+            <form wire:submit="save" data-unsaved class="space-y-4">
                 <x-admin.field label="Brand name" for="form.brand_name"><input id="form.brand_name" wire:model="form.brand_name" class="wx-input" maxlength="35"></x-admin.field>
                 <x-admin.field label="Accent color" for="form.accent_color" hint="Use a dark color with good contrast against white text."><input id="form.accent_color" type="color" wire:model="form.accent_color" class="h-11 w-24 rounded-lg border border-gray-200"></x-admin.field>
                 <x-admin.field label="Header / tagline" for="form.header_text" hint="Empty uses the business tagline from Settings."><input id="form.header_text" wire:model="form.header_text" class="wx-input" maxlength="100"></x-admin.field>

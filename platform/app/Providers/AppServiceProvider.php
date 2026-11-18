@@ -57,6 +57,7 @@ use App\Integrations\Webhooks\WebhookEventListener;
 use App\Integrations\WhatsApp\Clients\WhatsAppCloudApi;
 use App\Integrations\WhatsApp\Contracts\WhatsAppGateway;
 use App\Integrations\WhatsApp\WhatsAppCredentials;
+use App\Livewire\Support\TellsTheBrowserOfComplaints;
 use App\Models\User;
 use App\Support\DebugGuard;
 use Illuminate\Auth\Events\Authenticated;
@@ -192,6 +193,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Re-applied on every Livewire update request, not only on the first page load.
         Livewire::addPersistentMiddleware([EnsureUserIsActive::class]);
+
+        // An answer that carries a complaint says so, and the browser keeps the mark "not saved yet" (T-043).
+        TellsTheBrowserOfComplaints::listen();
 
         // Every saved setting leaves a row in the list of changes (T-067).
         Event::listen(SavingSettings::class, RecordSettingsChange::class);

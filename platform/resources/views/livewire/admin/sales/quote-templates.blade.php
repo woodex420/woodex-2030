@@ -24,7 +24,7 @@
 
     @if ($canEdit)
         <x-admin.card class="mb-4">
-            <form wire:submit="importTemplate" class="flex flex-wrap items-end gap-3">
+            <form wire:submit="importTemplate" data-unsaved class="flex flex-wrap items-end gap-3">
                 <div class="min-w-64 flex-1">
                     <x-admin.field label="Import template file" for="importFile" hint="A .woodex-template.json exported from Woodex OS, or a v2.1 template pack (quotation-templates.json). Existing template names are skipped — nothing is overwritten.">
                         <input id="importFile" type="file" wire:model="importFile" accept=".json,application/json" class="wx-input">

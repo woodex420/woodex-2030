@@ -11,7 +11,7 @@
 
     @if ($showCompose)
         <x-admin.card class="mb-4" title="Compose" description="Write it once; each network gets the same words. The first comment and hashtags ride along.">
-            <form wire:submit="saveDraft" class="space-y-4">
+            <form wire:submit="saveDraft" data-unsaved="submitForReview" class="space-y-4">
                 <x-admin.field label="Caption (English)" for="text">
                     <textarea id="text" rows="3" wire:model="text" class="wx-input" placeholder="A ten-marla home in DHA, handed over on the date we promised."></textarea>
                 </x-admin.field>

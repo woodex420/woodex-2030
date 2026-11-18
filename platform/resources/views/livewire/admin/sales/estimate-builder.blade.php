@@ -1,4 +1,4 @@
-<div>
+<div data-unsaved="save">
     <x-admin.page-header :title="$estimateId !== null ? 'Estimate '.$number : 'New estimate'" description="Shared rates with the website estimator: pick the service, give the size and finish, and the range is honest — essential to premium. Add known rate book items and an explicit contingency. Converting creates a quotation draft; nothing reaches a client from here."
                          :breadcrumbs="['Sales' => null, 'Estimations' => route('admin.estimations.index'), $estimateId !== null ? $number : 'New' => null]">
         <x-slot:actions>
@@ -151,7 +151,7 @@
                     <div class="space-y-3">
                         @if ($status !== 'converted')
                         @if ($estimateId !== null)
-                            <label class="flex items-start gap-2 text-theme-sm"><input type="checkbox" wire:model="confirmReprice" class="mt-1">I compared saved/current amounts and confirm saving with today's rates.</label>
+                            <label class="flex items-start gap-2 text-theme-sm"><input type="checkbox" wire:model="confirmReprice" data-unsaved-skip class="mt-1">I compared saved/current amounts and confirm saving with today's rates.</label>
                             @error('confirmReprice')<p class="text-error-600">{{ $message }}</p>@enderror
                             <x-admin.button variant="ghost" wire:click="discard">Discard unsaved changes</x-admin.button>
                         @endif

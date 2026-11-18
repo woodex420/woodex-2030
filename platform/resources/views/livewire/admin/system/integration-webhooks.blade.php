@@ -7,7 +7,7 @@
         </div>
     @endif
     @if (auth()->user()->hasRole('owner'))
-        <form wire:submit="createWebhook" class="mb-6 space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+        <form wire:submit="createWebhook" data-unsaved class="mb-6 space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
             <div class="grid gap-3 sm:grid-cols-2">
                 <x-admin.field label="App name" for="webhook-name" error="webhookName"><input id="webhook-name" wire:model="webhookName" class="wx-input" placeholder="Zapier — new enquiries"></x-admin.field>
                 <x-admin.field label="Endpoint URL" for="webhook-url" error="webhookUrl"><input id="webhook-url" type="url" wire:model="webhookUrl" class="wx-input" placeholder="https://hooks.zapier.com/…"></x-admin.field>
