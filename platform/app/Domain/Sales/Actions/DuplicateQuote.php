@@ -66,8 +66,8 @@ final class DuplicateQuote
                 $newSection = $copy->sections()->create($section->only(['name', 'note', 'position']));
 
                 $section->items->each(fn (QuoteItem $item) => $newSection->items()->create($item->only([
-                    'catalog_item_id', 'product_name', 'description', 'unit', 'qty', 'rate_minor', 'discount_type', 'discount_value',
-                    'internal_cost_minor', 'is_optional', 'position',
+                    'catalog_item_id', 'product_id', 'product_code', 'price_on_request', 'product_name', 'description', 'unit', 'qty', 'rate_minor',
+                    'discount_type', 'discount_value', 'internal_cost_minor', 'is_optional', 'position',
                 ]) + ['quote_id' => $copy->id]));
             });
 

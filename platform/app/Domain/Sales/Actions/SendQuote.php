@@ -45,14 +45,21 @@ final class SendQuote
      */
     public function problems(Quote $quote): array
     {
-        $items = $quote->items()->get(['id', 'qty', 'rate_minor', 'is_optional']);
+        $items = $quote->items()->get(['id', 'qty', 'rate_minor', 'is_optional', 'price_on_request', 'product_name', 'product_code']);
         $problems = app(DocumentReadiness::class)->problems();
+
+        // A product without a price in the catalogue (T-086). Optional lines count too: the client would read
+        // a price of nothing.
+        foreach ($items->where('price_on_request', true) as $item) {
+            $problems[] = '"'.str((string) ($item->product_name ?: $item->product_code))->limit(60).'" is price on request in the catalogue: type its rate before sending.';
+        }
 
         if ($items->where('is_optional', false)->isEmpty()) {
             $problems[] = 'Add at least one line that is not optional.';
         }
 
-        $unpriced = $items->filter(fn (QuoteItem $item): bool => ! $item->is_optional && ((float) $item->qty <= 0 || $item->rate_minor <= 0))->count();
+        // A line named above is not counted a second time here.
+        $unpriced = $items->filter(fn (QuoteItem $item): bool => ! $item->is_optional && ! $item->price_on_request && ((float) $item->qty <= 0 || $item->rate_minor <= 0))->count();
         if ($unpriced > 0) {
             $problems[] = $unpriced === 1 ? '1 line has no quantity or rate.' : "{$unpriced} lines have no quantity or rate.";
         }
