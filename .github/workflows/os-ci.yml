@@ -372,8 +372,10 @@ jobs:
           echo "the application answers $answer"
           [ "$answer" = 200 ] || { docker logs --tail 60 woodex-hostinger; exit 1; }
 
+      # From here every stage runs even when an earlier one failed, and writes its name down if it did: one run
+      # then says everything that is wrong. The step "Every stage held" decides.
       - name: What the folder hands out, asked from outside, before anything is installed
-        run: bash platform/tools/hostinger/check-bridge.sh "$SITE_URL" "$SITE"
+        run: bash platform/tools/hostinger/check-bridge.sh "$SITE_URL" "$SITE" || echo "the folder's answers before the installation" >> "$RUNNER_TEMP/failed"
 
       - name: The owner installs it in a browser — server check, setup code, database, first account, cron line
         env:
@@ -390,34 +392,39 @@ jobs:
           echo "::add-mask::$value"
           echo "WX_PW_OWNER=$value" >> "$GITHUB_ENV"
           export WX_PW_OWNER="$value" OS_SETUP_CODE_FILE="$SITE/WOODEX-SETUP-CODE.txt"
-          failed=0
-          node scripts/os-install.mjs --out "$RUNNER_TEMP/install" || failed=1
+          node scripts/os-install.mjs --out "$RUNNER_TEMP/install" || echo "the installation in a browser" >> "$RUNNER_TEMP/failed"
           node scripts/os-notice.mjs "A release installed by its owner (Apache, MariaDB 10.11)" "$RUNNER_TEMP/install"
-          exit "$failed"
 
       - name: The same questions from outside, now that the site is installed
-        run: bash platform/tools/hostinger/check-bridge.sh "$SITE_URL" "$SITE"
+        run: bash platform/tools/hostinger/check-bridge.sh "$SITE_URL" "$SITE" || echo "the folder's answers after the installation" >> "$RUNNER_TEMP/failed"
 
       - name: Where the installation keeps what — settings outside the website's folder, nothing of them inside
         run: |
           state="$HOSTING_HOME/woodex-os/staging.woodex.test"
-          test -s "$state/.env"
-          test "$(stat -c %a "$state/.env")" = 600
-          test "$(stat -c %a "$state")" = 750
-          test -z "$(find "$SITE" -name '.env' -o -name '*.sqlite' -o -name 'WOODEX-SETUP-CODE.txt' | head -1)"
-          grep -q '^APP_ENV=production$' "$state/.env"
-          grep -q '^APP_DEBUG=false$' "$state/.env"
-          grep -q '^DB_DATABASE=u123456789_woodex$' "$state/.env"
-          q() { mysql --protocol=TCP -h 127.0.0.1 -uu123456789_woodex -pdisposable-ci-only u123456789_woodex -N -e "$1" 2>/dev/null; }
+          wrong=""
+          must() { "$@" || wrong="$wrong | not so: $*"; }
+          must test -s "$state/.env"
+          must test "$(stat -c %a "$state/.env" 2>/dev/null)" = 600
+          must test "$(stat -c %a "$state" 2>/dev/null)" = 750
+          must test -z "$(find "$SITE" -name '.env' -o -name '*.sqlite' -o -name 'WOODEX-SETUP-CODE.txt' | head -1)"
+          must grep -q '^APP_ENV=production$' "$state/.env"
+          must grep -q '^APP_DEBUG=false$' "$state/.env"
+          must grep -q '^DB_DATABASE=u123456789_woodex$' "$state/.env"
+          q() { mysql --protocol=TCP -h 127.0.0.1 -uu123456789_woodex -pdisposable-ci-only u123456789_woodex -N -e "$1" 2>/dev/null || true; }
           tables=$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
           users=$(q "SELECT COUNT(*) FROM users")
           sample=$(q "SELECT (SELECT COUNT(*) FROM leads) + (SELECT COUNT(*) FROM quotes) + (SELECT COUNT(*) FROM invoices) + (SELECT COUNT(*) FROM commerce_products)")
-          echo "::notice title=After the installation::$(q "SELECT VERSION()"): ${tables} tables, ${users} account, ${sample} leads, quotations, invoices and products; settings in woodex-os/staging.woodex.test/.env (mode 600), outside the website's folder"
-          test "$users" = "1"
-          test "$sample" = "0"
+          must test "$users" = "1"
+          must test "$sample" = "0"
+          if [ -z "$wrong" ]; then
+            echo "::notice title=After the installation::$(q "SELECT VERSION()"): ${tables} tables, ${users} account, ${sample} leads, quotations, invoices and products; settings in woodex-os/staging.woodex.test/.env (mode 600), outside the website's folder"
+          else
+            echo "::error title=After the installation::${tables:-no} tables, ${users:-no} accounts${wrong}"
+            echo "where the installation keeps what" >> "$RUNNER_TEMP/failed"
+          fi
 
       - name: The next deployment — the whole folder is replaced, and the new release brings a database change
-        run: bash platform/tools/hostinger/redeploy.sh "$RUNNER_TEMP/release" "$SITE" replace
+        run: bash platform/tools/hostinger/redeploy.sh "$RUNNER_TEMP/release" "$SITE" replace || echo "the next deployment" >> "$RUNNER_TEMP/failed"
 
       - name: The owner after that deployment — still installed, same password, "Apply update", working on
         env:
@@ -425,19 +432,30 @@ jobs:
           OS_EXPECT_DB: MariaDB 10\.11
           OS_EXPECT_MIGRATION: 2099_01_01_000000_rehearsal_second_release
         run: |
-          failed=0
-          node scripts/os-install.mjs --after-deploy --out "$RUNNER_TEMP/after-deploy" || failed=1
+          node scripts/os-install.mjs --after-deploy --out "$RUNNER_TEMP/after-deploy" || echo "the owner after the next deployment" >> "$RUNNER_TEMP/failed"
           node scripts/os-notice.mjs "The next deployment (Apache, MariaDB 10.11)" "$RUNNER_TEMP/after-deploy"
-          exit "$failed"
 
       - name: What the web server and the application wrote
         if: always()
         run: |
           docker logs woodex-hostinger > "$RUNNER_TEMP/apache.log" 2>&1 || true
-          echo "requests answered with an error of the server: $(grep -c '" 5[0-9][0-9] ' "$RUNNER_TEMP/apache.log" || true)"
+          answered=$(grep -c '" [1-5][0-9][0-9] ' "$RUNNER_TEMP/apache.log" || true)
+          faults=$(grep -c '" 5[0-9][0-9] ' "$RUNNER_TEMP/apache.log" || true)
+          complaints=$(grep -i -E 'php (fatal|warning|parse)|\[(core|rewrite|php|authz_core):(error|crit|alert|emerg)\]' "$RUNNER_TEMP/apache.log" | sed -E 's/^\[[^]]*\] //; s/\[pid [0-9]+(:tid [0-9]+)?\] //; s/\[client [^]]*\] //' | sort | uniq -c | sort -rn | head -6 | tr '\n' '|' | cut -c1-900)
           grep '" 5[0-9][0-9] ' "$RUNNER_TEMP/apache.log" | head -20 || true
-          grep -i -E 'php (fatal|warning)|\[core:|\[rewrite:|AH0[0-9]+' "$RUNNER_TEMP/apache.log" | head -20 || true
           tail -n 20 "$HOSTING_HOME"/woodex-os/staging.woodex.test/storage/logs/*.log 2>/dev/null | cut -c1-400 || true
+          if [ "${faults:-0}" = 0 ] && [ -z "$complaints" ]; then
+            echo "::notice title=The web server's own record::${answered} requests answered by Apache, none with a fault of the server, and no complaint in its error log"
+          else
+            echo "::warning title=The web server's own record::${answered} requests, ${faults} answered with a fault of the server. Its error log: ${complaints:-nothing}"
+          fi
+
+      - name: Every stage held
+        run: |
+          if [ -s "$RUNNER_TEMP/failed" ]; then
+            echo "::error title=The release on a host — not everything held::$(paste -sd';' "$RUNNER_TEMP/failed")"
+            exit 1
+          fi
 
       - name: Keep what the browser saw
         if: always()

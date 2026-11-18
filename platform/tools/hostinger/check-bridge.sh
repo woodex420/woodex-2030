@@ -18,7 +18,8 @@ failed=0; asked=0
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
 ask() { curl -s -o "$tmp/body" -D "$tmp/head" --path-as-is --max-time 30 -w '%{http_code}' "$base$1" 2>/dev/null || echo 000; }
-wrong() { failed=$((failed + 1)); echo "  WRONG  $1"; }
+found=""
+wrong() { failed=$((failed + 1)); echo "  WRONG  $1"; found="$found | $1"; }
 header() { grep -i "^$1:" "$tmp/head" | tail -1 | tr -d '\r' | cut -d: -f2- | sed 's/^ *//'; }
 
 # 1. Refused by the web server itself, before any PHP starts: 403.
@@ -36,8 +37,13 @@ refused=(
 for path in "${refused[@]}"; do
   asked=$((asked + 1)); status="$(ask "$path")"
   # An address with an encoded slash, or one that climbs out of the folder, is refused by Apache before any rule
-  # is read (404, 400). Nothing is handed out either way.
-  if [ "$status" != 403 ] && ! { [[ "$path" == *%2F* || "$path" == *..* ]] && { [ "$status" = 404 ] || [ "$status" = 400 ]; }; }; then wrong "$path answered $status, 403 was expected"; fi
+  # is read (404, 400). Inside platform/public Apache reads that folder's own .htaccess instead of the website
+  # folder's, and it sends the visitor to the clean address (301). Nothing is handed out in any of these cases.
+  ok=no
+  [ "$status" = 403 ] && ok=yes
+  [[ "$path" == *%2F* || "$path" == *..* ]] && { [ "$status" = 404 ] || [ "$status" = 400 ]; } && ok=yes
+  [[ "$path" == /platform/public/* ]] && [ "$status" = 301 ] && [[ "$(header location)" != *platform* ]] && ok=yes
+  [ "$ok" = yes ] || wrong "$path answered $status, 403 was expected"
   if grep -q -E '"require"|APP_KEY=|<\?php|RewriteRule|"commit"' "$tmp/body" 2>/dev/null; then wrong "$path handed out a file"; fi
 done
 
@@ -64,7 +70,9 @@ if [ -n "$site" ]; then
 fi
 
 # 4. Never a script as a file, never a folder as a list: these are the application's.
-for path in /index.php /build/ /build/assets/ /fonts/ /images/; do
+# The last one is Laravel's public folder asked for under a disguised name: it may answer as the application
+# does (that folder is public by nature), never with a script's text.
+for path in /index.php /build/ /build/assets/ /fonts/ /images/ /%70latform/public/index.php /%70latform/public/; do
   asked=$((asked + 1)); status="$(ask "$path")"
   case "$status" in 200|301|302|403|404) ;; *) wrong "$path answered $status" ;; esac
   if grep -q -E '<\?php|Index of /' "$tmp/body" 2>/dev/null; then wrong "$path handed out a script or a list of files"; fi
@@ -77,5 +85,12 @@ status="$(ask /up)"; [ "$status" = 200 ] || wrong "/up (the application's own si
 status="$(ask /robots.txt)"; case "$status" in 200|302|404) ;; *) wrong "/robots.txt answered $status: it is always the application's" ;; esac
 status="$(ask /admin/login)"; case "$status" in 200|302) ;; *) wrong "/admin/login answered $status" ;; esac
 
-if [ "$failed" -gt 0 ]; then echo "$failed of $asked answers are not what the folder's .htaccess promises"; exit 1; fi
+# On GitHub the result is also written as one line on the run page, readable without the log.
+note() { [ "${GITHUB_ACTIONS:-}" = true ] && echo "::$1 title=The website's folder, asked from outside::$(echo "$2" | tr '\n' ' ' | cut -c1-1500)"; return 0; }
+if [ "$failed" -gt 0 ]; then
+  echo "$failed of $asked answers are not what the folder's .htaccess promises"
+  note error "$failed of $asked answers are not what the folder's .htaccess promises$found"
+  exit 1
+fi
 echo "$asked addresses asked: every answer is what the folder's .htaccess promises"
+note notice "$asked addresses asked at $base: nothing of the application's own files is handed out, the public files are served, the rest is the application's"
