@@ -1,0 +1,528 @@
+/*
+ * Woodex OS admin: Tailwind v4 + TailAdmin layout utilities + Preline v5 plugin variants.
+ *
+ * One global design, taken from the storefront (decision DL-013): the store's font (Inter), its
+ * charcoal, its green, its plain greys and its small corners. The values come from
+ * apps/storefront/src/index.css; tests/Unit/AdminDesignTokensTest.php compares the two files, so the
+ * shop and the admin cannot drift apart unnoticed. (Until DL-013 the palette was the React dashboard's.)
+ *
+ * The shapes follow the admin of the same theme, "Woodex Reimagined" (decision DL-017): a light sidebar
+ * whose current screen is filled green, bold headings set tight, white cards with 12 px corners and a
+ * hair of shadow, small upper-case labels above figures, tinted status pills with an edge. Read from
+ * that project's src/index.css, src/admin/Layout.tsx and src/admin/components.tsx on 2026-11-17.
+ *
+ * Two of the store's values are not used as they are, because text in them is too faint (WCAG AA):
+ * white on the store green #629924 is 3.4:1, so filled controls use a darker step of the same green;
+ * and the store's secondary text #737373 is 4.35:1 on its own grey surface, so the admin uses #6b6b6b.
+ *
+ * Colours are set in two places only, both in this file: the scales in @theme below, and the --wx-*
+ * roles under ":root". Blade names a role or a scale step, never a hex value.
+ * tests/Unit/AdminDesignTokensTest.php reads this file and fails if a text pair drops below WCAG AA.
+ * Public pages, document iframes and PDFs keep their own palette in tokens.css.
+ */
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./auth.css";
+@import "preline/variants.css";
+
+@source "../views";
+@source "../js";
+@source "../../app/Livewire";
+@source "../../app/Support";
+@source "../../app/Domain";
+@source "../../node_modules/preline/dist/*.js";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --breakpoint-2xsm: 375px;
+  --breakpoint-xsm: 425px;
+  --breakpoint-3xl: 2000px;
+
+  --text-theme-xs: 12px;
+  --text-theme-xs--line-height: 18px;
+  --text-theme-sm: 14px;
+  --text-theme-sm--line-height: 20px;
+  --text-theme-xl: 20px;
+  --text-theme-xl--line-height: 30px;
+  --text-title-sm: 30px;
+  --text-title-sm--line-height: 38px;
+  --text-title-md: 36px;
+  --text-title-md--line-height: 44px;
+
+  /* Admin neutrals: the store's charcoal (hsl 210 11% x) for the dark steps, its plain greys for the
+     light ones. tokens.css stays unchanged for the website/PDFs. */
+  --color-navy-50: #fafafa;
+  --color-navy-100: #f5f5f5;
+  --color-navy-200: #e0e0e0;
+  --color-navy-300: #d4d4d4;
+  --color-navy-400: #a8adb3;
+  --color-navy-500: #6b6b6b;
+  --color-navy-600: #49525b;
+  --color-navy-700: #394047;
+  --color-navy-800: #2d3339;
+  --color-navy-900: #22262a;
+  --color-navy-950: #17191c;
+
+  /* Legacy brand utility names remain valid in the admin bundle. */
+  /* The store's green (hsl 88 62% x). brand-400 is the store accent itself (#629924): for accents that
+     carry no text — white on it is only 3.4:1. brand-500 is the fill that carries white text (4.7:1);
+     every "bg-brand-500 text-white" in the views is therefore readable. */
+  --color-brand-25: #fafdf6;
+  --color-brand-50: #f5fbee;
+  --color-brand-100: #ebf6df;
+  --color-brand-200: #d3e8ba;
+  --color-brand-300: #b0d685;
+  --color-brand-400: #629924;
+  --color-brand-500: #52801e;
+  --color-brand-600: #4d781c;
+  --color-brand-700: #426718;
+  --color-brand-800: #355313;
+  --color-brand-900: #283e0f;
+  --color-brand-950: #1a2a0a;
+
+  /* TailAdmin neutrals and status colours */
+  --color-gray-25: #fcfcfc;
+  --color-gray-50: #fafafa;
+  --color-gray-100: #f5f5f5;
+  --color-gray-200: #e0e0e0;
+  --color-gray-300: #d4d4d4;
+  /* 400 and 500 are the same on purpose: both are used for text, and a lighter grey is not readable. */
+  --color-gray-400: #6b6b6b;
+  --color-gray-500: #6b6b6b;
+  --color-gray-600: #525252;
+  --color-gray-700: #404040;
+  --color-gray-800: #2b2b2b;
+  --color-gray-900: #1f1f1f;
+  --color-gray-950: #171717;
+
+  /* Corners. Controls 4px, as in the store (--radius: 0.25rem); tiles inside a card 6px; cards 12px, as the
+     cards of the Reimagined admin (DL-017; they were 8px). Every rounded-* utility in the views follows
+     from these five values. */
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 0.75rem;
+
+  --color-success-50: #e9f4ee;
+  --color-success-100: #d3eadd;
+  --color-success-500: #2e8b57;
+  --color-success-600: #256f46;
+  --color-success-700: #1d5a38;
+
+  --color-error-50: #faecea;
+  --color-error-100: #f5d8d6;
+  --color-error-500: #d9534f;
+  --color-error-600: #b23b37;
+  --color-error-700: #8f2f2c;
+
+  --color-warning-50: #faf1de;
+  --color-warning-100: #f4e2ba;
+  --color-warning-500: #d99a24;
+  --color-warning-600: #8a6112;
+  --color-warning-700: #6e4d0e;
+
+  --color-info-50: #e9f1f8;
+  --color-info-100: #d2e2f1;
+  --color-info-500: #3578b8;
+  --color-info-600: #2a629b;
+  --color-info-700: #214e7c;
+
+  --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+  --shadow-theme-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.1), 0px 1px 2px 0px rgba(16, 24, 40, 0.06);
+  --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+  --shadow-theme-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+  --shadow-focus-ring: 0px 0px 0px 4px rgba(98, 153, 36, 0.22);
+}
+
+@layer base {
+  /* Desktop sidebar width. <html data-sidebar="collapsed"> is set before first paint (layouts/admin) and by the
+     sidebar store, so the layout never slides on page load or wire:navigate. */
+  :root {
+    --wx-sidebar-w: 280px;
+    /* Height of the top bar: one row at every width. Anything that sticks below the bar reads this. */
+    --wx-topbar-h: 3.5rem;
+  }
+  :root[data-sidebar='collapsed'] {
+    --wx-sidebar-w: 88px;
+  }
+  @media (min-width: 640px) {
+    :root {
+      --wx-topbar-h: 4rem;
+    }
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  body {
+    @apply relative bg-gray-50 font-sans text-theme-sm text-gray-700 antialiased dark:bg-gray-950 dark:text-gray-300;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-wood-500);
+    outline-offset: 2px;
+  }
+
+  [x-cloak] {
+    display: none !important;
+  }
+
+  /* Headings are set tight and table headings are small upper-case labels, as in the theme (DL-017). In the
+     base layer: a size or weight utility on the element still decides the rest. */
+  .wx-admin :is(h1, h2, h3, h4) {
+    letter-spacing: -0.02em;
+  }
+  .wx-admin thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* A scrolling box holds its own hidden labels. `.sr-only` is absolutely positioned: inside a wide table its
+     containing block was the page, so a label sat 250 px to the right of a phone's window and the whole page
+     scrolled sideways (Users and Access, found by scripts/os-screens.mjs). In the base layer, so that a
+     positioning utility on the same element still wins. */
+  .overflow-x-auto {
+    position: relative;
+  }
+
+  /* Touch targets (WCAG 2.2, 2.5.8): nothing a finger has to hit is smaller than 24 px. Found by
+     scripts/os-screens.mjs on a phone: "Move up" arrows of 20 x 14 px, text buttons 20 px high, 13 px
+     checkboxes. In the base layer, so a larger min-h-* utility on a control still wins. A hidden control
+     (.sr-only) is left alone: its label is what is touched. */
+  .wx-admin :is(button, [role='button'], select, summary):not(.sr-only) {
+    min-height: 1.5rem;
+    min-width: 1.5rem;
+  }
+  .wx-admin :is(input[type='checkbox'], input[type='radio']):not(.sr-only) {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: none;
+    accent-color: var(--wx-primary);
+  }
+}
+
+/* Outside the layers on purpose: on a touch screen a size utility on the box (size-4) must not make it
+   smaller than a finger needs. */
+@media (pointer: coarse) {
+  .wx-admin :is(input[type='checkbox'], input[type='radio']):not(.sr-only) {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+/* ---- TailAdmin sidebar utilities (adapted) ---- */
+@utility menu-item {
+  @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-theme-sm font-medium;
+}
+
+/* The sidebar's colours are the --wx-sidebar-* roles below: light by default, charcoal on request. */
+@utility menu-item-active {
+  background: var(--wx-sidebar-active);
+  color: var(--wx-sidebar-on-active);
+}
+
+@utility menu-item-inactive {
+  color: var(--wx-sidebar-text);
+  &:hover {
+    background: var(--wx-sidebar-hover);
+    color: var(--wx-sidebar-strong);
+  }
+}
+
+@utility menu-item-disabled {
+  @apply cursor-not-allowed text-gray-400 dark:text-gray-600;
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    @apply size-1.5;
+  }
+  &::-webkit-scrollbar-track {
+    @apply rounded-full;
+  }
+  &::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-gray-200 dark:bg-gray-700;
+  }
+}
+
+/* ---- Admin form controls ---- */
+/* Text-sized sibling of wx-mini-btn: a segmented control (Desktop / Tablet / Mobile), a copy
+   button, an "Open" link. wx-mini-btn is a square icon button, so labels overlap inside it. */
+@utility wx-seg-btn {
+  @apply inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-gray-200 px-2.5 text-theme-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5;
+}
+
+@utility wx-mini-btn {
+    @apply inline-flex size-7 items-center justify-center rounded-lg border border-gray-200 text-theme-xs text-gray-500 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-white/5;
+}
+
+@utility wx-input {
+  @apply h-10 w-full rounded-lg border border-gray-300 bg-white px-3.5 text-theme-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-400 focus:shadow-focus-ring focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30;
+}
+
+@utility wx-label {
+  @apply mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300;
+}
+
+/* Kanban drag states (SortableJS) */
+.sortable-ghost {
+  @apply opacity-40;
+}
+
+.sortable-drag {
+  @apply rotate-1 shadow-theme-lg;
+}
+
+/* Quotation workbench: preview occupies its own column, never covers editable controls. */
+.quotation-workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.quotation-editor { min-width: 0; }
+.quotation-preview { position: sticky; top: calc(var(--wx-topbar-h) + 16px); height: calc(100dvh - var(--wx-topbar-h) - 36px); min-height: 480px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e5e5e5; border-radius: 12px; background: #e9e7e2; }
+.quotation-editor .sticky { z-index: 10; }
+@media (max-width: 1023px) {
+  .quotation-workbench { grid-template-columns: minmax(0, 1fr); }
+  .quotation-preview { position: relative; top: auto; height: 75dvh; min-height: 420px; }
+}
+
+/* Revision47: native CRM/communications workspaces. Scoped; public v1 layouts are untouched. */
+.wx-workspace { min-width: 0; }
+.wx-avatar { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:2.5rem; height:2.5rem; border:1px solid var(--color-gray-200); border-radius:50%; background:var(--color-gray-50); color:var(--color-navy-700); font-size:.8rem; font-weight:600; }
+.wx-icon-button { display:inline-flex; align-items:center; justify-content:center; width:2rem; height:2rem; border-radius:.65rem; color:var(--color-gray-500); flex-shrink:0; }
+.wx-icon-button:hover { background:var(--color-gray-100); }
+.wx-underline-tab { display:inline-flex; align-items:center; gap:.45rem; flex-shrink:0; padding:1rem .8rem; border-bottom:2px solid transparent; font-size:.8rem; color:var(--color-gray-500); font-weight:500; }
+.wx-underline-tab:hover,.wx-underline-tab.is-active { color:var(--color-navy-900); border-color:var(--color-navy-900); }
+.wx-count { border-radius:999px; padding:.1rem .45rem; background:var(--color-gray-100); color:var(--color-gray-600); font-size:.65rem; font-weight:600; }
+.wx-eyebrow { display:block; font-size:.6875rem; letter-spacing:.08em; text-transform:uppercase; font-weight:600; color:var(--color-gray-400); }
+.wx-summary-card { display:flex; flex-direction:column; gap:.5rem; padding:1.2rem 1.4rem; background:white; border:1px solid var(--color-gray-200); border-radius:var(--radius-2xl); box-shadow:var(--shadow-theme-xs); }
+.wx-summary-card strong { font-size:1.6rem; line-height:1.1; color:var(--color-navy-900); font-weight:700; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+button.wx-summary-card:hover { border-color:var(--color-navy-300); background:var(--color-brand-25); }
+.wx-filter-panel { padding:1rem; border:1px solid var(--color-gray-200); border-radius:var(--radius-2xl); background:white; box-shadow:var(--shadow-theme-xs); }
+.wx-filter-pill,.wx-history-button { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--color-gray-200); border-radius:999px; background:white; padding:.45rem .9rem; font-size:.75rem; color:var(--color-gray-600); }
+.wx-filter-pill[aria-pressed=true] { background:var(--color-navy-900); color:white; border-color:var(--color-navy-900); }
+.wx-leads-table thead { background:var(--color-gray-50); }
+.wx-leads-table td { padding-top:1rem; padding-bottom:1rem; }
+.wx-section-nav { border-bottom:1px solid var(--color-gray-200); }
+.wx-activity-timeline > li { padding-bottom:.7rem; }
+.wx-activity-timeline > li > div { border:1px solid var(--color-gray-100); border-radius:.8rem; padding:.85rem 1rem; background:var(--color-gray-25); }
+.wx-inbox-grid { display:grid; grid-template-columns:minmax(0,1fr); overflow:hidden; border:1px solid var(--color-gray-200); border-radius:1rem; background:white; }
+.wx-conversation-list { min-width:0; }
+.wx-conversation-scroll { max-height:65dvh; }
+.wx-conversation-row.is-selected { box-shadow:inset 3px 0 0 var(--color-navy-800); }
+.wx-conversation-thread { height:min(850px,calc(100dvh - 14rem)); min-height:500px; }
+.wx-message-canvas { background:#f5f7fa; overscroll-behavior:contain; }
+.wx-message-bubble { overflow-wrap:anywhere; min-width:0; }
+.wx-message-bubble audio,.wx-message-bubble video { max-width:100%; }
+.wx-message-date { text-align:center; font-size:.65rem; color:var(--color-gray-400); padding:.6rem; }
+.wx-chat-drawer { max-width:680px; }
+.wx-live-chat-list { width:190px; }
+.dark .wx-summary-card,.dark .wx-filter-panel,.dark .wx-inbox-grid,.dark .wx-filter-pill,.dark .wx-history-button { background:var(--color-gray-900); border-color:var(--color-gray-800); color:var(--color-gray-300); }
+.dark .wx-summary-card strong,.dark .wx-underline-tab.is-active { color:white; }
+.dark .wx-avatar,.dark .wx-count { background:var(--color-gray-800); border-color:var(--color-gray-700); color:var(--color-gray-300); }
+.dark .wx-message-canvas { background:#111827; }
+.dark .wx-activity-timeline > li > div,.dark .wx-leads-table thead { background:var(--color-gray-900); border-color:var(--color-gray-800); }
+.dark .wx-underline-tab.is-active { border-color:white; }
+@media(min-width:1024px) { .wx-inbox-grid { grid-template-columns:310px minmax(0,1fr); } .wx-conversation-list { border-right:1px solid var(--color-gray-200); } .wx-conversation-scroll { max-height:min(780px,calc(100dvh - 19rem)); } }
+@media(max-width:639px) { .wx-live-chat-layout { flex-direction:column; } .wx-live-chat-list { display:flex; width:100%; max-height:130px; border-right:0; border-bottom:1px solid var(--color-gray-200); overflow-x:auto; } .wx-live-chat-list > button { flex:0 0 145px; margin-bottom:0; } .wx-conversation-thread { height:calc(100dvh - 10rem); } .wx-alert-panel { position:fixed; right:1rem; top:4.5rem; margin-top:0; } .wx-underline-tab { padding:.85rem .6rem; } }
+
+.wx-conversation-thread textarea.wx-input,.wx-chat-drawer textarea.wx-input { height:auto; min-height:3.25rem; }
+
+/* Never let a success toast intercept the right-hand chat Send button. */
+.wx-toast-stack { left:1rem; top:5rem; width:calc(100vw - 2rem); max-width:24rem; }
+@media(min-width:640px) { .wx-toast-stack { top:auto; bottom:1rem; } }
+
+/* Current79: neutral charcoal Light / Dark / System surfaces. Admin bundle only;
+   public v1, document iframe styles and frozen PDF renderers retain their own paper palette. */
+:root {
+  --wx-page: #f7f7f7;
+  --wx-surface: #ffffff;
+  --wx-elevated: #f5f5f5;
+  --wx-text: #1f1f1f;
+  --wx-muted: #6b6b6b;
+  --wx-border: #e0e0e0;
+  --wx-control-border: #858585;
+  --wx-primary: #52801e;
+  --wx-primary-hover: #4d781c;
+  --wx-on-primary: #ffffff;
+  --wx-accent: #629924;
+  --wx-focus: #52801e;
+  --wx-chat-canvas: #f5f5f5;
+  /* The store's charcoal (its --primary): the dark sidebar, and anything else that is meant to be dark. */
+  --wx-charcoal: #22262a;
+  /* A pale green tile and the text that sits on it: icon tiles, the initials of the signed-in person. */
+  --wx-primary-soft: #ebf6df;
+  --wx-on-primary-soft: #355313;
+
+  /* The sidebar, as in the Reimagined admin (DL-017): white, and the current screen filled green. */
+  --wx-sidebar-bg: #ffffff;
+  --wx-sidebar-border: #e0e0e0;
+  --wx-sidebar-text: #525252;
+  --wx-sidebar-strong: #1f1f1f;
+  --wx-sidebar-muted: #6b6b6b;
+  --wx-sidebar-hover: #f5f5f5;
+  --wx-sidebar-active: #52801e;
+  --wx-sidebar-on-active: #ffffff;
+  --wx-sidebar-accent: #52801e;
+  --wx-sidebar-focus: #52801e;
+}
+/* The charcoal sidebar of specification 05, kept as a choice: WOODEX_ADMIN_SIDEBAR_TONE=charcoal. */
+:root[data-sidebar-tone='charcoal'] {
+  --wx-sidebar-bg: #22262a;
+  --wx-sidebar-border: #2d3339;
+  --wx-sidebar-text: #d4d7da;
+  --wx-sidebar-strong: #ffffff;
+  --wx-sidebar-muted: #a8adb3;
+  --wx-sidebar-hover: #2d3339;
+  --wx-sidebar-active: #394047;
+  --wx-sidebar-on-active: #ffffff;
+  --wx-sidebar-accent: #91d345;
+  --wx-sidebar-focus: #91d345;
+  --wx-sidebar-marker: #91d345;
+}
+:root.dark {
+  --wx-page: #17191c;
+  --wx-surface: #22262a;
+  --wx-elevated: #2d3339;
+  --wx-text: #f2f2f2;
+  --wx-muted: #a8adb3;
+  --wx-border: #394047;
+  --wx-control-border: #858585;
+  --wx-primary: #629924;
+  --wx-primary-hover: #6fae29;
+  --wx-on-primary: #0f1410;
+  --wx-accent: #629924;
+  --wx-focus: #91d345;
+  --wx-chat-canvas: #17191c;
+  --wx-primary-soft: #283e0f;
+  --wx-on-primary-soft: #d3e8ba;
+  /* In the dark theme the sidebar is dark whichever tone was chosen; the current screen stays green. */
+  --wx-sidebar-bg: #1b1e22;
+  --wx-sidebar-border: #2d3339;
+  --wx-sidebar-text: #d4d7da;
+  --wx-sidebar-strong: #ffffff;
+  --wx-sidebar-muted: #a8adb3;
+  --wx-sidebar-hover: #2d3339;
+  --wx-sidebar-active: #629924;
+  --wx-sidebar-on-active: #0f1410;
+  --wx-sidebar-accent: #91d345;
+  --wx-sidebar-focus: #91d345;
+  --color-gray-400: #a8adb3;
+  --color-gray-500: #a8adb3;
+  --color-gray-900: #22262a;
+  --color-gray-950: #17191c;
+}
+body.wx-admin { background:var(--wx-page); color:var(--wx-text); }
+.wx-admin :is(.text-gray-400,.text-gray-500):not([class*="dark:text-"]) { color:var(--wx-muted); }
+.wx-admin :focus-visible { outline:2px solid var(--wx-focus); outline-offset:3px; }
+.wx-admin-header,.wx-surface,.wx-web-lead,.wx-theme-picker { background:var(--wx-surface); border-color:var(--wx-border); color:var(--wx-text); }
+.wx-admin-sidebar { background:var(--wx-sidebar-bg); border-color:var(--wx-sidebar-border); color:var(--wx-sidebar-text); }
+.wx-sidebar-brand { color:var(--wx-sidebar-strong); }
+.wx-sidebar-heading { color:var(--wx-sidebar-muted); }
+button.wx-sidebar-heading:hover { color:var(--wx-sidebar-strong); }
+.wx-sidebar-search { background:var(--wx-sidebar-hover); border:1px solid var(--wx-sidebar-border); color:var(--wx-sidebar-strong); }
+.wx-sidebar-search::placeholder { color:var(--wx-sidebar-muted); opacity:1; }
+.wx-sidebar-search:focus { border-color:var(--wx-sidebar-accent); outline:none; }
+.wx-sidebar-search-icon { color:var(--wx-sidebar-muted); }
+.wx-sidebar-badge { background:var(--wx-sidebar-accent); color:var(--wx-sidebar-bg); }
+/* On the current screen (filled) the count turns round: the fill's text colour as ground, the fill as text. */
+.menu-item-active .wx-sidebar-badge { background:var(--wx-sidebar-on-active); color:var(--wx-sidebar-active); }
+/* The brand, as in the theme: the mark on a green tile, the name heavy and tight, the line below it small,
+   green and widely spaced. Only where the admin shows it (sidebar, sign-in, error and setup pages): the
+   public pages and documents use the same component with their own look. */
+.wx-brand svg { width:2.25rem; height:2.25rem; padding:.3rem; border-radius:var(--radius-xl); background:var(--wx-primary); color:var(--wx-on-primary); }
+.wx-brand .font-heading { font-size:19px; font-weight:800; letter-spacing:-0.01em; }
+.wx-brand small { margin-top:.3rem; font-size:9.5px; font-weight:600; letter-spacing:.24em; color:var(--wx-sidebar-accent); }
+/* Drawn inside the element: the list scrolls, and a ring outside it would be cut off at both sides. */
+.wx-admin .wx-admin-sidebar :focus-visible { outline:2px solid var(--wx-sidebar-focus); outline-offset:-2px; }
+.wx-admin .wx-input { background:var(--wx-surface); border-color:var(--wx-control-border); color:var(--wx-text); }
+.wx-admin .wx-input::placeholder { color:var(--wx-muted); opacity:1; }
+/* A select draws the theme's arrow, not the browser's own (which differs on every system). The arrow is a
+   mid grey that reads on the white surface and on the dark one (3.7:1 and 4.1:1). Not for a list box. */
+.wx-admin select.wx-input:not([multiple]):not([size]) { appearance:none; padding-right:2.25rem; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23858585' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right .7rem center; background-size:1rem; text-overflow:ellipsis; }
+.wx-primary-button,.wx-primary-bubble { background:var(--wx-primary); color:var(--wx-on-primary); }
+.wx-primary-button:hover { background:var(--wx-primary-hover); }
+.wx-summary-card,.wx-filter-panel,.wx-inbox-grid,.wx-filter-pill,.wx-history-button,
+.dark .wx-summary-card,.dark .wx-filter-panel,.dark .wx-inbox-grid,.dark .wx-filter-pill,.dark .wx-history-button { background:var(--wx-surface); border-color:var(--wx-border); color:var(--wx-text); }
+.wx-summary-card strong,.dark .wx-summary-card strong { color:var(--wx-text); }
+button.wx-summary-card:hover { background:var(--wx-elevated); border-color:var(--wx-control-border); }
+.wx-eyebrow,.wx-message-date { color:var(--wx-muted); }
+.wx-avatar,.wx-count,.dark .wx-avatar,.dark .wx-count { background:var(--wx-elevated); color:var(--wx-text); border-color:var(--wx-border); }
+.wx-message-canvas,.dark .wx-message-canvas { background:var(--wx-chat-canvas); }
+.wx-filter-pill[aria-pressed=true] { background:var(--wx-primary); color:var(--wx-on-primary); border-color:var(--wx-primary); }
+.wx-underline-tab:hover,.wx-underline-tab.is-active,.dark .wx-underline-tab.is-active { color:var(--wx-text); border-color:var(--wx-primary); }
+.wx-chat-pending,.wx-environment { background:var(--wx-elevated); color:var(--wx-text); border-color:var(--wx-border); }
+.dark .wx-admin :is(.text-success-700,.text-success-600) { color:#6ce9a6; }
+.dark .wx-admin :is(.text-error-700,.text-error-600) { color:#fda29b; }
+.dark .wx-admin :is(.text-warning-700,.text-warning-600) { color:#fec84b; }
+.dark .wx-admin .bg-success-50 { background:#12392d; }
+.dark .wx-admin .bg-error-50 { background:#402126; }
+.dark .wx-admin .bg-warning-50 { background:#3d301c; }
+@media (prefers-reduced-motion:reduce) { .wx-admin *, .wx-admin *::before, .wx-admin *::after { scroll-behavior:auto !important; transition-duration:0.01ms !important; animation-duration:0.01ms !important; } }
+
+/* ---- Top bar (master plan §7.2, slice 1.4): one row at every width; colours are --wx-* roles only ---- */
+.wx-topbar-button { position:relative; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:2.5rem; height:2.5rem; border-radius:var(--radius-lg); color:var(--wx-muted); }
+.wx-topbar-button:hover { background:var(--wx-elevated); color:var(--wx-text); }
+.wx-topbar-search { display:flex; align-items:center; gap:.625rem; width:100%; height:2.5rem; padding:0 .75rem; border:1px solid var(--wx-border); border-radius:var(--radius-lg); background:var(--wx-page); color:var(--wx-muted); font-size:14px; text-align:left; }
+.wx-topbar-search:hover { border-color:var(--wx-control-border); background:var(--wx-surface); }
+.wx-topbar-trail { color:var(--wx-muted); }
+.wx-topbar-crumb { max-width:16rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wx-muted); }
+a.wx-topbar-crumb:hover { color:var(--wx-text); text-decoration:underline; text-underline-offset:3px; }
+.wx-topbar-crumb.is-current { color:var(--wx-text); font-weight:500; }
+.wx-topbar-new { display:inline-flex; align-items:center; justify-content:center; gap:.375rem; flex-shrink:0; width:2.5rem; height:2.5rem; border-radius:var(--radius-lg); background:var(--wx-primary); color:var(--wx-on-primary); font-size:14px; font-weight:500; }
+.wx-topbar-new:hover { background:var(--wx-primary-hover); }
+@media (min-width:768px) { .wx-topbar-new { width:auto; padding:0 .875rem 0 .625rem; } }
+.wx-topbar-user { display:inline-flex; align-items:center; gap:.5rem; flex-shrink:0; height:2.5rem; padding:0 .25rem; border-radius:var(--radius-lg); color:var(--wx-text); }
+.wx-topbar-user:hover { background:var(--wx-elevated); }
+.wx-topbar-avatar { display:flex; align-items:center; justify-content:center; width:2.25rem; height:2.25rem; border-radius:999px; background:var(--wx-primary-soft); color:var(--wx-on-primary-soft); font-size:12px; font-weight:700; }
+/* The bar lets the page show through a little while it scrolls underneath, as in the theme. */
+@supports (backdrop-filter: blur(8px)) { .wx-admin-header { background:color-mix(in srgb, var(--wx-surface) 90%, transparent); backdrop-filter:blur(8px); } }
+.wx-topbar-role,.wx-page-back { color:var(--wx-muted); }
+.wx-page-back:hover { color:var(--wx-text); }
+.wx-topbar-menu { padding:.375rem; border:1px solid var(--wx-border); border-radius:var(--radius-2xl); background:var(--wx-surface); color:var(--wx-text); box-shadow:0 12px 32px rgb(0 0 0 / .12); }
+.wx-topbar-menu-head { margin-bottom:.25rem; padding:.25rem .75rem .625rem; border-bottom:1px solid var(--wx-border); }
+.wx-topbar-menu-item { display:flex; align-items:center; gap:.75rem; padding:.5rem .75rem; border-radius:var(--radius-lg); color:var(--wx-text); font-size:14px; text-align:left; }
+.wx-topbar-menu-item:hover,.wx-topbar-menu-item:focus-visible { background:var(--wx-elevated); }
+.wx-topbar-menu-item svg { color:var(--wx-muted); }
+.wx-kbd { padding:0 .375rem; border:1px solid var(--wx-border); border-radius:var(--radius-lg); background:var(--wx-surface); color:var(--wx-muted); font-family:inherit; font-size:11px; line-height:1.5; }
+.wx-theme-choice { display:inline-flex; align-items:center; justify-content:center; gap:.25rem; height:1.875rem; border-radius:3px; color:var(--wx-muted); font-size:12px; }
+.wx-theme-choice:hover { color:var(--wx-text); }
+.wx-theme-choice[aria-pressed=true] { background:var(--wx-elevated); box-shadow:inset 0 0 0 1px var(--wx-control-border); color:var(--wx-text); font-weight:600; }
+
+/* Cards (x-admin.card, x-admin.stat): white, a 1 px edge, 12 px corners and a hair of shadow, as in the theme. */
+.wx-card,.wx-stat { box-shadow:var(--shadow-theme-xs); }
+a.wx-stat:hover { border-color:var(--wx-primary); box-shadow:var(--shadow-theme-sm); }
+.wx-stat-tile { background:var(--wx-primary-soft); color:var(--wx-on-primary-soft); }
+/* The green fill marks the current screen. Only the charcoal sidebar, whose current screen is a grey step,
+   needs the bar at its edge as well. */
+:root[data-sidebar-tone='charcoal']:not(.dark) .wx-admin .menu-item-active::before { content:""; position:absolute; left:0; top:25%; bottom:25%; width:3px; border-radius:3px; background:var(--wx-sidebar-marker); }
+@media (prefers-reduced-motion: reduce) {
+  .wx-admin-sidebar,.wx-stat,.wx-admin .menu-item { transition:none !important; }
+}
+
+/* Product workspace: readable form + persistent visual summary; no fixed-width mobile overflow. */
+.wx-product-layout { display: grid; gap: 24px; align-items: start; }
+.wx-product-sidebar { min-width: 0; }
+.wx-category-picker { max-height: 340px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+@media (min-width: 1100px) {
+    .wx-product-layout { grid-template-columns: minmax(0, 1fr) 340px; }
+    /* Below the top bar, which is sticky too: at top: 24px the summary slid under it. */
+    .wx-product-sidebar { position: sticky; top: calc(var(--wx-topbar-h) + 16px); max-height: calc(100vh - var(--wx-topbar-h) - 32px); overflow: auto; }
+}

@@ -1,0 +1,187 @@
+{
+  "segments": [
+    {
+      "id": "office",
+      "name": "Office Furniture",
+      "slug": "office-furniture",
+      "groups": [
+        {
+          "id": "office-tables",
+          "name": "Office Tables",
+          "children": [
+            {
+              "id": "executive-tables",
+              "name": "Executive Tables"
+            },
+            {
+              "id": "manager-tables",
+              "name": "Manager Tables"
+            },
+            {
+              "id": "staff-tables",
+              "name": "Staff Tables"
+            },
+            {
+              "id": "meeting-tables",
+              "name": "Meeting Tables"
+            },
+            {
+              "id": "reception-tables",
+              "name": "Reception Tables"
+            }
+          ]
+        },
+        {
+          "id": "seating-more",
+          "name": "Seating & More",
+          "children": [
+            {
+              "id": "chairs",
+              "name": "Office Chairs"
+            },
+            {
+              "id": "workstations",
+              "name": "Workstations"
+            },
+            {
+              "id": "cubicle-workstations",
+              "name": "Cubicle Workstations"
+            },
+            {
+              "id": "office-sofas",
+              "name": "Office Sofas"
+            },
+            {
+              "id": "storage",
+              "name": "Office Storage"
+            },
+            {
+              "id": "cafe",
+              "name": "Cafe Furniture"
+            },
+            {
+              "id": "public",
+              "name": "Public Sitting"
+            },
+            {
+              "id": "home-office",
+              "name": "Home Office"
+            },
+            {
+              "id": "acoustic",
+              "name": "Acoustic Furniture"
+            },
+            {
+              "id": "collaborative",
+              "name": "Collaborative Furniture"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "home",
+      "name": "Home Furniture",
+      "slug": "home-furniture",
+      "groups": [
+        {
+          "id": "bedroom",
+          "name": "Bedroom",
+          "children": [
+            {
+              "id": "bed-sets",
+              "name": "Bed Sets"
+            },
+            {
+              "id": "bedside-tables",
+              "name": "Bedside Tables"
+            },
+            {
+              "id": "dressing-tables",
+              "name": "Dressing Tables"
+            },
+            {
+              "id": "mirrors",
+              "name": "Mirrors"
+            },
+            {
+              "id": "bench-settee",
+              "name": "Bench & Settee"
+            }
+          ]
+        },
+        {
+          "id": "living",
+          "name": "Living Room",
+          "children": [
+            {
+              "id": "home-sofa",
+              "name": "Home Sofa"
+            },
+            {
+              "id": "center-side-tables",
+              "name": "Center & Side Tables"
+            },
+            {
+              "id": "coffee-tables",
+              "name": "Coffee Tables"
+            },
+            {
+              "id": "console",
+              "name": "Console"
+            },
+            {
+              "id": "tv-units",
+              "name": "TV Units"
+            }
+          ]
+        },
+        {
+          "id": "dining",
+          "name": "Dining",
+          "children": [
+            {
+              "id": "dining-sets",
+              "name": "Dining Sets"
+            },
+            {
+              "id": "dining-chairs",
+              "name": "Dining Chairs"
+            },
+            {
+              "id": "dining-tables",
+              "name": "Dining Tables"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "aliases": {
+    "office-storage": "storage",
+    "cafe-furniture": "cafe",
+    "public-sitting": "public"
+  },
+  "series": [
+    {
+      "id": "ek-series",
+      "name": "Ek Series"
+    },
+    {
+      "id": "infinity-series",
+      "name": "Infinity Series"
+    },
+    {
+      "id": "woodex-series",
+      "name": "Woodex Series"
+    },
+    {
+      "id": "cubicle-series",
+      "name": "Cubicle Series"
+    },
+    {
+      "id": "nova-series",
+      "name": "Nova Series"
+    }
+  ]
+}
