@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Website\Services\SiteRouter;
+use App\Http\Middleware\ApiV1;
 use App\Http\Middleware\AssignRequestNumber;
 use App\Http\Middleware\EnsureAnyPermission;
 use App\Http\Middleware\EnsureDatabaseIsCurrent;
@@ -10,6 +11,7 @@ use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RedirectToInstaller;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VerifyTelegramWebhook;
+use App\Support\Api\ApiErrors;
 use App\Support\Install\PackageLists;
 use App\Support\Install\SiteState;
 use App\Support\Modules;
@@ -44,6 +46,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'db-current' => EnsureDatabaseIsCurrent::class,
             'can-any' => EnsureAnyPermission::class,
             'module' => EnsureModuleIsEnabled::class,
+            'api.v1' => ApiV1::class,
         ]);
 
         // Authenticate before actor throttling even after Laravel sorts route middleware by priority.
@@ -82,6 +85,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->is('webhooks/*') || $request->expectsJson(),
         );
+
+        // Under /api/v1 every error leaves in one shape, with a code from a closed list (T-063). First, so that
+        // nothing below answers such a request in a shape of its own.
+        $exceptions->render(fn (Throwable $exception, Request $request) => ApiErrors::render($exception, $request));
 
         // The database ended this request because somebody else was writing the same records in that moment: the
         // person is told so and to do it again, with 409 and not "something went wrong on our side" (T-093).

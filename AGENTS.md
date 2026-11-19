@@ -330,6 +330,23 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   is written** (`App\Domain\Sales\Services\InvoiceLocks`), because a row that points at an invoice holds that
   invoice for reading. A new action that writes money gets a step in the command, and the check of that step
   (the same run with the lock taken out must report the fault) goes into the CI job.
+- **An enquiry takes its turn before it asks who the person is** (master list T-063). Two visitors who were
+  both new, in the same moment, each held the empty place of the other's contact, and the database ended one
+  of the two. `App\Domain\Crm\Actions\CaptureLead` now takes `App\Domain\Crm\Services\EnquiryTurn` first
+  (the row every enquiry takes its number from) and asks afterwards. The order is: the key of the request, the
+  turn, a contact's own row; nothing that holds a contact's row may ask for the turn.
+  `tests/Feature/Crm/EnquiryTurnTest.php` keeps it and names every place that asks the contacts with a lock.
+  One of them still asks outside the turn: the WhatsApp inbox, which is switched off (master list T-190 cures
+  it before the inbox is opened).
+- **`/api/v1` has rules** (`docs/woodex-os/29-API-V1-RULES.md`, master list T-063), a contract
+  (`platform/resources/api/v1.openapi.json`) and a test that holds every address to both
+  (`platform/tests/Feature/Api/V1ContractTest.php`). An answer is built by `App\Support\Api\ApiAnswer`, a
+  refusal is an `App\Support\Api\Problem` with a code of the closed list, never `response()->json(…)`; a
+  create goes through `App\Support\Api\Idempotency::once` and gets a step in the two-writers command. To add
+  or change an address follow §12 of the rules: the contract first, the shop's caller
+  (`apps/storefront/src/lib/apiV1.ts`) in the same commit, and every changed shape named in the release report.
+  Staff have no JSON API and need none. `POST /api/public/leads` and the old website's two addresses keep
+  their older shapes on purpose.
 - **A changed requirement changes a test; it does not delete one.** When the roadmap left the sidebar, the
   tests that expected "Soon" entries were rewritten to expect them on Feature status.
 - The root `index.php` and `.htaccess` are the Hostinger entry of this application. Vercel does not use them.

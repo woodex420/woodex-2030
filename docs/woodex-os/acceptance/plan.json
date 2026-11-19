@@ -1,7 +1,7 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
-  "written": "2026-11-18",
-  "commit": "ea9dd71",
+  "written": "2026-11-19",
+  "commit": "d93b112",
   "sizes": {
     "S": "small",
     "M": "medium",
@@ -47,7 +47,6 @@
     "T-054": "Keyboard and screen-reader tests in a browser",
     "T-055": "The notification bell's request every 30 seconds, measured on the real host",
     "T-060": "One role and permission matrix from the two systems",
-    "T-063": "The rules of `/api/v1`, held by a contract test",
     "T-064": "Business settings in one screen: currency, time zone, tax rules",
     "T-065": "A screen for sign-in locks and open sessions",
     "T-066": "A currency code on payments, bills, expenses and journal lines",
@@ -122,40 +121,44 @@
     "T-186": "Training and handover",
     "T-187": "Say whether Supabase keeps backups, or give the database address as a secret",
     "T-188": "The shop's old previews are gone",
-    "T-189": "Close pull request #29: its work is already in `main`"
+    "T-189": "Close pull request #29: its work is already in `main`",
+    "T-190": "The WhatsApp inbox takes the enquiry's turn before it asks who is writing"
   },
   "notes": {
     "T-080": "Done on the rehearsal on 17 November. What is left is the same journey on staging.",
-    "T-105": "It can be built and proven on the rehearsal as soon as T-063 is done. Switching the live shop over also needs the real admin on Hostinger (T-133).",
+    "T-105": "The reading is built and proven on the rehearsal, behind a switch of the shop that stays off. Switching the live shop over, and closing the Node catalogue, also needs the real admin on Hostinger (T-133) and products that are published there (T-090); until then the line stays open.",
     "T-115": "Building the prototype needs nobody. Accepting it is yours: gate C.",
-    "T-188": "Nobody acts: Vercel deletes each preview 30 days after it was built. The outside check watches one of them."
+    "T-188": "Nobody acts: Vercel deletes each preview 30 days after it was built. The outside check watches one of them.",
+    "T-190": "Cannot happen today: the inbox is switched off and no WhatsApp account is connected (D-044). Done with the inbox's own acceptance (T-118), before it is switched on."
   },
   "rounds": [
     {
-      "name": "The rules of the API the shop will use",
-      "why": "P1, and of the lines that need nobody the one the most other work stands behind: the shop's reading of the catalogue (T-105), and after it the page builder.",
+      "name": "The shop reads its products from `/api/v1`, behind a switch that stays off",
+      "why": "P1, and the owner's word of 19 November (\"start as you recommend\", DL-037). Website Studio and Marketing, 17 of the 36 destinations of Feature status that are not open, wait for this line and then for the page builder (T-115); the Orders screen waits for it too. It is the first address of `/api/v1` in pages and the first that hands out money, so the rules of T-063 are tried on it before anything else is built on them.",
       "lines": [
         {
-          "id": "T-063",
-          "size": "M",
-          "found": "`/api/v1` has seven endpoints: the categories and their pictures, the media list and its files, an enquiry, the WhatsApp hand-off and a basket request. Each answers in its own shape. The React shop already holds a caller for each. On the live shop none of them reaches Laravel: the two switches of its forms and the address of the Laravel API are not among the settings of its Vercel project (read on 17 November). The shop's contract tests in CI hold today's shapes.",
+          "id": "T-105",
+          "size": "L",
+          "found": "Read in the code on 19 November; nothing of it is built. The shop reads its products from its own Node API (`/api/products`, and `/api/products/overrides` for changed prices and stock), which reads the shop's database: the 148 sample products (D-007). Categories, series and pictures it can already read from `/api/v1`, through two bridges of the Node API, behind a switch that is off. `/api/v1` has no address for products. Laravel keeps each of the 170 real products as a draft and a published copy; all 170 are drafts, and publishing one asks for a review, a category, a price, a description, the shipping and warranty texts, a picture with its description, and a preview seen by the person who publishes (D-009, T-090). The basket prices its lines from the sales catalogue by the shop's own product number, not from these products.",
           "build": [
-            "The rules, written down in one document: the answer as `data` / `meta` / `error` with error codes, pages, the filters that are allowed, an idempotency key on every create, money as whole minor units, times in UTC, and how the shop or an outside client signs in. Recorded with it: staff need no JSON API.",
-            "One builder for answers and one handler for errors, used by all seven endpoints, so that a refused field, a missing record, too many requests and a fault all arrive in the same shape, each with the request number of T-062.",
-            "A create that is sent twice with the same key writes once and answers the same.",
-            "The shop's callers move to the new shape in the same commit."
+            "`GET /api/v1/catalogue/products`, in pages, and one product by its address: only the published copy of a product that is not archived, never the draft. Prices as whole paisa with the currency, times in UTC, the filters the contract names (category, series, changed since) and no other. Written into `platform/resources/api/v1.openapi.json` and document 29 first.",
+            "The pictures of a published product at an address of their own, as the categories' pictures are.",
+            "A bridge in the shop's Node API and a reader in the React shop that turn the answer into the product the pages use today, behind a switch of the shop that stays off. With the switch off the shop reads exactly what it reads today.",
+            "How a basket of products read from Laravel is priced: the round decides it, records the decision, and a test sends such a basket."
           ],
           "tests": [
-            "A contract test names every route under `/api/v1`: a route added without its contract fails it.",
-            "For each endpoint the answer is compared key by key: success, a refused field (422), not found (404), wrong method (405), too many requests (429) and a fault (500).",
-            "The same idempotency key twice gives one record and the same answer; the same key with other content is refused.",
-            "Money arrives as whole numbers and times in UTC; the request number in the answer equals the one in the header.",
-            "The existing tests of the seven endpoints, and the shop's contract tests of its callers, move to the new shape in the same commit; each change is listed in the round's report.",
-            "After the merge the outside check asks one address of `/api/v1` on the live demo and requires the new error shape."
+            "The contract test names the new routes, and each answer is compared with the contract key by key: success, a page beyond the last, a filter that is not allowed (400), a product that is not published (404), too many requests (429).",
+            "A draft, a withdrawn product and an archived one are never handed out, by the list or by their own address; what is handed out is the published copy, also when the draft was changed after it.",
+            "Money arrives as whole paisa; a product without a price is \"on request\" and carries no figure; a sale price is handed out only between its two dates.",
+            "The shop's reader is run against the answers the contract documents, in CI's `build-and-test`, and against a real answer of Laravel on the rehearsal: the same name, price and pictures arrive in the product the pages use.",
+            "With the switch off the shop asks Laravel nothing: its build and its existing scripts give what they gave before.",
+            "After the merge the outside check asks the products address on the live demo."
           ],
-          "browser": [],
-          "against": "With one endpoint left in its old shape, the contract test names it.",
-          "back": "On the live shop the switches are off, so no visitor's request reaches these endpoints. The round changes files of the React shop, its callers: the release report names them before the merge. The endpoints of the old website's bridge keep their shape; that module is switched off."
+          "browser": [
+            "On the rehearsal a product is published in the admin by a browser. The shop's bridge, pointed at that rehearsal, hands it to the shop's reader, and the product is shown with its name, price and picture. Withdrawn in the admin, it is gone from the shop."
+          ],
+          "against": "With the draft handed out in place of the published copy, the test of the unpublished product names it; with the shop's reader left reading rupees where paisa arrive, its script names the price.",
+          "back": "The shop's switch stays off: the live shop reads what it reads today, and the round changes no setting of either Vercel project. The new addresses hand out only published products, and none is published on the demo. The Node catalogue is not closed in this round."
         }
       ]
     },
@@ -519,43 +522,49 @@
     {
       "check": "The Laravel test suite",
       "where": "In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/`",
-      "today": "2,568 pass, 36 skipped, none fails: run in the sandbox on 18 November, 15:19 to 15:26 UTC, on the code of pull request #45. In CI on `8549036`, on each of the three servers: 2,569 pass, 35 skipped",
+      "today": "2,674 pass, 36 skipped, none fails: run in the sandbox on 19 November, 12:40 to 12:45 UTC, on the code of pull request #47. In CI on `d93b112`, on each of the three servers: 2,675 pass, 35 skipped",
       "catches": "A rule, a screen or a permission that no longer does what its test says"
     },
     {
-      "check": "Two people writing in the accounts at the same moment (`platform/tools/ci/two-writers.php`)",
+      "check": "Two writers at the same moment: in the accounts, and two enquiries or baskets of the shop (`platform/tools/ci/two-writers.php`)",
       "where": "CI, job `two-writers` of `os-ci.yml`, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, on every push that touches `platform/`. In the sandbox on the server that `platform/tools/preview/sandbox/database.sh` builds (MariaDB 10.2)",
-      "today": "29 steps of 50 runs hold on each of the three servers; with a lock taken out, each of four checks reports the fault it is for (CI, `8549036`)",
-      "catches": "What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, or one of two people stopped by the database with an error page"
+      "today": "33 steps of 50 runs hold on each of the three servers; with a lock taken out, each of six checks reports the fault it is for (CI, `d93b112`). The four new steps send an enquiry and a basket as the shop sends them: one sent twice with its key, and two of two visitors at once",
+      "catches": "What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, an enquiry written twice, or one of two people stopped by the database with an error page"
+    },
+    {
+      "check": "The contract of `/api/v1` (`platform/resources/api/v1.openapi.json`, held by `tests/Feature/Api/V1ContractTest.php`)",
+      "where": "Part of the Laravel suite, so in the sandbox and in CI on the three servers. The file itself is read as OpenAPI 3.1 by a validator, by hand, when it changes",
+      "today": "every route under `/api/v1` is in the contract, and each of the seven addresses answers key by key as the contract says, for every status it documents (CI, `d93b112`)",
+      "catches": "An address that answers in a shape its callers were not told; a route added without its contract; a key, a code or a header that is in the answer and not in the contract, or the other way round"
     },
     {
       "check": "A release installed and deployed again by a browser (`scripts/os-install.mjs`)",
       "where": "CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite",
-      "today": "the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `8549036`)",
+      "today": "the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d93b112`)",
       "catches": "A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change"
     },
     {
       "check": "Two journeys in a browser (`scripts/os-journeys.mjs`)",
       "where": "On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's",
-      "today": "37 of 37 steps hold, both ways (CI, `8549036`)",
+      "today": "37 of 37 steps hold, both ways (CI, `d93b112`)",
       "catches": "A step of a working day or of a sale that a person can no longer do; anything the content policy refuses"
     },
     {
       "check": "Every screen as four roles (`scripts/os-screens.mjs`)",
       "where": "The same rehearsal, at 1366 px and at 390 px",
-      "today": "253 pages, none fails (CI, `8549036`)",
+      "today": "253 pages, none fails (CI, `d93b112`)",
       "catches": "A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch"
     },
     {
       "check": "The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`)",
       "where": "CI, job \"Vercel's PHP runtime: build the demo, sign in, open every screen\"",
-      "today": "passes (CI, `8549036`)",
+      "today": "passes, 84 checks, three of them addresses under `/api` since 19 November (CI, `d93b112`)",
       "catches": "A site that starts without its settings, hands out a file, or loses the session"
     },
     {
       "check": "The React shop's gate (`ci.yml`)",
       "where": "CI, on every push",
-      "today": "passes (CI, `8549036`)",
+      "today": "passes (CI, `d93b112`)",
       "catches": "A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository"
     },
     {
@@ -567,19 +576,19 @@
     {
       "check": "The live sites from outside (`live-check-after-merge.yml`)",
       "where": "GitHub, eight minutes after every merge into `main`",
-      "today": "the admin: 41 questions, all hold; the shop: 14, all hold (run 44156136251, 17 November, 19:21 UTC)",
+      "today": "after the merge of pull request #45 one point of the shop's fifteen failed: a preview that Vercel had removed answered 410, where the check accepted the sign-in or 404 (run 44343060920, issue #46); cured in `6b3789d`, and the shop's 16 points hold on the branch (run 44455587053, 19 November, 04:02 UTC). The admin's points held in every run. Since 19 November the admin is also asked six points of `/api/v1`, which can only hold once pull request #47 is on `main`",
       "catches": "A live site that does not answer as it should after a merge. A failure opens an issue"
     },
     {
       "check": "Each new test, tried once against its protection taken away",
       "where": "By hand, when the test is written; recorded in the round's report",
-      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27) and for the two-writers command and its tests (report 28)",
+      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28) and for the contract test, the idempotency key and the enquiry's turn (report 30)",
       "catches": "A test that would pass whatever the code does"
     },
     {
       "check": "Before the merge: the files changed against `main` are read, and every check is green",
       "where": "By hand; the release report is written first",
-      "today": "done for pull requests #37, #39 and #40",
+      "today": "done for pull requests #37, #39, #40 and #47 (the shop's changed files are named in report 30)",
       "catches": "A change to the React shop that the report does not name; a merge with a check still red"
     }
   ]

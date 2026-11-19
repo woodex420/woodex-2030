@@ -20,6 +20,10 @@ declare(strict_types=1);
  *   - every journal entry balances, no invoice is paid beyond its total, no bill is paid twice, no number of a
  *     document is given twice or left out, and the receivable and payable accounts say what the documents say.
  *
+ * Since master list T-063 it also tries the creates of /api/v1, sent as the shop sends them: one enquiry and one
+ * basket sent twice with the key of the request (written once, the second answered what the first was), and two
+ * of two visitors at the same moment (both written).
+ *
  * Usage, from platform/, with the settings of a MySQL or MariaDB database that may be emptied:
  *   php tools/ci/two-writers.php [--runs=50] [--only=verify,reverse] [--json=<file>] [--list]
  *
@@ -28,6 +32,7 @@ declare(strict_types=1);
  * words was then reported:
  *   php tools/ci/two-writers.php --only=two-payments-one-invoice \
  *       --without-locks=app/Domain/Sales/Actions/AllocatePayment.php --expect-fault='paid beyond its total'
+ * In App\Support\Api\Idempotency the lock is the row of the request's key (see TW_LOCKS below).
  *
  * It EMPTIES the database it is given. It therefore refuses to start unless APP_ENV is "testing", the connection
  * is MySQL or MariaDB and the name of the database ends in "_test".
@@ -60,6 +65,7 @@ use App\Domain\Sales\Enums\InvoiceStatus;
 use App\Domain\Sales\Enums\PaymentMethod;
 use App\Domain\Sales\Enums\PaymentStatus;
 use App\Domain\Sales\Exceptions\QuoteActionDenied;
+use App\Domain\Sales\Models\CatalogItem;
 use App\Domain\Sales\Models\Invoice;
 use App\Domain\Sales\Models\Payment;
 use App\Domain\System\Models\NumberSequence;
@@ -68,6 +74,8 @@ use App\Support\Numbering;
 use Database\Seeders\ProductionSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -79,6 +87,19 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 const TW_MARK = '@@two-writers ';
 const TW_SERIES = 'two.writers';
 const TW_NUMBERS_EACH = 5;
+/**
+ * What holds two writers apart, as it is written in the classes, and what a copy "without its locks" has in its
+ * place. The second is the key of a request (App\Support\Api\Idempotency): its row is written first, the same
+ * request arriving in the same moment waits for it and is refused by the database; the copy writes the row without
+ * minding that it is there already.
+ */
+const TW_LOCKS = [
+    '->lockForUpdate()' => '',
+    '->insert([...$row,' => '->insertOrIgnore([...$row,',
+];
+/** A product the shop may ask a basket for, by the shop's own key, and its price in the catalogue. */
+const TW_PRODUCT = 'two-writers-desk';
+const TW_PRODUCT_RATE = 4_250_000;
 
 /** How far into the first writer's work the second one starts, as a part of the time that work takes alone. */
 const TW_PARTS = [0.0, 0.0, 0.03, 0.1, 0.25, 0.5, 0.75];
@@ -118,15 +139,21 @@ if (! is_dir($scratch.'/private') && ! mkdir($scratch.'/private', 0700, true) &&
 if ($options['worker'] !== null && $options['without-locks'] !== null) {
     $source = (string) file_get_contents($base.'/'.$options['without-locks']);
     $copy = $scratch.'/without-locks-'.$options['worker'].'-'.basename($options['without-locks']);
-    file_put_contents($copy, str_replace('->lockForUpdate()', '', $source));
+    file_put_contents($copy, str_replace(array_keys(TW_LOCKS), array_values(TW_LOCKS), $source));
     require $copy;
 }
+
+// The steps that send a request to /api/v1 are answered by the application itself, as a web server would have it
+// answer. A site without a settings file sends every request to the installer; here, as on a host that hands the
+// settings over itself, they come from the environment, and the application is told so.
+$_SERVER['WOODEX_CONFIG_FROM_SERVER'] = '1';
 
 $app = require $base.'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 
 // Files the actions write (receipts, frozen invoices) go to a folder of this run; nothing may call another server.
-config(['filesystems.disks.local.root' => $scratch.'/private', 'documents.test_bypass' => true]);
+// The two modules of the shop's creates are on: the steps that send a request to /api/v1 need both.
+config(['filesystems.disks.local.root' => $scratch.'/private', 'documents.test_bypass' => true, 'modules.enabled' => 'lead_api,quote_requests']);
 Http::preventStrayRequests();
 
 /* ------------------------------------------------------------------------------------------------------------
@@ -297,6 +324,67 @@ function twoWritersSteps(): array
         }
 
         return $faults;
+    };
+
+    /*
+     | A create under /api/v1 (master list T-063), sent as a shop sends it and answered by this application the whole
+     | way: the door, the key of the request, the action, the answer, and what is left to be done after the answer
+     | (the alert to the team). Each request comes from an address of its own, so that the limit of five enquiries a
+     | minute from one address, which is not what is tried here, stays out of it. An answer that is an error is what
+     | a visitor would be looking at, and is reported as one.
+     */
+    $send = static function (string $path, array $body, array $held): array {
+        $request = Request::create('/api/v1'.$path, 'POST', server: [
+            'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json', 'HTTP_IDEMPOTENCY_KEY' => $held['key'],
+            'REMOTE_ADDR' => '10.'.random_int(0, 250).'.'.random_int(0, 250).'.'.random_int(1, 250),
+        ], content: json_encode($body, JSON_THROW_ON_ERROR));
+        $kernel = app(HttpKernel::class);
+        $response = $kernel->handle($request);
+        $kernel->terminate($request, $response);
+        // A web server starts the application anew for every request. A writer keeps one for all of its requests,
+        // and the application keeps what each request left to be done after its answer: without this line every
+        // request would send the alerts of all the requests before it again.
+        (function (): void {
+            $this->terminatingCallbacks = [];
+        })->call(app());
+        $answer = json_decode((string) $response->getContent(), true) ?? [];
+
+        if ($response->getStatusCode() >= 400) {
+            throw new RuntimeException("the request was answered {$response->getStatusCode()} ".($answer['error']['code'] ?? 'in no shape of the API').': '.($answer['error']['message'] ?? ''));
+        }
+
+        return ['status' => $response->getStatusCode(), 'replayed' => $response->headers->get('Idempotent-Replayed') === 'true'] + (array) ($answer['data'] ?? []);
+    };
+    $enquire = static fn (array $held): array => $send('/leads', array_filter(['name' => $held['name'], 'phone' => $held['phone'], 'email' => $held['email'], 'message' => 'TWO-WRITERS enquiry']), $held);
+    $askForBasket = static fn (array $held): array => $send('/quote-requests', array_filter([
+        'name' => $held['name'], 'phone' => $held['phone'], 'email' => $held['email'], 'consent' => true, 'items' => [['product_id' => TW_PRODUCT, 'qty' => 2]],
+    ]), $held);
+    // A visitor nobody knows yet, with an address of their own. The shop's form takes a phone, an address or both,
+    // and the application asks "do we know this person?" in another way for each: of every three runs one has two
+    // visitors without a phone, one has two with a phone, and one has one of each.
+    $visitor = static fn (int $run, string $who): array => [
+        'key' => (string) Str::uuid(), 'name' => "Two Writers {$who}",
+        'phone' => match ($run % 3) {
+            0 => false, 1 => true, default => $who === 'a'
+        } ? '03'.random_int(10, 49).random_int(1_000_000, 9_999_999) : null,
+        'email' => 'tw-'.($run + 10)."-{$who}-".Str::lower(Str::random(6)).'@example.test',
+    ];
+    // What stands in the database for these visitors: who they are, their enquiries, and what the timelines say.
+    $enquiriesOf = static function (array $emails): array {
+        $contacts = DB::table('contacts')->whereIn('email', $emails)->pluck('id')->all();
+        $leads = DB::table('leads')->whereIn('contact_id', $contacts)->pluck('ref')->all();
+        $lines = fn (string $begins): int => DB::table('activities')->whereIn('contact_id', $contacts)->where('body', 'like', $begins.'%')->count();
+
+        return ['contacts' => count($contacts), 'enquiries' => count($leads), 'references' => $leads, 'first' => $lines('New enquiry'), 'again' => $lines('Returning enquiry'), 'baskets' => $lines('Basket quote request')];
+    };
+    // Of two answers to one request, one says "this was answered before". Only where both were answered at all.
+    $oneWasGivenBefore = static function (array $a, array $b): array {
+        if (! isset($a['value'], $b['value'])) {
+            return [];
+        }
+        $before = (int) $a['value']['replayed'] + (int) $b['value']['replayed'];
+
+        return $before === 1 ? [] : ["{$before} of the two answers said they were given before; one request sent twice is written by one and answered again to the other"];
     };
 
     return [
@@ -955,6 +1043,100 @@ function twoWritersSteps(): array
             'act' => $receive,
             'after' => fn (array $facts): array => [...$received($facts['bills'][0]), ...$received($facts['bills'][1])],
         ],
+
+        /*
+         | The creates of /api/v1 (master list T-063). A request carries the key of what it creates; the first one to
+         | arrive writes, and the same request arriving in the same moment waits for it and is answered what it
+         | was answered (App\Support\Api\Idempotency: the key's own row is the first thing the transaction writes).
+         */
+        'one-key-two-enquiries' => [
+            'title' => 'one enquiry of the shop sent twice with its key',
+            'writers' => 'one',
+            'shown' => ['status', 'reference', 'handoff'],
+            'prepare' => function (TwoWritersWorld $world, int $run) use ($visitor): array {
+                $one = $visitor($run, 'a');
+
+                return ['a' => $one, 'b' => $one, 'facts' => $one];
+            },
+            'hold' => static fn (array $ids): array => $ids,
+            'act' => $enquire,
+            'after' => function (array $facts, array $a, array $b) use ($enquiriesOf, $oneWasGivenBefore): array {
+                $is = $enquiriesOf([$facts['email']]);
+
+                return [
+                    ...($is['contacts'] === 1 && $is['enquiries'] === 1 && $is['first'] === 1 && $is['again'] === 0 ? []
+                        : ["one enquiry sent twice stands as {$is['contacts']} people and {$is['enquiries']} enquiries, with {$is['first']} first lines and {$is['again']} lines of a second enquiry on the timeline; it is one enquiry of one person"]),
+                    ...(DB::table('api_idempotency_keys')->where('scope', 'leads')->where('key_hash', hash('sha256', "leads\n".$facts['key']))->count() === 1 ? [] : ['the key of the request is not kept once']),
+                    ...$oneWasGivenBefore($a, $b),
+                ];
+            },
+        ],
+        'two-enquiries' => [
+            'title' => 'two enquiries of two visitors of the shop, one each',
+            'writers' => 'both',
+            'prepare' => function (TwoWritersWorld $world, int $run) use ($visitor): array {
+                [$one, $two] = [$visitor($run, 'a'), $visitor($run, 'b')];
+
+                return ['a' => $one, 'b' => $two, 'facts' => ['emails' => [$one['email'], $two['email']]]];
+            },
+            'hold' => static fn (array $ids): array => $ids,
+            'act' => $enquire,
+            'after' => function (array $facts, array $a, array $b) use ($enquiriesOf): array {
+                $is = $enquiriesOf($facts['emails']);
+
+                return [
+                    ...($is['contacts'] === 2 && $is['enquiries'] === 2 && $is['first'] === 2 && $is['again'] === 0 ? []
+                        : ["two enquiries of two people stand as {$is['contacts']} people and {$is['enquiries']} enquiries, with {$is['first']} first lines on the timelines"]),
+                    ...(count(array_unique($is['references'])) === count($is['references']) ? [] : ['a reference of an enquiry was given twice: '.implode(', ', $is['references'])]),
+                ];
+            },
+        ],
+        'one-key-two-baskets' => [
+            'title' => 'one basket of the shop sent twice with its key',
+            'writers' => 'one',
+            'shown' => ['status', 'reference'],
+            'prepare' => function (TwoWritersWorld $world, int $run) use ($visitor): array {
+                $world->shopProduct();
+                $one = $visitor($run, 'a');
+
+                return ['a' => $one, 'b' => $one, 'facts' => $one];
+            },
+            'hold' => static fn (array $ids): array => $ids,
+            'act' => $askForBasket,
+            'after' => function (array $facts, array $a, array $b) use ($enquiriesOf, $oneWasGivenBefore): array {
+                $is = $enquiriesOf([$facts['email']]);
+                $saved = DB::table('storefront_quote_requests')->where('request_key', $facts['key'])->count();
+
+                return [
+                    ...($saved === 1 && $is['enquiries'] === 1 && $is['baskets'] === 1 && $is['again'] === 0 ? []
+                        : ["one basket sent twice stands saved {$saved} times, with {$is['enquiries']} enquiries, {$is['baskets']} lines about a basket and {$is['again']} lines of a second enquiry on the timeline; it is one basket"]),
+                    ...$oneWasGivenBefore($a, $b),
+                ];
+            },
+        ],
+        'two-baskets' => [
+            'title' => 'two baskets of two visitors with the same product, one each',
+            'writers' => 'both',
+            'prepare' => function (TwoWritersWorld $world, int $run) use ($visitor): array {
+                $world->shopProduct();
+                [$one, $two] = [$visitor($run, 'a'), $visitor($run, 'b')];
+
+                return ['a' => $one, 'b' => $two, 'facts' => ['emails' => [$one['email'], $two['email']], 'keys' => [$one['key'], $two['key']]]];
+            },
+            'hold' => static fn (array $ids): array => $ids,
+            'act' => $askForBasket,
+            'after' => function (array $facts) use ($enquiriesOf): array {
+                $is = $enquiriesOf($facts['emails']);
+                $saved = DB::table('storefront_quote_requests')->whereIn('request_key', $facts['keys'])->get();
+
+                return [
+                    ...($saved->count() === 2 && $is['enquiries'] === 2 && $is['baskets'] === 2 ? []
+                        : ["two baskets of two people stand saved {$saved->count()} times, with {$is['enquiries']} enquiries and {$is['baskets']} lines about a basket"]),
+                    // Priced here from the catalogue, both the same: two of one product.
+                    ...($saved->every(fn (object $row): bool => (int) $row->estimated_total_minor === 2 * TW_PRODUCT_RATE) ? [] : ['a basket is not priced from the catalogue: '.$saved->pluck('estimated_total_minor')->implode(', ')]),
+                ];
+            },
+        ],
     ];
 }
 
@@ -1094,6 +1276,15 @@ final class TwoWritersWorld
         $n = ++$this->count;
 
         return Vendor::query()->create(['name' => "TWO WRITERS supplier {$n}", 'payment_terms_days' => 15, 'is_active' => true]);
+    }
+
+    /** The product a basket of the shop asks for, with its price in the catalogue. Made once. */
+    public function shopProduct(): void
+    {
+        CatalogItem::query()->firstOrCreate(['storefront_product_id' => TW_PRODUCT], [
+            'description' => 'TWO WRITERS desk', 'category' => 'Two writers', 'unit' => 'each', 'rate_minor' => TW_PRODUCT_RATE,
+            'business_line' => BusinessLine::Furniture->value, 'is_active' => true,
+        ]);
     }
 
     /** A supplier's bill: received and in the ledger, or still a draft. */
@@ -1241,7 +1432,7 @@ if (! str_ends_with($database, '_test')) {
 }
 if ($options['without-locks'] !== null) {
     $file = $base.'/'.$options['without-locks'];
-    if (! is_file($file) || ! str_contains((string) file_get_contents($file), '->lockForUpdate()')) {
+    if (! is_file($file) || ! Str::contains((string) file_get_contents($file), array_keys(TW_LOCKS))) {
         $refuse("{$options['without-locks']} is not a file of this application with a lock in it.");
     }
 }

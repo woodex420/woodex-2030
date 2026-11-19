@@ -1,0 +1,1546 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "WOODEX OS: the API for the shop and outside clients",
+    "version": "1.0.0",
+    "description": "The contract of /api/v1, address by address and key by key. The rules it follows, and why, are docs/woodex-os/29-API-V1-RULES.md.\n\nEvery answer is JSON in one of three shapes: {data, meta}, {data, meta, links} for a page of a list, or {error, meta}. A picture is the one exception: its bytes. No address needs a sign-in, none sets a cookie, and none is for staff.\n\nAn address this document does not name answers 404 (NOT_FOUND); an address it names, asked with another method, answers 405 (METHOD_NOT_ALLOWED) with an Allow header, unless its part is switched off, which answers 404.\n\nplatform/tests/Feature/Api/V1ContractTest.php holds the application to this document."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "paths": {
+    "/leads": {
+      "post": {
+        "operationId": "api.v1.leads.store",
+        "summary": "An enquiry from a visitor of the shop",
+        "description": "Makes an enquiry, or adds to the open enquiry the same visitor already has (found by telephone number or e-mail, within 30 days). With consent and \"whatsapp\" as the preferred channel the answer carries a hand-off.\n\nSwitch: the module lead_api (on as the product ships). Limit: 5 a minute and 50 a day from one address, shared with the older enquiry address.",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnquiryBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The visitor already had an open enquiry: this one was added to it.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Idempotent-Replayed": {
+                "$ref": "#/components/headers/IdempotentReplayed"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnquiryAnswer"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "A new enquiry.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Idempotent-Replayed": {
+                "$ref": "#/components/headers/IdempotentReplayed"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnquiryAnswer"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Taken for a robot's. It looks accepted and nothing was kept: reference is null.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnquiryAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/leads/whatsapp-handoff": {
+      "post": {
+        "operationId": "api.v1.leads.handoff",
+        "summary": "The visitor chose WhatsApp: write it down and give the link",
+        "description": "Writes on the enquiry's timeline that a WhatsApp chat was prepared, and answers the link that opens it. Nothing is sent to anybody. The token is this request's key: sent twice it is written down once and answered the same, until it expires. An unknown token, an expired one and one of a deleted enquiry are answered alike (404).\n\nSwitch: the module lead_api. Limit: 20 a minute from one address.",
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The link.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/quote-requests": {
+      "post": {
+        "operationId": "api.v1.quote-requests.store",
+        "summary": "The basket of a visitor, saved for the team to review",
+        "description": "Prices the basket from the catalogue and saves it with an enquiry. It is not a quotation. A product that is not offered for this refuses the whole request (422), naming the line.\n\nSwitches: the modules lead_api and quote_requests (the second is off as the product ships). Limit: as for an enquiry.",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BasketBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Idempotent-Replayed": {
+                "$ref": "#/components/headers/IdempotentReplayed"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasketRequestAnswer"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Taken for a robot's. It looks accepted and nothing was kept: reference and status are null.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasketRequestAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/catalogue/categories": {
+      "get": {
+        "operationId": "api.v1.catalogue.categories",
+        "summary": "The category tree with its published pages, and the series",
+        "description": "One document, always whole: the shop builds its menu from it. A category shows its page only once the page is published.\n\nSwitch: CATEGORY_SYNC_ENABLED (on unless set otherwise); off, it answers 503. Limit: 120 a minute from one address.",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The tree.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/catalogue/categories/{category}/hero/{revision}": {
+      "get": {
+        "operationId": "api.v1.catalogue.categories.hero",
+        "summary": "The picture of a published category page",
+        "description": "Only the picture of the version that is published now, of a category that is switched on. Limit: 120 a minute from one address.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "description": "The id of the category.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "revision",
+            "in": "path",
+            "required": true,
+            "description": "The published version of its page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The picture.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/media": {
+      "get": {
+        "operationId": "api.v1.media",
+        "summary": "The photographs of the shop that were replaced in the admin",
+        "description": "Each entry says: where the shop shows this file of its own, show that one instead. Only replacements that were published; never the library. Always the whole list. Limit: 120 a minute from one address.",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The list.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/media/{media}/{version}": {
+      "get": {
+        "operationId": "api.v1.media.file",
+        "summary": "One replaced photograph",
+        "description": "The address is the one the list gave. A replacement that was withdrawn is gone (404). Limit: 120 a minute from one address.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "media",
+            "in": "path",
+            "required": true,
+            "description": "The id of the photograph.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "description": "The version that is published.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The photograph.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RequestNumber": {
+        "description": "The number of this request. The same number is in the X-Request-Id header and on every line the request left in the log.",
+        "type": "string",
+        "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$",
+        "examples": [
+          "4F7K-9Q2M-T8RB"
+        ]
+      },
+      "Meta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "request_id"
+        ],
+        "properties": {
+          "request_id": {
+            "$ref": "#/components/schemas/RequestNumber"
+          }
+        }
+      },
+      "WholeListMeta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "request_id",
+          "total"
+        ],
+        "properties": {
+          "request_id": {
+            "$ref": "#/components/schemas/RequestNumber"
+          },
+          "total": {
+            "description": "How many entries the list has. The list is always whole.",
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PageMeta": {
+        "description": "The meta of one page of a list. No address answers in pages yet; the first will be the products.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "request_id",
+          "page",
+          "per_page",
+          "total"
+        ],
+        "properties": {
+          "request_id": {
+            "$ref": "#/components/schemas/RequestNumber"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "per_page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "description": "How many records the whole list has.",
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PageLinks": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "self",
+          "next",
+          "prev"
+        ],
+        "properties": {
+          "self": {
+            "description": "This page, as an address on this site without its name.",
+            "type": "string"
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prev": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ErrorCode": {
+        "description": "What went wrong, for a program. A closed list: a client may decide by it.",
+        "type": "string",
+        "enum": [
+          "BAD_REQUEST",
+          "PARAMETER_NOT_ALLOWED",
+          "IDEMPOTENCY_KEY_REQUIRED",
+          "UNAUTHENTICATED",
+          "FORBIDDEN",
+          "NOT_FOUND",
+          "METHOD_NOT_ALLOWED",
+          "CONFLICT",
+          "IDEMPOTENCY_KEY_REUSED",
+          "PAYLOAD_TOO_LARGE",
+          "UNSUPPORTED_MEDIA_TYPE",
+          "VALIDATION_FAILED",
+          "TOO_MANY_REQUESTS",
+          "SERVER_ERROR",
+          "UNAVAILABLE"
+        ]
+      },
+      "Error": {
+        "description": "Every error under /api/v1, whatever went wrong.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "meta"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "properties": {
+              "code": {
+                "$ref": "#/components/schemas/ErrorCode"
+              },
+              "message": {
+                "description": "What went wrong, for a person, in English. It may be reworded; decide by the code.",
+                "type": "string"
+              },
+              "details": {
+                "description": "By name: the messages of each refused field (VALIDATION_FAILED), or the parameters that were refused and those that are allowed (PARAMETER_NOT_ALLOWED). Empty otherwise.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        }
+      },
+      "Handoff": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "token",
+          "expires_at"
+        ],
+        "properties": {
+          "token": {
+            "description": "Good for one visitor and for fifteen minutes. Send it to /leads/whatsapp-handoff in the body, never in an address.",
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Enquiry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reference",
+          "handoff"
+        ],
+        "properties": {
+          "reference": {
+            "description": "The reference of the enquiry, to show to the visitor. Null when nothing was kept (202).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "handoff": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handoff"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "EnquiryAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Enquiry"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        }
+      },
+      "HandoffResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "delivery",
+          "whatsapp_url"
+        ],
+        "properties": {
+          "delivery": {
+            "description": "Always this: the link was prepared, and nothing was sent to anybody.",
+            "type": "string",
+            "const": "manual_handoff_not_sent"
+          },
+          "whatsapp_url": {
+            "description": "Opens the chat with the business, with the enquiry's reference written in.",
+            "type": "string",
+            "pattern": "^https://wa\\.me/[0-9]+\\?text="
+          }
+        }
+      },
+      "HandoffAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HandoffResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        }
+      },
+      "BasketRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reference",
+          "status"
+        ],
+        "properties": {
+          "reference": {
+            "description": "The reference of the request. Null when nothing was kept (202).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "\"pending_review\": saved for the team to look at. It is not a quotation, an order or a reservation.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pending_review",
+              null
+            ]
+          }
+        }
+      },
+      "BasketRequestAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BasketRequest"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        }
+      },
+      "Faq": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question",
+          "answer"
+        ],
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      },
+      "CategoryPageContent": {
+        "description": "A published category page. These keys and no others.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "seo_title",
+          "seo_description",
+          "og_title",
+          "og_description",
+          "canonical_path",
+          "allow_indexing",
+          "hero_template",
+          "hero_heading",
+          "hero_text",
+          "hero_alt",
+          "hero_url",
+          "cta_label",
+          "cta_path",
+          "top_html",
+          "intro_heading",
+          "intro_html",
+          "bottom_heading",
+          "bottom_html",
+          "carousel_heading",
+          "carousel_mode",
+          "featured_ids",
+          "faqs"
+        ],
+        "properties": {
+          "seo_title": {
+            "type": "string"
+          },
+          "seo_description": {
+            "type": "string"
+          },
+          "og_title": {
+            "type": "string"
+          },
+          "og_description": {
+            "type": "string"
+          },
+          "canonical_path": {
+            "type": "string"
+          },
+          "allow_indexing": {
+            "type": "boolean"
+          },
+          "hero_template": {
+            "type": "string"
+          },
+          "hero_heading": {
+            "type": "string"
+          },
+          "hero_text": {
+            "type": "string"
+          },
+          "hero_alt": {
+            "type": "string"
+          },
+          "hero_url": {
+            "description": "The address of the page's picture on this site, without its name.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cta_label": {
+            "type": "string"
+          },
+          "cta_path": {
+            "type": "string"
+          },
+          "top_html": {
+            "description": "HTML made here from what the editor chose; safe to put into the page as it is.",
+            "type": "string"
+          },
+          "intro_heading": {
+            "type": "string"
+          },
+          "intro_html": {
+            "type": "string"
+          },
+          "bottom_heading": {
+            "type": "string"
+          },
+          "bottom_html": {
+            "type": "string"
+          },
+          "carousel_heading": {
+            "type": "string"
+          },
+          "carousel_mode": {
+            "type": "string"
+          },
+          "featured_ids": {
+            "description": "The shop's own keys of the products to show, in order.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "faqs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Faq"
+            }
+          }
+        }
+      },
+      "CategoryPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revision",
+          "content"
+        ],
+        "properties": {
+          "revision": {
+            "description": "Which published version this is.",
+            "type": "integer"
+          },
+          "content": {
+            "$ref": "#/components/schemas/CategoryPageContent"
+          }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "parent_id",
+          "position",
+          "page"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "parent_id": {
+            "description": "The category above this one; null at the top.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "position": {
+            "description": "Its place among the categories with the same parent, lowest first.",
+            "type": "integer"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryPage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Series": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "description": "The slug of the series.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "Catalogue": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "categories",
+          "series"
+        ],
+        "properties": {
+          "categories": {
+            "description": "Every category that is switched on and whose parents are, parents before children.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Series"
+            }
+          }
+        }
+      },
+      "CatalogueAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Catalogue"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        }
+      },
+      "MediaMapping": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "url"
+        ],
+        "properties": {
+          "key": {
+            "description": "A file of the shop's own bundle.",
+            "type": "string",
+            "pattern": "^/img/"
+          },
+          "url": {
+            "description": "The address of its replacement on this site, without its name.",
+            "type": "string",
+            "pattern": "^/api/v1/media/[0-9]+/[0-9]+$"
+          }
+        }
+      },
+      "MediaAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaMapping"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/WholeListMeta"
+          }
+        }
+      },
+      "EnquiryBody": {
+        "description": "An enquiry. A field that is not named here is ignored.",
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "description": "Who is asking.",
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 160
+          },
+          "phone": {
+            "description": "A telephone number. One of phone and email is required.",
+            "type": "string",
+            "maxLength": 30
+          },
+          "email": {
+            "description": "An e-mail address. One of phone and email is required.",
+            "type": "string",
+            "maxLength": 160
+          },
+          "company": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "preferred_channel": {
+            "description": "How the visitor wants to be answered. With \"whatsapp\" and consent, the answer carries a hand-off.",
+            "type": "string",
+            "enum": [
+              "email",
+              "phone",
+              "whatsapp"
+            ]
+          },
+          "consent": {
+            "description": "The visitor agreed to be contacted.",
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "service": {
+            "description": "What the enquiry is about, in the shop's own word.",
+            "type": "string",
+            "maxLength": 60
+          },
+          "business_line": {
+            "description": "Only \"furniture\" is taken here; it is also the default.",
+            "type": "string",
+            "enum": [
+              "furniture"
+            ]
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "property_type": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "area_sqft": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000000
+          },
+          "budget_band": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "timeline": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "source": {
+            "description": "Where the enquiry was made.",
+            "type": "string",
+            "enum": [
+              "website_form",
+              "estimator",
+              "booking",
+              "website_chat"
+            ]
+          },
+          "form": {
+            "description": "The name of the form.",
+            "type": "string",
+            "maxLength": 80
+          },
+          "page_url": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "referrer": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "utm_source": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "utm_medium": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "utm_campaign": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "utm_content": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "utm_term": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "gclid": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "fbclid": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ur"
+            ]
+          },
+          "turnstile_token": {
+            "description": "The token of the robot check, where the site uses one. Not part of what makes two requests the same.",
+            "type": "string",
+            "maxLength": 2048
+          },
+          "form_started_at": {
+            "description": "When the form was opened, in seconds or milliseconds since 1970. Not part of what makes two requests the same.",
+            "type": "integer"
+          },
+          "company_website": {
+            "description": "Must be empty.",
+            "type": "string"
+          }
+        }
+      },
+      "BasketBody": {
+        "description": "A basket with the visitor's details. Consent must be given. Nothing the page says about a price, a total or a name of a product is read.",
+        "type": "object",
+        "required": [
+          "name",
+          "consent",
+          "items"
+        ],
+        "properties": {
+          "name": {
+            "description": "Who is asking.",
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 160
+          },
+          "phone": {
+            "description": "A telephone number. One of phone and email is required.",
+            "type": "string",
+            "maxLength": 30
+          },
+          "email": {
+            "description": "An e-mail address. One of phone and email is required.",
+            "type": "string",
+            "maxLength": 160
+          },
+          "company": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "preferred_channel": {
+            "description": "How the visitor wants to be answered. With \"whatsapp\" and consent, the answer carries a hand-off.",
+            "type": "string",
+            "enum": [
+              "email",
+              "phone",
+              "whatsapp"
+            ]
+          },
+          "consent": {
+            "description": "The visitor agreed to be contacted.",
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "service": {
+            "description": "What the enquiry is about, in the shop's own word.",
+            "type": "string",
+            "maxLength": 60
+          },
+          "business_line": {
+            "description": "Only \"furniture\" is taken here; it is also the default.",
+            "type": "string",
+            "enum": [
+              "furniture"
+            ]
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "property_type": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "area_sqft": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000000
+          },
+          "budget_band": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "timeline": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "source": {
+            "description": "Where the enquiry was made.",
+            "type": "string",
+            "enum": [
+              "website_form",
+              "estimator",
+              "booking",
+              "website_chat"
+            ]
+          },
+          "form": {
+            "description": "The name of the form.",
+            "type": "string",
+            "maxLength": 80
+          },
+          "page_url": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "referrer": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "utm_source": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "utm_medium": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "utm_campaign": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "utm_content": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "utm_term": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "gclid": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "fbclid": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ur"
+            ]
+          },
+          "turnstile_token": {
+            "description": "The token of the robot check, where the site uses one. Not part of what makes two requests the same.",
+            "type": "string",
+            "maxLength": 2048
+          },
+          "form_started_at": {
+            "description": "When the form was opened, in seconds or milliseconds since 1970. Not part of what makes two requests the same.",
+            "type": "integer"
+          },
+          "company_website": {
+            "description": "Must be empty.",
+            "type": "string"
+          },
+          "items": {
+            "description": "The basket: 1 to 50 lines, each product once.",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/BasketLine"
+            }
+          }
+        }
+      },
+      "BasketLine": {
+        "description": "One line. A colour or an option cannot be asked for here yet: a line that names one is refused.",
+        "type": "object",
+        "required": [
+          "product_id",
+          "qty"
+        ],
+        "properties": {
+          "product_id": {
+            "description": "The shop's own key of the product.",
+            "type": "string",
+            "maxLength": 100
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      },
+      "HandoffBody": {
+        "description": "The token an enquiry was answered with.",
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "A new UUID for each thing you create. Send the same request again with the same key and it is written once and answered the same; a key that was used for other content is refused (409).",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "The number of this request, the same as meta.request_id.",
+        "schema": {
+          "$ref": "#/components/schemas/RequestNumber"
+        }
+      },
+      "IdempotentReplayed": {
+        "description": "\"true\" when this create was answered from its first sending and nothing was written now. Absent otherwise.",
+        "schema": {
+          "type": "string",
+          "const": "true"
+        }
+      },
+      "Allow": {
+        "description": "The methods this address takes.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RetryAfter": {
+        "description": "How many seconds to wait.",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "The request cannot be read as it is: a query parameter this address does not take (PARAMETER_NOT_ALLOWED), a body that is not a JSON object (BAD_REQUEST), or a create without a UUID in its Idempotency-Key header (IDEMPOTENCY_KEY_REQUIRED).",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "NOT_FOUND: nothing is at this address, the record is not there, or this part is switched off on this site.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "IDEMPOTENCY_KEY_REUSED: the key was used before for a request with other content. Or CONFLICT: somebody else was saving the same records in that moment and nothing was saved; send the request again with the same key.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "UNSUPPORTED_MEDIA_TYPE: the body is not sent as JSON.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "ValidationFailed": {
+        "description": "VALIDATION_FAILED: a field was refused. details names each refused field with its messages.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "TOO_MANY_REQUESTS.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "SERVER_ERROR: a fault on this side. The answer says nothing about it but the number of the request.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "UNAVAILABLE: this is switched off or not set up at the moment. Ask again later.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

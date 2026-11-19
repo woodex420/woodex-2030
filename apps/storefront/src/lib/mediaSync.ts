@@ -47,7 +47,7 @@ export function applyMediaMappings() {
 }
 
 /* Where the connection to the Laravel admin is switched off, the API says so
-   ("disabled"). The shop then asks again in ten minutes, not in fifteen
+   (503, "SWITCHED_OFF"). The shop then asks again in ten minutes, not in fifteen
    seconds: on a site that has the connection off — every site, today — each
    open page would otherwise send four requests a minute to be told no. A new
    visit asks at once, so switching the connection on needs no rebuild. */
@@ -61,17 +61,19 @@ export async function syncMediaMappings() {
     const response = await fetch('/api/v1/media', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(7000) });
     if (!response.ok) {
       if (response.status === 503) {
+        // The shop's own server says so when this shop is not connected to an admin: {error: {code: "SWITCHED_OFF"}}.
         const body = await response.json().catch(() => ({}));
-        if (body.disabled === true) { pausedUntil = Date.now() + DISABLED_PAUSE_MS; mappings.clear(); applyMediaMappings(); }
+        if (body?.error?.code === 'SWITCHED_OFF') { pausedUntil = Date.now() + DISABLED_PAUSE_MS; mappings.clear(); applyMediaMappings(); }
       }
       // Refused (401, 403, 404…): the same question gets the same answer in fifteen seconds. Ask later.
       else if (response.status >= 400 && response.status < 500) pausedUntil = Date.now() + DISABLED_PAUSE_MS;
       return;
     }
-    const data = await response.json();
-    if (data.schema !== 1 || !Array.isArray(data.items) || data.items.length > 10000) return;
-    if (!data.items.every((item: Mapping) => typeof item.key === 'string' && /^\/img\/[a-zA-Z0-9_.-]+\.(jpe?g|png|webp|avif|gif)$/i.test(item.key) && typeof item.url === 'string' && /^\/api\/v1\/media\/\d+\/\d+$/.test(item.url))) return;
-    mappings = new Map(data.items.map((item: Mapping) => [item.key, item.url]));
+    // {data: [{key, url}], meta: {request_id, total}}: always the whole list (docs/woodex-os/29-API-V1-RULES.md).
+    const items = (await response.json())?.data;
+    if (!Array.isArray(items) || items.length > 10000) return;
+    if (!items.every((item: Mapping) => item && typeof item.key === 'string' && /^\/img\/[a-zA-Z0-9_.-]+\.(jpe?g|png|webp|avif|gif)$/i.test(item.key) && typeof item.url === 'string' && /^\/api\/v1\/media\/\d+\/\d+$/.test(item.url))) return;
+    mappings = new Map(items.map((item: Mapping) => [item.key, item.url]));
     applyMediaMappings();
   } catch { /* Keep last known good mapping and original-photo fallback. */ }
   finally { pending = false; }

@@ -1,3 +1,5 @@
+import { ApiV1Error, firstRefusal, isUuid, keyFor, readV1, settled, stillOpen, withRequestNumber } from "./apiV1";
+
 type Fields = Record<string, unknown>;
 
 /** Explicit adapter for lead-only forms. Never routes a basket quotation or order. */
@@ -30,44 +32,70 @@ export function furnitureLeadPayload(input: Fields) {
   };
 }
 
+const JSON_HEADERS = { "Content-Type": "application/json", Accept: "application/json" };
+const TOO_MANY = "Too many requests. Please wait a minute before trying again.";
+const NOT_SAVED = "The enquiry could not be saved. Check your details and try again.";
+const NOT_CONFIRMED = "The enquiry was not confirmed. Please refresh and try again.";
+
 export async function captureStorefrontLead(input: Fields, mode: string = "legacy", request: typeof fetch = fetch, requireChallenge = false) {
   if (!["legacy", "v1"].includes(mode)) throw new Error("Unsupported lead API configuration.");
-  const versioned = mode === "v1";
-  if (versioned && requireChallenge && !String(input.turnstile_token ?? "").trim()) {
+  if (mode === "legacy") {
+    const response = await request("/api/leads", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(input) });
+    if (!response.ok) throw new Error(response.status === 429 ? TOO_MANY : NOT_SAVED);
+    return response.json();
+  }
+  if (requireChallenge && !String(input.turnstile_token ?? "").trim()) {
     throw new Error("Please complete enquiry verification before submitting.");
   }
-  const response = await request(versioned ? "/api/v1/leads" : "/api/leads", {
-    method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(versioned ? furnitureLeadPayload(input) : input),
-  });
-  if (!response.ok) throw new Error(response.status === 429
-    ? "Too many requests. Please wait a minute before trying again."
-    : "The enquiry could not be saved. Check your details and try again.");
-  const reply = await response.json();
-  if (!versioned) return reply;
-  if (reply.ok !== true || typeof reply.reference !== "string" || !reply.reference.trim()) {
-    throw new Error("The enquiry was not confirmed. Please refresh and try again.");
+  const payload = furnitureLeadPayload(input);
+  /* One key for one enquiry: a second try of the same form carries the key of
+     the first, and the admin answers what it answered then (apiV1.ts). */
+  const key = isUuid(input.requestKey) ? input.requestKey : keyFor("lead", payload);
+  let data: { reference?: unknown; handoff?: { token?: unknown } | null } | null;
+  try {
+    ({ data } = await readV1<typeof data>(await request("/api/v1/leads", {
+      method: "POST", headers: { ...JSON_HEADERS, "Idempotency-Key": key }, body: JSON.stringify(payload),
+    })));
+  } catch (error) {
+    if (!stillOpen(error)) settled("lead", payload);
+    if (!(error instanceof ApiV1Error)) throw error;
+    const refusal = firstRefusal(error);
+    throw new Error(withRequestNumber(
+      error.status === 429 ? TOO_MANY
+        : error.status < 400 ? NOT_CONFIRMED
+        : error.code === "CONFLICT" ? "The enquiry could not be saved just now. Please send it again."
+        : refusal ? `The enquiry could not be saved. ${refusal}`
+        : NOT_SAVED,
+      error));
   }
+  settled("lead", payload);
+  if (!data || typeof data.reference !== "string" || !data.reference.trim()) throw new Error(NOT_CONFIRMED);
   // Never invent a Node numeric lead ID, or invoke its handoff endpoint for a Laravel record.
-  const handoffToken = typeof reply.handoff?.token === "string" && /^[a-f0-9]{64}$/.test(reply.handoff.token)
-    ? reply.handoff.token : undefined;
-  return { ok: true, ref: reply.reference, reference: reply.reference, handoffToken, handoffUnavailable: !handoffToken };
+  const token = data.handoff?.token;
+  const handoffToken = typeof token === "string" && /^[a-f0-9]{64}$/.test(token) ? token : undefined;
+  return { ok: true, ref: data.reference, reference: data.reference, handoffToken, handoffUnavailable: !handoffToken };
 }
 
 /** POST body only: never put bearer capabilities into paths, query strings or persistent storage. */
 export async function redeemLeadHandoff(token: string, request: typeof fetch = fetch) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("Invalid handoff. Please submit a new enquiry.");
-  const response = await request("/api/v1/leads/whatsapp-handoff", {
-    method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ token }),
-  });
-  if (!response.ok) throw new Error(response.status === 404
-    ? "This handoff has expired or is unavailable. Your enquiry remains saved; our team will follow up."
-    : "The handoff could not be logged. Please retry shortly.");
-  const reply = await response.json();
-  if (reply.logged !== true || reply.delivery !== "manual_handoff_not_sent"
-    || typeof reply.whatsapp_url !== "string" || !/^https:\/\/wa\.me\/\d+\?text=/.test(reply.whatsapp_url)) {
+  let data: { delivery?: unknown; whatsapp_url?: unknown } | null;
+  try {
+    // The token is the key of this request: sent twice, it is written down once and answered the same.
+    ({ data } = await readV1<typeof data>(await request("/api/v1/leads/whatsapp-handoff", {
+      method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ token }),
+    })));
+  } catch (error) {
+    if (!(error instanceof ApiV1Error)) throw error;
+    throw new Error(withRequestNumber(
+      error.status === 404 ? "This handoff has expired or is unavailable. Your enquiry remains saved; our team will follow up."
+        : error.status < 400 ? "The handoff was not confirmed. Please retry."
+        : "The handoff could not be logged. Please retry shortly.",
+      error));
+  }
+  if (!data || data.delivery !== "manual_handoff_not_sent"
+    || typeof data.whatsapp_url !== "string" || !/^https:\/\/wa\.me\/\d+\?text=/.test(data.whatsapp_url)) {
     throw new Error("The handoff was not confirmed. Please retry.");
   }
-  return reply.whatsapp_url as string;
+  return data.whatsapp_url;
 }

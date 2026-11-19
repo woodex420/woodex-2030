@@ -47,21 +47,24 @@ it('publishes only reviewed content publicly and withdraws it on unpublish', fun
     $form['intro_text'] = '**Reviewed published copy**';
     $form['carousel_mode'] = 'automatic';
     $revision = $service->saveDraft($category, $form, null, 0, $this->admin);
+    // The answer is {data: {categories, series}, meta} since the rules of /api/v1 (master list T-063).
     $url = '/api/v1/catalogue/categories';
-    $data = $this->getJson($url)->assertOk()->json('categories');
+    $data = $this->getJson($url)->assertOk()->json('data.categories');
     expect(collect($data)->firstWhere('id', $category->id)['page'])->toBeNull();
     $this->get(route('admin.commerce.category-content.preview', $revision))->assertOk();
     $service->publish($category, $revision->id, 1, $this->admin);
-    $data = $this->getJson($url)->assertOk()->json('categories');
+    $data = $this->getJson($url)->assertOk()->json('data.categories');
     $page = collect($data)->firstWhere('id', $category->id)['page'];
     expect($page['content']['intro_html'])->toContain('<strong>Reviewed published copy</strong>')
         ->and($page['content']['featured_ids'])->toHaveCount(8)->and($page)->not->toHaveKey('created_by')
-        ->and($page['content'])->not->toHaveKey('hero_path');
+        ->and($page['content'])->not->toHaveKey('hero_path')
+        // What the editor works with stays in the admin: the text as typed, the choice of products, the carousel's settings.
+        ->not->toHaveKey('intro_text')->not->toHaveKey('product_ids')->not->toHaveKey('carousel_limit');
     $form['intro_text'] = 'PRIVATE DRAFT';
     $service->saveDraft($category, $form, null, 2, $this->admin);
     $this->getJson($url)->assertDontSee('PRIVATE DRAFT');
     $service->unpublish($category, 3, $this->admin);
-    $data = $this->getJson($url)->json('categories');
+    $data = $this->getJson($url)->json('data.categories');
     expect(collect($data)->firstWhere('id', $category->id)['page'])->toBeNull();
 });
 
@@ -82,7 +85,8 @@ it('excludes inactive branches, serves only published hero images and has a roll
     $this->get($image)->assertNotFound();
     $this->getJson('/api/v1/catalogue/categories')->assertOk()->assertJsonMissing(['slug' => 'executive-tables']);
     config(['woodex.category_sync_enabled' => false]);
-    $this->getJson('/api/v1/catalogue/categories')->assertStatus(503);
+    $this->getJson('/api/v1/catalogue/categories')->assertStatus(503)->assertJsonPath('error.code', 'UNAVAILABLE');
+    $this->get($image)->assertNotFound();
 });
 
 it('organizes Series separately from categories and emits the new order', function () {
@@ -90,6 +94,6 @@ it('organizes Series separately from categories and emits the new order', functi
     $last = Series::orderByDesc('position')->first();
     $count = Category::count();
     Livewire::test(SeriesManager::class)->call('reorder', $last->id, $first->id)->assertHasNoErrors();
-    $this->getJson('/api/v1/catalogue/categories')->assertOk()->assertJsonPath('series.0.id', $last->slug);
+    $this->getJson('/api/v1/catalogue/categories')->assertOk()->assertJsonPath('data.series.0.id', $last->slug);
     expect(Category::count())->toBe($count)->and(CategoryContentRevision::count())->toBe(0);
 });

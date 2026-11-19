@@ -252,9 +252,6 @@ it('locks one row by its own key wherever the books are written, or says why not
         'Sales/Actions/SaveDocumentDesign.php' => [
             "->where('business_line', \$line)->lockForUpdate()->firstOrFail()" => 'one row, found by a key; not the books',
         ],
-        'Sales/Actions/CaptureStorefrontQuoteRequest.php' => [
-            '->lockForUpdate()->first()' => 'a request from the shop asked for twice; not the books, and not tried with two writers',
-        ],
     ];
 
     $unexplained = [];

@@ -220,6 +220,15 @@ has "…on https, on the host the visitor used" '^[Ll]ocation: https://demo.wood
 check "the installer is closed: 404" "$(get /install)" 404
 has "…answered with the admin's own page, not the framework's bare one" 'data-error-page="404"' "$OUT/body"
 check "health address: 200" "$(get /up)" 200
+# What the application answers under /api must be reached. Vercel's PHP server finds this entry in a folder named
+# api and announced every request below /api as "the script /api/index.php, and the rest": the application then
+# looked for /v1/leads where /api/v1/leads was asked, and answered "page not found" (defect D-041).
+check "an address under /api reaches the application: the enquiry address refuses a GET: 405" "$(get /api/v1/leads -H 'Accept: application/json')" 405
+has "…and names the method it takes" '^[Aa]llow: POST' "$OUT/head"
+check "the list of replaced photographs, for the shop: 200" "$(get /api/v1/media -H 'Accept: application/json')" 200
+has "…as JSON" '^[Cc]ontent-[Tt]ype: application/json' "$OUT/head"
+check "an address under /api that nothing owns: 404" "$(get /api/v1/no-such-address)" 404
+has "…answered as JSON, not with a page" '^[Cc]ontent-[Tt]ype: application/json' "$OUT/head"
 for file in /composer.json /vendor/autoload.php "/$DEMO_DB" "/$DEMO_DB.key" /artisan /api/index.php /config/app.php /storage/logs/laravel.log /.env /tools/vercel/build-demo.php \
   /public/index.php /index.php /build/../index.php /assets/uploads/.htaccess /.htaccess /public/.htaccess; do
   CODE="$(get "$file" --path-as-is)"

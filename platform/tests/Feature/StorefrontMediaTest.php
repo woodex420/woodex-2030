@@ -20,22 +20,23 @@ beforeEach(function () {
 });
 
 it('exposes only explicitly published replacements and keeps library-only changes off the manifest', function () {
-    $this->getJson('/api/v1/media')->assertOk()->assertExactJson(['schema' => 1, 'items' => []]);
+    // The answers are {data, meta} since the rules of /api/v1 (master list T-063): the list is "data", its size "meta.total".
+    $this->getJson('/api/v1/media')->assertOk()->assertJsonPath('data', [])->assertJsonPath('meta.total', 0);
     $new = UploadedFile::fake()->image('new.png', 30, 30);
     $service = app(StorefrontMedia::class);
     $service->replace($this->media, file_get_contents($new->getRealPath()), $this->media->path, false, $this->owner);
-    $this->getJson('/api/v1/media')->assertJsonCount(0, 'items');
+    $this->getJson('/api/v1/media')->assertJsonCount(0, 'data');
     $this->media->refresh();
     $service->replace($this->media, file_get_contents($new->getRealPath()), $this->media->path, true, $this->owner);
     $id = $this->media->fresh()->storefront_version_id;
-    $this->getJson('/api/v1/media')->assertJsonPath('items.0.key', '/img/original.png')->assertJsonPath('items.0.url', '/api/v1/media/'.$this->media->id.'/'.$id);
+    $this->getJson('/api/v1/media')->assertJsonPath('data.0.key', '/img/original.png')->assertJsonPath('data.0.url', '/api/v1/media/'.$this->media->id.'/'.$id)->assertJsonPath('meta.total', 1);
     $this->get('/api/v1/media/'.$this->media->id.'/'.$id)->assertOk();
     $this->get('/api/v1/media/'.$this->media->id.'/999999')->assertNotFound();
     Storage::disk('public')->assertExists('website/original.png');
     expect(DB::table('master_media_versions')->count())->toBe(2);
     $this->actingAs($this->owner);
     Livewire::test(MediaLibrary::class)->call('withdrawReplacement', $this->media->id)->assertHasNoErrors();
-    $this->getJson('/api/v1/media')->assertJsonCount(0, 'items');
+    $this->getJson('/api/v1/media')->assertJsonCount(0, 'data');
     Storage::disk('public')->assertExists($this->media->fresh()->path);
     $this->get('/api/v1/media/'.$this->media->id.'/'.$id)->assertNotFound();
 });

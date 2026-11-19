@@ -319,6 +319,8 @@ jobs:
   # action, fifty times a step: exactly one of them writes and the other is refused in the action's own words, the
   # books balance and no number is given twice. Then the check is checked: with one class's locks taken out, in a
   # copy, the same run must report the fault that lock is there to prevent.
+  # Since master list T-063 the same is done to the creates of /api/v1, sent as the shop sends them: one enquiry and
+  # one basket sent twice with the key of the request, and two of two visitors in the same moment.
   two-writers:
     name: Two writers at once on ${{ matrix.db.name }}
     runs-on: ubuntu-24.04
@@ -387,6 +389,11 @@ jobs:
           bites 50 number app/Support/Numbering.php 'a number was given twice'
           bites 50 reverse app/Domain/Accounts/Actions/ReverseJournalEntry.php 'an entry is reversed once'
           bites 150 pay-bill app/Domain/Accounts/Actions/PayBill.php 'the bill is paid twice'
+          # The creates of /api/v1 (master list T-063). Without the enquiry's turn one of two visitors who are both
+          # new is stopped by the database; without the row of the request's key an enquiry sent twice is written
+          # twice.
+          bites 50 two-enquiries app/Domain/Crm/Services/EnquiryTurn.php 'both were to write'
+          bites 50 one-key-two-enquiries app/Support/Api/Idempotency.php 'it is one enquiry of one person'
 
       - name: Keep the result
         if: always()

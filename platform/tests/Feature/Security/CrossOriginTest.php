@@ -81,6 +81,25 @@ it('lets the named website send only the headers the form needs', function () {
     expect($allowed)->not->toContain('authorization')->not->toContain('cookie')->not->toContain('x-csrf-token');
 });
 
+it('lets the named website send the key of a create under /api/v1, and read whether it was answered before', function () {
+    // The key of a create travels in a header (master list T-063), and a browser asks before it sends one.
+    $asked = askFirst('/api/v1/leads', OUR_SITE, headers: 'content-type, idempotency-key');
+
+    expect(strtolower((string) $asked->headers->get('Access-Control-Allow-Headers')))->toContain('idempotency-key')->toContain('content-type');
+
+    $sent = $this->withHeaders(['Origin' => OUR_SITE])->postJson('/api/v1/leads', ['name' => 'Ayesha Khan', 'phone' => '0322-4000768'], idempotencyKey())->assertCreated();
+
+    expect($sent->headers->get('Access-Control-Allow-Origin'))->toBe(OUR_SITE)
+        ->and(strtolower((string) $sent->headers->get('Access-Control-Expose-Headers')))->toContain('idempotent-replayed')->toContain('x-request-id');
+});
+
+it('opens what the shop reads to no other website: the shop asks through its own server', function () {
+    foreach (['/api/v1/media', '/api/v1/catalogue/categories', '/api/v1/no-such-address'] as $path) {
+        expect(askFirst($path, OUR_SITE, 'GET')->headers->has('Access-Control-Allow-Origin'))->toBeFalse()
+            ->and($this->withHeaders(['Origin' => OUR_SITE])->getJson($path)->headers->has('Access-Control-Allow-Origin'))->toBeFalse();
+    }
+});
+
 it('says nothing to any other website from the admin, its Livewire endpoint or the sign-in', function (string $method, string $path) {
     // Even the website that may send enquiries gets no word here.
     $asked = askFirst($path, OUR_SITE, $method);

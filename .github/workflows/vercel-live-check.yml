@@ -99,15 +99,28 @@ jobs:
           expect "…and the error page shows the same number" "$(grep -c "data-request-number>${number:-none}<" "$out/body")" 1
           must "a form sent without its token is refused: 419" "$(code -X POST --data-urlencode "email=owner@woodex.test" "$SITE/admin/login")" 419
           must "…answered with the admin's own page" "$(grep -c 'data-error-page="419"' "$out/body")" 1
+          # The rules of /api/v1 (T-063, docs/woodex-os/29-API-V1-RULES.md). Asked from outside: an address that is
+          # not there is answered by the application in the API's one error shape, with the number of the request
+          # in the body and in the header alike, and without a cookie; and a list that is published comes as data
+          # with its size. (Until 19 November everything under /api was answered here with the admin's 404 page.)
+          # Reading only: a create would write into the demo.
+          must "/api/v1, an address that is not there: 404" "$(code -H 'Accept: application/json' "$SITE/api/v1/no-such-address-live-check")" 404
+          number="$(header x-request-id)"
+          expect "…in the API's error shape, with the code NOT_FOUND" "$(jq -r 'if (keys == ["error","meta"]) and (.error | keys == ["code","details","message"]) then .error.code else "another shape" end' "$out/body" 2>/dev/null || echo 'not JSON')" NOT_FOUND
+          expect "…with the number of the request, the same as in the header" "$(jq -r '.meta.request_id' "$out/body" 2>/dev/null || echo 'not JSON')" "${number:-no number in the header}"
+          expect "…and without a cookie" "$(tr -d '\r' < "$out/head" | grep -ci '^set-cookie:')" 0
+          expect "/api/v1, the list of replaced photographs: 200" "$(code -H 'Accept: application/json' "$SITE/api/v1/media")" 200
+          expect "…a whole list with its size" "$(jq -r 'if (keys == ["data","meta"]) and (.data | type == "array") and (.meta.total == (.data | length)) then "a whole list" else "another shape" end' "$out/body" 2>/dev/null || echo 'not JSON')" "a whole list"
           # Only the site's own domain is open. The address Vercel keeps for the main branch must ask for a sign-in
           # to Vercel (the project setting "Deployment Protection"); so must every preview build.
           # An address that is not the site's own domain must send a visitor to Vercel's sign-in: 401, or a redirect
-          # to vercel.com. With "or-gone", a build that Vercel has deleted (404) is fine too.
+          # to vercel.com. With "or-gone", a build that Vercel has deleted is fine too: it answers 410 ("this
+          # deployment was removed", seen on 18 November 2026) or 404.
           wall() {
             local got where
             got="$(curl -s -o /dev/null -D "$out/wall" --max-time 40 -w '%{http_code}' "$2")"
             where="$(tr -d '\r' < "$out/wall" | grep -i '^location:' | head -1 | sed -E 's/^[^:]*: *//; s#^(https?://[^/]+).*#\1#')"
-            if [ "$got" = 401 ] || { [ "$got" = 302 ] && [ "$where" = "https://vercel.com" ]; } || { [ "${3:-}" = or-gone ] && [ "$got" = 404 ]; }; then
+            if [ "$got" = 401 ] || { [ "$got" = 302 ] && [ "$where" = "https://vercel.com" ]; } || { [ "${3:-}" = or-gone ] && { [ "$got" = 404 ] || [ "$got" = 410 ]; }; }; then
               note "ok $1 ($got${where:+ to $where})"
             else
               note "FAIL $1 (got $got${where:+ to $where}; expected Vercel's sign-in)"; fails=$((fails + 1))
@@ -144,7 +157,11 @@ jobs:
         env:
           SHOP: https://woodex-2030.vercel.app
           SHOP_BRANCH: https://woodex-2030-git-main-woodexs-projects.vercel.app
-          SHOP_OLD_PREVIEW: https://woodex-2030-an6sftwa2-woodexs-projects.vercel.app
+          # The builds made before 17 November 2026, 16:05 UTC, that Vercel still keeps (read on 19 November: these
+          # two, of 8 and 9 November, each the newest build of a branch whose pull request is open).
+          SHOP_OLD_PREVIEWS: >-
+            https://woodex-2030-mjuy06lhw-woodexs-projects.vercel.app
+            https://woodex-2030-bmtq6asjq-woodexs-projects.vercel.app
         run: |
           set -u
           out="$(mktemp -d)"; fails=0; report=""
@@ -173,23 +190,27 @@ jobs:
           # Only the shop's own domain is open to a visitor. Every other address Vercel gives the project — one per
           # branch, one per build — must ask for a sign-in to Vercel (the project setting "Deployment Protection").
           # It matters here: until 17 November 2026, 16:05 UTC, every preview build was given the live database's
-          # address, and those builds exist until Vercel deletes them, 30 days after they were made (defect D-006).
-          # The first address is the main branch's own. The second is one of those old builds (commit f8edfee):
-          # the sign-in while it exists, 404 once it is gone. Anything else means a stranger can open it.
+          # address, and those builds exist until Vercel deletes them (defect D-006). The first address is the
+          # main branch's own. The others are the old builds that are still there: each must show the sign-in
+          # while it exists, and "gone" afterwards. Anything else means a stranger can open it. The build this
+          # check watched until 18 November (commit f8edfee) was removed by Vercel that day and answers 410.
           # An address that is not the site's own domain must send a visitor to Vercel's sign-in: 401, or a redirect
-          # to vercel.com. With "or-gone", a build that Vercel has deleted (404) is fine too.
+          # to vercel.com. With "or-gone", a build that Vercel has deleted is fine too: it answers 410 ("this
+          # deployment was removed", seen on 18 November 2026) or 404.
           wall() {
             local got where
             got="$(curl -s -o /dev/null -D "$out/wall" --max-time 40 -w '%{http_code}' "$2")"
             where="$(tr -d '\r' < "$out/wall" | grep -i '^location:' | head -1 | sed -E 's/^[^:]*: *//; s#^(https?://[^/]+).*#\1#')"
-            if [ "$got" = 401 ] || { [ "$got" = 302 ] && [ "$where" = "https://vercel.com" ]; } || { [ "${3:-}" = or-gone ] && [ "$got" = 404 ]; }; then
+            if [ "$got" = 401 ] || { [ "$got" = 302 ] && [ "$where" = "https://vercel.com" ]; } || { [ "${3:-}" = or-gone ] && { [ "$got" = 404 ] || [ "$got" = 410 ]; }; }; then
               note "ok $1 ($got${where:+ to $where})"
             else
               note "FAIL $1 (got $got${where:+ to $where}; expected Vercel's sign-in)"; fails=$((fails + 1))
             fi
           }
           wall "the main branch's other address asks for Vercel's sign-in" "$SHOP_BRANCH/api/health"
-          wall "an old preview that held the database address is not open" "$SHOP_OLD_PREVIEW/api/health" or-gone
+          for old in $SHOP_OLD_PREVIEWS; do
+            wall "an old preview that held the database address is not open (${old#https://woodex-2030-})" "$old/api/health" or-gone
+          done
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-2030.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-2030.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
 

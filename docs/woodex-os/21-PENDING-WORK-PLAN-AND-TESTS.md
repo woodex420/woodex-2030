@@ -21,8 +21,8 @@ four of them. A large line can take more than one.
 ## The short version
 
 <!-- generated:short — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-1. **115 lines of the list are not done.** 18 can start now and need nobody: they are planned in 9 rounds (§2). 29 wait for you (§3). 68 wait for an earlier line (§4), and 49 of those stand behind an answer of yours.
-2. **The next round** is round 1: T-063, The rules of `/api/v1`, held by a contract test.
+1. **115 lines of the list are not done.** 18 can start now and need nobody: they are planned in 9 rounds (§2). 29 wait for you (§3). 68 wait for an earlier line (§4), and 50 of those stand behind an answer of yours.
+2. **The next round** is round 1: T-105, The shop reads products, categories and series from `/api/v1`.
 3. **The answers of yours that the most lines stand behind:** T-006, Install the trial site on Hostinger (document 24) and send its address (20 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (4 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
 4. **1 critical defect is open:** D-002, The owner password of the old dashboard was printed in a public document — T-021, which waits for you.
 5. **Every line has its test.** A line that can start now says in §2 what is built, which tests are written, what a browser does, and what the tests are tried against. A waiting line carries the list's own "done when" (§4). §5 names the checks every round passes before it is merged.
@@ -35,12 +35,12 @@ four of them. A large line can take more than one.
 <!-- generated:numbers — written by scripts/verify-plan.mjs --write; do not edit by hand -->
 |  |  |
 |---|---|
-| Lines on the list | 152 |
-| Done | 37 |
+| Lines on the list | 153 |
+| Done | 38 |
 | **Can start now, needing nobody** | **18**, in 9 rounds (§2) |
 | **Wait for you** | **29** (§3) |
-| Wait for an earlier line | 68 (§4): 49 stand behind an answer of yours · 11 stand behind lines that need nobody · 8 go with a wave, a date or an event |
-| Not done, by priority | 24 P0, 54 P1, 27 P2, 10 P3 |
+| Wait for an earlier line | 68 (§4): 50 stand behind an answer of yours · 10 stand behind lines that need nobody · 8 go with a wave, a date or an event |
+| Not done, by priority | 24 P0, 53 P1, 28 P2, 10 P3 |
 <!-- /generated:numbers -->
 
 ---
@@ -63,29 +63,30 @@ or read on the sites on the day the plan was written. **Tried against** is the p
 protection is taken away once, by hand, and the test must go red.
 
 <!-- generated:rounds — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-### Round 1 — The rules of the API the shop will use
+### Round 1 — The shop reads its products from `/api/v1`, behind a switch that stays off
 
-**Lines:** T-063 · **Why here:** P1, and of the lines that need nobody the one the most other work stands behind: the shop's reading of the catalogue (T-105), and after it the page builder. · **When it is merged, these can start:** T-105 (The shop reads products, categories and series from `/api/v1`).
+**Lines:** T-105 · **Why here:** P1, and the owner's word of 19 November ("start as you recommend", DL-037). Website Studio and Marketing, 17 of the 36 destinations of Feature status that are not open, wait for this line and then for the page builder (T-115); the Orders screen waits for it too. It is the first address of `/api/v1` in pages and the first that hands out money, so the rules of T-063 are tried on it before anything else is built on them. · **When it is merged, these can start:** T-115 (The page-builder prototype (gate C)).
 
-#### T-063 · P1 · medium — The rules of `/api/v1`, held by a contract test
+#### T-105 · P1 · large — The shop reads products, categories and series from `/api/v1`
 
-- **Done when** (the list): The seven existing endpoints follow the rules; a contract test fails on a different shape
-- **Found on 18 November 2026:** `/api/v1` has seven endpoints: the categories and their pictures, the media list and its files, an enquiry, the WhatsApp hand-off and a basket request. Each answers in its own shape. The React shop already holds a caller for each. On the live shop none of them reaches Laravel: the two switches of its forms and the address of the Laravel API are not among the settings of its Vercel project (read on 17 November). The shop's contract tests in CI hold today's shapes.
+- **Done when** (the list): The shop shows only what Laravel has published
+- **Found on 19 November 2026:** Read in the code on 19 November; nothing of it is built. The shop reads its products from its own Node API (`/api/products`, and `/api/products/overrides` for changed prices and stock), which reads the shop's database: the 148 sample products (D-007). Categories, series and pictures it can already read from `/api/v1`, through two bridges of the Node API, behind a switch that is off. `/api/v1` has no address for products. Laravel keeps each of the 170 real products as a draft and a published copy; all 170 are drafts, and publishing one asks for a review, a category, a price, a description, the shipping and warranty texts, a picture with its description, and a preview seen by the person who publishes (D-009, T-090). The basket prices its lines from the sales catalogue by the shop's own product number, not from these products.
 - **What is built:**
-  1. The rules, written down in one document: the answer as `data` / `meta` / `error` with error codes, pages, the filters that are allowed, an idempotency key on every create, money as whole minor units, times in UTC, and how the shop or an outside client signs in. Recorded with it: staff need no JSON API.
-  2. One builder for answers and one handler for errors, used by all seven endpoints, so that a refused field, a missing record, too many requests and a fault all arrive in the same shape, each with the request number of T-062.
-  3. A create that is sent twice with the same key writes once and answers the same.
-  4. The shop's callers move to the new shape in the same commit.
+  1. `GET /api/v1/catalogue/products`, in pages, and one product by its address: only the published copy of a product that is not archived, never the draft. Prices as whole paisa with the currency, times in UTC, the filters the contract names (category, series, changed since) and no other. Written into `platform/resources/api/v1.openapi.json` and document 29 first.
+  2. The pictures of a published product at an address of their own, as the categories' pictures are.
+  3. A bridge in the shop's Node API and a reader in the React shop that turn the answer into the product the pages use today, behind a switch of the shop that stays off. With the switch off the shop reads exactly what it reads today.
+  4. How a basket of products read from Laravel is priced: the round decides it, records the decision, and a test sends such a basket.
 - **Tests written:**
-  1. A contract test names every route under `/api/v1`: a route added without its contract fails it.
-  2. For each endpoint the answer is compared key by key: success, a refused field (422), not found (404), wrong method (405), too many requests (429) and a fault (500).
-  3. The same idempotency key twice gives one record and the same answer; the same key with other content is refused.
-  4. Money arrives as whole numbers and times in UTC; the request number in the answer equals the one in the header.
-  5. The existing tests of the seven endpoints, and the shop's contract tests of its callers, move to the new shape in the same commit; each change is listed in the round's report.
-  6. After the merge the outside check asks one address of `/api/v1` on the live demo and requires the new error shape.
-- **In a browser:** nothing; this line has no screen.
-- **Tried against:** With one endpoint left in its old shape, the contract test names it.
-- **The way back:** On the live shop the switches are off, so no visitor's request reaches these endpoints. The round changes files of the React shop, its callers: the release report names them before the merge. The endpoints of the old website's bridge keep their shape; that module is switched off.
+  1. The contract test names the new routes, and each answer is compared with the contract key by key: success, a page beyond the last, a filter that is not allowed (400), a product that is not published (404), too many requests (429).
+  2. A draft, a withdrawn product and an archived one are never handed out, by the list or by their own address; what is handed out is the published copy, also when the draft was changed after it.
+  3. Money arrives as whole paisa; a product without a price is "on request" and carries no figure; a sale price is handed out only between its two dates.
+  4. The shop's reader is run against the answers the contract documents, in CI's `build-and-test`, and against a real answer of Laravel on the rehearsal: the same name, price and pictures arrive in the product the pages use.
+  5. With the switch off the shop asks Laravel nothing: its build and its existing scripts give what they gave before.
+  6. After the merge the outside check asks the products address on the live demo.
+- **In a browser:**
+  1. On the rehearsal a product is published in the admin by a browser. The shop's bridge, pointed at that rehearsal, hands it to the shop's reader, and the product is shown with its name, price and picture. Withdrawn in the admin, it is gone from the shop.
+- **Tried against:** With the draft handed out in place of the published copy, the test of the unpublished product names it; with the shop's reader left reading rupees where paisa arrive, its script names the price.
+- **The way back:** The shop's switch stays off: the live shop reads what it reads today, and the round changes no setting of either Vercel project. The new addresses hand out only published products, and none is published on the demo. The Node catalogue is not closed in this round.
 
 ### Round 2 — One table for every list
 
@@ -94,7 +95,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-041 · P1 · large — One table component for every list, with the five states
 
 - **Done when** (the list): One list per area uses it; a test renders each state
-- **Found on 18 November 2026:** 50 screens write their own table: 14 in Sales, 10 in Accounts, 6 in CRM, 5 in System, the others in reports, projects and modules that are switched off. Commerce's lists are not tables. 29 lists turn pages: 15 through the shared page links, 14 through the framework's plain ones. Shared parts exist for buttons, cards, fields, dialogs, toasts, the empty state and the page links; none for a table. (36 more tables are in PDF and mail templates; those stay as they are.)
+- **Found on 19 November 2026:** 50 screens write their own table: 14 in Sales, 10 in Accounts, 6 in CRM, 5 in System, the others in reports, projects and modules that are switched off. Commerce's lists are not tables. 29 lists turn pages: 15 through the shared page links, 14 through the framework's plain ones. Shared parts exist for buttons, cards, fields, dialogs, toasts, the empty state and the page links; none for a table. (36 more tables are in PDF and mail templates; those stay as they are.)
 - **What is built:**
   1. One table component: headings that sort, a place for filters, pages, the choosing of rows with actions on all chosen, and the five states: loading, empty, error, no permission, success.
   2. One list of each area that has tables moves to it first: Leads, Quotations, Projects, Payables by age, Users, and one report. The other lists follow in the screen pass (T-045).
@@ -116,7 +117,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-172 · P2 · small — A fixed search path for the functions of the shop's database
 
 - **Done when** (the list): No function of the public schema is without a search path; the module suites pass on PostgreSQL
-- **Found on 18 November 2026:** Read from the live database on 17 November, 20:04 UTC: its public schema holds nine functions and one aggregate, and none has a fixed search path (defect D-029). Six of the functions come from the numbered migrations; three functions and the aggregate from the base schema file. None belongs to an extension. Only the database's owner can create objects there, so nothing can be put in their way today.
+- **Found on 19 November 2026:** Read from the live database on 17 November, 20:04 UTC: its public schema holds nine functions and one aggregate, and none has a fixed search path (defect D-029). Six of the functions come from the numbered migrations; three functions and the aggregate from the base schema file. None belongs to an extension. Only the database's owner can create objects there, so nothing can be put in their way today.
 - **What is built:**
   1. Migration 021 sets the search path of each of the nine functions, named one by one, with its rollback file.
   2. The aggregate (`group_concat`) is expected to take no search path of its own in PostgreSQL; its two helper functions do. That is tried on the test database first, and the defect's text then says what was found.
@@ -132,7 +133,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-175 · P1 · medium — Every table of the old system mapped to its Laravel owner
 
 - **Done when** (the list): A table in the repository: source table, target, owner, wave
-- **Found on 18 November 2026:** Read from the live database on 17 November, 20:04 UTC: 73 tables. 72 of them are the tables of the old system's schema files, name for name; the 73rd is the ledger that the migration tool keeps. None is missing and none is unknown. Laravel's migrations create 118 tables.
+- **Found on 19 November 2026:** Read from the live database on 17 November, 20:04 UTC: 73 tables. 72 of them are the tables of the old system's schema files, name for name; the 73rd is the ledger that the migration tool keeps. None is missing and none is unknown. Laravel's migrations create 118 tables.
 - **What is built:**
   1. One file with a row for each old table: where it goes in Laravel, or that it is not moved and why; the module that owns it; its wave.
   2. The same table as a document, written from the file.
@@ -151,7 +152,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-071 · P2 · medium — Package updates, and the advisories the audit reports
 
 - **Done when** (the list): Composer and npm report no advisory, or each one left has a written reason; the suite and both journeys pass on the new versions
-- **Found on 18 November 2026:** By the audit of 17 November (defect D-028): Composer reports one low advisory (Laravel 13.39; corrected in 13.40) and npm eleven moderate ones in the shop's build tools. None fails the audit today, which stops at high. The sandbox cannot reach Composer's package index: on 17 November four packages were moved in the lock file itself, and CI proved the result on a clean machine.
+- **Found on 19 November 2026:** By the audit of 17 November (defect D-028): Composer reports one low advisory (Laravel 13.39; corrected in 13.40) and npm eleven moderate ones in the shop's build tools. None fails the audit today, which stops at high. The sandbox cannot reach Composer's package index: on 17 November four packages were moved in the lock file itself, and CI proved the result on a clean machine.
 - **What is built:**
   1. Laravel to 13.40 or newer, with what it then requires, and the other Composer packages to their newest corrected versions.
   2. npm: the corrections that stay inside the same major version. For `react-router`, whose correction is a new major version, either the move with the shop's own tests, or a written reason to wait.
@@ -169,7 +170,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-152 · P3 · small — Long caching for the stylesheet and scripts
 
 - **Done when** (the list): One year, immutable
-- **Found on 18 November 2026:** The stylesheet is sent with `max-age=0, must-revalidate` (read on the live demo on 17 November, 19:21 UTC), so a browser asks for it again on every page. The names of the built files carry a mark of their content: a changed file has a new name.
+- **Found on 19 November 2026:** The stylesheet is sent with `max-age=0, must-revalidate` (read on the live demo on 17 November, 19:21 UTC), so a browser asks for it again on every page. The names of the built files carry a mark of their content: a changed file has a new name.
 - **What is built:**
   1. In `platform/vercel.json` and its copy: one year and `immutable` for the files under `/build/assets/` only. The pages and the list of built files stay as they are.
 - **Tests written:**
@@ -182,7 +183,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-153 · P3 · small — A guard on the size of the Vercel function
 
 - **Done when** (the list): The rehearsal prints the size and fails above 240 MB
-- **Found on 18 November 2026:** By the measurement in document 13: the function Vercel runs holds 226 MB of the 250 MB allowed; 153 MB of it is Vercel's PHP runtime.
+- **Found on 19 November 2026:** By the measurement in document 13: the function Vercel runs holds 226 MB of the 250 MB allowed; 153 MB of it is Vercel's PHP runtime.
 - **What is built:**
   1. The CI job that builds the demo as Vercel does prints the size of the function and fails above 240 MB.
 - **Tests written:**
@@ -194,7 +195,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-154 · P3 · small — A cold start on Vercel, measured
 
 - **Done when** (the list): Written into `13-VERCEL-DEPLOYMENT.md`
-- **Found on 18 November 2026:** Warm, the sign-in page's first byte comes after 0.08 to 0.17 s from a GitHub runner, by the list; 0.13 s on 17 November, 19:21 UTC. A cold start has never been measured, and no answer says whether the function was started for it.
+- **Found on 19 November 2026:** Warm, the sign-in page's first byte comes after 0.08 to 0.17 s from a GitHub runner, by the list; 0.13 s on 17 November, 19:21 UTC. A cold start has never been measured, and no answer says whether the function was started for it.
 - **What is built:**
   1. The entry file marks an answer for which the function had to be started. It knows: its working folder under `/tmp` is not there yet. So a cold start is read, not guessed.
   2. The outside check times its very first request by itself and prints whether it carried the mark.
@@ -208,7 +209,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-142 · P2 · small — The outside check on a timer: started once in three times due
 
 - **Done when** (the list): It runs every six hours from `main`; a forced failure opens an issue
-- **Found on 18 November 2026:** Read again on 18 November, 04:21 UTC, and corrected: until then this said that no timed run had ever started. GitHub's list holds one timed run, 44176315991, of 17 November, 21:06 UTC: green, 41 of 41 for the admin and 14 of 14 for the shop, started 2 h 43 min after the time due (18:23 UTC). The time due before it (12:23 UTC) and the one after it (00:23 UTC on 18 November) brought no run. So the timer works, and GitHub starts it late or drops it: one run in three times due. The check after a merge has run every time. Starting the check by hand is refused to this session (HTTP 403, tried on 17 November, 19:54 UTC).
+- **Found on 19 November 2026:** Read again on 18 November, 04:21 UTC, and corrected: until then this said that no timed run had ever started. GitHub's list holds one timed run, 44176315991, of 17 November, 21:06 UTC: green, 41 of 41 for the admin and 14 of 14 for the shop, started 2 h 43 min after the time due (18:23 UTC). The time due before it (12:23 UTC) and the one after it (00:23 UTC on 18 November) brought no run. So the timer works, and GitHub starts it late or drops it: one run in three times due. The check after a merge has run every time. Starting the check by hand is refused to this session (HTTP 403, tried on 17 November, 19:54 UTC).
 - **What is built:**
   1. GitHub's list of timed runs is read at the start of every round, and how many of the times due brought a run is written into the list.
   2. If fewer than three of the last four times due brought a run, the timer is written again on `main` at another minute, and the list is read after the next times due.
@@ -221,7 +222,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-189 · P3 · small — Close pull request #29: its work is already in `main`
 
 - **Done when** (the list): Closed with a comment that says where its work is; GitHub lists no open pull request but the round's own
-- **Found on 18 November 2026:** Pull request #29 of 9 November (deliveries in the old dashboard) is still open. Its work entered `main` eight minutes after it was opened, as commit `e82b386`. Its migration, its rollback file and its screen are in `main` byte for byte; what it adds to its other files is in `main` too, but for 26 lines in places `main` has rewritten since. GitHub reports it as conflicting.
+- **Found on 19 November 2026:** Pull request #29 of 9 November (deliveries in the old dashboard) is still open. Its work entered `main` eight minutes after it was opened, as commit `e82b386`. Its migration, its rollback file and its screen are in `main` byte for byte; what it adds to its other files is in `main` too, but for 26 lines in places `main` has rewritten since. GitHub reports it as conflicting.
 - **What is built:**
   1. It is closed with a comment that says where its work is. Its branch is left as it is.
 - **Tests written:**
@@ -233,7 +234,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-174 · P2 · small — The documents the code points at are in this repository
 
 - **Done when** (the list): The three documents are in `docs/laravel-os/source/`, unchanged, each headed by a note that it describes the studio's system and where this admin differs. A check fails when the code names a decision, a document or a requirement that none of them holds
-- **Found on 18 November 2026:** Counted in `platform/app`, `routes`, `config`, `resources`, `database`, `tests` and `bootstrap`: 37 decisions named by number 108 times (D-58 the most), 200 mentions of a numbered document of the Interior studio (docs/09, docs/14 and docs/06 the most), 642 mentions of 120 requirement codes in seventeen families (QUO, CRM, WAP, PRJ and others). None of these documents is in this repository. Read against the archive the owner attached on 18 November: 119 of the 120 requirement codes are in the studio's requirements document and 31 of the 37 decisions in its decisions document; of the other six, four are named in other documents of the studio, two in none (D-111, D-112). The documents are also in the studio's public repository `woodex420/woodexinterior` at `603428c`, the commit this admin was copied from.
+- **Found on 19 November 2026:** Counted in `platform/app`, `routes`, `config`, `resources`, `database`, `tests` and `bootstrap`: 37 decisions named by number 108 times (D-58 the most), 200 mentions of a numbered document of the Interior studio (docs/09, docs/14 and docs/06 the most), 642 mentions of 120 requirement codes in seventeen families (QUO, CRM, WAP, PRJ and others). None of these documents is in this repository. Read against the archive the owner attached on 18 November: 119 of the 120 requirement codes are in the studio's requirements document and 31 of the 37 decisions in its decisions document; of the other six, four are named in other documents of the studio, two in none (D-111, D-112). The documents are also in the studio's public repository `woodex420/woodexinterior` at `603428c`, the commit this admin was copied from.
 - **What is built:**
   1. Three documents copied unchanged from that commit into `docs/laravel-os/source/`: the decisions (`07-DECISIONS.md`), the requirements (`02-MASTER-PRD.md`) and the Hostinger guide (`06-DEPLOYMENT-HOSTINGER.md`). Each gets a first paragraph that says whose system it describes, the commit it was taken from and its checksum, and that this admin's own decisions are document 12.
   2. Before the copy each is read for a name, a number, an address or a password that should not be repeated here; the secret scan runs over them like over every file.
@@ -252,7 +253,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-044 · P1 · large — The dashboard as a widget framework, with the missing widgets
 
 - **Done when** (the list): Each figure's link opens the same number of rows; a widget whose module is not here is absent
-- **Found on 18 November 2026:** The dashboard is one component with one view: figures for a period, six live queues, what needs attention, the pipeline, new leads, recent activity.
+- **Found on 19 November 2026:** The dashboard is one component with one view: figures for a period, six live queues, what needs attention, the pipeline, new leads, recent activity.
 - **What is built:**
   1. Each block becomes a widget under one contract: who may see it and with which module, its figure, its link, and its states: loading, empty, error, no access.
   2. The missing widgets: the sales funnel with its conversion rate; overdue amounts by age and payables due; the health and milestones of projects. Every chart states its dates, its currency and its definition.
@@ -275,7 +276,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-054 · P1 · medium — Keyboard and screen-reader tests in a browser
 
 - **Done when** (the list): The tests run with the journeys; sign-in, a lead and a quotation done by keyboard only
-- **Found on 18 November 2026:** The search opens with Ctrl+K and answers to the arrow keys and Escape. The journeys press Ctrl+K once and Escape three times. No task is done by keyboard alone: the sidebar, the focus inside a dialog and the announcing of a refused field are untested.
+- **Found on 19 November 2026:** The search opens with Ctrl+K and answers to the arrow keys and Escape. The journeys press Ctrl+K once and Escape three times. No task is done by keyboard alone: the sidebar, the focus inside a dialog and the announcing of a refused field are untested.
 - **What is built:**
   1. A third journey, done by keyboard only: sign in; the sidebar, a group opened and a link followed; the search opened, a screen found, chosen, and Escape giving the focus back; a dialog and a drawer that keep the focus inside and return it; a lead and a quotation made; a refused field announced where it stands.
   2. What the journey finds is corrected in the same round.
@@ -291,7 +292,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-046 · P2 · medium — Help, pinned screens and recently opened screens in the top bar
 
 - **Done when** (the list): Present, usable by keyboard, remembered per person, tested
-- **Found on 18 November 2026:** The top bar has the search, "Create new", the colour theme, the notifications and the account. It has no help entry, and no pinned or recent screens. A person's record has no place for such preferences yet.
+- **Found on 19 November 2026:** The top bar has the search, "Create new", the colour theme, the notifications and the account. It has no help entry, and no pinned or recent screens. A person's record has no place for such preferences yet.
 - **What is built:**
   1. A Help entry in the top bar: what this screen is for, the keyboard shortcuts, and the request number to give when asking for help.
   2. A screen can be pinned from its heading; pinned screens stand at the head of the menu. The screens opened last are listed, for each person.
@@ -312,7 +313,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-052 · P2 · medium — Page weight: a near-empty page under 60 KB of HTML
 
 - **Done when** (the list): A near-empty page is under 60 KB of HTML
-- **Found on 18 November 2026:** By the crawl's figures in the list (§17): a near-empty page is 144 KB of HTML, 15.6 KB compressed. About 110 KB of it is the menu, the search's templates and the icons, sent again with every page. The median page is 161 KB.
+- **Found on 19 November 2026:** By the crawl's figures in the list (§17): a near-empty page is 144 KB of HTML, 15.6 KB compressed. About 110 KB of it is the menu, the search's templates and the icons, sent again with every page. The median page is 161 KB.
 - **What is built:**
   1. First a measurement, part by part.
   2. Then, as far as the measurement says: each icon drawn once and referred to; the search's list of screens fetched when the search is first opened; the phone's menu made of the same markup as the sidebar.
@@ -328,7 +329,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-049 · P2 · small — No text smaller than 12 px
 
 - **Done when** (the list): Nothing in the admin is set below 12 px, or the owner accepts named exceptions
-- **Found on 18 November 2026:** 19 places in 14 views, and 7 rules of the stylesheets, set text below 12 px: from 8 px (the line under the logo) to 11 px.
+- **Found on 19 November 2026:** 19 places in 14 views, and 7 rules of the stylesheets, set text below 12 px: from 8 px (the line under the logo) to 11 px.
 - **What is built:**
   1. Each is raised to 12 px. Where a label then no longer fits, the layout gives way, not the size.
 - **Tests written:**
@@ -347,7 +348,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-072 · P2 · large — The content policy without `eval`
 
 - **Done when** (the list): The policy has no `'unsafe-eval'`; the journeys and the crawl pass with nothing refused
-- **Found on 18 November 2026:** About 200 Alpine expressions in the views: 21 `x-data`, 19 of them written out in the markup; 121 handlers of events; 30 `x-show`.
+- **Found on 19 November 2026:** About 200 Alpine expressions in the views: 21 `x-data`, 19 of them written out in the markup; 121 handlers of events; 30 `x-show`.
 - **What is built:**
   1. Livewire's build for a strict policy is switched on, and every expression in the views is read against what it accepts.
   2. The longer ones become named components in the admin's own script; the bundle is rebuilt and committed.
@@ -369,7 +370,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-045 · P1 · large — Screen pass, area by area: theme colours, page patterns, dark theme
 
 - **Done when** (the list): Before-and-after screenshots of one screen per area at 1366 px and 390 px, light and dark
-- **Found on 18 November 2026:** 3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.
+- **Found on 19 November 2026:** 3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.
 - **What is built:**
   1. In each area: greys move to the theme's roles; what is selected takes the theme's green; each page follows the patterns of document 05 §8; its lists use the table of T-041.
   2. The dark theme is looked at on every screen of the area.
@@ -422,7 +423,7 @@ Until you answer, the admin works by what the fourth column says.
 | T-090 | P1 | Review the imported catalogue: points to check, prices, categories | — | — | — |
 | T-091 | P1 | Load the 170 real products into the React shop; withdraw the samples | — | — | — |
 | T-187 | P1 | Say whether Supabase keeps backups, or give the database address as a secret | — | — | — |
-| T-014 | P2 | Choose the WhatsApp and Telegram provider and account | Disconnected; click-to-chat links only | T-118 | 2 lines |
+| T-014 | P2 | Choose the WhatsApp and Telegram provider and account | Disconnected; click-to-chat links only | T-118 | 3 lines |
 | T-015 | P2 | Say whether the client portal is part of the product | Built, switched off | T-112 | 1 line |
 | T-016 | P2 | Approve the list of redirects before cutover | Keep | — | 1 line |
 | T-023 | P2 | Send the missing document `01-MASTER-PRD.md` | Documents 05 and 07 stand in | — | — |
@@ -444,7 +445,7 @@ condition, word for word. Where the owner's table (§3 of the list) names a line
 answer is added here.
 
 <!-- generated:waiting — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-#### Behind an answer of yours (49)
+#### Behind an answer of yours (50)
 
 | # | Pri | Task | Waits for | Your answers it stands behind | Done when |
 |---|---|---|---|---|---|
@@ -497,8 +498,9 @@ answer is added here.
 | T-165 | P0 | Browser journeys for the remaining flows of document 10 | T-010, T-033 and the modules | T-003, T-010 · and: the modules | Each flow is one named journey that passes on the rehearsal |
 | T-168 | P1 | Performance: query budgets and a run with realistic volumes | T-155 | T-003 | The budgets are tests; the run's findings are in the report |
 | T-185 | P1 | A runbook: deploy, roll back, restore, passwords, accounts | T-137 | T-006 | Written, and each step done once on staging |
+| T-190 | P2 | The WhatsApp inbox takes the enquiry's turn before it asks who is writing | T-118 — Cannot happen today: the inbox is switched off and no WhatsApp account is connected (D-044). Done with the inbox's own acceptance (T-118), before it is switched on. | T-014 | `ReceiveWhatsAppMessage` takes the enquiry's turn before it asks; `tools/ci/two-writers.php` has a step that sends two messages of two strangers at once, and without the turn that step reports the fault |
 
-#### Behind lines that need nobody (11)
+#### Behind lines that need nobody (10)
 
 | # | Pri | Task | Waits for | Stands behind | Done when |
 |---|---|---|---|---|---|
@@ -506,11 +508,10 @@ answer is added here.
 | T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 6) | "stock" finds Stock Ledger; "clients" finds Contacts |
 | T-050 | P2 | A reference screen showing every shared component and state | T-041 | T-041 (round 2) | One screen under System, for owner and admin |
 | T-051 | P2 | Placeholders while a list loads; a notice when the connection is lost | T-041 | T-041 (round 2) | Seen in a browser with the network slowed and cut |
-| T-105 | P1 | The shop reads products, categories and series from `/api/v1` | T-063 — It can be built and proven on the rehearsal as soon as T-063 is done. Switching the live shop over also needs the real admin on Hostinger (T-133). | T-063 (round 1) | The shop shows only what Laravel has published |
-| T-115 | P2 | The page-builder prototype (gate C) | T-105 — Building the prototype needs nobody. Accepting it is yours: gate C. | T-063 (round 1) | The owner accepts the prototype before any broad build |
-| T-116 | P2 | Website Studio on Puck | T-115 | T-063 (round 1) | A page is edited, approved, published and rolled back |
-| T-117 | P2 | Today's pages moved into the page builder | T-116 | T-063 (round 1) | Selected pages are approved; the old content is kept |
-| T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-063 (round 1) | A lead shows the campaign it came from |
+| T-115 | P2 | The page-builder prototype (gate C) | T-105 — Building the prototype needs nobody. Accepting it is yours: gate C. | T-105 (round 1) | The owner accepts the prototype before any broad build |
+| T-116 | P2 | Website Studio on Puck | T-115 | T-105 (round 1) | A page is edited, approved, published and rolled back |
+| T-117 | P2 | Today's pages moved into the page builder | T-116 | T-105 (round 1) | Selected pages are approved; the old content is kept |
+| T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-105 (round 1) | A lead shows the campaign it came from |
 | T-176 | P1 | The differences between PostgreSQL and MySQL, tested | T-175 | T-175 (round 3) | A test per kind on MySQL in CI |
 | T-177 | P1 | One rule for identifiers; old-to-new numbers kept | T-175 | T-175 (round 3) | Every importer writes the mapping |
 
@@ -536,19 +537,20 @@ The tests of §2 are written for one line each. These stand for every round, and
 of them pass on its last commit.
 
 <!-- generated:standing — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-| Check | Where it runs | On 18 November 2026 | What it stops |
+| Check | Where it runs | On 19 November 2026 | What it stops |
 |---|---|---|---|
-| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,568 pass, 36 skipped, none fails: run in the sandbox on 18 November, 15:19 to 15:26 UTC, on the code of pull request #45. In CI on `8549036`, on each of the three servers: 2,569 pass, 35 skipped | A rule, a screen or a permission that no longer does what its test says |
-| Two people writing in the accounts at the same moment (`platform/tools/ci/two-writers.php`) | CI, job `two-writers` of `os-ci.yml`, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, on every push that touches `platform/`. In the sandbox on the server that `platform/tools/preview/sandbox/database.sh` builds (MariaDB 10.2) | 29 steps of 50 runs hold on each of the three servers; with a lock taken out, each of four checks reports the fault it is for (CI, `8549036`) | What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, or one of two people stopped by the database with an error page |
-| A release installed and deployed again by a browser (`scripts/os-install.mjs`) | CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite | the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `8549036`) | A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change |
-| Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 37 of 37 steps hold, both ways (CI, `8549036`) | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
-| Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 253 pages, none fails (CI, `8549036`) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
-| The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes (CI, `8549036`) | A site that starts without its settings, hands out a file, or loses the session |
-| The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `8549036`) | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository |
+| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,674 pass, 36 skipped, none fails: run in the sandbox on 19 November, 12:40 to 12:45 UTC, on the code of pull request #47. In CI on `d93b112`, on each of the three servers: 2,675 pass, 35 skipped | A rule, a screen or a permission that no longer does what its test says |
+| Two writers at the same moment: in the accounts, and two enquiries or baskets of the shop (`platform/tools/ci/two-writers.php`) | CI, job `two-writers` of `os-ci.yml`, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, on every push that touches `platform/`. In the sandbox on the server that `platform/tools/preview/sandbox/database.sh` builds (MariaDB 10.2) | 33 steps of 50 runs hold on each of the three servers; with a lock taken out, each of six checks reports the fault it is for (CI, `d93b112`). The four new steps send an enquiry and a basket as the shop sends them: one sent twice with its key, and two of two visitors at once | What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, an enquiry written twice, or one of two people stopped by the database with an error page |
+| The contract of `/api/v1` (`platform/resources/api/v1.openapi.json`, held by `tests/Feature/Api/V1ContractTest.php`) | Part of the Laravel suite, so in the sandbox and in CI on the three servers. The file itself is read as OpenAPI 3.1 by a validator, by hand, when it changes | every route under `/api/v1` is in the contract, and each of the seven addresses answers key by key as the contract says, for every status it documents (CI, `d93b112`) | An address that answers in a shape its callers were not told; a route added without its contract; a key, a code or a header that is in the answer and not in the contract, or the other way round |
+| A release installed and deployed again by a browser (`scripts/os-install.mjs`) | CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite | the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d93b112`) | A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change |
+| Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 37 of 37 steps hold, both ways (CI, `d93b112`) | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
+| Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 253 pages, none fails (CI, `d93b112`) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
+| The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes, 84 checks, three of them addresses under `/api` since 19 November (CI, `d93b112`) | A site that starts without its settings, hands out a file, or loses the session |
+| The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `d93b112`) | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository |
 | Known weaknesses in the packages (`audit.yml`) | CI, when a lock file changes and every Monday | last run green on 17 November (`ef31589`); it reports one low and eleven moderate advisories (T-071) | A package with a known high or critical weakness |
-| The live sites from outside (`live-check-after-merge.yml`) | GitHub, eight minutes after every merge into `main` | the admin: 41 questions, all hold; the shop: 14, all hold (run 44156136251, 17 November, 19:21 UTC) | A live site that does not answer as it should after a merge. A failure opens an issue |
-| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27) and for the two-writers command and its tests (report 28) | A test that would pass whatever the code does |
-| Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39 and #40 | A change to the React shop that the report does not name; a merge with a check still red |
+| The live sites from outside (`live-check-after-merge.yml`) | GitHub, eight minutes after every merge into `main` | after the merge of pull request #45 one point of the shop's fifteen failed: a preview that Vercel had removed answered 410, where the check accepted the sign-in or 404 (run 44343060920, issue #46); cured in `6b3789d`, and the shop's 16 points hold on the branch (run 44455587053, 19 November, 04:02 UTC). The admin's points held in every run. Since 19 November the admin is also asked six points of `/api/v1`, which can only hold once pull request #47 is on `main` | A live site that does not answer as it should after a merge. A failure opens an issue |
+| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28) and for the contract test, the idempotency key and the enquiry's turn (report 30) | A test that would pass whatever the code does |
+| Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39, #40 and #47 (the shop's changed files are named in report 30) | A change to the React shop that the report does not name; a merge with a check still red |
 <!-- /generated:standing -->
 
 **Not covered by any of them today**, each a line of the list: a signed-in visit to the live demo (T-151) ·

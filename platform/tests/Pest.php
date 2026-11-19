@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /*
@@ -20,6 +21,15 @@ pest()->extend(TestCase::class)
 afterEach(function (): void {
     Carbon::setTestNow();
 });
+
+/*
+| A create under /api/v1 carries the key of its request in a header (App\Support\Api\Idempotency). This is a new
+| key each time, as a client makes one for each thing it creates.
+*/
+function idempotencyKey(): array
+{
+    return ['Idempotency-Key' => (string) Str::uuid()];
+}
 
 /*
 | Woodex Furniture: the Interior website pages, photographs, logos and price files are not part of this copy
