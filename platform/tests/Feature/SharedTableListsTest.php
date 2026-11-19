@@ -145,6 +145,33 @@ it('sorts the leads by a heading exactly as by the list\'s own choice, and the h
     expect(drawnScreen($screen->html())->querySelectorAll('thead th[aria-sort="none"]')->length)->toBe(4);
 });
 
+it('calls a lead newest by the day of the enquiry, not by the day it was typed in', function () {
+    // Leads brought in from a sheet keep their own dates. Entered last, they are not the newest: the list shows
+    // the date of the enquiry, and "newest first" has to agree with what it shows.
+    $manager = $this->userWithRole('sales_manager');
+    $today = Lead::factory()->create(['created_at' => now()->subHour()]);
+    $lastWeek = Lead::factory()->create(['created_at' => now()->subDays(7)]);
+    $lastYear = Lead::factory()->create(['created_at' => now()->subYear()]);
+
+    // The same moment twice: the one entered later is the newer.
+    $twinA = Lead::factory()->create(['created_at' => now()->subDays(3)->startOfMinute()]);
+    $twinB = Lead::factory()->create(['created_at' => now()->subDays(3)->startOfMinute()]);
+
+    $screen = Livewire::actingAs($manager)->test(LeadsIndex::class);
+    $order = fn () => collect($screen->viewData('leads')->items())->map(fn (Lead $lead) => $lead->id)->all();
+
+    expect($order())->toBe([$today->id, $twinB->id, $twinA->id, $lastWeek->id, $lastYear->id]);
+
+    $screen->set('sort', 'oldest');
+    expect($order())->toBe([$lastYear->id, $lastWeek->id, $twinA->id, $twinB->id, $today->id])
+        ->and(headingNamed(drawnScreen($screen->html()), 'Lead')->getAttribute('aria-sort'))->toBe('ascending');
+
+    // What is drawn under the heading is the date the order goes by.
+    $dates = collect([...drawnScreen($screen->html())->querySelectorAll('tbody tr > th[scope="row"] span')])->map(fn ($date) => saidBy($date))->all();
+    expect($dates[0])->toBe($lastYear->created_at->timezone('Asia/Karachi')->format('j M, g:i a'))
+        ->and($dates[4])->toBe($today->created_at->timezone('Asia/Karachi')->format('j M, g:i a'));
+});
+
 it('turns the pages of the leads and chooses rows as before', function () {
     $manager = $this->userWithRole('sales_manager');
     Lead::factory()->count(30)->create();
