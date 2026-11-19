@@ -45,6 +45,9 @@ final class PublishedCatalogue
 
     public function __construct(private readonly ProductMerchandising $merchandising) {}
 
+    /** @var array{category?: list<int>, series?: int} What this call filters on; read by kept(). */
+    private array $filter = [];
+
     /**
      * A page of the products the shop may show, newest change first — so that a client that keeps the highest
      * `updated_at` it has seen, and asks for what changed after it, receives every change and no other.
@@ -55,6 +58,7 @@ final class PublishedCatalogue
      */
     public function page(array $filter, int $perPage): ?array
     {
+        $this->filter = [];
         // Joined to the revision that was published: every filter below reads what that revision holds, so a
         // draft saved after publication cannot put a product in a category it was never published in.
         $query = Product::query()
@@ -68,13 +72,9 @@ final class PublishedCatalogue
             if ($category === null) {
                 return null;
             }
-            $ids = $this->withDescendants($category);
-            $query->where(function ($where) use ($ids): void {
-                // A product's categories are in the published revision's content, so the match is made there.
-                foreach ($ids as $id) {
-                    $where->orWhereRaw($this->revisionContains('category_ids', $id));
-                }
-            });
+            // A product's categories are in the published revision's content, and the filter is applied when that
+            // content is read rather than in SQL: filter() below says why.
+            $this->filter['category'] = array_map('intval', $this->withDescendants($category));
         }
 
         if (filled($filter['series'] ?? null)) {
@@ -82,17 +82,25 @@ final class PublishedCatalogue
             if ($series === null) {
                 return null;
             }
-            $query->whereRaw($this->revisionContains('series_ids', (int) $series));
+            $this->filter['series'] = (int) $series;
         }
 
         if (filled($filter['since'] ?? null)) {
             $query->where('commerce_products.updated_at', '>=', CarbonImmutable::parse((string) $filter['since'], 'UTC'));
         }
 
-        $total = (clone $query)->count();
-        $products = $query->orderByDesc('commerce_products.updated_at')->orderByDesc('commerce_products.id')->forPage(max(1, request()->integer('page', 1)), $perPage)->get();
+        // Nothing about a product's categories or series reaches the database, so the paging is done here too:
+        // the rows come back in the order the shop reads them, and the filter and the page are applied to that.
+        $rows = $query->addSelect('r.content as published_content')
+            ->orderByDesc('commerce_products.updated_at')->orderByDesc('commerce_products.id')->get();
 
-        return ['items' => $this->shape($products), 'total' => $total];
+        $kept = $rows->filter(fn (Product $product): bool => $this->kept($product))->values();
+        $page = max(1, request()->integer('page', 1));
+
+        return [
+            'items' => $this->shape($kept->forPage($page, $perPage)->values()),
+            'total' => $kept->count(),
+        ];
     }
 
     /**
@@ -336,27 +344,38 @@ final class PublishedCatalogue
     }
 
     /**
-     * A condition on the published revision's content: does the list at $key hold $value? Written with the
-     * database's own JSON functions for the three engines the suite runs on (SQLite, MySQL, PostgreSQL).
+     * Is this product in the category and the series the address asked for?
+     *
+     * The answer is read from the published revision's content in PHP, not in SQL. That is a deliberate retreat,
+     * and it is what MySQL 8.4 taught this file twice over: `JSON_TABLE … COLUMNS (value INT PATH '$')` produces
+     * no row at all — not an error, nothing — when the element it meets is a JSON string rather than a number,
+     * so a product whose category numbers were written as text was in no category on MySQL and in the right one
+     * on SQLite, whose json_each does not care; and JSON_CONTAINS, the obvious replacement, did not answer on the
+     * same server either. Each engine's JSON path semantics differ in ways that are not worth three dialects of
+     * SQL to reconcile, and the reconciliation would be the untested part on a database this sandbox does not
+     * have. PHP has one semantics, the suite runs it on every engine, and a list of category numbers is a few
+     * bytes to read.
+     *
+     * The cost is that the filter and the page are applied after the rows are read rather than by the database.
+     * With the 170 products of this catalogue that is invisible, and §8 of the round's report says so and names
+     * the measurement to make before the catalogue is large. Correctness on every server first.
      */
-    private function revisionContains(string $key, int $value): string
+    private function kept(Product $product): bool
     {
-        $driver = DB::connection()->getDriverName();
+        if ($this->filter === []) {
+            return true;
+        }
+        // @phpstan-ignore property.notFound (the alias the query selects beside the product's own columns)
+        $content = json_decode((string) $product->published_content, true);
+        $content = is_array($content) ? $content : [];
 
-        // The revision is joined as r in each query that uses this.
-        //
-        // An element of the list is compared as *text*, whatever JSON's own type for it is. That is not a
-        // nicety: JSON_TABLE's `COLUMNS (value INT PATH '$')` yields no row at all — not an error, nothing —
-        // when the element it meets is a JSON string rather than a number, so a product whose category numbers
-        // were written as strings was in no category on MySQL 8.4 while sitting in the right one on SQLite,
-        // whose json_each does not care. A cast cannot rescue a row that was never produced; a cast of the
-        // element to text, made before the comparison, can, and gives the same rule on every engine.
-        $wanted = (string) $value;
+        // The numbers may be stored as numbers or as text, and either is a product filed in that category.
+        $numbers = static fn (mixed $value): array => array_map('intval', array_filter((array) $value, 'is_scalar'));
 
-        return match ($driver) {
-            'sqlite' => "EXISTS (SELECT 1 FROM json_each(r.content, '$.{$key}') AS je WHERE CAST(je.value AS TEXT) = '{$wanted}')",
-            'pgsql' => "EXISTS (SELECT 1 FROM json_array_elements_text((r.content::jsonb) -> '{$key}') AS je WHERE je.value = '{$wanted}')",
-            default => "EXISTS (SELECT 1 FROM JSON_TABLE(r.content, '$.{$key}[*]' COLUMNS (element JSON PATH '$')) AS jt WHERE JSON_UNQUOTE(JSON_EXTRACT(jt.element, '$')) = '{$wanted}')",
-        };
+        if (isset($this->filter['category']) && array_intersect($this->filter['category'], $numbers($content['category_ids'] ?? [])) === []) {
+            return false;
+        }
+
+        return ! isset($this->filter['series']) || in_array($this->filter['series'], $numbers($content['series_ids'] ?? []), true);
     }
 }

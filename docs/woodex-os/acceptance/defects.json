@@ -753,7 +753,7 @@
       ],
       "closed": {
         "on": "2026-11-19",
-        "how": "The element is compared as text, whatever JSON calls it: SQLite CAST(je.value AS TEXT) = '3'; PostgreSQL json_array_elements_text; MySQL JSON_UNQUOTE(JSON_EXTRACT(...)) over a JSON column, one rule on all three engines and independent of the type the writer chose. The test 'it files a product whose numbers are written as text, on every database' publishes a product, rewrites its revision's category_ids through array_map('strval', …) — exactly what the program that caused this did — and asks the catalogue for it by category and by its parent. It passes on SQLite by design and is written to fail on the server that produced the fault."
+        "how": "A retreat from SQL, after two attempts to reconcile the engines' JSON dialects were wrong in the same way. The category and the series a product is in are now read from the published revision's content in PHP (PublishedCatalogue::kept()), with one semantics on every engine and every writer, and the suite runs that path on SQLite, MySQL and MariaDB. The numbers may be stored as numbers or as text and either files the product. The cost is recorded in document 33 §8 and in the code: with 170 products the filter and the page are applied after the rows are read, which is invisible now and is the first thing to measure before the catalogue is large. The test 'it files a product whose numbers are written as text, on every database' writes a revision's numbers as text exactly as the program that caused this did; it cannot fail on SQLite, which is why the fault reached CI, and it fails if the reading is put back into SQL."
       }
     }
   ]
