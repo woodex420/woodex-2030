@@ -45,7 +45,7 @@ Built files: none. `platform/public/build` is as on `main`.
 ## 2. Environment
 
 - Sandbox: PHP 8.5 (Vercel's own runtime from npm), the suite on SQLite in memory, and the rehearsal of the
-  hosted workspace (`platform/tools/vercel/serve-demo.sh`: `vercel-php@0.9.0`, `vercel.json`'s env and routes, a
+  hosted workspace (`platform/tools/vercel/serve-demo.sh`, on the vercel-php 0.9.0 runtime, with `vercel.json`'s env and routes, a
   read-only tree, the demo's sample database) served on `127.0.0.1:8191`.
 - Browser: Chromium from npm, driven by Playwright, at 1440 × 1000, 390 × 844, and in dark mode.
 - No live site was written to, no setting of either Vercel project was changed, and no database outside the
