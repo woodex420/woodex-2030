@@ -310,7 +310,6 @@ it('counts the screens that still write a table by hand: the list may only get s
         'livewire/admin/sales/proposals-index.blade.php',
         'livewire/admin/sales/quote-templates.blade.php',
         'livewire/admin/sales/quote-tracking-board.blade.php',
-        'livewire/admin/sales/quotes-index.blade.php',
         'livewire/admin/sales/rate-book.blade.php',
         'livewire/admin/sales/recurring-invoices.blade.php',
         'livewire/admin/system/integration-log.blade.php',
