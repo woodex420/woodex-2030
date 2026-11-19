@@ -6,6 +6,8 @@ import { Fragment, createElement, useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { products, catalog } from "@/data/products";
 import type { Product, ProductVariant } from "@/data/products";
+import { nativeCategoryById, nativeCatalogue } from "./nativeCategories";
+import { toProducts } from "./nativeProducts";
 
 /**
  * WOODEX runtime bridge — the storefront and the dashboard share one backend
@@ -81,9 +83,14 @@ export async function syncCatalog(): Promise<number> {
   try {
     const res = await fetch("/api/products", { headers: { accept: "application/json" } });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const json = (await res.json()) as { items?: unknown };
-    if (!json || !Array.isArray(json.items)) throw new Error("unexpected catalogue reply");
-    const next = json.items.map(toProduct).filter((product): product is Product => product !== null);
+    const json = (await res.json()) as Record<string, unknown>;
+    /* Two answers can come from this one address, and the page must read both without being rebuilt:
+       the shop's own (a list in `items`), and — where the connection to the Laravel admin is switched on —
+       the admin's, in the shape its rules name (`data`, `meta`, `links`). The second carries money in paisa
+       and "ask us" as a switch, which ./nativeProducts.ts turns into the product the pages use. */
+    const next = Array.isArray(json?.items)
+      ? json.items.map(toProduct).filter((product): product is Product => product !== null)
+      : nativeCataloguePage(json);
     const signature = JSON.stringify(next);
     if (catalog.status === "ready" && signature === lastCatalogSignature) return 0;
     const previousCount = products.length;
@@ -99,6 +106,22 @@ export async function syncCatalog(): Promise<number> {
     }
     return 0;
   }
+}
+
+/**
+ * One page of the admin's products, as the shop's products, or null when the answer is not the admin's shape.
+ *
+ * The admin names a product's category by a number; the shop names it by a slug. The categories the shop already
+ * holds — read from the same admin, by ./nativeCategories.ts — are what the two are matched by.
+ */
+function nativeCataloguePage(answer: Record<string, unknown>): Product[] {
+  const read = toProducts(answer, {
+    category: id => nativeCategoryById(id)?.slug ?? null,
+    series: id => nativeCatalogue()?.series.find(series => series.id === String(id))?.id ?? null,
+  });
+  if (read === null) throw new Error("unexpected catalogue reply");
+
+  return read.products;
 }
 
 /** The "Try again" button of the unavailable message. */

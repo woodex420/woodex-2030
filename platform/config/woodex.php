@@ -74,6 +74,12 @@ return [
     // Approved category cutover. Disable to return a 503 and use the storefront fallback.
     'catalogue_source_image_root' => env('CATALOGUE_SOURCE_IMAGE_ROOT', base_path('../apps/api/public/img')),
     'category_sync_enabled' => (bool) env('CATEGORY_SYNC_ENABLED', true),
+    // Round 1 of the product cutover (T-105). Off, the products address answers 503 and the shop keeps its own
+    // list — which is what ships, because every one of the 170 real products is still a draft: a shop reading
+    // only published products would show an empty catalogue. Turned on with PRODUCT_SYNC_ENABLED=1 once the
+    // products are published through the admin's review (T-090) and the real admin is on Hostinger (T-133).
+    // The categories' switch above is on, and stays on: that connection works and is proven.
+    'product_sync_enabled' => (bool) env('PRODUCT_SYNC_ENABLED', false),
 
     'owner' => [
         'name' => env('OWNER_NAME'),

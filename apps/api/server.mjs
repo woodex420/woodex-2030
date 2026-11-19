@@ -22,6 +22,7 @@
  */
 import { nativeMediaBridge } from "./native-media-bridge.mjs";
 import { nativeCategoryBridge } from "./native-category-bridge.mjs";
+import { nativeProductBridge, productSyncOn } from "./native-product-bridge.mjs";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -1871,6 +1872,12 @@ const isPublic = (m, p) =>
        so it answered 401 "sign in required" to every visitor: the category
        connection to the Laravel admin could not have worked for the public. */
     /^\/api\/v1\/catalogue\/categories(?:\/[A-Za-z0-9-]+\/hero\/\d+)?$/.test(p) ||
+    /* The product's photograph, the same way round and the same trap (T-105): the
+       route was registered without being listed here, so the browser asked its own
+       origin for the picture and got 401 — the page rendered, the breadcrumb came
+       from Laravel, the price was right, and the photograph was a grey box. A
+       signed-out visitor is exactly who reads it. */
+    /^\/api\/v1\/catalogue\/products\/[a-z0-9]+(?:-[a-z0-9]+)*\/picture\/\d+\/\d+$/.test(p) ||
     p === "/api/health" || p === "/api/theme" || p === "/api/auth/demo-available" ||
     /^\/api\/(products|categories|collections|materials|services)(\/|$)/.test(p) ||
     /^\/api\/pages\/[^/]+\/public$/.test(p) ||
@@ -2240,6 +2247,15 @@ const publishBlocked = () => ({ status: 409, body: {
   error: "a product needs a SKU, or at least one option with a SKU, before it can be published",
   code: "publish_blocked", missing: ["sku"],
 } });
+// The catalogue from the Laravel admin, behind a switch of this shop that is off unless NATIVE_PRODUCT_SYNC=1
+// (T-105). Off, these two addresses are never reached: the shop reads its own database exactly as before.
+if (productSyncOn()) {
+  app.get('/api/products', nativeProductBridge());
+  app.get('/api/products/:id', nativeProductBridge());
+  // A product photograph, at the path the admin's answer names, so that a page asks the shop it stands on.
+  app.get('/api/v1/catalogue/products/:slug/picture/:media/:version', nativeProductBridge());
+}
+
 // Same-origin read-only native categories. Runtime origin is a deployment setting, never a browser URL.
 app.get('/api/v1/media', nativeMediaBridge());
 app.get('/api/v1/media/:media/:version', nativeMediaBridge());

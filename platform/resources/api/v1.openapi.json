@@ -439,6 +439,216 @@
           }
         }
       }
+    },
+    "/catalogue/products": {
+      "get": {
+        "operationId": "api.v1.catalogue.products",
+        "summary": "The published products, in pages",
+        "description": "The products the admin has published, newest change first. A draft, a withdrawn product and an archived one are never handed out: to the shop all three are absent, and so is a product whose publication was withdrawn while its draft still exists.\n\nPaged: 24 to a page unless per_page says otherwise, 100 at most. `since` is how the shop collects a change without reading the whole list again: it keeps the highest `updated_at` it has seen and asks for what changed after it.\n\n`position` counts on across the pages, so a client that asks for page two receives 25, 26, 27… Money is whole paisa; a product without a price is on_request and carries no figure.\n\nSwitch: PRODUCT_SYNC_ENABLED (on unless set otherwise); off, it answers 503. Limit: 120 a minute from one address.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Which page, counted from 1.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "description": "How many products a page holds; 24 when not said, 100 at most.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "Only the products published in this category or in any category below it, by its slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "series",
+            "in": "query",
+            "required": false,
+            "description": "Only the products published in this series, by its slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "description": "Only the products saved at or after this moment, written as every moment of this API is.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the published products.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPageAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/catalogue/products/{product}": {
+      "get": {
+        "operationId": "api.v1.catalogue.products.show",
+        "summary": "One published product, by the address the shop knows it by",
+        "description": "The same product the list hands out, alone. A product that was never published, one whose publication was withdrawn and one that is archived answer exactly as an address nothing is at (404): a different answer would tell a visitor which drafts exist.\n\nSwitch: PRODUCT_SYNC_ENABLED; off, it answers 503. Limit: 120 a minute from one address.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "description": "Its slug.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The product.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/catalogue/products/{product}/picture/{image}/{version}": {
+      "get": {
+        "operationId": "api.v1.catalogue.products.picture",
+        "summary": "One photograph of a published product",
+        "description": "The bytes of a photograph the published copy of a product carries. Only a photograph of that publication: not a picture of a draft, not one of another product, and not an older version of one.\n\nLimit: 120 a minute from one address.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "description": "Its slug.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          },
+          {
+            "name": "image",
+            "in": "path",
+            "required": true,
+            "description": "The number of the picture in the admin.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "description": "The published revision it belongs to, as the product’s `pictures` name it.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The picture.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "image/*": {
+                "schema": null
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1374,6 +1584,345 @@
           "token": {
             "type": "string",
             "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "Product": {
+        "description": "One product as the admin published it. Only the published copy is ever handed out: a draft saved after publication, a withdrawn product and an archived one are all absent. Money is whole paisa in a key ending in _minor, with the currency beside it; a product with no price is on_request and its price_minor is null, never 0.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "short_description",
+          "description",
+          "shipping",
+          "warranty",
+          "category_ids",
+          "primary_category_id",
+          "series_ids",
+          "availability",
+          "price_minor",
+          "was_price_minor",
+          "currency",
+          "on_request",
+          "variants",
+          "specifications",
+          "features",
+          "faqs",
+          "seo_title",
+          "seo_description",
+          "og_title",
+          "og_description",
+          "is_hot",
+          "is_featured",
+          "related_mode",
+          "related_ids",
+          "pictures",
+          "position",
+          "revision",
+          "published_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "description": "The address the shop knows the product by: its slug.",
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "short_description": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "shipping": {
+            "type": "string"
+          },
+          "warranty": {
+            "type": "string"
+          },
+          "category_ids": {
+            "description": "Every category the product is published in.",
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "primary_category_id": {
+            "description": "The category it is listed under first; null when it has none.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "series_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "availability": {
+            "description": "What the editor said about ordering it. on_request is the same fact as on_request below, in the words the admin uses.",
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable",
+              "on_request"
+            ]
+          },
+          "price_minor": {
+            "description": "What it costs now, in paisa: the sale price while a sale is on, the regular price at every other time. Always a whole number, because a product cannot be published without a base price. When on_request is true this is not an offer to buy at.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "was_price_minor": {
+            "description": "The regular price, while a sale is on; null at every other time.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "on_request": {
+            "description": "The editor published it as \"ask us\": the shop may show it and take a quote for it, but must not print a buying price or put it in a cart.",
+            "type": "boolean"
+          },
+          "variants": {
+            "description": "The ways it is sold — a size, a finish. A product with any is ordered by one of them.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductVariant"
+            }
+          },
+          "specifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductSpecification"
+            }
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "faqs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductFaq"
+            }
+          },
+          "seo_title": {
+            "type": "string"
+          },
+          "seo_description": {
+            "type": "string"
+          },
+          "og_title": {
+            "type": "string"
+          },
+          "og_description": {
+            "type": "string"
+          },
+          "is_hot": {
+            "type": "boolean"
+          },
+          "is_featured": {
+            "type": "boolean"
+          },
+          "related_mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "manual",
+              "category"
+            ]
+          },
+          "related_ids": {
+            "description": "The products the editor chose to show beside it; empty unless related_mode is manual.",
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "pictures": {
+            "description": "Its photographs, in the order its editor put them, each at an address of its own.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductPicture"
+            }
+          },
+          "position": {
+            "description": "Its place in the whole list, counted from 1 across the pages: page two of 24 begins at 25.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "revision": {
+            "description": "The number of the published revision this answer was made from.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "published_at": {
+            "description": "When that revision was published.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "description": "When the product was last saved, published or not. A client asks for what changed after it.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "ProductVariant": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sku",
+          "colour",
+          "material",
+          "size",
+          "price_minor",
+          "availability"
+        ],
+        "properties": {
+          "sku": {
+            "type": "string",
+            "minLength": 1
+          },
+          "colour": {
+            "type": "string"
+          },
+          "material": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "price_minor": {
+            "description": "This option’s own price in paisa; null when it has none.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable",
+              "on_request"
+            ]
+          }
+        }
+      },
+      "ProductSpecification": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "value"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "ProductFaq": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question",
+          "answer"
+        ],
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      },
+      "ProductPicture": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url",
+          "alt"
+        ],
+        "properties": {
+          "url": {
+            "description": "The address of the picture on this site, without its name.",
+            "type": "string",
+            "pattern": "^/api/v1/catalogue/products/[a-z0-9-]+/picture/[0-9]+/[0-9]+$"
+          },
+          "alt": {
+            "description": "What the picture shows, in the words its editor wrote for somebody who cannot see it. Never the product name unless that is what was written.",
+            "type": "string"
+          }
+        }
+      },
+      "ProductPageAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          "links": {
+            "$ref": "#/components/schemas/PageLinks"
+          }
+        }
+      },
+      "ProductAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Product"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
           }
         }
       }

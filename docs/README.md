@@ -13,6 +13,8 @@ touching code.
 |---|---|
 | [woodex-os/README.md](woodex-os/README.md) | **Current (2026-11-16). The direction.** WOODEX OS: one Laravel admin (`platform/`), with the whole Agency OS migrated into it. Master plan, decision log, the owner's specification set, and the report of the work done so far |
 | [furniture-2030/README.md](furniture-2030/README.md) | **Current (2026-11-16).** Owner decisions, independent audit with evidence, launch plan, Hostinger Business preflight |
+| [woodex-os/32-FEATURE-STATUS-ANALYSIS.md](woodex-os/32-FEATURE-STATUS-ANALYSIS.md) | **Latest analysis (2026-11-19).** The Feature status screen read against its specification: the 68 destinations and what decides each state, the 20 that are built and switched off and what each needs, what the screen did not do (two defects, both closed), and the five answers only the owner can give |
+| [woodex-os/31-RELEASE-2026-11-19-SECOND.md](woodex-os/31-RELEASE-2026-11-19-SECOND.md) | **Latest release report.** That round, in the ten points of document 10 §9 |
 
 ## Engineering specifications — start here
 | Document | Status |

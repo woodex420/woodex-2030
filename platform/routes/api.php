@@ -60,6 +60,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/catalogue/categories/{category}/hero/{revision}', [V1\CategoryController::class, 'hero'])
         ->whereNumber(['category', 'revision'])->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.categories.hero');
 
+    // What the shop reads of the products: only the published copy of a product that is not archived, in pages
+    // (T-105). Its filters are named here, and a query parameter that is not named is refused by the door.
+    Route::get('/catalogue/products', [V1\ProductController::class, 'index'])
+        ->middleware(['throttle:120,1', 'api.v1:query=page|per_page|category|series|since'])->name('catalogue.products');
+    Route::get('/catalogue/products/{product}', [V1\ProductController::class, 'show'])
+        ->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.products.show');
+    Route::get('/catalogue/products/{product}/picture/{image}/{version}', [V1\ProductController::class, 'picture'])
+        ->whereNumber(['image', 'version'])->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.products.picture');
+
     // Only explicitly published React media mappings; never private product images or the whole library.
     Route::get('/media', [V1\MediaController::class, 'index'])
         ->middleware(['throttle:120,1', 'api.v1'])->name('media');
