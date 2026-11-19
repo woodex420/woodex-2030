@@ -52,13 +52,4 @@ jobs:
         run: |
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs storage/app/private
           files="$(find tests/Feature -name '*Test.php' | sort | awk -F'tests/Feature/' '{ c = tolower(substr($2, 1, 1)); if (c >= "a" && c <= "f") print }')"
-          WX_DEBUG_IDS=1 php -d memory_limit=2G vendor/bin/pest --compact tests/Feature/Api/ProductCatalogueApiTest.php --filter="narrows the list by category" 2>&1 | tail -25
-      - name: Read the probe back
-        if: always()
-        run: |
-          python3 - <<'PY'
-          import json, glob
-          for name in glob.glob('/tmp/probe.json'):
-              for i, line in enumerate(json.load(open(name))):
-                  print(f"::warning title=probe{i}::{line}")
-          PY
+          WX_DEBUG_IDS=1 php -d memory_limit=2G vendor/bin/pest --compact tests/Feature/Api/ProductCatalogueApiTest.php 2>&1 | grep -E "Tests:|⨯" | head -5
