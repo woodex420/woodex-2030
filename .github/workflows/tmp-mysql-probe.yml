@@ -52,4 +52,4 @@ jobs:
         run: |
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs storage/app/private
           files="$(find tests/Feature -name '*Test.php' | sort | awk -F'tests/Feature/' '{ c = tolower(substr($2, 1, 1)); if (c >= "a" && c <= "f") print }')"
-          WX_DEBUG_IDS=1 php -d memory_limit=2G vendor/bin/pest --compact tests/Feature/Api/ProductCatalogueApiTest.php 2>&1 | grep -E "Tests:|⨯" | head -5
+          WX_DEBUG_IDS=1 php -d memory_limit=2G vendor/bin/pest --compact tests/Feature/Api/ProductCatalogueApiTest.php $files 2>&1 | grep -E "narrows|Tests:|⨯" | head -8
