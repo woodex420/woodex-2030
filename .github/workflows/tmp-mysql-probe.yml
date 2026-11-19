@@ -3,7 +3,7 @@ on: push
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       mysql:
         image: mysql:8.4
@@ -48,7 +48,8 @@ jobs:
         run: |
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
           php artisan package:discover --ansi
-      - name: Probe the category filter
+      - name: Whole feature-a-f group, as CI runs it
         run: |
           mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs storage/app/private
-          php vendor/bin/pest --compact tests/Feature/Api/ProductCatalogueApiTest.php --filter="narrows the list by category" 2>&1 | tail -40
+          files="$(find tests/Feature -name '*Test.php' | sort | awk -F'tests/Feature/' '{ c = tolower(substr($2, 1, 1)); if (c >= "a" && c <= "f") print }')"
+          php -d memory_limit=2G vendor/bin/pest --compact tests/Feature/Api/ProductCatalogueApiTest.php $files 2>&1 | grep -E "narrows the list|Tests:|⨯|Failed asserting|Expected|Actual|^\s*[-+]" | head -60
