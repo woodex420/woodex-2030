@@ -22,6 +22,16 @@ final class ReleaseNotes
         return [
             [
                 'date' => '2026-11-19',
+                'title' => 'Products and their pages can be read from this admin by the shop, and the shop is not switched on to them yet',
+                'notes' => [
+                    'Products: a published product is now readable outside this admin — its name, description, categories, series, price, availability and photographs — and so is the list of published products, in pages, narrowed by category or series. Only the copy you published is ever handed out: a draft, a withdrawn product and an archived one are not, and neither is a photograph of a draft or of an older copy.',
+                    'Prices are whole rupees and never a guess: a product published to ask about is handed out as "price on request" rather than as a figure, and a sale price is handed out only between the dates you set.',
+                    'This changes nothing you see on the live shop yet. The shop reads these new addresses only when a switch is turned on for it, and that switch is off in this release — so the shop shows exactly what it shows today. It is left off on purpose: every one of your 170 real products is still a draft, so a shop reading the published products would show an empty catalogue.',
+                    'One product was published on the throwaway demo workspace to prove the two ends fit together, and its database is thrown away at every start. No real product was published.',
+                ],
+            ],
+            [
+                'date' => '2026-11-19',
                 'title' => 'Feature status tells you about every screen you can open, and finds one by name',
                 'notes' => [
                     'Feature status (System): the page now tells a person about the screens their own role can open, without a gap. A few System screens are open to either of two permissions — Access & team, Connections, Platform — and the page used to know only the first, so it left the others out while the menu offered them.',

@@ -19,6 +19,10 @@ let pending = false;
 const DISABLED_PAUSE_MS = 10 * 60_000;
 let pausedUntil = 0;
 export const nativeCatalogue = () => current;
+/** A category of the admin by the number it is known by there — what a product's answer names it with. */
+export function nativeCategoryById(id: number) {
+  return current?.categories.find(c => c.id === id);
+}
 export function nativeCategory(id: string) {
   return current?.categories.find(c => c.slug === id || (id === 'office' && c.slug === 'office-furniture') || (id === 'home' && c.slug === 'home-furniture'));
 }

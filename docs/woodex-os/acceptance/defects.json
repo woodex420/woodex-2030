@@ -673,6 +673,58 @@
         "on": "2026-11-19",
         "how": "The four numbers are buttons that filter the list by state (with a line saying what is shown and a way back); a search box filters the 68 by name and says how many match, and says so when none does; the release notes moved below the destinations and only the newest is open; and each \"Open\" link is at least 24 px tall. Measured again on the rehearsal: the first destination is at 488 px, the four filters show only their state, \"order\" finds Orders and Purchase Orders, and the page is not wider than a 390 px window."
       }
+    },
+    {
+      "id": "D-047",
+      "severity": "low",
+      "state": "open",
+      "found": "2026-11-19",
+      "title": "A basket the shop fills from Laravel would display Laravel's price and be charged the sales catalogue's",
+      "detail": "Round 1 of T-105 makes the shop read products from the Laravel admin while the basket is still priced by the sales catalogue by the shop's own product number. While the shop's reader stays switched off (it ships off), there is one source and no disagreement. The moment NATIVE_PRODUCT_SYNC=1, the number on the screen and the number on the order can differ. The owner chose this deliberately for round 1 — only one of the two is charged, so a customer cannot be charged a price they were not shown, but they can be shown a price they are not charged.",
+      "lines": [
+        "T-105"
+      ]
+    },
+    {
+      "id": "D-048",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "Every product photograph on the shop was a 401 and a grey box, while the page around it worked",
+      "detail": "Found by a browser on the rehearsal, after the round's whole Laravel suite (2,705) and its Node tests were green — the reader's test builds no page, so no test in the round ever asked for a photograph. The admin names a product's picture as a path on the admin itself: /api/v1/catalogue/products/{slug}/picture/{media}/{version}; a page in the browser asks the shop's own origin; the shop had a bridge for the categories' pictures (/api/v1/media) and none for the products', and the public allow-list of apps/api/server.mjs did not name it either, so the request fell to the session gate and was answered 401. The page rendered completely — the real name, the breadcrumb from Laravel's category, \"Price on request\", the SKU — with an empty frame where the photograph belonged, and nothing on the page looked at the failure.",
+      "lines": [
+        "T-105"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "A route on the product bridge hands the bytes on (three formats only, 4 MB at most, nosniff, the admin's request number travelling with it), the public allow-list names the path, and scripts/test-native-product-reader.mjs holds it: the picture is asked of the admin at its own path, the bytes are the admin's bytes, a withdrawn picture is a 404 rather than an empty picture, HTML is a 502 rather than a page handed to an <img>, and the switch off refuses it as it refuses the list. Removing the route fails the test. In the browser afterwards: naturalWidth 600 x 600 from the uploaded file and no failed picture request. apps/api/server.mjs carries a comment beside the entry because this is the second time this exact allow-list trap has bitten — the categories' bridge was the first."
+      }
+    },
+    {
+      "id": "D-049",
+      "severity": "low",
+      "state": "open",
+      "found": "2026-11-19",
+      "title": "On a published product's page the variant pill prints \"Price on request\" beside a price",
+      "detail": "Seen on the rehearsal with one product published from Laravel: the page's product-level line is right (a price, or \"Price on request\" when the editor published it to ask), but the option pill under \"Option:\" carries the same wording at all times, so a product with a real price shows both a figure and \"Price on request\" in the same column. Cosmetic, not in round 1's two acceptance criteria, and belonging to the price rule of D-047 rather than to the reading of the admin: nothing in the reader is wrong.",
+      "lines": [
+        "T-105"
+      ]
+    },
+    {
+      "id": "D-050",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "An option's number in the shop was its position in the list, so reordering options in the admin repointed saved baskets",
+      "detail": "In the new reader of T-105 (apps/storefront/src/lib/nativeProducts.ts) each option of a product read from /api/v1 was given an id equal to its position in the list. The shop keeps the option a customer chose in a basket and in a quote as variantId and matches a saved line back to an option by that number (apps/storefront/src/contexts/reconcile.ts). The admin gives an option no id — the contract has none — so when an editor reordered a product's options, or inserted one above another, every saved basket line silently pointed at a different option, with a plausible price attached and nothing on the screen to show it. No test could have caught it: the reader's test was written from the same assumption as the code. Found by reading the reader against the shop's own basket code, and by noticing that the shop's own options carry a database row id while the admin's carry only a SKU.",
+      "lines": [
+        "T-105"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "The id is derived from the SKU, which the contract does make unique within a product: a 31-bit hash of the SKU (the range the shop's own ids use), stepping to the next free number if two SKUs of one product collide. The same option therefore keeps the same id when the list is reordered, when neighbours are removed, and when the product is republished. scripts/test-native-product-reader.mjs holds it: reordering the answer keeps both ids, two options never share one, the id is a positive whole number inside the range, and removing a neighbour changes nothing; putting the position back fails the test."
+      }
     }
   ]
 }
