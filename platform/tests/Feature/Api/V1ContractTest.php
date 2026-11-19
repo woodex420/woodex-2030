@@ -482,6 +482,20 @@ it('says which parameter was refused, and that the address takes none', function
         ->and($refused->json('error.details'))->toBe(['refused' => ['status', 'page'], 'allowed' => []]);
 });
 
+it('refuses a parameter before it looks anything up, whether the record is there or not', function (string $address) {
+    // Asked with numbers that name nothing: the answer is about the parameter, as it is where the record exists.
+    // (A database that counts on from test to test showed that the two answers once differed.)
+    $this->getJson($address.'?sort=name')
+        ->assertStatus(400)
+        ->assertJsonPath('error.code', 'PARAMETER_NOT_ALLOWED')
+        ->assertJsonPath('error.details.refused', ['sort']);
+
+    $this->getJson($address)->assertStatus(404)->assertJsonPath('error.code', 'NOT_FOUND');
+})->with([
+    'the picture of a category page' => ['/api/v1/catalogue/categories/987654/hero/987654'],
+    'a replaced photograph' => ['/api/v1/media/987654/987654'],
+]);
+
 it('refuses a body that is not a JSON object before it reads it', function () {
     foreach (['"just text"', '[1, 2, 3]', '{"name": "Ayesha"', ''] as $body) {
         $refused = $this->call('POST', '/api/v1/leads/whatsapp-handoff', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'], content: $body);

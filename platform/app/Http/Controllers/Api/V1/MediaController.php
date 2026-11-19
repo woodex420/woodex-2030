@@ -30,9 +30,15 @@ final class MediaController extends Controller
         );
     }
 
-    public function file(Media $media, int $version): BinaryFileResponse
+    /**
+     * The record is looked up here, not by the route: the door of the address (the limit, the parameters it takes)
+     * is then passed before anything is asked of the database, and a refused request is refused the same way
+     * whether the photograph exists or not.
+     */
+    public function file(int $media, int $version): BinaryFileResponse
     {
-        abort_unless($media->storefront_key && (int) $media->storefront_version_id === $version, 404);
+        $media = Media::query()->find($media);
+        abort_unless($media !== null && $media->storefront_key && (int) $media->storefront_version_id === $version, 404);
         $asset = DB::table('master_media_assets')->where('source_type', 'website')->where('source_id', $media->id)->first();
         $row = $asset ? DB::table('master_media_versions')->where('asset_id', $asset->id)->where('id', $version)->first() : null;
         abort_unless($row && preg_match('~^media/masters/[a-f0-9]{64}\.(jpg|png|webp)$~', $row->path) && Storage::disk('local')->exists($row->path), 404);

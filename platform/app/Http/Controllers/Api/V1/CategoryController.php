@@ -83,9 +83,17 @@ final class CategoryController extends Controller
         ]);
     }
 
-    public function hero(Category $category, CategoryContentRevision $revision): BinaryFileResponse
+    /**
+     * The records are looked up here, not by the route: the door of the address (the limit, the parameters it
+     * takes) is then passed before anything is asked of the database, and a refused request is refused the same
+     * way whether the picture exists or not.
+     */
+    public function hero(int $category, int $revision): BinaryFileResponse
     {
-        abort_unless(config('woodex.category_sync_enabled') && $category->is_active && $category->published_revision_id === $revision->id && $revision->category_id === $category->id, 404);
+        $category = Category::query()->find($category);
+        $revision = CategoryContentRevision::query()->find($revision);
+        abort_unless($category !== null && $revision !== null && config('woodex.category_sync_enabled') && $category->is_active
+            && $category->published_revision_id === $revision->id && $revision->category_id === $category->id, 404);
         $parent = $category;
         $seen = [];
         while ($parent->parent_id !== null) {
