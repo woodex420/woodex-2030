@@ -173,6 +173,8 @@ it('narrows the list by category, by its children and by series, and never widen
         }
         $debugRow = DB::table('commerce_products')->get(['id', 'slug', 'updated_at', 'published_revision_id']);
         fwrite(STDERR, "\n::warning title=rows::".implode(' | ', $debugRow->map(fn ($r) => $r->id.':'.$r->slug.':'.$r->updated_at.':p'.$r->published_revision_id)->all())."\n");
+        $debugCats = DB::table('commerce_categories')->whereIn('slug', ['office-tables', 'executive-tables', 'meeting-tables'])->get(['id', 'slug', 'parent_id', 'is_active']);
+        fwrite(STDERR, "\n::warning title=categories::".implode(' | ', $debugCats->map(fn ($c) => $c->id.':'.$c->slug.':parent'.($c->parent_id ?? 'none').':active'.(int) $c->is_active)->all())."\n");
         $debugRev = DB::table('commerce_product_revisions')->get(['id', 'product_id', 'content']);
         fwrite(STDERR, "\n::warning title=revisions::".implode(' | ', $debugRev->map(fn ($r) => $r->id.':p'.$r->product_id.':cats='.implode('/', json_decode($r->content, true)['category_ids'] ?? []))->all())."\n");
     }
