@@ -48,6 +48,8 @@ const UNSAVED_PLAIN_FORMS = [
  */
 const UNSAVED_FIELDS_EXEMPT = [
     'a filter, a search, or ticks that choose rows: sent the moment it changes; leaving loses nothing' => [
+        // The tick box of the shared table (T-041): the property it fills is named by the list that draws it.
+        'components/admin/table/select' => ['{{ $model }}'],
         'livewire/admin/accounts/bills-index' => ['projectFilter', 'statusFilter', 'vendorFilter'],
         'livewire/admin/accounts/expenses-index' => ['filterFrom', 'filterTo'],
         'livewire/admin/accounts/profit-loss' => ['from', 'to'],
