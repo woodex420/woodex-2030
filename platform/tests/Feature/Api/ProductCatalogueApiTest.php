@@ -293,12 +293,18 @@ it('reads an address with the regard to case that the database may not have', fu
     // test makes SQLite compare the column as the other two do, so that the fix is proven here rather than only
     // there. It must be the column's own collation: an index declared COLLATE NOCASE does not change how SQLite
     // compares, which was tried first and passed without the fix, proving nothing.
-    DB::statement('DROP INDEX IF EXISTS commerce_products_slug_unique');
-    DB::statement('ALTER TABLE commerce_products RENAME COLUMN slug TO slug_strict');
-    DB::statement('ALTER TABLE commerce_products ADD COLUMN slug string COLLATE NOCASE');
-    DB::statement('UPDATE commerce_products SET slug = slug_strict');
-    DB::statement('CREATE UNIQUE INDEX commerce_products_slug_unique ON commerce_products (slug)');
-    // The probe that comes first in this test: the database really has become loose, so what follows is a test.
+    //
+    // On MySQL and MariaDB there is nothing to do: the column is already compared without regard to case, which
+    // is how CI found this. On SQLite the column is rebuilt with a NOCASE collation of its own.
+    if (DB::getDriverName() === 'sqlite') {
+        DB::statement('DROP INDEX IF EXISTS commerce_products_slug_unique');
+        DB::statement('ALTER TABLE commerce_products RENAME COLUMN slug TO slug_strict');
+        DB::statement('ALTER TABLE commerce_products ADD COLUMN slug string COLLATE NOCASE');
+        DB::statement('UPDATE commerce_products SET slug = slug_strict');
+        DB::statement('CREATE UNIQUE INDEX commerce_products_slug_unique ON commerce_products (slug)');
+    }
+    // The probe that comes first in this test: the database really does compare loosely now, so that what
+    // follows is a test on either kind of server rather than a tautology on one of them.
     expect(DB::table('commerce_products')->where('slug', 'EXECUTIVE-DESK')->count())->toBe(1);
 
     $this->getJson('/api/v1/catalogue/products/Executive-Desk')->assertStatus(404);
