@@ -281,3 +281,30 @@ it('keeps one product per address, and reads the address the shop knows the prod
         $this->getJson('/api/v1/catalogue/products/'.rawurlencode($slug))->assertStatus(404);
     }
 });
+
+it('reads an address with the regard to case that the database may not have', function (): void {
+    ($this->publish)(['slug' => 'executive-desk']);
+
+    // MySQL and MariaDB compare a text column without regard to case by default, SQLite with regard to it, so a
+    // test on SQLite alone cannot tell a loose address from a strict one: the same code answered 200 for
+    // /Executive-Desk on MariaDB and 404 on SQLite, and CI caught it in the group that runs on MariaDB.
+    //
+    // The fix is in the code — one() and pictureFile() refuse a row whose slug is not the one asked for — and this
+    // test makes SQLite compare the column as the other two do, so that the fix is proven here rather than only
+    // there. It must be the column's own collation: an index declared COLLATE NOCASE does not change how SQLite
+    // compares, which was tried first and passed without the fix, proving nothing.
+    DB::statement('DROP INDEX IF EXISTS commerce_products_slug_unique');
+    DB::statement('ALTER TABLE commerce_products RENAME COLUMN slug TO slug_strict');
+    DB::statement('ALTER TABLE commerce_products ADD COLUMN slug string COLLATE NOCASE');
+    DB::statement('UPDATE commerce_products SET slug = slug_strict');
+    DB::statement('CREATE UNIQUE INDEX commerce_products_slug_unique ON commerce_products (slug)');
+    // The probe that comes first in this test: the database really has become loose, so what follows is a test.
+    expect(DB::table('commerce_products')->where('slug', 'EXECUTIVE-DESK')->count())->toBe(1);
+
+    $this->getJson('/api/v1/catalogue/products/Executive-Desk')->assertStatus(404);
+    $this->getJson('/api/v1/catalogue/products/executive-desk')->assertOk()->assertJsonPath('data.slug', 'executive-desk');
+    $this->getJson('/api/v1/catalogue/products/EXECUTIVE-DESK')->assertStatus(404);
+
+    // The picture likewise: an address the product was not published at does not serve its photograph.
+    $this->getJson('/api/v1/catalogue/products/Executive-Desk/picture/1/1')->assertStatus(404);
+});

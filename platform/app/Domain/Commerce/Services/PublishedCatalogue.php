@@ -104,7 +104,12 @@ final class PublishedCatalogue
     {
         $product = Product::query()->where('commerce_products.slug', $slug)->whereNotNull('commerce_products.published_revision_id')->first();
 
-        return $product === null ? null : ($this->shape([$product])[0] ?? null);
+        // An address is read exactly as it was written, on every database. MySQL and MariaDB compare a text
+        // column without regard to case by default (utf8mb4_unicode_ci), SQLite compares it with regard to case,
+        // and the collation can be changed under either. So the database finds the row loosely, and the answer is
+        // refused here when the slug is not the one that was published: /Executive-Desk is not the address of
+        // /executive-desk, and a shop that linked one must not be handed the other's page under a second address.
+        return $product === null || $product->slug !== $slug ? null : ($this->shape([$product])[0] ?? null);
     }
 
     /**
@@ -115,7 +120,9 @@ final class PublishedCatalogue
     public function pictureFile(string $slug, int $image, int $version): ?array
     {
         $product = Product::query()->where('slug', $slug)->whereNotNull('published_revision_id')->first();
-        if ($product === null) {
+        // The same exactness as one(): a database that compares slugs without regard to case must not serve a
+        // picture under an address the product was not published at.
+        if ($product === null || $product->slug !== $slug) {
             return null;
         }
         $revision = DB::table('commerce_product_revisions')->where('id', $product->published_revision_id)->where('product_id', $product->id)->first();

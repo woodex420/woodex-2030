@@ -725,6 +725,21 @@
         "on": "2026-11-19",
         "how": "The id is derived from the SKU, which the contract does make unique within a product: a 31-bit hash of the SKU (the range the shop's own ids use), stepping to the next free number if two SKUs of one product collide. The same option therefore keeps the same id when the list is reordered, when neighbours are removed, and when the product is republished. scripts/test-native-product-reader.mjs holds it: reordering the answer keeps both ids, two options never share one, the id is a positive whole number inside the range, and removing a neighbour changes nothing; putting the position back fails the test."
       }
+    },
+    {
+      "id": "D-051",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "One product was handed out at two addresses on MySQL, because the slug was looked up without regard to case",
+      "detail": "Found by CI on its MySQL 8.4 and MariaDB 10.11 / 11.4 jobs, after the same suite was green twice on the sandbox's SQLite. PublishedCatalogue::one() looked a product up by slug and trusted the database to compare exactly; SQLite does, MySQL and MariaDB compare a text column without regard to case by default (utf8mb4_unicode_ci). So /api/v1/catalogue/products/Executive-Desk answered 200 with the product published at /executive-desk — a second address for one page, which puts a product at an address it was never published at and hands the shop a URL that its own links never name. pictureFile() had the same looseness: a photograph served under a differently-cased slug.",
+      "lines": [
+        "T-105"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "Both refuse a row whose slug is not the one asked for — in the code, not by a database setting that could be changed under it: 'return $product === null || $product->slug !== $slug ? null : …'. The test 'it reads an address with the regard to case that the database may not have' makes SQLite compare the column as the other two do (the column's own collation; an index declared COLLATE NOCASE was tried first and does not change how SQLite compares, so it proved nothing) and asserts the loose lookup really happened before asserting the answer. Proved by taking each guard away: 200 where 404 belongs, in one() and again in pictureFile() with nothing else removed."
+      }
     }
   ]
 }
