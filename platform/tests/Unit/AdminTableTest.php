@@ -280,7 +280,6 @@ it('counts the screens that still write a table by hand: the list may only get s
         'livewire/admin/accounts/expenses-index.blade.php',
         'livewire/admin/accounts/journals-index.blade.php',
         'livewire/admin/accounts/method-accounts.blade.php',
-        'livewire/admin/accounts/payables-aging.blade.php',
         'livewire/admin/accounts/periods-index.blade.php',
         'livewire/admin/accounts/recurring-expenses.blade.php',
         'livewire/admin/accounts/trial-balance.blade.php',
