@@ -227,7 +227,11 @@ it('chooses rows: a named box for each, one for the page, and what can be done o
     expect($boxes->length)->toBe(2)
         ->and($boxes[0]->getAttribute('aria-label'))->toBe('Select L-0041')
         ->and($boxes[0]->getAttribute('value'))->toBe('41')
-        ->and($boxes[0]->getAttribute('wire:model.live'))->toBe('selected');
+        ->and($boxes[0]->getAttribute('wire:model.live'))->toBe('selected')
+        // What a pointer hits is the label around the box, not the 16 px of the box (a browser measures it:
+        // scripts/os-screens.mjs counts controls smaller than 24 px).
+        ->and($boxes[0]->closest('label'))->not->toBeNull()
+        ->and($none->querySelector('thead input[type="checkbox"]')->closest('label'))->not->toBeNull();
 
     $one = $draw(['42']);
     $bar = $one->querySelector('[role="group"][aria-label="Actions on the chosen rows"]');

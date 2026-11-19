@@ -13,7 +13,9 @@
     $all = $keys->isNotEmpty() && count($selected) >= $keys->count();
 @endphp
 <th scope="col" {{ $attributes->class(['w-10 py-3 pl-5']) }}>
-    <input type="checkbox" class="rounded border-gray-300" aria-label="{{ $label }}"
-           x-data x-on:change="$wire.set($el.dataset.model, $event.target.checked ? JSON.parse($el.dataset.ids) : [])"
-           data-model="{{ $model }}" data-ids="{{ $keys->toJson() }}" @checked($all)>
+    <label class="inline-flex size-6 items-center justify-center">
+        <input type="checkbox" class="rounded border-gray-300" aria-label="{{ $label }}"
+               x-data x-on:change="$wire.set($el.dataset.model, $event.target.checked ? JSON.parse($el.dataset.ids) : [])"
+               data-model="{{ $model }}" data-ids="{{ $keys->toJson() }}" @checked($all)>
+    </label>
 </th>
