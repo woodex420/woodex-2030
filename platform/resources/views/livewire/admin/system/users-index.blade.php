@@ -7,67 +7,59 @@
         </x-slot:actions>
     </x-admin.page-header>
 
-    <x-admin.card :padding="false">
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-left text-theme-sm">
-                <thead class="border-b border-gray-100 text-theme-xs tracking-wide text-gray-500 uppercase dark:border-gray-800">
-                    <tr>
-                        <th class="px-5 py-3 font-medium">Person</th>
-                        <th class="px-5 py-3 font-medium">Role</th>
-                        <th class="px-5 py-3 font-medium">Security</th>
-                        <th class="px-5 py-3 font-medium">Last sign-in</th>
-                        <th class="px-5 py-3 font-medium"><span class="sr-only">Actions</span></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                    @foreach ($members as $member)
-                        @php $role = $member->getRoleNames()->first(); @endphp
-                        <tr wire:key="user-{{ $member->id }}" @class(['opacity-60' => ! $member->is_active])>
-                            <td class="px-5 py-3">
-                                <div class="flex items-center gap-3">
-                                    <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-navy-900 text-theme-xs font-semibold text-white">{{ $member->initials() }}</span>
-                                    <div class="min-w-0">
-                                        <p class="font-medium text-gray-800 dark:text-white/90">{{ $member->name }} @if ($member->is(auth()->user()))<span class="text-theme-xs font-normal text-gray-400">(you)</span>@endif</p>
-                                        <p class="truncate text-theme-xs text-gray-500">{{ $member->email }}{{ $member->title ? ' · '.$member->title : '' }}{{ $member->phone ? ' · '.Phone::display($member->phone) : '' }}</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-5 py-3">
-                                <x-admin.badge :color="$role === 'owner' ? 'wood' : 'navy'" :dot="false">{{ $roleLabels[$role] ?? 'No role' }}</x-admin.badge>
-                                @unless ($member->is_active)
-                                    <x-admin.badge color="error" class="ml-1">Deactivated</x-admin.badge>
-                                @endunless
-                            </td>
-                            <td class="px-5 py-3">
-                                <div class="flex flex-wrap gap-1.5">
-                                    <x-admin.badge :color="$member->hasTwoFactorEnabled() ? 'success' : 'warning'" :dot="false">{{ $member->hasTwoFactorEnabled() ? '2FA on' : '2FA off' }}</x-admin.badge>
-                                    @if ($member->telegramLink?->is_active)
-                                        <x-admin.badge color="info" :dot="false">Telegram</x-admin.badge>
-                                    @endif
-                                </div>
-                            </td>
-                            <td class="px-5 py-3 whitespace-nowrap text-theme-xs text-gray-500">{{ $member->last_login_at?->diffForHumans() ?? 'Never' }}</td>
-                            <td class="px-5 py-3 text-right whitespace-nowrap">
-                                <div class="inline-flex items-center gap-1">
-                                    <x-admin.button size="sm" variant="ghost" icon="pencil" wire:click="openEdit({{ $member->id }})">Edit</x-admin.button>
-                                    @if ($member->is_active && $member->last_login_at === null)
-                                        <x-admin.button size="sm" variant="ghost" icon="send" wire:click="resendInvite({{ $member->id }})">Resend invite</x-admin.button>
-                                    @endif
-                                    @unless ($member->is(auth()->user()))
-                                        @if ($member->is_active)
-                                            <x-admin.button size="sm" variant="ghost" icon="user-x" class="text-error-600" wire:click="toggleActive({{ $member->id }})" wire:confirm="Deactivate {{ $member->name }}? They will be signed out immediately.">Deactivate</x-admin.button>
-                                        @else
-                                            <x-admin.button size="sm" variant="ghost" icon="user-check" wire:click="toggleActive({{ $member->id }})">Reactivate</x-admin.button>
-                                        @endif
-                                    @endunless
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </x-admin.card>
+    <x-admin.table label="Users" :rows="$members">
+        <x-slot:head>
+            <x-admin.table.heading>Person</x-admin.table.heading>
+            <x-admin.table.heading>Role</x-admin.table.heading>
+            <x-admin.table.heading>Security</x-admin.table.heading>
+            <x-admin.table.heading>Last sign-in</x-admin.table.heading>
+            <x-admin.table.heading label="Actions" />
+        </x-slot:head>
+        @foreach ($members as $member)
+            @php $role = $member->getRoleNames()->first(); @endphp
+            <x-admin.table.row wire:key="user-{{ $member->id }}" :hover="false" @class(['opacity-60' => ! $member->is_active])>
+                <x-admin.table.cell header>
+                    <div class="flex items-center gap-3">
+                        <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-navy-900 text-theme-xs font-semibold text-white">{{ $member->initials() }}</span>
+                        <div class="min-w-0">
+                            <p class="font-medium text-gray-800 dark:text-white/90">{{ $member->name }} @if ($member->is(auth()->user()))<span class="text-theme-xs font-normal text-gray-400">(you)</span>@endif</p>
+                            <p class="truncate text-theme-xs text-gray-500">{{ $member->email }}{{ $member->title ? ' · '.$member->title : '' }}{{ $member->phone ? ' · '.Phone::display($member->phone) : '' }}</p>
+                        </div>
+                    </div>
+                </x-admin.table.cell>
+                <x-admin.table.cell>
+                    <x-admin.badge :color="$role === 'owner' ? 'wood' : 'navy'" :dot="false">{{ $roleLabels[$role] ?? 'No role' }}</x-admin.badge>
+                    @unless ($member->is_active)
+                        <x-admin.badge color="error" class="ml-1">Deactivated</x-admin.badge>
+                    @endunless
+                </x-admin.table.cell>
+                <x-admin.table.cell>
+                    <div class="flex flex-wrap gap-1.5">
+                        <x-admin.badge :color="$member->hasTwoFactorEnabled() ? 'success' : 'warning'" :dot="false">{{ $member->hasTwoFactorEnabled() ? '2FA on' : '2FA off' }}</x-admin.badge>
+                        @if ($member->telegramLink?->is_active)
+                            <x-admin.badge color="info" :dot="false">Telegram</x-admin.badge>
+                        @endif
+                    </div>
+                </x-admin.table.cell>
+                <x-admin.table.cell class="whitespace-nowrap text-theme-xs text-gray-500">{{ $member->last_login_at?->diffForHumans() ?? 'Never' }}</x-admin.table.cell>
+                <x-admin.table.cell align="right" class="whitespace-nowrap">
+                    <div class="inline-flex items-center gap-1">
+                        <x-admin.button size="sm" variant="ghost" icon="pencil" wire:click="openEdit({{ $member->id }})">Edit</x-admin.button>
+                        @if ($member->is_active && $member->last_login_at === null)
+                            <x-admin.button size="sm" variant="ghost" icon="send" wire:click="resendInvite({{ $member->id }})">Resend invite</x-admin.button>
+                        @endif
+                        @unless ($member->is(auth()->user()))
+                            @if ($member->is_active)
+                                <x-admin.button size="sm" variant="ghost" icon="user-x" class="text-error-600" wire:click="toggleActive({{ $member->id }})" wire:confirm="Deactivate {{ $member->name }}? They will be signed out immediately.">Deactivate</x-admin.button>
+                            @else
+                                <x-admin.button size="sm" variant="ghost" icon="user-check" wire:click="toggleActive({{ $member->id }})">Reactivate</x-admin.button>
+                            @endif
+                        @endunless
+                    </div>
+                </x-admin.table.cell>
+            </x-admin.table.row>
+        @endforeach
+    </x-admin.table>
 
     <x-admin.card title="What each role can do" class="mt-6">
         <dl class="grid grid-cols-1 gap-x-6 gap-y-3 text-theme-sm md:grid-cols-2">

@@ -314,7 +314,6 @@ it('counts the screens that still write a table by hand: the list may only get s
         'livewire/admin/system/integration-webhooks.blade.php',
         'livewire/admin/system/lead-rules-settings.blade.php',
         'livewire/admin/system/team-onboarding.blade.php',
-        'livewire/admin/system/users-index.blade.php',
         'livewire/admin/system/whatsapp-templates.blade.php',
         'livewire/admin/website/find-replace-index.blade.php',
         'livewire/admin/website/pages-index.blade.php',
