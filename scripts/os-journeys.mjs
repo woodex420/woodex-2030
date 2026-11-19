@@ -1207,6 +1207,60 @@ if (signedIn) {
     await shown(page.locator('.wx-toast-stack > div', { hasText: `A new link to set a password was sent to ${mail}.` }), 8000, 'the notice that the link was sent');
     return `${mail}: link sent and not used, not signed in, waiting; the link was sent again; ${await count('through')} of ${await count('members')} members are through`;
   });
+
+  // The shared table (master list T-041): a heading sorts the list, and it does so for somebody who has no mouse.
+  await step('the leads are sorted by a heading with the keyboard only; the heading says which way, and the list fits a phone', async () => {
+    await become('owner');
+    await page.goto(`${base}/admin/leads`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    const table = page.getByRole('table', { name: 'Leads' });
+    await shown(table, 15000, 'a table that is named "Leads"');
+    const heading = table.locator('thead th', { has: page.locator('button[data-sort]', { hasText: /^\s*Lead\b/ }) }).first();
+    const button = heading.locator('button');
+    const first = async () => flat(await table.locator('tbody tr').first().locator('th[scope="row"]').innerText());
+    const sorted = async (way, what) => {
+      const until = Date.now() + 15000;
+      while (Date.now() < until) {
+        if ((await heading.getAttribute('aria-sort')) === way) return;
+        await page.waitForTimeout(200);
+      }
+      throw new Error(`${what}: the heading "Lead" says "${await heading.getAttribute('aria-sort')}", not "${way}"`);
+    };
+    const rows = await table.locator('tbody tr').count();
+    must(rows >= 2, `the list has ${rows} row: there is nothing to sort`);
+    await sorted('descending', 'as the screen opens');
+    const newest = await first();
+
+    // Tab, from the tick box before it, lands on the heading's button: it is in the order of the page, and it shows where the focus is.
+    await table.locator('thead input[type="checkbox"]').focus();
+    await page.keyboard.press('Tab');
+    const focus = await button.evaluate((el) => ({ here: el === document.activeElement, ring: getComputedStyle(el).outlineStyle !== 'none' && parseFloat(getComputedStyle(el).outlineWidth) > 0 }));
+    must(focus.here, 'Tab from "Select all on this page" does not land on the heading "Lead"');
+    must(focus.ring, 'the heading "Lead" shows no outline when the keyboard has brought the focus to it');
+
+    await page.keyboard.press('Enter');
+    await sorted('ascending', 'after Enter on the heading');
+    await quiet();
+    const oldest = await first();
+    must(oldest !== newest, `the first row is "${oldest}" before and after: the list did not turn round`);
+    // The list was drawn again by the server; the focus is still where the person left it, so a second press needs no search.
+    must(await button.evaluate((el) => el === document.activeElement), 'the focus left the heading when the list was drawn again');
+    await page.keyboard.press('Enter');
+    await sorted('descending', 'after a second Enter');
+    await quiet();
+    must((await first()) === newest, `after two presses the first row is "${await first()}", not "${newest}" as at the start`);
+
+    // On a phone the page is as wide as the window: what does not fit scrolls inside the list's own frame.
+    const desk = page.viewportSize();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await quiet();
+    await shown(page.getByRole('table', { name: 'Leads' }), 15000, 'the table named "Leads" at 390 px');
+    const wide = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, window: window.innerWidth }));
+    await page.setViewportSize(desk);
+    must(wide.page <= wide.window, `at 390 px the page is ${wide.page} px wide in a window of ${wide.window} px`);
+    return `${rows} rows; newest first "${newest.slice(0, 40)}", Enter on the heading: oldest first "${oldest.slice(0, 40)}", Enter again: as at the start; the focus stayed on the heading; at 390 px the page is ${wide.page} px wide`;
+  });
 }
 
 await browser.close();
