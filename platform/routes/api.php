@@ -2,12 +2,9 @@
 
 use App\Http\Controllers\Api\Bridge\BridgeController;
 use App\Http\Controllers\Api\Bridge\McpHttpController;
-use App\Http\Controllers\Api\Public\CategoryCatalogueController;
 use App\Http\Controllers\Api\Public\ChatWidgetController;
 use App\Http\Controllers\Api\Public\LeadController;
-use App\Http\Controllers\Api\Public\LeadHandoffController;
-use App\Http\Controllers\Api\Public\QuoteRequestController;
-use App\Http\Controllers\Api\Public\StorefrontMediaController;
+use App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Website\LegacySiteBridgeController;
 use App\Http\Middleware\AuthenticateMcpBridge;
 use Illuminate\Support\Facades\Route;
@@ -36,18 +33,42 @@ Route::prefix('public')->name('api.public.')->group(function (): void {
         ->name('chat.messages');
 });
 
-// Furniture API v1 foundation. Public capture only: this is not a staff/authenticated API.
-Route::prefix('v1')->name('api.v1.')->middleware('module:lead_api')->group(function (): void {
-    Route::post('/quote-requests', [QuoteRequestController::class, 'store'])
-        ->middleware(['module:quote_requests', 'throttle:public-leads'])->name('quote-requests.store');
-    Route::get('/quote-requests', fn () => response()->json(['message' => 'Use POST to submit a basket request.'], 405)->header('Allow', 'POST'))
-        ->middleware('module:quote_requests');
-    Route::post('/leads', [LeadController::class, 'store'])
-        ->middleware('throttle:public-leads')->name('leads.store');
-    Route::get('/leads', fn () => response()->json(['message' => 'Use POST to submit an enquiry.'], 405)->header('Allow', 'POST'));
-    Route::post('/leads/whatsapp-handoff', [LeadHandoffController::class, 'store'])
-        ->middleware('throttle:20,1')->name('leads.handoff');
-    Route::get('/leads/whatsapp-handoff', fn () => response()->json(['message' => 'Use POST to prepare a handoff.'], 405)->header('Allow', 'POST'));
+/*
+| /api/v1: what the shop and outside clients use. Its rules are docs/woodex-os/29-API-V1-RULES.md, its contract is
+| resources/api/v1.openapi.json, and tests/Feature/Api/V1ContractTest.php holds every address to both: a route
+| added here without its entry in the contract fails that test.
+|
+| Every route is named and carries "api.v1" (App\Http\Middleware\ApiV1) with what it takes: "key" for a create,
+| "query=a|b" for the query parameters it reads. Every answer is made by App\Support\Api\ApiAnswer, every error by
+| App\Support\Api\ApiErrors. Nothing here needs a sign-in, and nothing here is for staff: the admin's screens are
+| drawn by the server and have no JSON API.
+*/
+Route::prefix('v1')->name('api.v1.')->group(function (): void {
+    // What a visitor of the shop sends.
+    Route::middleware('module:lead_api')->group(function (): void {
+        Route::post('/leads', [V1\LeadController::class, 'store'])
+            ->middleware(['throttle:public-leads', 'api.v1:key'])->name('leads.store');
+        Route::post('/leads/whatsapp-handoff', [V1\LeadHandoffController::class, 'store'])
+            ->middleware(['throttle:20,1', 'api.v1'])->name('leads.handoff');
+        Route::post('/quote-requests', [V1\QuoteRequestController::class, 'store'])
+            ->middleware(['module:quote_requests', 'throttle:public-leads', 'api.v1:key'])->name('quote-requests.store');
+    });
+
+    // What the shop reads: the published category tree with its pages, independent of the enquiry module.
+    Route::get('/catalogue/categories', [V1\CategoryController::class, 'index'])
+        ->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.categories');
+    Route::get('/catalogue/categories/{category}/hero/{revision}', [V1\CategoryController::class, 'hero'])
+        ->whereNumber(['category', 'revision'])->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.categories.hero');
+
+    // Only explicitly published React media mappings; never private product images or the whole library.
+    Route::get('/media', [V1\MediaController::class, 'index'])
+        ->middleware(['throttle:120,1', 'api.v1'])->name('media');
+    Route::get('/media/{media}/{version}', [V1\MediaController::class, 'file'])
+        ->whereNumber(['media', 'version'])->middleware(['throttle:120,1', 'api.v1'])->name('media.file');
+
+    // The last route of the group: whatever nothing above owns, for every method (404, or 405 with Allow).
+    Route::any('/{unknown?}', V1\UnknownAddress::class)
+        ->where('unknown', '.*')->middleware('throttle:120,1')->name('unknown');
 });
 
 /*
@@ -84,11 +105,3 @@ Route::prefix('bridge/v1')->name('api.bridge.')->middleware([
     Route::get('/leads', [BridgeController::class, 'leads'])->name('leads');
     Route::get('/quotes', [BridgeController::class, 'quotes'])->name('quotes');
 });
-
-// Read-only published category catalogue; independent of lead capture permissions/modules.
-Route::get('/v1/catalogue/categories', [CategoryCatalogueController::class, 'index'])->middleware('throttle:120,1');
-Route::get('/v1/catalogue/categories/{category}/hero/{revision}', [CategoryCatalogueController::class, 'image'])->middleware('throttle:120,1');
-
-// Only explicitly published React media mappings; never private product images or the whole library.
-Route::get('/v1/media', [StorefrontMediaController::class, 'index'])->middleware('throttle:120,1');
-Route::get('/v1/media/{media}/{version}', [StorefrontMediaController::class, 'image'])->whereNumber(['media', 'version'])->middleware('throttle:120,1');

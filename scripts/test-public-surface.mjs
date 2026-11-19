@@ -144,17 +144,18 @@ try {
 
   /* The two bridges to the Laravel admin are read by the shop of a signed-out
      visitor. With that connection off — as it is everywhere today — they must
-     say so ("disabled"), not ask the visitor to sign in. The category bridge
-     did ask: it had been registered without being added to the public list,
-     and only tests that called its handler directly ever ran. */
+     say so (503, error.code "SWITCHED_OFF", in the error shape of /api/v1:
+     docs/woodex-os/29-API-V1-RULES.md), not ask the visitor to sign in. The
+     category bridge did ask: it had been registered without being added to the
+     public list, and only tests that called its handler directly ever ran. */
   console.log("\n[public] bridges to the Laravel admin answer a visitor");
   for (const p of ["/api/v1/catalogue/categories", "/api/v1/media", "/api/v1/catalogue/categories/office-furniture/hero/1", "/api/v1/media/3/4"]) {
     const r = await get(p);
     let disabled = false;
-    try { disabled = JSON.parse(r.body).disabled === true; } catch { /* not JSON: reported below */ }
-    if (r.status === 503 && disabled) console.log(`  ✓ ${p} → 503 "disabled" to a visitor, the connection being off`);
+    try { disabled = JSON.parse(r.body).error?.code === "SWITCHED_OFF"; } catch { /* not JSON: reported below */ }
+    if (r.status === 503 && disabled) console.log(`  ✓ ${p} → 503 "SWITCHED_OFF" to a visitor, the connection being off`);
     else {
-      problems.push(`${p} → ${r.status} ${r.body.slice(0, 80)} — expected 503 {"disabled":true} for a signed-out visitor`);
+      problems.push(`${p} → ${r.status} ${r.body.slice(0, 80)} — expected 503 {"error":{"code":"SWITCHED_OFF",…}} for a signed-out visitor`);
       console.log(`  ✗ ${p} → ${r.status} ${r.body.slice(0, 80)}`);
     }
   }

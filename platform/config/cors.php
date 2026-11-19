@@ -19,11 +19,13 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-Woodex-Key'],
+    // Idempotency-Key: the key of a create under /api/v1 (App\Support\Api\Idempotency).
+    'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-Woodex-Key', 'Idempotency-Key'],
 
     // The request number (App\Support\RequestNumber): a form on another site may read it and show it with its
     // own error message, so that a visitor can name the request.
-    'exposed_headers' => ['X-Request-Id'],
+    // Idempotent-Replayed says that a create was answered from its first sending; Retry-After, how long to wait.
+    'exposed_headers' => ['X-Request-Id', 'Idempotent-Replayed', 'Retry-After'],
 
     'max_age' => 3600,
 

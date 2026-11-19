@@ -7,12 +7,12 @@ export type CategoryPageContent = {
   faqs: { question: string; answer: string }[];
 };
 export type NativeCategory = { id: number; slug: string; name: string; parent_id: number | null; position: number; page: { revision: number; content: CategoryPageContent } | null };
-export type NativeCatalogue = { schema: 1; categories: NativeCategory[]; series: { id: string; name: string }[] };
+export type NativeCatalogue = { categories: NativeCategory[]; series: { id: string; name: string }[] };
 let current: NativeCatalogue | null = null;
 let signature = '';
 let pending = false;
 /* Where the connection to the Laravel admin is switched off, the API says so
-   ("disabled"). The shop then asks again in ten minutes, not in fifteen
+   (503, "SWITCHED_OFF"). The shop then asks again in ten minutes, not in fifteen
    seconds: on a site that has the connection off — every site, today — each
    open page would otherwise send four requests a minute to be told no. A new
    visit asks at once, so switching the connection on needs no rebuild. */
@@ -29,17 +29,21 @@ export async function syncNativeCategories() {
     const response = await fetch('/api/v1/catalogue/categories', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(7000) });
     if (!response.ok) {
       if (response.status === 503) {
-        const error = await response.json().catch(() => ({}));
-        if (error.disabled === true) pausedUntil = Date.now() + DISABLED_PAUSE_MS;
-        if (error.disabled === true && current) { current = null; signature = ''; window.dispatchEvent(new CustomEvent('woodex:runtime')); }
+        // The shop's own server says so when this shop is not connected to an admin: {error: {code: "SWITCHED_OFF"}}.
+        const body = await response.json().catch(() => ({}));
+        const off = body?.error?.code === 'SWITCHED_OFF';
+        if (off) pausedUntil = Date.now() + DISABLED_PAUSE_MS;
+        if (off && current) { current = null; signature = ''; window.dispatchEvent(new CustomEvent('woodex:runtime')); }
       }
       // Refused (401, 403, 404…): the same question gets the same answer in fifteen seconds. Ask later.
       else if (response.status >= 400 && response.status < 500) pausedUntil = Date.now() + DISABLED_PAUSE_MS;
       return;
     } // Keep last known good on a transient outage; initial load uses the bundled tree.
-    const data = await response.json();
-    if (data.schema !== 1 || !Array.isArray(data.categories) || !Array.isArray(data.series) || data.categories.length > 2000) return;
-    if (!data.categories.every((c: NativeCategory) => Number.isInteger(c.id) && typeof c.slug === 'string' && /^[a-z0-9-]+$/.test(c.slug) && typeof c.name === 'string' && (c.parent_id === null || Number.isInteger(c.parent_id)))) return;
+    // {data: {categories, series}, meta: {request_id}}: one document, always whole (docs/woodex-os/29-API-V1-RULES.md).
+    const data = (await response.json())?.data;
+    if (!data || !Array.isArray(data.categories) || !Array.isArray(data.series) || data.categories.length > 2000) return;
+    if (!data.categories.every((c: NativeCategory) => c && Number.isInteger(c.id) && typeof c.slug === 'string' && /^[a-z0-9-]+$/.test(c.slug) && typeof c.name === 'string' && (c.parent_id === null || Number.isInteger(c.parent_id)))) return;
+    // Only what was asked for is compared: the number of the request beside it is new with every answer.
     const next = JSON.stringify(data);
     if (next !== signature) {
       current = data as NativeCatalogue; signature = next;

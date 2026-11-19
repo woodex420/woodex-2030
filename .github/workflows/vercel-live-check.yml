@@ -99,6 +99,18 @@ jobs:
           expect "…and the error page shows the same number" "$(grep -c "data-request-number>${number:-none}<" "$out/body")" 1
           must "a form sent without its token is refused: 419" "$(code -X POST --data-urlencode "email=owner@woodex.test" "$SITE/admin/login")" 419
           must "…answered with the admin's own page" "$(grep -c 'data-error-page="419"' "$out/body")" 1
+          # The rules of /api/v1 (T-063, docs/woodex-os/29-API-V1-RULES.md). Asked from outside: an address that is
+          # not there is answered by the application in the API's one error shape, with the number of the request
+          # in the body and in the header alike, and without a cookie; and a list that is published comes as data
+          # with its size. (Until 19 November everything under /api was answered here with the admin's 404 page.)
+          # Reading only: a create would write into the demo.
+          must "/api/v1, an address that is not there: 404" "$(code -H 'Accept: application/json' "$SITE/api/v1/no-such-address-live-check")" 404
+          number="$(header x-request-id)"
+          expect "…in the API's error shape, with the code NOT_FOUND" "$(jq -r 'if (keys == ["error","meta"]) and (.error | keys == ["code","details","message"]) then .error.code else "another shape" end' "$out/body" 2>/dev/null || echo 'not JSON')" NOT_FOUND
+          expect "…with the number of the request, the same as in the header" "$(jq -r '.meta.request_id' "$out/body" 2>/dev/null || echo 'not JSON')" "${number:-no number in the header}"
+          expect "…and without a cookie" "$(tr -d '\r' < "$out/head" | grep -ci '^set-cookie:')" 0
+          expect "/api/v1, the list of replaced photographs: 200" "$(code -H 'Accept: application/json' "$SITE/api/v1/media")" 200
+          expect "…a whole list with its size" "$(jq -r 'if (keys == ["data","meta"]) and (.data | type == "array") and (.meta.total == (.data | length)) then "a whole list" else "another shape" end' "$out/body" 2>/dev/null || echo 'not JSON')" "a whole list"
           # Only the site's own domain is open. The address Vercel keeps for the main branch must ask for a sign-in
           # to Vercel (the project setting "Deployment Protection"); so must every preview build.
           # An address that is not the site's own domain must send a visitor to Vercel's sign-in: 401, or a redirect
