@@ -169,21 +169,35 @@ it('narrows the list by category, by its children and by series, and never widen
     if (getenv('WX_DEBUG_IDS')) {
         $svc = app(\App\Domain\Commerce\Services\ProductCatalogue::class);
         $desc = new ReflectionMethod($svc, 'withDescendants');
-        foreach (['office-tables', 'meeting-tables'] as $i => $debugSlug) {
+        $contains = new ReflectionMethod($svc, 'revisionContains');
+        $contains->setAccessible(true);
+        $out = ['driver' => DB::getDriverName(), 'server' => DB::selectOne('select version() as v')->v ?? '?'];
+        foreach (['office-tables', 'meeting-tables', 'executive-tables'] as $debugSlug) {
             $row = Category::where('slug', $debugSlug)->first();
             $ids = $desc->invoke($svc, $row);
             $q = DB::table('commerce_products')
                 ->join('commerce_product_revisions as r', 'r.id', '=', 'commerce_products.published_revision_id')
                 ->whereNull('commerce_products.archived_at');
-            $contains = new ReflectionMethod($svc, 'revisionContains');
-            $contains->setAccessible(true);
             $q->where(function ($w) use ($ids, $contains, $svc): void {
                 foreach ($ids as $id) {
                     $w->orWhereRaw($contains->invoke($svc, 'category_ids', $id));
                 }
             });
-            fwrite(STDERR, "\n::warning title=sql{$i}::".$debugSlug.' ids['.implode('/', $ids).'] n='.count($ids).' -> '.$q->toSql()."\n");
+            $body = $this->getJson('/api/v1/catalogue/products?category='.$debugSlug)->json();
+            $out[$debugSlug] = [
+                'ids' => $ids,
+                'sql' => $q->toSql(),
+                'bindings' => $q->getBindings(),
+                'rawCount' => $q->count(),
+                'api' => array_column($body['data'] ?? [], 'id'),
+                'total' => $body['meta']['total'] ?? null,
+                'error' => $body['error'] ?? null,
+            ];
         }
+        $out['revisions'] = DB::table('commerce_product_revisions')->get(['id', 'product_id', 'content'])
+            ->map(fn ($r) => ['r' => $r->id, 'p' => $r->product_id, 'cats' => json_decode($r->content, true)['category_ids'] ?? null])->all();
+        $out['raw'] = DB::table('commerce_product_revisions')->pluck('content')->all();
+        file_put_contents(storage_path('app/probe.txt'), json_encode($out, JSON_PRETTY_PRINT));
     }
     expect($this->getJson('/api/v1/catalogue/products?category=office-tables')->json('data.*.id'))
         ->toEqualCanonicalizing(['executive-desk', 'meeting-desk'], 'a product in a category below is listed under its parent too')
