@@ -171,7 +171,7 @@ it('narrows the list by category, by its children and by series, and never widen
         $desc = new ReflectionMethod($svc, 'withDescendants');
         $contains = new ReflectionMethod($svc, 'revisionContains');
         $contains->setAccessible(true);
-        $out = ['driver' => DB::getDriverName(), 'server' => DB::selectOne('select version() as v')->v ?? '?'];
+        $lines = ['driver='.DB::getDriverName()];
         foreach (['office-tables', 'meeting-tables', 'executive-tables'] as $debugSlug) {
             $row = Category::where('slug', $debugSlug)->first();
             $ids = $desc->invoke($svc, $row);
@@ -184,20 +184,14 @@ it('narrows the list by category, by its children and by series, and never widen
                 }
             });
             $body = $this->getJson('/api/v1/catalogue/products?category='.$debugSlug)->json();
-            $out[$debugSlug] = [
-                'ids' => $ids,
-                'sql' => $q->toSql(),
-                'bindings' => $q->getBindings(),
-                'rawCount' => $q->count(),
-                'api' => array_column($body['data'] ?? [], 'id'),
-                'total' => $body['meta']['total'] ?? null,
-                'error' => $body['error'] ?? null,
-            ];
+            $lines[] = $debugSlug.' ids='.implode('/', $ids).' raw='.$q->count()
+                .' api='.implode('/', array_column($body['data'] ?? [], 'id'))
+                .' total='.($body['meta']['total'] ?? '?').' err='.($body['error']['code'] ?? '-')
+                .' sql='.$q->toSql();
         }
-        $out['revisions'] = DB::table('commerce_product_revisions')->get(['id', 'product_id', 'content'])
-            ->map(fn ($r) => ['r' => $r->id, 'p' => $r->product_id, 'cats' => json_decode($r->content, true)['category_ids'] ?? null])->all();
-        $out['raw'] = DB::table('commerce_product_revisions')->pluck('content')->all();
-        file_put_contents(storage_path('app/probe.txt'), json_encode($out, JSON_PRETTY_PRINT));
+        fwrite(STDERR, "\n".implode("\n", $lines)."\n");
+        // Deliberately red: a failing test's own annotation is the one thing this sandbox can read back.
+        expect(implode(' ## ', $lines))->toBe('');
     }
     expect($this->getJson('/api/v1/catalogue/products?category=office-tables')->json('data.*.id'))
         ->toEqualCanonicalizing(['executive-desk', 'meeting-desk'], 'a product in a category below is listed under its parent too')
