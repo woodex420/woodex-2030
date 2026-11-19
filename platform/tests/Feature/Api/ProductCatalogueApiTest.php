@@ -189,9 +189,10 @@ it('narrows the list by category, by its children and by series, and never widen
                 .' total='.($body['meta']['total'] ?? '?').' err='.($body['error']['code'] ?? '-')
                 .' sql='.$q->toSql();
         }
-        fwrite(STDERR, "\n".implode("\n", $lines)."\n");
-        // Deliberately red: a failing test's own annotation is the one thing this sandbox can read back.
-        expect(implode(' ## ', $lines))->toBe('');
+        // STDOUT, because a workflow command is read from the step's standard output and not its error stream.
+        foreach ($lines as $i => $line) {
+            fwrite(STDOUT, "\n::warning title=probe{$i}::{$line}\n");
+        }
     }
     expect($this->getJson('/api/v1/catalogue/products?category=office-tables')->json('data.*.id'))
         ->toEqualCanonicalizing(['executive-desk', 'meeting-desk'], 'a product in a category below is listed under its parent too')
