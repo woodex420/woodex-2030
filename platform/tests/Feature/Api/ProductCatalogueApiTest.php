@@ -167,23 +167,21 @@ it('narrows the list by category, by its children and by series, and never widen
     ($this->publish)(['slug' => 'meeting-desk', 'category_ids' => [$this->subcategory->id], 'primary_category_id' => $this->subcategory->id]);
 
     if (getenv('WX_DEBUG_IDS')) {
-        foreach (['office-tables', 'meeting-tables', 'executive-tables'] as $debugSlug) {
-            $debugBody = $this->getJson('/api/v1/catalogue/products?category='.$debugSlug)->json();
-            fwrite(STDERR, "\n::warning title=[{$debugSlug}]::ids=".implode(',', array_column($debugBody['data'] ?? [], 'id')).' total='.($debugBody['meta']['total'] ?? 'n/a').' err='.($debugBody['error']['code'] ?? 'none')."\n");
-        }
-        $debugRow = DB::table('commerce_products')->get(['id', 'slug', 'updated_at', 'published_revision_id']);
-        fwrite(STDERR, "\n::warning title=rows::".implode(' | ', $debugRow->map(fn ($r) => $r->id.':'.$r->slug.':'.$r->updated_at.':p'.$r->published_revision_id)->all())."\n");
         $svc = app(\App\Domain\Commerce\Services\ProductCatalogue::class);
-        $r = new ReflectionMethod($svc, 'withDescendants');
-        foreach (['office-tables', 'meeting-tables', 'executive-tables'] as $s2) {
-            $c2 = Category::where('slug', $s2)->first();
-            $ids2 = $c2 === null ? 'no row' : implode('/', $r->invoke($svc, $c2));
-            fwrite(STDERR, "\n::warning title=resolve {$s2}::id=".($c2->id ?? 'none')." descendants={$ids2}\n");
+        $desc = new ReflectionMethod($svc, 'withDescendants');
+        $report = [];
+        foreach (['office-tables', 'meeting-tables', 'executive-tables'] as $i => $debugSlug) {
+            $row = Category::where('slug', $debugSlug)->first();
+            $body = $this->getJson('/api/v1/catalogue/products?category='.$debugSlug)->json();
+            $report[] = $i.'='.$debugSlug
+                .' cat'.($row->id ?? '?').'->active'.(int) ($row->is_active ?? 0)
+                .' desc['.($row === null ? '' : implode('/', $desc->invoke($svc, $row))).']'
+                .' got['.implode('/', array_column($body['data'] ?? [], 'id')).']'
+                .' total'.($body['meta']['total'] ?? '?');
         }
-        $debugCats = DB::table('commerce_categories')->whereIn('slug', ['office-tables', 'executive-tables', 'meeting-tables'])->get(['id', 'slug', 'parent_id', 'is_active']);
-        fwrite(STDERR, "\n::warning title=categories::".implode(' | ', $debugCats->map(fn ($c) => $c->id.':'.$c->slug.':parent'.($c->parent_id ?? 'none').':active'.(int) $c->is_active)->all())."\n");
-        $debugRev = DB::table('commerce_product_revisions')->get(['id', 'product_id', 'content']);
-        fwrite(STDERR, "\n::warning title=revisions::".implode(' | ', $debugRev->map(fn ($r) => $r->id.':p'.$r->product_id.':cats='.implode('/', json_decode($r->content, true)['category_ids'] ?? []))->all())."\n");
+        fwrite(STDERR, "\n::warning title=resolve::".implode(' || ', $report)."\n");
+        $rev = DB::table('commerce_product_revisions')->get(['id', 'product_id', 'content']);
+        fwrite(STDERR, "\n::warning title=cats::".implode(' | ', $rev->map(fn ($r) => 'r'.$r->id.'/p'.$r->product_id.' cats['.implode('/', json_decode($r->content, true)['category_ids'] ?? []).']')->all())."\n");
     }
     expect($this->getJson('/api/v1/catalogue/products?category=office-tables')->json('data.*.id'))
         ->toEqualCanonicalizing(['executive-desk', 'meeting-desk'], 'a product in a category below is listed under its parent too')
