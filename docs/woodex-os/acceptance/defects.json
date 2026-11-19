@@ -1,646 +1,678 @@
 {
- "about": "The defect register asked for by document 10 §8: every finding of a round, with its severity and the release rule that follows from it. Checked by scripts/verify-acceptance.mjs: a severity is one of four, an open defect names the line that closes it, a closed one says how and when. Findings of the rounds before 17 November that were fixed at once are listed in document 14 §17.",
- "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
- "severities": {
-  "critical": {
-   "means": "Data loss, privilege bypass, financial corruption, site unavailable",
-   "rule": "blocks release"
+  "about": "The defect register asked for by document 10 §8: every finding of a round, with its severity and the release rule that follows from it. Checked by scripts/verify-acceptance.mjs: a severity is one of four, an open defect names the line that closes it, a closed one says how and when. Findings of the rounds before 17 November that were fixed at once are listed in document 14 §17.",
+  "source": "docs/woodex-os/spec/10-QA-AND-ACCEPTANCE.md",
+  "severities": {
+    "critical": {
+      "means": "Data loss, privilege bypass, financial corruption, site unavailable",
+      "rule": "blocks release"
+    },
+    "high": {
+      "means": "Core workflow broken, wrong totals or status, major security or privacy issue",
+      "rule": "blocks the release it affects"
+    },
+    "medium": {
+      "means": "A workaround exists; significant experience or non-core defect",
+      "rule": "needs the owner's acceptance"
+    },
+    "low": {
+      "means": "Cosmetic or a minor inconvenience",
+      "rule": "may be scheduled later"
+    }
   },
-  "high": {
-   "means": "Core workflow broken, wrong totals or status, major security or privacy issue",
-   "rule": "blocks the release it affects"
+  "states": {
+    "open": "not fixed",
+    "accepted": "not fixed, and the owner has accepted it for a release",
+    "closed": "fixed and checked"
   },
-  "medium": {
-   "means": "A workaround exists; significant experience or non-core defect",
-   "rule": "needs the owner's acceptance"
-  },
-  "low": {
-   "means": "Cosmetic or a minor inconvenience",
-   "rule": "may be scheduled later"
-  }
- },
- "states": {
-  "open": "not fixed",
-  "accepted": "not fixed, and the owner has accepted it for a release",
-  "closed": "fixed and checked"
- },
- "defects": [
-  {
-   "id": "D-001",
-   "severity": "critical",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "The React shop's database could be read and changed through Supabase's Data API",
-   "detail": "None of its 72 tables had row-level security, and Supabase's two API roles held every privilege on all of them — users, sessions, password resets, orders and payments included. Anyone holding the project's publishable key could read and write every row. The shop itself never uses that API. Whether anybody did is not known from the database; Supabase's dashboard keeps a short log of API requests.",
-   "lines": [
-    "T-162"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Every privilege on tables and sequences taken from the two roles, also for tables created later (`deploy/supabase/2026-11-17-close-data-api.sql`, DL-024). Read back: the two roles hold a privilege on 0 of 73 tables and on no sequence, and the owner of the tables holds everything. Asked from outside afterwards, the shop serves its 148 products as before."
-   }
-  },
-  {
-   "id": "D-002",
-   "severity": "critical",
-   "state": "open",
-   "found": "2026-11-16",
-   "title": "The owner password of the old dashboard was printed in a public document",
-   "detail": "The repository is public, and so is its history. Whoever read that document can sign in to `woodex-2030.vercel.app/admin` as the owner — since 17 November also to load, publish and withdraw products. Only the owner can close it: sign in, Settings, Change password. Making the repository private does not close it; the password stays known.",
-   "lines": [
-    "T-021"
-   ]
-  },
-  {
-   "id": "D-003",
-   "severity": "high",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "A Furniture-only product showed and sent Interior's name",
-   "detail": "71 of the 241 screens opened by the four roles carried the word Interior; the WhatsApp greeting on a lead, a contact, a quotation and a visit and the staff invitation named Woodex Interior; the client's pages of a quotation and an invoice printed INTERIOR STUDIO under the mark.",
-   "lines": [
-    "T-030",
-    "T-031",
-    "T-032"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Commit `0d8ae53`: one setting names the lines on sale and the admin ships with Furniture alone. The crawl of all four roles finds the word on no screen; 25 tests pin it (`Feature/FurnitureOnlyTest.php`)."
-   }
-  },
-  {
-   "id": "D-004",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Two settings decided how a time is stored and how it is read",
-   "detail": "Had the application's time zone and the database session's time zone ever disagreed, every stored time would have shifted by five hours. They agreed, so no record was wrong.",
-   "lines": [
-    "T-061"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Commit `d7d6c29`: the session's zone is derived from the application's (DL-023); tests pin both, one of them on MySQL in CI (`Feature/TimeStorageTest.php`)."
-   }
-  },
-  {
-   "id": "D-005",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Three rows of the shop's migration ledger were written in another form than the migration runner writes",
-   "detail": "Rows 16, 17 and 18 carried names without `.sql` and checksums with a prefix, one of them cut short. The runner compares checksums and would have refused the live database as changed after the fact. The files had not changed: the recorded values were the beginnings of the files' real checksums.",
-   "lines": [
-    "T-163"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The three rows corrected to the runner's form, each guarded by its old value (DL-024). Read back: 19 rows, 19 migration files, every checksum equal."
-   }
-  },
-  {
-   "id": "D-006",
-   "severity": "high",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Preview builds of the React shop use the production database",
-   "detail": "In the shop's Vercel project the database address is set for Production, Preview and Development alike. Vercel builds a preview of every branch that is pushed, so code that nobody has reviewed runs against the live data, and each preview address signs in to the same records. Harmless while the database holds sample products and one lead; not once it holds customers and orders. On 17 November the owner chose the repair (DL-026): take the database address out of Preview and Development. It is made as soon as the Vercel app is switched on again. Since 17 November, 16:05 UTC, the address is set for Production only (T-164): a preview built from then on has no database. Every preview that Vercel built before keeps the address until it is deleted, so this stays open for them.",
-   "lines": [
-    "T-188"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Three things together. The database address is set for Production only since 16:05 UTC, so a preview built from then on has no database (T-164). The previews built before cannot be opened by a stranger: both Vercel projects ask for a sign-in to Vercel on every address except the site's own domain, read from the project settings and asked from outside on every run of the live check, which opens an issue if it stops being so. And Vercel deletes each of them 30 days after it was built: the last by 17 December. They were not deleted by hand (T-188). DL-029."
-   }
-  },
-  {
-   "id": "D-007",
-   "severity": "medium",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "The React shop sells the sample catalogue it was first filled with",
-   "detail": "148 products are on sale on `woodex-2030.vercel.app`; none of them is Woodex's, none has a code. The real 170 are prepared in the shop's build. Since migration 019 the old dashboard can load them: Product Catalog, Catalogue import. Rehearsed on a copy filled like the live database: 170 arrive as drafts, a second run changes nothing, and after publishing and withdrawing the demo catalogue a visitor gets 170 real products.",
-   "lines": [
-    "T-091"
-   ]
-  },
-  {
-   "id": "D-008",
-   "severity": "medium",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "The catalogue's photographs are on woodexfurniture.pk, not in the system",
-   "detail": "Each of the 170 products links to its photograph on the present website, in the Laravel admin and in the catalogue prepared for the React shop. If that website is changed or switched off, every product loses its photograph.",
-   "lines": [
-    "T-089"
-   ]
-  },
-  {
-   "id": "D-009",
-   "severity": "medium",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "116 of the 170 real products carry a point to check, and 33 have no price",
-   "detail": "The points are in the import report and on each product: a code made up for a product that had none, a name that differs from its page, a reduction that looks like a typing error (one product shows PKR 15,000 down from PKR 185,000).",
-   "lines": [
-    "T-090"
-   ]
-  },
-  {
-   "id": "D-010",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "The shop's database has no row-level security",
-   "detail": "The second lock behind D-001. With the privileges gone the tables cannot be reached through the Data API; row-level security keeps it that way if a privilege is ever granted again by mistake. Migration 020 is written and tested (`scripts/migrations/020_row_level_security.sql`, `scripts/test-rls.mjs`); by the owner's word of 17 November (DL-026) it is applied to the live database once a backup or a safe way back is confirmed, which needs the Supabase app switched on.",
-   "lines": [
-    "T-163"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Migration 020 was applied to the live database at 16:07:45 UTC, in one transaction with its ledger row: all 73 tables carry row-level security and the policy `no_access_through_the_data_api`, none forced. The shop's API connects as the owner of the tables and reads as before: asked from outside 67 seconds later, the shop served its 148 products (run 44122391808). The text that was run is kept in `deploy/supabase/2026-11-17-apply-020-row-level-security.sql`. DL-028."
-   }
-  },
-  {
-   "id": "D-011",
-   "severity": "medium",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "No backup of the shop's database is known to exist",
-   "detail": "None was taken before the changes of 17 November, and whether the Supabase plan keeps any has not been checked. What the database held can be rebuilt today: its 148 products are the seed file's, and both changes have their undo. That stops being true with the first real order. On 17 November the agent looked again before applying migration 020: its connection to Supabase shows neither the plan nor any backup, so this could not be settled. That migration changes no row and has a tested rollback (DL-028).",
-   "lines": [
-    "T-187"
-   ]
-  },
-  {
-   "id": "D-012",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-16",
-   "title": "The admin sends no Content-Security-Policy",
-   "detail": "The other security headers are sent and checked from outside. A policy is the remaining one.",
-   "lines": [
-    "T-068",
-    "T-072"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Every page the product draws is sent with a policy: scripts only from the site itself, and a script written into a page only with the number made for that one answer (`app/Support/ContentPolicy.php`). Six screens that used a handler written into the markup use Alpine now. `tests/Feature/Security/ContentPolicyTest.php` pins the header and reads every screen and every view for what a browser would refuse; the journeys and the crawl of every screen fail on anything a browser refuses, and passed with the policy enforced. Left for T-072: the policy still allows `eval`, which Alpine needs. DL-030."
-   }
-  },
-  {
-   "id": "D-013",
-   "severity": "low",
-   "state": "open",
-   "found": "2026-11-16",
-   "title": "The hosted workspace sends its stylesheet and scripts with no caching",
-   "detail": "`max-age=0`: every visit asks again. The files carry a fingerprint in their name and could be kept for a year.",
-   "lines": [
-    "T-152"
-   ]
-  },
-  {
-   "id": "D-014",
-   "severity": "medium",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "The merge made changes to the live shop that the release report had not listed",
-   "detail": "The branch merged on 17 November also held the work done on the React shop between 11 and 13 November. With the merge it went live on `woodex-2030.vercel.app`: the Products menu is a plain list built from the category file shared with the admin, without its two picture tiles and with three more entries; a heading such as \"Office Tables\" lists the products of all its sub-categories; the connections to the Laravel admin and the second destination of the enquiry forms are in the build, switched off. The shop's gate passed on the merge commit and the outside check passed after it, so nothing is known to be broken; but the owner released the merge without this list. The report now carries it (`17-RELEASE-2026-11-17.md`), and the earlier build is kept by Vercel.",
-   "lines": [
-    "T-026"
-   ]
-  },
-  {
-   "id": "D-015",
-   "severity": "high",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "A quotation that had been sent could never become Accepted or Declined",
-   "detail": "Found by pressing the sale through in a browser. The client's own page records a yes, but that page is an optional module and the product ships with it off. The only other route needed a WhatsApp reply, and WhatsApp is not connected. No code could set a quotation to Declined at all. So the ordinary case — the client says yes on the telephone — left the quotation \"Sent\" for ever: no won lead, no project, no invoice.",
-   "lines": [
-    "T-080"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "A member of staff who may send quotations records the client's answer: accepted (who, how: telephone, in person, WhatsApp, e-mail or a signed copy, with a note) or declined (with the reason). The record names who wrote it down. A recorded yes does exactly what the client's page does. `92f90f9`; `tests/Feature/Sales/ClientAnswerTest.php`; pressed in the sale journey (DL-025)."
-   }
-  },
-  {
-   "id": "D-016",
-   "severity": "high",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "With the client pages off, the admin handed out links to pages that do not open",
-   "detail": "After \"Send now\" the admin showed an empty \"Share\" dialog and the message \"Share the link with the client\"; the WhatsApp text and the e-mail carried a link; every invoice, drafts too, offered a \"Client link\"; the project showed a portal card. Each link answered \"not found\", because the client pages are switched off. A client would have received a dead link in place of the quotation.",
-   "lines": [
-    "T-080"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "One answer to \"is there a client page?\" for quotations and one for invoices; while there is none the PDF is the document and each screen and message says what to do with it. `92f90f9`; `tests/Feature/Sales/ClientPagesOffTest.php`; pressed in the sale journey with the pages off."
-   }
-  },
-  {
-   "id": "D-017",
-   "severity": "high",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "A new installation could never issue a document: Settings had no field for the invoice terms",
-   "detail": "A document cannot be issued without invoice terms, and a new installation starts with none. Settings offered no field to write them, and asked for the Interior brand's two sets of terms although that brand is not on sale. The notice said only that something was missing.",
-   "lines": [
-    "T-080",
-    "T-084"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Settings → Sales rules has the field; the Interior terms are asked for only where that brand is on sale; the notice lists point by point what is missing; the other rules can be saved while the wording is undecided. `92f90f9`, `6b3a1ea`; `tests/Feature/FurnitureSettingsTest.php`."
-   }
-  },
-  {
-   "id": "D-018",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Invoices and payments never reached the client's timeline",
-   "detail": "The timeline of a lead and of a contact offers \"Invoice\" and \"Payment\" as filters, but nothing wrote either kind. The record of a sale stopped at \"accepted\": the sales person who won the order could not see on their lead whether the invoice had gone out or the advance had come in.",
-   "lines": [
-    "T-080"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The issue and the voiding of an invoice, a payment the client reported, its confirmation with the receipt number, and a claim that was sent back are written to the timeline. Without amounts: a lead is read by everybody who may open it, the figures by those who may open the invoice. `6b3a1ea`; `tests/Feature/Sales/BillingTimelineTest.php`; read by the sales person in the last step of the sale journey."
-   }
-  },
-  {
-   "id": "D-019",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "The details of a lead showed a leftover of the screen in place of the lead's value",
-   "detail": "The \"Value\" row of every lead's Details card printed the last key of a list further up the page (\"call_back\") instead of the expected value typed for the lead.",
-   "lines": [
-    "T-080"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The row shows the value. `6b3a1ea`; test \"shows the value typed for a lead in its details, not a leftover of the screen\" (it fails on the old view)."
-   }
-  },
-  {
-   "id": "D-020",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "The client's page of a discounted invoice did not add up",
-   "detail": "The page listed the lines (540,000) and the total (496,800) with nothing between them. Discount, rent, transport, tax and rounding were on the PDF only.",
-   "lines": [
-    "T-080"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The page shows subtotal, each adjustment and the total when there is any adjustment. `6b3a1ea`; two tests in `BillingTimelineTest.php`; read on the client's page in the sale journey."
-   }
-  },
-  {
-   "id": "D-021",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Confirming a payment the client reported asked nothing",
-   "detail": "\"Confirm\", a small link beside \"Send back\" in the list of payments, numbers a receipt and books the amount in the ledger with one click. Neither can be taken back.",
-   "lines": [
-    "T-080"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The link asks first, naming the amount and the client. `6b3a1ea`; the sale journey checks that the question was asked."
-   }
-  },
-  {
-   "id": "D-022",
-   "severity": "low",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Small things on the quotation, invoice and lead screens",
-   "detail": "A sales person, who has no \"Create full invoice\" button, was told to use it. \"Give to client\" stayed on a quotation that was already answered. A draft invoice said \"issued\" with a date. The record that an invoice was raised lost the number of its project. Choosing the person who already has a lead wrote a second \"Assigned to …\" on the timeline and told them again.",
-   "lines": [
-    "T-080"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Each corrected. `92f90f9`, `6b3a1ea` and the commit that closes T-080; tests in `ClientAnswerTest.php`, `ClientPagesOffTest.php` and `LeadShowTest.php`."
-   }
-  },
-  {
-   "id": "D-023",
-   "severity": "medium",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "The project that a Furniture sale opens is an Interior project",
-   "detail": "Accepting a quotation opens a project. Its screen carries the Interior module's stages (Planning, Design, Procurement, Execution, Finishing, Handover), a hand-over checklist that speaks of \"the studio list\", and site updates. The word \"Interior\" does not appear, so the Furniture-only check passes; but none of it is how a furniture order is made, delivered and installed. The project is named after the quotation's title, which is \"Quotation\" when nobody typed one.",
-   "lines": [
-    "T-033",
-    "T-010"
-   ]
-  },
-  {
-   "id": "D-024",
-   "severity": "low",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "A lead's value does not follow its quotation",
-   "detail": "The expected value of a lead is typed by hand. Sending or accepting a quotation does not set it, so the pipeline board and the \"Expected value\" order count a sale won for 496,800 as nothing unless somebody typed the figure.",
-   "lines": [
-    "T-092"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "A sent quotation gives the lead its total when the lead has no value or still carries the total of an earlier sending; a figure typed by hand is kept; an accepted quotation sets the value. The pipeline's \"Won\" adds up to the accepted quotations. `app/Domain/Sales/Actions/SetLeadValueFromQuote.php`; ten tests in `LeadValueFollowsQuotationTest.php`. DL-029."
-   }
-  },
-  {
-   "id": "D-025",
-   "severity": "high",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Every link to a client's project page was refused, and the portal screen carried a script no browser could read",
-   "detail": "Where the client's pages are switched on (the demo; a site that turns the module on), the link to a client's project page answered \"No access\" wherever the admin gave it: on the project, on the Client portal screen, in the e-mail \"Open my project\", in the WhatsApp message and in the review request. The link was signed over the whole address; the page checks the path only. On the Client portal screen the \"Copy\" button also carried a Blade directive as plain text, so the browser reported a script error as soon as one project existed. No test had ever opened the screen or one of its links; the crawl missed it because it ran on a site without a project. The product as it ships has these pages off and showed no link.",
-   "lines": [
-    "T-167"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The link is signed over the path and the site's address is put in front (`app/Domain/Projects/Services/PortalLinks.php`); the button reads the link from the element. `ClientPortalTest.php` opens each of the five links and the screen. In CI the journeys now run before the crawl, so every screen is opened with the records of a sale in it."
-   }
-  },
-  {
-   "id": "D-026",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Open screens still offered what belongs to switched-off modules",
-   "detail": "A switched-off module is closed at its own addresses, but three open screens offered its things. The project that a sale opens had \"Case study\": a draft page for the public website, written from the Interior studio's template, while the website is off. Settings showed \"WhatsApp\" (the Cloud API's keys and costs) and \"Bot\" (the chat bot's prompt, written for the Interior studio). Integrations listed Telegram, WhatsApp, Google, Gmail, Drive, the Facebook page and the AI bridge with their buttons; one of them makes an access key for an endpoint that is closed. A lead could also be asked to price an estimate while the estimator is off.",
-   "lines": [
-    "T-034"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Each is offered only while its module is on, and answers \"not found\" when asked for anyway: `SwitchedOffModulesTest.php`, 43 tests, which also ask for the two Interior quotation designs and every address of the estimator. Removing a stored connection and revoking a bridge key stay possible, because they only take away. DL-027."
-   }
-  },
-  {
-   "id": "D-027",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Four packages of the admin had published security advisories",
-   "detail": "The first run of the new audit (T-069) reported nine advisories in `symfony/http-foundation`, `symfony/http-kernel`, `symfony/routing` and `symfony/serializer` 8.1.10, among them CVE-2026-118516 (a host placeholder of a route could match the path) and CVE-2026-118515 (file objects built from untrusted data). Packagist states no severity for them; the audit treats an advisory without one as blocking. The fixed versions were published on 4 November.",
-   "lines": [
-    "T-069"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The four packages are at 8.1.11 in `platform/composer.lock`, with no other requirement changed; the whole suite passes on them and the audit in CI reports no blocking advisory. What is left is D-028."
-   }
-  },
-  {
-   "id": "D-028",
-   "severity": "low",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "One low advisory in Laravel, and eleven moderate ones in the shop's build tools",
-   "detail": "`laravel/framework` 13.39.0 carries CVE-2026-128083 (low; fixed in 13.40.0): text injected into the output of a task run through the Concurrency process driver, which this application does not use. `npm audit` reports eleven moderate advisories, in the linter, in `react-router` and in a Tailwind plugin; the fix npm offers for `react-router` is a change of major version. None fails the audit, which stops at high.",
-   "lines": [
-    "T-071"
-   ]
-  },
-  {
-   "id": "D-029",
-   "severity": "low",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "Ten functions of the shop's database have no fixed search path",
-   "detail": "The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today. Read from the database itself on 17 November, 20:04 UTC: nine functions and one aggregate (`group_concat`) in the public schema, none with a search path, none belonging to an extension.",
-   "lines": [
-    "T-172"
-   ]
-  },
-  {
-   "id": "D-030",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Saving the sales rules switched the follow-up of quotations off",
-   "detail": "Settings → Sales rules has a box \"follow up quotations automatically\". Whoever saved that screen, for any reason, switched it off: the box had no validation rule, so it was not among the checked values and was read as \"off\", ticked or not. It could not be switched on from the screen at all. Sent quotations were then no longer chased, and nothing said so. Found when every change of a setting began to be recorded (T-067): a save that changed nothing wrote a change.",
-   "lines": [
-    "T-067"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The box has its rule (`SettingsPage::saveSales`). `SensitiveActionsLeaveATraceTest.php`: a screen saved as it was opened changes nothing, and the box saves as it says."
-   }
-  },
-  {
-   "id": "D-031",
-   "severity": "low",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Three smaller things the security tests found",
-   "detail": "The invoice page kept the number of its invoice where the browser could change it: the page then showed another invoice without having been opened for it (today every person who may open one invoice may open them all, so nothing was gained by it). Two records handed out a secret when turned into an array for a browser or a log: the hash of a client's six-digit portal code, and a visitor's chat key. And the example settings file switches debugging on: copied by hand to a live site, a fault there would have shown the request, the queries and the code to whoever caused it.",
-   "lines": [
-    "T-160"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "The invoice's number is locked, and a test finds every page that keeps its record unlocked. The two columns are hidden, and a test finds every secret-looking column that is not. A site that calls itself production refuses the debugging switch and its health report says the settings file is wrong (`app/Support/DebugGuard.php`). Tests in `tests/Feature/Security/`. DL-029."
-   }
-  },
-  {
-   "id": "D-032",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-17",
-   "title": "Six sensitive actions left no trace",
-   "detail": "The list of changes (System → Audit log) had no row for an invitation, a change of role, a deactivation or a reactivation of a person, nor for any change of a setting: who may give which discount, what a document says, who signs it. Document 08 §7 asks for an audit event for each.",
-   "lines": [
-    "T-067"
-   ],
-   "closed": {
-    "on": "2026-11-17",
-    "how": "Each writes a row with who did it and what changed; a secret setting is recorded as changed, never with its value (`ManageStaff`, `RecordSettingsChange`). `SensitiveActionsLeaveATraceTest.php` lists nineteen sensitive actions and fails when one is silent."
-   }
-  },
-  {
-   "id": "D-033",
-   "severity": "low",
-   "state": "open",
-   "found": "2026-11-17",
-   "title": "The check of the live sites is started by its timer once in three times due",
-   "detail": "The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Recorded on 17 November as \"has never started\": by 20:07 UTC two times due had passed, 12:23 and 18:23 UTC, without a timed run. Corrected on 18 November: GitHub started the run due at 18:23 at 21:06 UTC, 2 h 43 min late (run 44176315991, green: 41 of 41 for the admin, 14 of 14 for the shop). The time due at 00:23 UTC on 18 November brought no run; read at 04:21 UTC, GitHub's list of timed runs holds that one run. So the timer works and GitHub starts it late or drops it. The agent's session may not start the workflow by hand (HTTP 403). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges can stay unseen for longer than six hours.",
-   "lines": [
-    "T-142"
-   ]
-  },
-  {
-   "id": "D-034",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-18",
-   "title": "The installer stopped at its second step on a site opened by a number or a one-word name",
-   "detail": "Found by installing a release in a browser (T-144). The installer wrote `noreply@` and the site's host name as the sender of mail. For a site opened by its IP address or by a name without a dot that is not an address PHP accepts; the backup package refuses such a sender when it is loaded, so every command and the installer's second step answered with an error and the site stayed half installed. A site opened by a real domain was not affected.",
-   "lines": [
-    "T-144"
-   ],
-   "closed": {
-    "on": "2026-11-18",
-    "how": "The installer writes the sender only when PHP accepts it as an address and falls back to `noreply@woodex-os.invalid` otherwise (`Installer::senderFor`). `Feature/InstallerTest.php` installs by a number and by a one-word name; without the correction two of its tests fail. Proven in the rehearsal on Apache and MariaDB, where the site is opened by `127.0.0.1`."
-   }
-  },
-  {
-   "id": "D-035",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-18",
-   "title": "\"Sign out\" ended the session and left the screen as it was, on a site whose first page is elsewhere",
-   "detail": "Found by the same rehearsal. Signing out sent the browser to the first page of the site. In a website folder on a host that page forwards to the shop on another address, and the content policy of the admin stops a form that ends on another address. The session was ended on the server, the screen stayed, and the next click showed the sign-in page: a person could believe they were still signed in, or that the button did nothing. The hosted demo was not affected: there the first page is answered by the admin itself, on the same address.",
-   "lines": [
-    "T-144"
-   ],
-   "closed": {
-    "on": "2026-11-18",
-    "how": "Signing out leads to the admin's own sign-in page (`fortify.redirects.logout`). `Feature/AdminAccessTest.php` signs out and reads where the answer leads; it fails with the setting taken out. In the rehearsal a browser signs out twice under the enforced policy and arrives at the sign-in page."
-   }
-  },
-  {
-   "id": "D-036",
-   "severity": "low",
-   "state": "closed",
-   "found": "2026-11-18",
-   "title": "The installer did not check for one PHP extension that the packages need",
-   "detail": "Found when the first release was put together. Two packages that take in pictures ask for the `exif` extension; the installer's list of extensions to check on the server did not hold it. Composer checks only the PHP version when the application starts, so a host with `exif` switched off would have installed without a word, and the fault would have shown only later, where a picture is taken in.",
-   "lines": [
-    "T-144"
-   ],
-   "closed": {
-    "on": "2026-11-18",
-    "how": "`exif` is in the installer's list, and `Feature/InstallerTest.php` reads the lock file: every extension a package of a release asks for is either checked by the installer or part of every PHP."
-   }
-  },
-  {
-   "id": "D-037",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-18",
-   "title": "The \"Add\" button of a catalogue product did nothing, and its first cure printed typed text into a script",
-   "detail": "Found twice within the round that built it, before any release. First by the journey in a browser: the button's `wire:click` held a Blade directive inside a component tag, which Blade does not compile, so the browser got the directive as written and the press did nothing; every component test passed, because a component test never reads `wire:click`. Then by CI, after only the neighbouring tests had been run before a push: the cure printed the code of the product's option, which is text a person typed, into `wire:click`, an attribute the browser runs as script, and `Feature/Security/StoredScriptTest.php` refused it on the three database servers.",
-   "lines": [
-    "T-086"
-   ],
-   "closed": {
-    "on": "2026-11-18",
-    "how": "The button says two numbers, the product's and one that stands for the option's code; the server finds the option and asks the catalogue again. `Unit/BladeComponentTagsTest.php` refuses a directive inside a component tag in any view; the journey presses the button and reads the product in the PDF. The whole suite is run before a push, not the neighbours."
-   }
-  },
-  {
-   "id": "D-038",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-18",
-   "title": "Eight notices that reported a failure were shown in green as \"Saved\"",
-   "detail": "On `main`. Three screens (change requests, system health, prepared replies) sent their notices without names: `dispatch('toast', '…', 'error')`. The browser read only named arguments, found neither a message nor a type, and showed its default: a green \"Saved\". A person was told that something was saved when it had been refused. Found while reading every early return of the saving actions for the warning before unsaved work is lost, which must know whether a save was refused.",
-   "lines": [
-    "T-043"
-   ],
-   "closed": {
-    "on": "2026-11-18",
-    "how": "The eight are written with names, the browser reads both forms (`toastOf` in `resources/js/admin/unsaved.js`), `Unit/ToastsCanBeReadTest.php` refuses a notice without names anywhere in `app/`, and the journey sends one written the old way and reads it on the screen as a failure."
-   }
-  },
-  {
-   "id": "D-039",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-18",
-   "title": "A figure typed into a quotation was lost when a menu link was pressed straight away",
-   "detail": "On `main`. Every field of the quotation is stored when it is left. A press on a menu link does not leave the field: Livewire stops the browser's own handling of that press so that the page is not loaded twice, and the cursor stays where it was. The screen was swapped, nothing was sent, and the figure was gone without a word. Seen by pressing it in a browser, with the watch on unsaved work taken out of the page: 12,501 typed, the quotation still held 12,500.",
-   "lines": [
-    "T-043"
-   ],
-   "closed": {
-    "on": "2026-11-18",
-    "how": "Leaving is held while a part of the screen holds unsaved work: the watch leaves the field itself, waits for the save and for its answer to be worked into the page, and then lets the person go without a question. The journey types a figure, presses the link at once, counts every opening of the question (none) and reads the figure back from the quotation."
-   }
-  },
-  {
-   "id": "D-040",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-18",
-   "title": "Two people saving in the accounts at the same moment: the database stopped one of them with an error page",
-   "detail": "On `main`, and in the code since it was copied from the Interior studio, whose own list calls the check pending (document 25 §8). Nothing wrong was ever written: no money twice, no entry out of balance, no number given twice. But when two people saved at the same moment, the database found each waiting for the other, ended one of the two (a deadlock) and that person got the page that says something went wrong; nothing of theirs was saved, and a second try worked. Tried by `platform/tools/ci/two-writers.php`, two processes at one gate, fifty runs a step, with the classes as they are on `main` (the commits `7fe80c2` and `e820e31`, both taken back): on MySQL 8.4.13, MariaDB 10.11.19 and MariaDB 11.4.13 alike, 10 of the 29 steps did not hold, and every run that failed was a run ended by the database. Runs of 50 that held, on the three servers in that order: two payments recorded for one invoice 0, 0, 0 · two payments recorded for two invoices of one client 0, 0, 0 · one invoice posted by two people 12, 12, 12 · two expenses 12, 12, 13 · two suppliers' bills paid 16, 18, 13 · one payment request sent for two bills 17, 18, 16 · two invoices of one client collected 26, 26, 26 · two new bills of two suppliers saved 26, 26, 22 · two paid costs of two suppliers 28, 26, 25 · two draft invoices issued 35, 39, 29. Four causes, each an order of locks. (1) A posting asked \"is this document in the journal already?\" with a lock, and only then waited for the row every posting needs: a question asked with a lock about a row that is not there holds the empty place where it would go, two writers may hold the same place, and neither can then write into it. (2) The allocation locked \"the open invoices of this client\" as a list, which locks every row the database reads on its way; collecting held its own invoice first; recording wrote the payment first, and a written row that points at an invoice holds that invoice for reading. (3) Paying a bill asked for the request's key with a lock. (4) A supplier's cost asked its two questions with locks before any turn was taken. On the sandbox's older server (MariaDB 10.2.11) the same ten failed and one more, which holds on the three servers CI uses: the whole of one invoice collected by two people (8 of 20 runs held).",
-   "lines": [
-    "T-093"
-   ],
-   "closed": {
-    "on": "2026-11-18",
-    "how": "The order is the same everywhere now: the document's own row, then the ledger's turn (`LedgerTurn`: the row every posting takes its number from), then the question. Every open invoice of the client and every named one is locked by its own key, lowest first, before anything is written (`InvoiceLocks`). No migration. In CI on each of the three servers all 29 steps hold in every one of 50 runs (`8549036`), and the same job fails when a lock is taken out: an invoice paid twice in 34 to 38 of 50 runs, a number given twice in 48 to 50, an entry reversed twice in 46 to 50, a bill paid twice in 6. `TwoWritersOrderTest` keeps the order of the statements and refuses a new lock in the accounts, sales or projects code that is not on one row by its key until it is listed with its reason. For every place no step reaches, a request the database ends for another writer is answered 409 in words and is still reported."
-   }
-  },
-  {
-   "id": "D-041",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-19",
-   "title": "On the hosted workspace nothing under /api reached the application",
-   "detail": "Asked from outside on 19 November, before the round's build began, `https://woodex-os.vercel.app/api/v1/media` answered the admin's page \"This page does not exist\". Vercel runs `platform/api/index.php` with PHP's own web server. For an address under `/api` that server announces the script as `/api/index.php` with the rest of the address behind it; the framework then takes `/api` for the application's own address, and the router looks for `/v1/media`, which is no route. So the enquiry address and all of `/api/v1` had never answered on the hosted workspace since it was set up on 17 November. No check and no step of the rehearsal asked for them, and the shop does not call them (its switches are off), so nobody was refused. Found because the plan of T-063 has the outside check ask one address of `/api/v1` on the live demo after the merge, and the address was asked first.",
-   "lines": [
-    "T-063"
-   ],
-   "closed": {
-    "on": "2026-11-19",
-    "how": "The entry announces itself as `/index.php`, the front controller it stands in for (`platform/api/index.php` and its copy `deploy/vercel-livewire/index.php`; commit `287814d`). `platform/tools/vercel/check-entry.sh` asks three addresses under `/api` of the function as Vercel runs it: without the two lines 4 of its checks fail, with them all 84 hold, in CI's job on Vercel's PHP runtime. On the live address itself it can only be asked after the merge: the outside check now asks six points of `/api/v1` on the demo (`.github/workflows/vercel-live-check.yml`) and fails when one of them answers anything else."
-   }
-  },
-  {
-   "id": "D-042",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-19",
-   "title": "An enquiry sent twice was written a second time, and four answers of /api/v1 said too much or went to the wrong place",
-   "detail": "Found while the seven addresses were held against the rules of T-063. (1) An enquiry that arrived twice (a visitor who presses twice, a browser that sends again after an answer was lost) was written as a second enquiry of the same person: a line \"Returning enquiry\" on the timeline, and the team told a second time. Only the basket was guarded, in a way of its own (a `request_key` in the body). (2) A picture that does not exist was answered with the name of a class of the application (\"No query results for model …\"). (3) A wrong method was answered in the framework's words, with the route and the methods it supports. (4) An address under `/api/v1` that does not exist was passed on to the website's catch-all and answered as a page of the website. (5) The basket locked the catalogue rows it only reads a price from: two baskets with the same products waited for each other, and two that named them in another order could stop each other. None of the five wrote anything wrong; the shop does not call these addresses yet.",
-   "lines": [
-    "T-063"
-   ],
-   "closed": {
-    "on": "2026-11-19",
-    "how": "(1) A create under `/api/v1` takes an `Idempotency-Key`: the first sending writes, a second with the same content is given the first answer again and writes nothing, a second with other content is refused (409, IDEMPOTENCY_KEY_REUSED). Two sendings in the same moment are held apart by the key's own row (`platform/app/Support/Api/Idempotency.php`). `Feature/Api/IdempotencyTest.php`, and two processes at once in `platform/tools/ci/two-writers.php` (the steps one-key-two-enquiries and one-key-two-baskets): 50 of 50 runs on each of the three servers; without the key's row, in 37 or 38 of 50 double sendings the second is written to the timeline as another enquiry of the same person (`d93b112`). (2) to (4) One handler answers every fault under `/api/v1` in the one shape, with a code from a closed list of fifteen and a sentence written for the caller; an unknown address is answered by the API itself, 404, or 405 with the header Allow. `Feature/Api/V1ContractTest.php` compares each answer with the contract key by key. (5) The catalogue is read without a lock; the step two-baskets holds 50 of 50."
-   }
-  },
-  {
-   "id": "D-043",
-   "severity": "medium",
-   "state": "closed",
-   "found": "2026-11-19",
-   "title": "Two new visitors sending an enquiry in the same moment: the database stopped one of them",
-   "detail": "On `main`, and in the code since the enquiry was first built, for every channel that writes one: the shop's form, the basket, the old website's form and an enquiry typed by the team. `CaptureLead` asked \"do we know this email, or this number?\" with a lock. When the person is new the row is not there, and a question asked with a lock about a row that is not there holds the empty place where it would go (the cause of D-040, in another module). Two visitors who were both new each held the place of the other's contact; neither could then write, and the database ended one of the two (a deadlock, on the index of the contacts' email). That visitor was answered 409 and nothing of the enquiry was saved; a second try worked. Nothing wrong was written. Found by a step of `platform/tools/ci/two-writers.php` that was written to try the idempotency key: two enquiries of two strangers at once. On the sandbox's server one of the two was stopped in 11 of 50 runs; in CI, with the turn taken out, in 17 of 50 on MySQL 8.4, 11 or 12 on MariaDB 10.11 and 10 or 11 on MariaDB 11.4. How often two new visitors really meet within a few milliseconds is not known; no visitor's enquiry reaches Laravel yet.",
-   "lines": [
-    "T-063"
-   ],
-   "closed": {
-    "on": "2026-11-19",
-    "how": "An enquiry takes its turn before it asks: one row that every enquiry waits for (`platform/app/Domain/Crm/Services/EnquiryTurn.php`), as every posting to the ledger does since T-093. Two enquiries are written one after the other. In CI on each of the three servers the steps two-enquiries and two-baskets hold in 50 of 50 runs, and the same job fails when the turn is taken out, with the numbers above (`d93b112`, two runs on each server). `Feature/Crm/EnquiryTurnTest.php` keeps the order on every run, SQLite included: the turn is taken before the question, never outside a transaction, and every place of the application that asks the contacts with a lock is on its list, with the reason it is safe."
-   }
-  },
-  {
-   "id": "D-044",
-   "severity": "medium",
-   "state": "open",
-   "found": "2026-11-19",
-   "title": "The WhatsApp inbox asks \"do we know this number?\" with a lock, outside the enquiry's turn",
-   "detail": "`ReceiveWhatsAppMessage` asks the contacts for the sender's number with a lock before any turn is taken: the cause of D-043, left in one place. Two messages of two people who are both new, or a message and an enquiry of the shop in the same moment, can be ended by the database in the same way. It was not seen in a run: `Feature/Crm/EnquiryTurnTest.php` reads every place that asks the contacts with a lock, and names this one as the exception it knows. It cannot happen today: the inbox is switched off (DL-034), no WhatsApp account is connected (T-014), and no message reaches the class. Left as it is in the round of T-063, because a cure without a step that sends two messages at once would be a cure nobody had tried, and that step belongs with the inbox. It is closed before the inbox is switched on.",
-   "lines": [
-    "T-190"
-   ]
-  }
- ]
+  "defects": [
+    {
+      "id": "D-001",
+      "severity": "critical",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "The React shop's database could be read and changed through Supabase's Data API",
+      "detail": "None of its 72 tables had row-level security, and Supabase's two API roles held every privilege on all of them — users, sessions, password resets, orders and payments included. Anyone holding the project's publishable key could read and write every row. The shop itself never uses that API. Whether anybody did is not known from the database; Supabase's dashboard keeps a short log of API requests.",
+      "lines": [
+        "T-162"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Every privilege on tables and sequences taken from the two roles, also for tables created later (`deploy/supabase/2026-11-17-close-data-api.sql`, DL-024). Read back: the two roles hold a privilege on 0 of 73 tables and on no sequence, and the owner of the tables holds everything. Asked from outside afterwards, the shop serves its 148 products as before."
+      }
+    },
+    {
+      "id": "D-002",
+      "severity": "critical",
+      "state": "open",
+      "found": "2026-11-16",
+      "title": "The owner password of the old dashboard was printed in a public document",
+      "detail": "The repository is public, and so is its history. Whoever read that document can sign in to `woodex-2030.vercel.app/admin` as the owner — since 17 November also to load, publish and withdraw products. Only the owner can close it: sign in, Settings, Change password. Making the repository private does not close it; the password stays known.",
+      "lines": [
+        "T-021"
+      ]
+    },
+    {
+      "id": "D-003",
+      "severity": "high",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "A Furniture-only product showed and sent Interior's name",
+      "detail": "71 of the 241 screens opened by the four roles carried the word Interior; the WhatsApp greeting on a lead, a contact, a quotation and a visit and the staff invitation named Woodex Interior; the client's pages of a quotation and an invoice printed INTERIOR STUDIO under the mark.",
+      "lines": [
+        "T-030",
+        "T-031",
+        "T-032"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Commit `0d8ae53`: one setting names the lines on sale and the admin ships with Furniture alone. The crawl of all four roles finds the word on no screen; 25 tests pin it (`Feature/FurnitureOnlyTest.php`)."
+      }
+    },
+    {
+      "id": "D-004",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Two settings decided how a time is stored and how it is read",
+      "detail": "Had the application's time zone and the database session's time zone ever disagreed, every stored time would have shifted by five hours. They agreed, so no record was wrong.",
+      "lines": [
+        "T-061"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Commit `d7d6c29`: the session's zone is derived from the application's (DL-023); tests pin both, one of them on MySQL in CI (`Feature/TimeStorageTest.php`)."
+      }
+    },
+    {
+      "id": "D-005",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Three rows of the shop's migration ledger were written in another form than the migration runner writes",
+      "detail": "Rows 16, 17 and 18 carried names without `.sql` and checksums with a prefix, one of them cut short. The runner compares checksums and would have refused the live database as changed after the fact. The files had not changed: the recorded values were the beginnings of the files' real checksums.",
+      "lines": [
+        "T-163"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The three rows corrected to the runner's form, each guarded by its old value (DL-024). Read back: 19 rows, 19 migration files, every checksum equal."
+      }
+    },
+    {
+      "id": "D-006",
+      "severity": "high",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Preview builds of the React shop use the production database",
+      "detail": "In the shop's Vercel project the database address is set for Production, Preview and Development alike. Vercel builds a preview of every branch that is pushed, so code that nobody has reviewed runs against the live data, and each preview address signs in to the same records. Harmless while the database holds sample products and one lead; not once it holds customers and orders. On 17 November the owner chose the repair (DL-026): take the database address out of Preview and Development. It is made as soon as the Vercel app is switched on again. Since 17 November, 16:05 UTC, the address is set for Production only (T-164): a preview built from then on has no database. Every preview that Vercel built before keeps the address until it is deleted, so this stays open for them.",
+      "lines": [
+        "T-188"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Three things together. The database address is set for Production only since 16:05 UTC, so a preview built from then on has no database (T-164). The previews built before cannot be opened by a stranger: both Vercel projects ask for a sign-in to Vercel on every address except the site's own domain, read from the project settings and asked from outside on every run of the live check, which opens an issue if it stops being so. And Vercel deletes each of them 30 days after it was built: the last by 17 December. They were not deleted by hand (T-188). DL-029."
+      }
+    },
+    {
+      "id": "D-007",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The React shop sells the sample catalogue it was first filled with",
+      "detail": "148 products are on sale on `woodex-2030.vercel.app`; none of them is Woodex's, none has a code. The real 170 are prepared in the shop's build. Since migration 019 the old dashboard can load them: Product Catalog, Catalogue import. Rehearsed on a copy filled like the live database: 170 arrive as drafts, a second run changes nothing, and after publishing and withdrawing the demo catalogue a visitor gets 170 real products.",
+      "lines": [
+        "T-091"
+      ]
+    },
+    {
+      "id": "D-008",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The catalogue's photographs are on woodexfurniture.pk, not in the system",
+      "detail": "Each of the 170 products links to its photograph on the present website, in the Laravel admin and in the catalogue prepared for the React shop. If that website is changed or switched off, every product loses its photograph.",
+      "lines": [
+        "T-089"
+      ]
+    },
+    {
+      "id": "D-009",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "116 of the 170 real products carry a point to check, and 33 have no price",
+      "detail": "The points are in the import report and on each product: a code made up for a product that had none, a name that differs from its page, a reduction that looks like a typing error (one product shows PKR 15,000 down from PKR 185,000).",
+      "lines": [
+        "T-090"
+      ]
+    },
+    {
+      "id": "D-010",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "The shop's database has no row-level security",
+      "detail": "The second lock behind D-001. With the privileges gone the tables cannot be reached through the Data API; row-level security keeps it that way if a privilege is ever granted again by mistake. Migration 020 is written and tested (`scripts/migrations/020_row_level_security.sql`, `scripts/test-rls.mjs`); by the owner's word of 17 November (DL-026) it is applied to the live database once a backup or a safe way back is confirmed, which needs the Supabase app switched on.",
+      "lines": [
+        "T-163"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Migration 020 was applied to the live database at 16:07:45 UTC, in one transaction with its ledger row: all 73 tables carry row-level security and the policy `no_access_through_the_data_api`, none forced. The shop's API connects as the owner of the tables and reads as before: asked from outside 67 seconds later, the shop served its 148 products (run 44122391808). The text that was run is kept in `deploy/supabase/2026-11-17-apply-020-row-level-security.sql`. DL-028."
+      }
+    },
+    {
+      "id": "D-011",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "No backup of the shop's database is known to exist",
+      "detail": "None was taken before the changes of 17 November, and whether the Supabase plan keeps any has not been checked. What the database held can be rebuilt today: its 148 products are the seed file's, and both changes have their undo. That stops being true with the first real order. On 17 November the agent looked again before applying migration 020: its connection to Supabase shows neither the plan nor any backup, so this could not be settled. That migration changes no row and has a tested rollback (DL-028).",
+      "lines": [
+        "T-187"
+      ]
+    },
+    {
+      "id": "D-012",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-16",
+      "title": "The admin sends no Content-Security-Policy",
+      "detail": "The other security headers are sent and checked from outside. A policy is the remaining one.",
+      "lines": [
+        "T-068",
+        "T-072"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Every page the product draws is sent with a policy: scripts only from the site itself, and a script written into a page only with the number made for that one answer (`app/Support/ContentPolicy.php`). Six screens that used a handler written into the markup use Alpine now. `tests/Feature/Security/ContentPolicyTest.php` pins the header and reads every screen and every view for what a browser would refuse; the journeys and the crawl of every screen fail on anything a browser refuses, and passed with the policy enforced. Left for T-072: the policy still allows `eval`, which Alpine needs. DL-030."
+      }
+    },
+    {
+      "id": "D-013",
+      "severity": "low",
+      "state": "open",
+      "found": "2026-11-16",
+      "title": "The hosted workspace sends its stylesheet and scripts with no caching",
+      "detail": "`max-age=0`: every visit asks again. The files carry a fingerprint in their name and could be kept for a year.",
+      "lines": [
+        "T-152"
+      ]
+    },
+    {
+      "id": "D-014",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The merge made changes to the live shop that the release report had not listed",
+      "detail": "The branch merged on 17 November also held the work done on the React shop between 11 and 13 November. With the merge it went live on `woodex-2030.vercel.app`: the Products menu is a plain list built from the category file shared with the admin, without its two picture tiles and with three more entries; a heading such as \"Office Tables\" lists the products of all its sub-categories; the connections to the Laravel admin and the second destination of the enquiry forms are in the build, switched off. The shop's gate passed on the merge commit and the outside check passed after it, so nothing is known to be broken; but the owner released the merge without this list. The report now carries it (`17-RELEASE-2026-11-17.md`), and the earlier build is kept by Vercel.",
+      "lines": [
+        "T-026"
+      ]
+    },
+    {
+      "id": "D-015",
+      "severity": "high",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "A quotation that had been sent could never become Accepted or Declined",
+      "detail": "Found by pressing the sale through in a browser. The client's own page records a yes, but that page is an optional module and the product ships with it off. The only other route needed a WhatsApp reply, and WhatsApp is not connected. No code could set a quotation to Declined at all. So the ordinary case — the client says yes on the telephone — left the quotation \"Sent\" for ever: no won lead, no project, no invoice.",
+      "lines": [
+        "T-080"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "A member of staff who may send quotations records the client's answer: accepted (who, how: telephone, in person, WhatsApp, e-mail or a signed copy, with a note) or declined (with the reason). The record names who wrote it down. A recorded yes does exactly what the client's page does. `92f90f9`; `tests/Feature/Sales/ClientAnswerTest.php`; pressed in the sale journey (DL-025)."
+      }
+    },
+    {
+      "id": "D-016",
+      "severity": "high",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "With the client pages off, the admin handed out links to pages that do not open",
+      "detail": "After \"Send now\" the admin showed an empty \"Share\" dialog and the message \"Share the link with the client\"; the WhatsApp text and the e-mail carried a link; every invoice, drafts too, offered a \"Client link\"; the project showed a portal card. Each link answered \"not found\", because the client pages are switched off. A client would have received a dead link in place of the quotation.",
+      "lines": [
+        "T-080"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "One answer to \"is there a client page?\" for quotations and one for invoices; while there is none the PDF is the document and each screen and message says what to do with it. `92f90f9`; `tests/Feature/Sales/ClientPagesOffTest.php`; pressed in the sale journey with the pages off."
+      }
+    },
+    {
+      "id": "D-017",
+      "severity": "high",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "A new installation could never issue a document: Settings had no field for the invoice terms",
+      "detail": "A document cannot be issued without invoice terms, and a new installation starts with none. Settings offered no field to write them, and asked for the Interior brand's two sets of terms although that brand is not on sale. The notice said only that something was missing.",
+      "lines": [
+        "T-080",
+        "T-084"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Settings → Sales rules has the field; the Interior terms are asked for only where that brand is on sale; the notice lists point by point what is missing; the other rules can be saved while the wording is undecided. `92f90f9`, `6b3a1ea`; `tests/Feature/FurnitureSettingsTest.php`."
+      }
+    },
+    {
+      "id": "D-018",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Invoices and payments never reached the client's timeline",
+      "detail": "The timeline of a lead and of a contact offers \"Invoice\" and \"Payment\" as filters, but nothing wrote either kind. The record of a sale stopped at \"accepted\": the sales person who won the order could not see on their lead whether the invoice had gone out or the advance had come in.",
+      "lines": [
+        "T-080"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The issue and the voiding of an invoice, a payment the client reported, its confirmation with the receipt number, and a claim that was sent back are written to the timeline. Without amounts: a lead is read by everybody who may open it, the figures by those who may open the invoice. `6b3a1ea`; `tests/Feature/Sales/BillingTimelineTest.php`; read by the sales person in the last step of the sale journey."
+      }
+    },
+    {
+      "id": "D-019",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "The details of a lead showed a leftover of the screen in place of the lead's value",
+      "detail": "The \"Value\" row of every lead's Details card printed the last key of a list further up the page (\"call_back\") instead of the expected value typed for the lead.",
+      "lines": [
+        "T-080"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The row shows the value. `6b3a1ea`; test \"shows the value typed for a lead in its details, not a leftover of the screen\" (it fails on the old view)."
+      }
+    },
+    {
+      "id": "D-020",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "The client's page of a discounted invoice did not add up",
+      "detail": "The page listed the lines (540,000) and the total (496,800) with nothing between them. Discount, rent, transport, tax and rounding were on the PDF only.",
+      "lines": [
+        "T-080"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The page shows subtotal, each adjustment and the total when there is any adjustment. `6b3a1ea`; two tests in `BillingTimelineTest.php`; read on the client's page in the sale journey."
+      }
+    },
+    {
+      "id": "D-021",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Confirming a payment the client reported asked nothing",
+      "detail": "\"Confirm\", a small link beside \"Send back\" in the list of payments, numbers a receipt and books the amount in the ledger with one click. Neither can be taken back.",
+      "lines": [
+        "T-080"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The link asks first, naming the amount and the client. `6b3a1ea`; the sale journey checks that the question was asked."
+      }
+    },
+    {
+      "id": "D-022",
+      "severity": "low",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Small things on the quotation, invoice and lead screens",
+      "detail": "A sales person, who has no \"Create full invoice\" button, was told to use it. \"Give to client\" stayed on a quotation that was already answered. A draft invoice said \"issued\" with a date. The record that an invoice was raised lost the number of its project. Choosing the person who already has a lead wrote a second \"Assigned to …\" on the timeline and told them again.",
+      "lines": [
+        "T-080"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Each corrected. `92f90f9`, `6b3a1ea` and the commit that closes T-080; tests in `ClientAnswerTest.php`, `ClientPagesOffTest.php` and `LeadShowTest.php`."
+      }
+    },
+    {
+      "id": "D-023",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The project that a Furniture sale opens is an Interior project",
+      "detail": "Accepting a quotation opens a project. Its screen carries the Interior module's stages (Planning, Design, Procurement, Execution, Finishing, Handover), a hand-over checklist that speaks of \"the studio list\", and site updates. The word \"Interior\" does not appear, so the Furniture-only check passes; but none of it is how a furniture order is made, delivered and installed. The project is named after the quotation's title, which is \"Quotation\" when nobody typed one.",
+      "lines": [
+        "T-033",
+        "T-010"
+      ]
+    },
+    {
+      "id": "D-024",
+      "severity": "low",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "A lead's value does not follow its quotation",
+      "detail": "The expected value of a lead is typed by hand. Sending or accepting a quotation does not set it, so the pipeline board and the \"Expected value\" order count a sale won for 496,800 as nothing unless somebody typed the figure.",
+      "lines": [
+        "T-092"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "A sent quotation gives the lead its total when the lead has no value or still carries the total of an earlier sending; a figure typed by hand is kept; an accepted quotation sets the value. The pipeline's \"Won\" adds up to the accepted quotations. `app/Domain/Sales/Actions/SetLeadValueFromQuote.php`; ten tests in `LeadValueFollowsQuotationTest.php`. DL-029."
+      }
+    },
+    {
+      "id": "D-025",
+      "severity": "high",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Every link to a client's project page was refused, and the portal screen carried a script no browser could read",
+      "detail": "Where the client's pages are switched on (the demo; a site that turns the module on), the link to a client's project page answered \"No access\" wherever the admin gave it: on the project, on the Client portal screen, in the e-mail \"Open my project\", in the WhatsApp message and in the review request. The link was signed over the whole address; the page checks the path only. On the Client portal screen the \"Copy\" button also carried a Blade directive as plain text, so the browser reported a script error as soon as one project existed. No test had ever opened the screen or one of its links; the crawl missed it because it ran on a site without a project. The product as it ships has these pages off and showed no link.",
+      "lines": [
+        "T-167"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The link is signed over the path and the site's address is put in front (`app/Domain/Projects/Services/PortalLinks.php`); the button reads the link from the element. `ClientPortalTest.php` opens each of the five links and the screen. In CI the journeys now run before the crawl, so every screen is opened with the records of a sale in it."
+      }
+    },
+    {
+      "id": "D-026",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Open screens still offered what belongs to switched-off modules",
+      "detail": "A switched-off module is closed at its own addresses, but three open screens offered its things. The project that a sale opens had \"Case study\": a draft page for the public website, written from the Interior studio's template, while the website is off. Settings showed \"WhatsApp\" (the Cloud API's keys and costs) and \"Bot\" (the chat bot's prompt, written for the Interior studio). Integrations listed Telegram, WhatsApp, Google, Gmail, Drive, the Facebook page and the AI bridge with their buttons; one of them makes an access key for an endpoint that is closed. A lead could also be asked to price an estimate while the estimator is off.",
+      "lines": [
+        "T-034"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Each is offered only while its module is on, and answers \"not found\" when asked for anyway: `SwitchedOffModulesTest.php`, 43 tests, which also ask for the two Interior quotation designs and every address of the estimator. Removing a stored connection and revoking a bridge key stay possible, because they only take away. DL-027."
+      }
+    },
+    {
+      "id": "D-027",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Four packages of the admin had published security advisories",
+      "detail": "The first run of the new audit (T-069) reported nine advisories in `symfony/http-foundation`, `symfony/http-kernel`, `symfony/routing` and `symfony/serializer` 8.1.10, among them CVE-2026-118516 (a host placeholder of a route could match the path) and CVE-2026-118515 (file objects built from untrusted data). Packagist states no severity for them; the audit treats an advisory without one as blocking. The fixed versions were published on 4 November.",
+      "lines": [
+        "T-069"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The four packages are at 8.1.11 in `platform/composer.lock`, with no other requirement changed; the whole suite passes on them and the audit in CI reports no blocking advisory. What is left is D-028."
+      }
+    },
+    {
+      "id": "D-028",
+      "severity": "low",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "One low advisory in Laravel, and eleven moderate ones in the shop's build tools",
+      "detail": "`laravel/framework` 13.39.0 carries CVE-2026-128083 (low; fixed in 13.40.0): text injected into the output of a task run through the Concurrency process driver, which this application does not use. `npm audit` reports eleven moderate advisories, in the linter, in `react-router` and in a Tailwind plugin; the fix npm offers for `react-router` is a change of major version. None fails the audit, which stops at high.",
+      "lines": [
+        "T-071"
+      ]
+    },
+    {
+      "id": "D-029",
+      "severity": "low",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "Ten functions of the shop's database have no fixed search path",
+      "detail": "The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today. Read from the database itself on 17 November, 20:04 UTC: nine functions and one aggregate (`group_concat`) in the public schema, none with a search path, none belonging to an extension.",
+      "lines": [
+        "T-172"
+      ]
+    },
+    {
+      "id": "D-030",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Saving the sales rules switched the follow-up of quotations off",
+      "detail": "Settings → Sales rules has a box \"follow up quotations automatically\". Whoever saved that screen, for any reason, switched it off: the box had no validation rule, so it was not among the checked values and was read as \"off\", ticked or not. It could not be switched on from the screen at all. Sent quotations were then no longer chased, and nothing said so. Found when every change of a setting began to be recorded (T-067): a save that changed nothing wrote a change.",
+      "lines": [
+        "T-067"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The box has its rule (`SettingsPage::saveSales`). `SensitiveActionsLeaveATraceTest.php`: a screen saved as it was opened changes nothing, and the box saves as it says."
+      }
+    },
+    {
+      "id": "D-031",
+      "severity": "low",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Three smaller things the security tests found",
+      "detail": "The invoice page kept the number of its invoice where the browser could change it: the page then showed another invoice without having been opened for it (today every person who may open one invoice may open them all, so nothing was gained by it). Two records handed out a secret when turned into an array for a browser or a log: the hash of a client's six-digit portal code, and a visitor's chat key. And the example settings file switches debugging on: copied by hand to a live site, a fault there would have shown the request, the queries and the code to whoever caused it.",
+      "lines": [
+        "T-160"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "The invoice's number is locked, and a test finds every page that keeps its record unlocked. The two columns are hidden, and a test finds every secret-looking column that is not. A site that calls itself production refuses the debugging switch and its health report says the settings file is wrong (`app/Support/DebugGuard.php`). Tests in `tests/Feature/Security/`. DL-029."
+      }
+    },
+    {
+      "id": "D-032",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-17",
+      "title": "Six sensitive actions left no trace",
+      "detail": "The list of changes (System → Audit log) had no row for an invitation, a change of role, a deactivation or a reactivation of a person, nor for any change of a setting: who may give which discount, what a document says, who signs it. Document 08 §7 asks for an audit event for each.",
+      "lines": [
+        "T-067"
+      ],
+      "closed": {
+        "on": "2026-11-17",
+        "how": "Each writes a row with who did it and what changed; a secret setting is recorded as changed, never with its value (`ManageStaff`, `RecordSettingsChange`). `SensitiveActionsLeaveATraceTest.php` lists nineteen sensitive actions and fails when one is silent."
+      }
+    },
+    {
+      "id": "D-033",
+      "severity": "low",
+      "state": "open",
+      "found": "2026-11-17",
+      "title": "The check of the live sites is started by its timer once in three times due",
+      "detail": "The check from outside is due every six hours from `main` (`23 */6 * * *` in `vercel-live-check.yml`, on `main` since 10:22 UTC on 17 November). Recorded on 17 November as \"has never started\": by 20:07 UTC two times due had passed, 12:23 and 18:23 UTC, without a timed run. Corrected on 18 November: GitHub started the run due at 18:23 at 21:06 UTC, 2 h 43 min late (run 44176315991, green: 41 of 41 for the admin, 14 of 14 for the shop). The time due at 00:23 UTC on 18 November brought no run; read at 04:21 UTC, GitHub's list of timed runs holds that one run. So the timer works and GitHub starts it late or drops it. The agent's session may not start the workflow by hand (HTTP 403). The check after every merge has run each time, so a fault that a merge brings is seen within ten minutes; a fault that comes between two merges can stay unseen for longer than six hours.",
+      "lines": [
+        "T-142"
+      ]
+    },
+    {
+      "id": "D-034",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-18",
+      "title": "The installer stopped at its second step on a site opened by a number or a one-word name",
+      "detail": "Found by installing a release in a browser (T-144). The installer wrote `noreply@` and the site's host name as the sender of mail. For a site opened by its IP address or by a name without a dot that is not an address PHP accepts; the backup package refuses such a sender when it is loaded, so every command and the installer's second step answered with an error and the site stayed half installed. A site opened by a real domain was not affected.",
+      "lines": [
+        "T-144"
+      ],
+      "closed": {
+        "on": "2026-11-18",
+        "how": "The installer writes the sender only when PHP accepts it as an address and falls back to `noreply@woodex-os.invalid` otherwise (`Installer::senderFor`). `Feature/InstallerTest.php` installs by a number and by a one-word name; without the correction two of its tests fail. Proven in the rehearsal on Apache and MariaDB, where the site is opened by `127.0.0.1`."
+      }
+    },
+    {
+      "id": "D-035",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-18",
+      "title": "\"Sign out\" ended the session and left the screen as it was, on a site whose first page is elsewhere",
+      "detail": "Found by the same rehearsal. Signing out sent the browser to the first page of the site. In a website folder on a host that page forwards to the shop on another address, and the content policy of the admin stops a form that ends on another address. The session was ended on the server, the screen stayed, and the next click showed the sign-in page: a person could believe they were still signed in, or that the button did nothing. The hosted demo was not affected: there the first page is answered by the admin itself, on the same address.",
+      "lines": [
+        "T-144"
+      ],
+      "closed": {
+        "on": "2026-11-18",
+        "how": "Signing out leads to the admin's own sign-in page (`fortify.redirects.logout`). `Feature/AdminAccessTest.php` signs out and reads where the answer leads; it fails with the setting taken out. In the rehearsal a browser signs out twice under the enforced policy and arrives at the sign-in page."
+      }
+    },
+    {
+      "id": "D-036",
+      "severity": "low",
+      "state": "closed",
+      "found": "2026-11-18",
+      "title": "The installer did not check for one PHP extension that the packages need",
+      "detail": "Found when the first release was put together. Two packages that take in pictures ask for the `exif` extension; the installer's list of extensions to check on the server did not hold it. Composer checks only the PHP version when the application starts, so a host with `exif` switched off would have installed without a word, and the fault would have shown only later, where a picture is taken in.",
+      "lines": [
+        "T-144"
+      ],
+      "closed": {
+        "on": "2026-11-18",
+        "how": "`exif` is in the installer's list, and `Feature/InstallerTest.php` reads the lock file: every extension a package of a release asks for is either checked by the installer or part of every PHP."
+      }
+    },
+    {
+      "id": "D-037",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-18",
+      "title": "The \"Add\" button of a catalogue product did nothing, and its first cure printed typed text into a script",
+      "detail": "Found twice within the round that built it, before any release. First by the journey in a browser: the button's `wire:click` held a Blade directive inside a component tag, which Blade does not compile, so the browser got the directive as written and the press did nothing; every component test passed, because a component test never reads `wire:click`. Then by CI, after only the neighbouring tests had been run before a push: the cure printed the code of the product's option, which is text a person typed, into `wire:click`, an attribute the browser runs as script, and `Feature/Security/StoredScriptTest.php` refused it on the three database servers.",
+      "lines": [
+        "T-086"
+      ],
+      "closed": {
+        "on": "2026-11-18",
+        "how": "The button says two numbers, the product's and one that stands for the option's code; the server finds the option and asks the catalogue again. `Unit/BladeComponentTagsTest.php` refuses a directive inside a component tag in any view; the journey presses the button and reads the product in the PDF. The whole suite is run before a push, not the neighbours."
+      }
+    },
+    {
+      "id": "D-038",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-18",
+      "title": "Eight notices that reported a failure were shown in green as \"Saved\"",
+      "detail": "On `main`. Three screens (change requests, system health, prepared replies) sent their notices without names: `dispatch('toast', '…', 'error')`. The browser read only named arguments, found neither a message nor a type, and showed its default: a green \"Saved\". A person was told that something was saved when it had been refused. Found while reading every early return of the saving actions for the warning before unsaved work is lost, which must know whether a save was refused.",
+      "lines": [
+        "T-043"
+      ],
+      "closed": {
+        "on": "2026-11-18",
+        "how": "The eight are written with names, the browser reads both forms (`toastOf` in `resources/js/admin/unsaved.js`), `Unit/ToastsCanBeReadTest.php` refuses a notice without names anywhere in `app/`, and the journey sends one written the old way and reads it on the screen as a failure."
+      }
+    },
+    {
+      "id": "D-039",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-18",
+      "title": "A figure typed into a quotation was lost when a menu link was pressed straight away",
+      "detail": "On `main`. Every field of the quotation is stored when it is left. A press on a menu link does not leave the field: Livewire stops the browser's own handling of that press so that the page is not loaded twice, and the cursor stays where it was. The screen was swapped, nothing was sent, and the figure was gone without a word. Seen by pressing it in a browser, with the watch on unsaved work taken out of the page: 12,501 typed, the quotation still held 12,500.",
+      "lines": [
+        "T-043"
+      ],
+      "closed": {
+        "on": "2026-11-18",
+        "how": "Leaving is held while a part of the screen holds unsaved work: the watch leaves the field itself, waits for the save and for its answer to be worked into the page, and then lets the person go without a question. The journey types a figure, presses the link at once, counts every opening of the question (none) and reads the figure back from the quotation."
+      }
+    },
+    {
+      "id": "D-040",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-18",
+      "title": "Two people saving in the accounts at the same moment: the database stopped one of them with an error page",
+      "detail": "On `main`, and in the code since it was copied from the Interior studio, whose own list calls the check pending (document 25 §8). Nothing wrong was ever written: no money twice, no entry out of balance, no number given twice. But when two people saved at the same moment, the database found each waiting for the other, ended one of the two (a deadlock) and that person got the page that says something went wrong; nothing of theirs was saved, and a second try worked. Tried by `platform/tools/ci/two-writers.php`, two processes at one gate, fifty runs a step, with the classes as they are on `main` (the commits `7fe80c2` and `e820e31`, both taken back): on MySQL 8.4.13, MariaDB 10.11.19 and MariaDB 11.4.13 alike, 10 of the 29 steps did not hold, and every run that failed was a run ended by the database. Runs of 50 that held, on the three servers in that order: two payments recorded for one invoice 0, 0, 0 · two payments recorded for two invoices of one client 0, 0, 0 · one invoice posted by two people 12, 12, 12 · two expenses 12, 12, 13 · two suppliers' bills paid 16, 18, 13 · one payment request sent for two bills 17, 18, 16 · two invoices of one client collected 26, 26, 26 · two new bills of two suppliers saved 26, 26, 22 · two paid costs of two suppliers 28, 26, 25 · two draft invoices issued 35, 39, 29. Four causes, each an order of locks. (1) A posting asked \"is this document in the journal already?\" with a lock, and only then waited for the row every posting needs: a question asked with a lock about a row that is not there holds the empty place where it would go, two writers may hold the same place, and neither can then write into it. (2) The allocation locked \"the open invoices of this client\" as a list, which locks every row the database reads on its way; collecting held its own invoice first; recording wrote the payment first, and a written row that points at an invoice holds that invoice for reading. (3) Paying a bill asked for the request's key with a lock. (4) A supplier's cost asked its two questions with locks before any turn was taken. On the sandbox's older server (MariaDB 10.2.11) the same ten failed and one more, which holds on the three servers CI uses: the whole of one invoice collected by two people (8 of 20 runs held).",
+      "lines": [
+        "T-093"
+      ],
+      "closed": {
+        "on": "2026-11-18",
+        "how": "The order is the same everywhere now: the document's own row, then the ledger's turn (`LedgerTurn`: the row every posting takes its number from), then the question. Every open invoice of the client and every named one is locked by its own key, lowest first, before anything is written (`InvoiceLocks`). No migration. In CI on each of the three servers all 29 steps hold in every one of 50 runs (`8549036`), and the same job fails when a lock is taken out: an invoice paid twice in 34 to 38 of 50 runs, a number given twice in 48 to 50, an entry reversed twice in 46 to 50, a bill paid twice in 6. `TwoWritersOrderTest` keeps the order of the statements and refuses a new lock in the accounts, sales or projects code that is not on one row by its key until it is listed with its reason. For every place no step reaches, a request the database ends for another writer is answered 409 in words and is still reported."
+      }
+    },
+    {
+      "id": "D-041",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "On the hosted workspace nothing under /api reached the application",
+      "detail": "Asked from outside on 19 November, before the round's build began, `https://woodex-os.vercel.app/api/v1/media` answered the admin's page \"This page does not exist\". Vercel runs `platform/api/index.php` with PHP's own web server. For an address under `/api` that server announces the script as `/api/index.php` with the rest of the address behind it; the framework then takes `/api` for the application's own address, and the router looks for `/v1/media`, which is no route. So the enquiry address and all of `/api/v1` had never answered on the hosted workspace since it was set up on 17 November. No check and no step of the rehearsal asked for them, and the shop does not call them (its switches are off), so nobody was refused. Found because the plan of T-063 has the outside check ask one address of `/api/v1` on the live demo after the merge, and the address was asked first.",
+      "lines": [
+        "T-063"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "The entry announces itself as `/index.php`, the front controller it stands in for (`platform/api/index.php` and its copy `deploy/vercel-livewire/index.php`; commit `287814d`). `platform/tools/vercel/check-entry.sh` asks three addresses under `/api` of the function as Vercel runs it: without the two lines 4 of its checks fail, with them all 84 hold, in CI's job on Vercel's PHP runtime. On the live address itself it can only be asked after the merge: the outside check now asks six points of `/api/v1` on the demo (`.github/workflows/vercel-live-check.yml`) and fails when one of them answers anything else."
+      }
+    },
+    {
+      "id": "D-042",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "An enquiry sent twice was written a second time, and four answers of /api/v1 said too much or went to the wrong place",
+      "detail": "Found while the seven addresses were held against the rules of T-063. (1) An enquiry that arrived twice (a visitor who presses twice, a browser that sends again after an answer was lost) was written as a second enquiry of the same person: a line \"Returning enquiry\" on the timeline, and the team told a second time. Only the basket was guarded, in a way of its own (a `request_key` in the body). (2) A picture that does not exist was answered with the name of a class of the application (\"No query results for model …\"). (3) A wrong method was answered in the framework's words, with the route and the methods it supports. (4) An address under `/api/v1` that does not exist was passed on to the website's catch-all and answered as a page of the website. (5) The basket locked the catalogue rows it only reads a price from: two baskets with the same products waited for each other, and two that named them in another order could stop each other. None of the five wrote anything wrong; the shop does not call these addresses yet.",
+      "lines": [
+        "T-063"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "(1) A create under `/api/v1` takes an `Idempotency-Key`: the first sending writes, a second with the same content is given the first answer again and writes nothing, a second with other content is refused (409, IDEMPOTENCY_KEY_REUSED). Two sendings in the same moment are held apart by the key's own row (`platform/app/Support/Api/Idempotency.php`). `Feature/Api/IdempotencyTest.php`, and two processes at once in `platform/tools/ci/two-writers.php` (the steps one-key-two-enquiries and one-key-two-baskets): 50 of 50 runs on each of the three servers; without the key's row, in 37 or 38 of 50 double sendings the second is written to the timeline as another enquiry of the same person (`d93b112`). (2) to (4) One handler answers every fault under `/api/v1` in the one shape, with a code from a closed list of fifteen and a sentence written for the caller; an unknown address is answered by the API itself, 404, or 405 with the header Allow. `Feature/Api/V1ContractTest.php` compares each answer with the contract key by key. (5) The catalogue is read without a lock; the step two-baskets holds 50 of 50."
+      }
+    },
+    {
+      "id": "D-043",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "Two new visitors sending an enquiry in the same moment: the database stopped one of them",
+      "detail": "On `main`, and in the code since the enquiry was first built, for every channel that writes one: the shop's form, the basket, the old website's form and an enquiry typed by the team. `CaptureLead` asked \"do we know this email, or this number?\" with a lock. When the person is new the row is not there, and a question asked with a lock about a row that is not there holds the empty place where it would go (the cause of D-040, in another module). Two visitors who were both new each held the place of the other's contact; neither could then write, and the database ended one of the two (a deadlock, on the index of the contacts' email). That visitor was answered 409 and nothing of the enquiry was saved; a second try worked. Nothing wrong was written. Found by a step of `platform/tools/ci/two-writers.php` that was written to try the idempotency key: two enquiries of two strangers at once. On the sandbox's server one of the two was stopped in 11 of 50 runs; in CI, with the turn taken out, in 17 of 50 on MySQL 8.4, 11 or 12 on MariaDB 10.11 and 10 or 11 on MariaDB 11.4. How often two new visitors really meet within a few milliseconds is not known; no visitor's enquiry reaches Laravel yet.",
+      "lines": [
+        "T-063"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "An enquiry takes its turn before it asks: one row that every enquiry waits for (`platform/app/Domain/Crm/Services/EnquiryTurn.php`), as every posting to the ledger does since T-093. Two enquiries are written one after the other. In CI on each of the three servers the steps two-enquiries and two-baskets hold in 50 of 50 runs, and the same job fails when the turn is taken out, with the numbers above (`d93b112`, two runs on each server). `Feature/Crm/EnquiryTurnTest.php` keeps the order on every run, SQLite included: the turn is taken before the question, never outside a transaction, and every place of the application that asks the contacts with a lock is on its list, with the reason it is safe."
+      }
+    },
+    {
+      "id": "D-044",
+      "severity": "medium",
+      "state": "open",
+      "found": "2026-11-19",
+      "title": "The WhatsApp inbox asks \"do we know this number?\" with a lock, outside the enquiry's turn",
+      "detail": "`ReceiveWhatsAppMessage` asks the contacts for the sender's number with a lock before any turn is taken: the cause of D-043, left in one place. Two messages of two people who are both new, or a message and an enquiry of the shop in the same moment, can be ended by the database in the same way. It was not seen in a run: `Feature/Crm/EnquiryTurnTest.php` reads every place that asks the contacts with a lock, and names this one as the exception it knows. It cannot happen today: the inbox is switched off (DL-034), no WhatsApp account is connected (T-014), and no message reaches the class. Left as it is in the round of T-063, because a cure without a step that sends two messages at once would be a cure nobody had tried, and that step belongs with the inbox. It is closed before the inbox is switched on.",
+      "lines": [
+        "T-190"
+      ]
+    },
+    {
+      "id": "D-045",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "Feature status could not name a hub that its own sidebar offered, and refused a screen its route opens",
+      "detail": "The registry of destinations gives one permission per destination, and `AdminNavigation::permitted()` used only that word. Three System hubs each admit one of two permissions in their own route — Access & team (`can-any:users.manage,settings.manage`), Connections (`can-any:integrations.manage,system.import`) and Platform (`can-any:system.health,audit.view,system.change_requests,settings.manage,leads.delete`). A person holding only the second of each pair could open the screen from the sidebar and not find it on Feature status, which is the page that promises to name every part of WOODEX OS; a role built from those permissions reached nothing at all. Found while reading the page against its specification on 19 November; checked in a browser on the rehearsal with a user holding `settings.manage` only: `/admin/system/access` answered 200 and the page named no such destination.",
+      "lines": [
+        "T-060",
+        "T-171"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "The permission is read from the route's own middleware (`can:` — all of them; `can-any:` — one of them), the same rule the sidebar and the route enforce, and the registry's single permission is only the fallback for a route without a gate. Approvals and Estimations keep their named abilities. `Feature/FeatureStatusTest.php`, \"it follows the gate of each route, not one word of the registry\": with the old reading put back by hand, the test fails."
+      }
+    },
+    {
+      "id": "D-046",
+      "severity": "low",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "On Feature status the destinations began below the fold, and the \"Open\" links were 17 px tall on a phone",
+      "detail": "Two measurements of the page on the rehearsal (1440 × 1000 and 390 × 844): the first destination stood 1,129 px down on a desktop and 2,255 px down on a phone, because three releases of release notes — 488 words — came before the list the page is named after; and the 32 \"Open …\" links of the available destinations were 17 px tall, which is below the 24 px a finger is promised (document 10 §5). The 68 destinations also had no way to be searched or filtered, though the sidebar beside them has both.",
+      "lines": [
+        "T-045",
+        "T-052"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "The four numbers are buttons that filter the list by state (with a line saying what is shown and a way back); a search box filters the 68 by name and says how many match, and says so when none does; the release notes moved below the destinations and only the newest is open; and each \"Open\" link is at least 24 px tall. Measured again on the rehearsal: the first destination is at 488 px, the four filters show only their state, \"order\" finds Orders and Purchase Orders, and the page is not wider than a 390 px window."
+      }
+    }
+  ]
 }

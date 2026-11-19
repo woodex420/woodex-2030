@@ -22,6 +22,15 @@ final class ReleaseNotes
         return [
             [
                 'date' => '2026-11-19',
+                'title' => 'Feature status tells you about every screen you can open, and finds one by name',
+                'notes' => [
+                    'Feature status (System): the page now tells a person about the screens their own role can open, without a gap. A few System screens are open to either of two permissions — Access & team, Connections, Platform — and the page used to know only the first, so it left the others out while the menu offered them.',
+                    'Feature status: the four numbers at the top are filters now — press "Built, switched off" to see only those. A search box finds a destination by name, and says so when nothing matches.',
+                    'Feature status: what changed in each release sits below the list of destinations and opens one release at a time, so the page opens on what you came for. The "Open…" links are a comfortable size to press on a phone.',
+                ],
+            ],
+            [
+                'date' => '2026-11-19',
                 'title' => 'Two enquiries in the same moment are both saved, and an enquiry sent twice is one',
                 'notes' => [
                     'Leads: when the enquiries of two new people are saved in the same moment (two visitors of the shop, or two of you adding a lead each), both are saved, one after the other. Before, the database could stop one of the two, and that enquiry was not saved.',
