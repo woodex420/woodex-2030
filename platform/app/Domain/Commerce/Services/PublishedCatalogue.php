@@ -344,16 +344,19 @@ final class PublishedCatalogue
         $driver = DB::connection()->getDriverName();
 
         // The revision is joined as r in each query that uses this.
-        $column = match ($driver) {
-            'sqlite' => "json_each(r.content, '$.{$key}') AS je",
-            'pgsql' => "json_array_elements((r.content::jsonb) -> '{$key}')",
-            default => "JSON_TABLE(r.content, '$.{$key}[*]' COLUMNS (value INT PATH '$')) AS jt",
-        };
+        //
+        // An element of the list is compared as *text*, whatever JSON's own type for it is. That is not a
+        // nicety: JSON_TABLE's `COLUMNS (value INT PATH '$')` yields no row at all — not an error, nothing —
+        // when the element it meets is a JSON string rather than a number, so a product whose category numbers
+        // were written as strings was in no category on MySQL 8.4 while sitting in the right one on SQLite,
+        // whose json_each does not care. A cast cannot rescue a row that was never produced; a cast of the
+        // element to text, made before the comparison, can, and gives the same rule on every engine.
+        $wanted = (string) $value;
 
         return match ($driver) {
-            'sqlite' => "EXISTS (SELECT 1 FROM {$column} WHERE CAST(je.value AS INTEGER) = {$value})",
-            'pgsql' => "EXISTS (SELECT 1 FROM {$column} AS je WHERE (je.value #>> '{}')::int = {$value})",
-            default => "EXISTS (SELECT 1 FROM {$column} WHERE jt.value = {$value})",
+            'sqlite' => "EXISTS (SELECT 1 FROM json_each(r.content, '$.{$key}') AS je WHERE CAST(je.value AS TEXT) = '{$wanted}')",
+            'pgsql' => "EXISTS (SELECT 1 FROM json_array_elements_text((r.content::jsonb) -> '{$key}') AS je WHERE je.value = '{$wanted}')",
+            default => "EXISTS (SELECT 1 FROM JSON_TABLE(r.content, '$.{$key}[*]' COLUMNS (element JSON PATH '$')) AS jt WHERE JSON_UNQUOTE(JSON_EXTRACT(jt.element, '$')) = '{$wanted}')",
         };
     }
 }

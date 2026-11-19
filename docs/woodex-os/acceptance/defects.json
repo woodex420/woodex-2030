@@ -740,6 +740,21 @@
         "on": "2026-11-19",
         "how": "Both refuse a row whose slug is not the one asked for — in the code, not by a database setting that could be changed under it: 'return $product === null || $product->slug !== $slug ? null : …'. The test 'it reads an address with the regard to case that the database may not have' makes SQLite compare the column as the other two do (the column's own collation; an index declared COLLATE NOCASE was tried first and does not change how SQLite compares, so it proved nothing) and asserts the loose lookup really happened before asserting the answer. Proved by taking each guard away: 200 where 404 belongs, in one() and again in pictureFile() with nothing else removed."
       }
+    },
+    {
+      "id": "D-052",
+      "severity": "medium",
+      "state": "closed",
+      "found": "2026-11-19",
+      "title": "A product whose category numbers were stored as text sat in no category on MySQL 8.4",
+      "detail": "Found by CI on the MySQL 8.4 job only, after D-051 was fixed; MariaDB's JSON_TABLE is more forgiving, which is why only one of the three servers showed it. PublishedCatalogue::revisionContains() read a revision's category and series lists with JSON_TABLE(r.content, '$.key[*]' COLUMNS (value INT PATH '$')) and compared the integer. When an element is a JSON string rather than a JSON number — a program that writes \"3\" instead of 3, which nothing in the contract forbids and nothing normalises — MySQL 8.4 produces no row for it at all: not an error, an empty set. The product was therefore listed under no category on MySQL, while SQLite's json_each, which coerces happily, filed it correctly, so no test on the sandbox could have seen it.",
+      "lines": [
+        "T-105"
+      ],
+      "closed": {
+        "on": "2026-11-19",
+        "how": "The element is compared as text, whatever JSON calls it: SQLite CAST(je.value AS TEXT) = '3'; PostgreSQL json_array_elements_text; MySQL JSON_UNQUOTE(JSON_EXTRACT(...)) over a JSON column, one rule on all three engines and independent of the type the writer chose. The test 'it files a product whose numbers are written as text, on every database' publishes a product, rewrites its revision's category_ids through array_map('strval', …) — exactly what the program that caused this did — and asks the catalogue for it by category and by its parent. It passes on SQLite by design and is written to fail on the server that produced the fault."
+      }
     }
   ]
 }

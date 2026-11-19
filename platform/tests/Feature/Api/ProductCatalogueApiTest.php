@@ -166,33 +166,6 @@ it('narrows the list by category, by its children and by series, and never widen
     ($this->publish)(['slug' => 'executive-desk', 'category_ids' => [$this->category->id], 'primary_category_id' => $this->category->id]);
     ($this->publish)(['slug' => 'meeting-desk', 'category_ids' => [$this->subcategory->id], 'primary_category_id' => $this->subcategory->id]);
 
-    if (getenv('WX_DEBUG_IDS')) {
-        $svc = app(\App\Domain\Commerce\Services\ProductCatalogue::class);
-        $desc = new ReflectionMethod($svc, 'withDescendants');
-        $contains = new ReflectionMethod($svc, 'revisionContains');
-        $contains->setAccessible(true);
-        $lines = ['driver='.DB::getDriverName()];
-        foreach (['office-tables', 'meeting-tables', 'executive-tables'] as $debugSlug) {
-            $row = Category::where('slug', $debugSlug)->first();
-            $ids = $desc->invoke($svc, $row);
-            $q = DB::table('commerce_products')
-                ->join('commerce_product_revisions as r', 'r.id', '=', 'commerce_products.published_revision_id')
-                ->whereNull('commerce_products.archived_at');
-            $q->where(function ($w) use ($ids, $contains, $svc): void {
-                foreach ($ids as $id) {
-                    $w->orWhereRaw($contains->invoke($svc, 'category_ids', $id));
-                }
-            });
-            $body = $this->getJson('/api/v1/catalogue/products?category='.$debugSlug)->json();
-            $lines[] = $debugSlug.' ids='.implode('/', $ids).' raw='.$q->count()
-                .' api='.implode('/', array_column($body['data'] ?? [], 'id'))
-                .' total='.($body['meta']['total'] ?? '?').' err='.($body['error']['code'] ?? '-')
-                .' sql='.$q->toSql();
-        }
-        foreach ($lines as $i => $line) {
-            fwrite(STDERR, "\n::warning title=probe{$i}::{$line}\n");
-        }
-    }
     expect($this->getJson('/api/v1/catalogue/products?category=office-tables')->json('data.*.id'))
         ->toEqualCanonicalizing(['executive-desk', 'meeting-desk'], 'a product in a category below is listed under its parent too')
         ->and($this->getJson('/api/v1/catalogue/products?category=meeting-tables')->json('data.*.id'))->toBe(['meeting-desk']);
@@ -208,6 +181,24 @@ it('narrows the list by category, by its children and by series, and never widen
         ->assertStatus(400)
         ->assertJsonPath('error.code', 'PARAMETER_NOT_ALLOWED')
         ->assertJsonPath('error.details.refused', ['status']);
+});
+
+it('files a product whose numbers are written as text, on every database', function (): void {
+    // A revision's content is JSON written by a program, and a program may write a category's number as a string
+    // ("3") rather than as a number (3). Nothing in the contract forbids it and nothing normalises it, so the
+    // catalogue must read both. MySQL's JSON_TABLE with `INT PATH '$'` silently produced *no row* for a string
+    // element, which put such a product in no category at all on MySQL 8.4 while SQLite, whose json_each does not
+    // care, filed it correctly — a difference between two servers, found by CI and reproduced here by writing the
+    // content the way the program that caused it did.
+    $product = ($this->publish)(['slug' => 'quoted-desk']);
+    $revision = DB::table('commerce_product_revisions')->where('id', $product->fresh()->published_revision_id)->first();
+    $content = json_decode($revision->content, true);
+    $content['category_ids'] = array_map('strval', $content['category_ids']);
+    DB::table('commerce_product_revisions')->where('id', $revision->id)->update(['content' => json_encode($content)]);
+
+    expect($this->getJson('/api/v1/catalogue/products?category=executive-tables')->json('data.*.id'))
+        ->toBe(['quoted-desk'], 'a number written as text still files the product under its category')
+        ->and($this->getJson('/api/v1/catalogue/products?category=office-tables')->json('meta.total'))->toBe(1);
 });
 
 it('hands the list out in pages, and counts position on across them', function (): void {
