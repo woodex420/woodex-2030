@@ -17,6 +17,9 @@
 #                                    the client's answer and take the payment (scripts/os-journeys.mjs presses
 #                                    whichever of the two ways the site offers).
 #   DOCUMENTS_OWNER_CONFIRMED=false  a site whose owner has not confirmed terms and signers: nothing is issued.
+#   PRODUCT_SYNC_ENABLED=1           hands the products addresses of /api/v1 out, as it ships switched off (T-105).
+#                                    The rehearsal of round 1 needed it, and without it the demo could never show
+#                                    the shop reading a published product.
 set -u
 PORT="${1:-8191}"
 [ -f api/index.php ] && [ -f vercel.json ] || { echo "Run from platform/."; exit 2; }
@@ -56,6 +59,6 @@ TASK="$(mktemp -d)"; ln -s "$PWD" "$TASK/user"; ln -s "$PHP_DIR" "$TASK/php"; ln
 trap 'rm -rf "$TASK"' EXIT
 echo "The demo answers on http://127.0.0.1:$PORT/admin (stop with Ctrl+C)."
 env -i PATH="$PATH" HOME="$HOME_DIR" "${BLOCK[@]}" WOODEX_DEMO=1 "${PASSWORDS[@]}" ${WOODEX_DEMO_SHOW_PASSWORD:+WOODEX_DEMO_SHOW_PASSWORD="$WOODEX_DEMO_SHOW_PASSWORD"} \
-  ${DOCUMENTS_OWNER_CONFIRMED:+DOCUMENTS_OWNER_CONFIRMED="$DOCUMENTS_OWNER_CONFIRMED"} ${WOODEX_MODULES:+WOODEX_MODULES="$WOODEX_MODULES"} \
+  ${DOCUMENTS_OWNER_CONFIRMED:+DOCUMENTS_OWNER_CONFIRMED="$DOCUMENTS_OWNER_CONFIRMED"} ${WOODEX_MODULES:+WOODEX_MODULES="$WOODEX_MODULES"} ${PRODUCT_SYNC_ENABLED:+PRODUCT_SYNC_ENABLED="$PRODUCT_SYNC_ENABLED"} \
   LAMBDA_TASK_ROOT="$TASK" NOW_ENTRYPOINT=api/index.php NOW_PHP_DEV=0 VERCEL_PHP_PACKAGE="$PACKAGE" STAND_IN_PORT="$PORT" STAND_IN_ROUTES="$ROUTES" \
   LD_LIBRARY_PATH="$LIB_DIR" PHP_INI_EXTENSION_DIR="$PHP_DIR/modules" PHP_INI_SCAN_DIR=":$PACKAGE/conf" node tools/vercel/launcher-stand-in.cjs
