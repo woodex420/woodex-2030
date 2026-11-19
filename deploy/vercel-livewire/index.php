@@ -135,4 +135,13 @@ if ($demo) {
     }
 }
 
+// Vercel runs this file with PHP's own web server, and that server finds the folder this file is in: a request
+// for /api/v1/leads arrives as the script /api/index.php with /v1/leads behind it. Symfony then takes /api for the
+// application's own address and reads the request as /v1/leads, which no route owns. Everything the application
+// answers under /api (the enquiry address, /api/v1) was "page not found" here for that reason (defect D-041).
+// The script is announced as what it stands in for, the front controller in public/: the address a visitor asked
+// for is then the address the application routes.
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+
 require __DIR__.'/../public/index.php';
