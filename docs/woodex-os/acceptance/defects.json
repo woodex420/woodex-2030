@@ -585,6 +585,62 @@
     "on": "2026-11-18",
     "how": "The order is the same everywhere now: the document's own row, then the ledger's turn (`LedgerTurn`: the row every posting takes its number from), then the question. Every open invoice of the client and every named one is locked by its own key, lowest first, before anything is written (`InvoiceLocks`). No migration. In CI on each of the three servers all 29 steps hold in every one of 50 runs (`8549036`), and the same job fails when a lock is taken out: an invoice paid twice in 34 to 38 of 50 runs, a number given twice in 48 to 50, an entry reversed twice in 46 to 50, a bill paid twice in 6. `TwoWritersOrderTest` keeps the order of the statements and refuses a new lock in the accounts, sales or projects code that is not on one row by its key until it is listed with its reason. For every place no step reaches, a request the database ends for another writer is answered 409 in words and is still reported."
    }
+  },
+  {
+   "id": "D-041",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-19",
+   "title": "On the hosted workspace nothing under /api reached the application",
+   "detail": "Asked from outside on 19 November, before the round's build began, `https://woodex-os.vercel.app/api/v1/media` answered the admin's page \"This page does not exist\". Vercel runs `platform/api/index.php` with PHP's own web server. For an address under `/api` that server announces the script as `/api/index.php` with the rest of the address behind it; the framework then takes `/api` for the application's own address, and the router looks for `/v1/media`, which is no route. So the enquiry address and all of `/api/v1` had never answered on the hosted workspace since it was set up on 17 November. No check and no step of the rehearsal asked for them, and the shop does not call them (its switches are off), so nobody was refused. Found because the plan of T-063 has the outside check ask one address of `/api/v1` on the live demo after the merge, and the address was asked first.",
+   "lines": [
+    "T-063"
+   ],
+   "closed": {
+    "on": "2026-11-19",
+    "how": "The entry announces itself as `/index.php`, the front controller it stands in for (`platform/api/index.php` and its copy `deploy/vercel-livewire/index.php`; commit `287814d`). `platform/tools/vercel/check-entry.sh` asks three addresses under `/api` of the function as Vercel runs it: without the two lines 4 of its checks fail, with them all 84 hold, in CI's job on Vercel's PHP runtime. On the live address itself it can only be asked after the merge: the outside check now asks six points of `/api/v1` on the demo (`.github/workflows/vercel-live-check.yml`) and fails when one of them answers anything else."
+   }
+  },
+  {
+   "id": "D-042",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-19",
+   "title": "An enquiry sent twice was written a second time, and four answers of /api/v1 said too much or went to the wrong place",
+   "detail": "Found while the seven addresses were held against the rules of T-063. (1) An enquiry that arrived twice (a visitor who presses twice, a browser that sends again after an answer was lost) was written as a second enquiry of the same person: a line \"Returning enquiry\" on the timeline, and the team told a second time. Only the basket was guarded, in a way of its own (a `request_key` in the body). (2) A picture that does not exist was answered with the name of a class of the application (\"No query results for model …\"). (3) A wrong method was answered in the framework's words, with the route and the methods it supports. (4) An address under `/api/v1` that does not exist was passed on to the website's catch-all and answered as a page of the website. (5) The basket locked the catalogue rows it only reads a price from: two baskets with the same products waited for each other, and two that named them in another order could stop each other. None of the five wrote anything wrong; the shop does not call these addresses yet.",
+   "lines": [
+    "T-063"
+   ],
+   "closed": {
+    "on": "2026-11-19",
+    "how": "(1) A create under `/api/v1` takes an `Idempotency-Key`: the first sending writes, a second with the same content is given the first answer again and writes nothing, a second with other content is refused (409, IDEMPOTENCY_KEY_REUSED). Two sendings in the same moment are held apart by the key's own row (`platform/app/Support/Api/Idempotency.php`). `Feature/Api/IdempotencyTest.php`, and two processes at once in `platform/tools/ci/two-writers.php` (the steps one-key-two-enquiries and one-key-two-baskets): 50 of 50 runs on each of the three servers; without the key's row, in 37 or 38 of 50 double sendings the second is written to the timeline as another enquiry of the same person (`d93b112`). (2) to (4) One handler answers every fault under `/api/v1` in the one shape, with a code from a closed list of fifteen and a sentence written for the caller; an unknown address is answered by the API itself, 404, or 405 with the header Allow. `Feature/Api/V1ContractTest.php` compares each answer with the contract key by key. (5) The catalogue is read without a lock; the step two-baskets holds 50 of 50."
+   }
+  },
+  {
+   "id": "D-043",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-19",
+   "title": "Two new visitors sending an enquiry in the same moment: the database stopped one of them",
+   "detail": "On `main`, and in the code since the enquiry was first built, for every channel that writes one: the shop's form, the basket, the old website's form and an enquiry typed by the team. `CaptureLead` asked \"do we know this email, or this number?\" with a lock. When the person is new the row is not there, and a question asked with a lock about a row that is not there holds the empty place where it would go (the cause of D-040, in another module). Two visitors who were both new each held the place of the other's contact; neither could then write, and the database ended one of the two (a deadlock, on the index of the contacts' email). That visitor was answered 409 and nothing of the enquiry was saved; a second try worked. Nothing wrong was written. Found by a step of `platform/tools/ci/two-writers.php` that was written to try the idempotency key: two enquiries of two strangers at once. On the sandbox's server one of the two was stopped in 11 of 50 runs; in CI, with the turn taken out, in 17 of 50 on MySQL 8.4, 11 or 12 on MariaDB 10.11 and 10 or 11 on MariaDB 11.4. How often two new visitors really meet within a few milliseconds is not known; no visitor's enquiry reaches Laravel yet.",
+   "lines": [
+    "T-063"
+   ],
+   "closed": {
+    "on": "2026-11-19",
+    "how": "An enquiry takes its turn before it asks: one row that every enquiry waits for (`platform/app/Domain/Crm/Services/EnquiryTurn.php`), as every posting to the ledger does since T-093. Two enquiries are written one after the other. In CI on each of the three servers the steps two-enquiries and two-baskets hold in 50 of 50 runs, and the same job fails when the turn is taken out, with the numbers above (`d93b112`, two runs on each server). `Feature/Crm/EnquiryTurnTest.php` keeps the order on every run, SQLite included: the turn is taken before the question, never outside a transaction, and every place of the application that asks the contacts with a lock is on its list, with the reason it is safe."
+   }
+  },
+  {
+   "id": "D-044",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-19",
+   "title": "The WhatsApp inbox asks \"do we know this number?\" with a lock, outside the enquiry's turn",
+   "detail": "`ReceiveWhatsAppMessage` asks the contacts for the sender's number with a lock before any turn is taken: the cause of D-043, left in one place. Two messages of two people who are both new, or a message and an enquiry of the shop in the same moment, can be ended by the database in the same way. It was not seen in a run: `Feature/Crm/EnquiryTurnTest.php` reads every place that asks the contacts with a lock, and names this one as the exception it knows. It cannot happen today: the inbox is switched off (DL-034), no WhatsApp account is connected (T-014), and no message reaches the class. Left as it is in the round of T-063, because a cure without a step that sends two messages at once would be a cure nobody had tried, and that step belongs with the inbox. It is closed before the inbox is switched on.",
+   "lines": [
+    "T-190"
+   ]
   }
  ]
 }

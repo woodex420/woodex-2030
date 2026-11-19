@@ -36,8 +36,8 @@
           ]
         },
         {
-          "state": "partly",
-          "evidence": "The enquiry address for the shop exists and is tested: validation, repeat enquiries, limits, a trap for robots (`Feature/PublicLeadApiTest.php`, `Feature/VersionedLeadApiTest.php`). The common rules of `/api/v1` — answer shape, error codes, a key against double sending — are not written.",
+          "state": "met",
+          "evidence": "The module's two addresses for the shop, an enquiry and the WhatsApp hand-off, are in the contract of `/api/v1` (`platform/resources/api/v1.openapi.json`; the rules are document 29) and are held to it key by key on every push (`Feature/Api/V1ContractTest.php`). An enquiry sent twice with its key is written once (`Feature/Api/IdempotencyTest.php`), and two enquiries in the same moment are both written (`Feature/Crm/EnquiryTurnTest.php`, and two processes in CI). Validation, limits and the trap for robots as before (`Feature/PublicLeadApiTest.php`, `Feature/VersionedLeadApiTest.php`). Staff have no API: the screens are Livewire. That the live shop's forms use these addresses is the condition above, not this one (T-100).",
           "lines": [
             "T-063"
           ]
@@ -121,8 +121,8 @@
           ]
         },
         {
-          "state": "partly",
-          "evidence": "A quote request from the shop has its address and its tests (`Feature/StorefrontQuoteRequestApiTest.php`); the client's pages for a quotation and an invoice open on signed links (`Feature/QuotePortalTest.php`). The common rules of `/api/v1` are not written.",
+          "state": "met",
+          "evidence": "The basket's address is in the contract of `/api/v1` (`platform/resources/api/v1.openapi.json`; the rules are document 29) and is held to it key by key on every push (`Feature/Api/V1ContractTest.php`, `Feature/StorefrontQuoteRequestApiTest.php`); a basket sent twice with its key is written once. The client's pages for a quotation and an invoice open on signed links (`Feature/QuotePortalTest.php`); they are pages, not an API. Staff have no API: the screens are Livewire.",
           "lines": [
             "T-063"
           ]
@@ -207,10 +207,9 @@
         },
         {
           "state": "partly",
-          "evidence": "Categories and photographs reach the React shop through a bridge with tests (`Feature/CategoryStorefrontSyncTest.php`, `Feature/StorefrontMediaTest.php`). Products are not offered to the shop yet, and the common rules of `/api/v1` are not written.",
+          "evidence": "The category tree, the page of each category, the series and their pictures are in the contract of `/api/v1` (`platform/resources/api/v1.openapi.json`; the rules are document 29) and are held to it key by key on every push (`Feature/Api/V1ContractTest.php`, `Feature/CategoryStorefrontSyncTest.php`). Products are not offered to the shop yet: `/api/v1` has no address for them.",
           "lines": [
-            "T-105",
-            "T-063"
+            "T-105"
           ]
         },
         {
@@ -544,9 +543,9 @@
         },
         {
           "state": "partly",
-          "evidence": "Photographs reach the React shop through a bridge with tests (`Feature/StorefrontMediaTest.php`). The common rules of `/api/v1` are not written.",
+          "evidence": "The photographs' two addresses are in the contract of `/api/v1` (`platform/resources/api/v1.openapi.json`; the rules are document 29) and are held to it key by key on every push (`Feature/Api/V1ContractTest.php`, `Feature/StorefrontMediaTest.php`). What the page builder will hand to the shop (pages, navigation, sections) has no address yet.",
           "lines": [
-            "T-063"
+            "T-116"
           ]
         },
         {

@@ -21,6 +21,14 @@ final class ReleaseNotes
     {
         return [
             [
+                'date' => '2026-11-19',
+                'title' => 'Two enquiries in the same moment are both saved, and an enquiry sent twice is one',
+                'notes' => [
+                    'Leads: when the enquiries of two new people are saved in the same moment (two visitors of the shop, or two of you adding a lead each), both are saved, one after the other. Before, the database could stop one of the two, and that enquiry was not saved.',
+                    'The connection the shop will use: an enquiry or a basket that arrives twice (a visitor who presses twice, a connection that sends again) is written once. Before, the second one was added to the timeline as a "Returning enquiry" and the team was told again. The shop is not connected to this workspace yet, so you will see this once it is.',
+                ],
+            ],
+            [
                 'date' => '2026-11-18',
                 'title' => 'Two people can work in the accounts at the same moment',
                 'notes' => [

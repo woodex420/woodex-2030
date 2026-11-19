@@ -302,7 +302,7 @@ each:
 | Route names compatible with the endpoints that exist | **Decided for these seven**: the addresses stay as they were; only the shape of the answers changed (release report of 19 November). The older `POST /api/public/leads` and the old website's two addresses keep address and shape |
 | Limits of the API and of public forms | **Kept as they were** (§10). Whether 5 enquiries a minute from one address fits an office that sits behind one address is the owner's to say when the shop's forms are switched over |
 | Cookie or token for a sign-in | **Open.** Nothing needs a sign-in yet (§9). To be decided with the first private address |
-| Public checkout and a payment gateway | **Open, and not this page's**: the owner's decision on payments (master list T-009) |
+| Public checkout and a payment gateway | **Answered by the owner before, and not this page's**: no online payment at checkout at launch, cash on delivery; payments are recorded by hand in the admin (master list §3, "Already answered"). An address for orders comes with T-106 |
 | Webhooks: how they prove who they are, and idempotency | **Open for webhooks; for creates it is §6.** The webhooks this application receives and sends are outside `/api/v1` and are not changed by this page |
 
 Also open, smaller:

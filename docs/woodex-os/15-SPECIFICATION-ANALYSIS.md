@@ -40,7 +40,7 @@ Document 08 §2 forbids settling such a difference silently. Each is listed with
 | # | Difference | In force | Why | Task |
 |---|---|---|---|---|
 | X-1 | **Which admin.** The owner's log says "Keep existing React storefront and dashboard; reimagine both UIs" (D-003) and "Preserve React storefront and dashboard as separate applications" (D-009). Documents 02, 04, 09 and 11 are written for a React dashboard on a Laravel API. On 16 November the owner chose the opposite for the dashboard: the Laravel admin is the base and its screens are Livewire (programme log DL-001, DL-005; `docs/furniture-2030/01-OWNER-DECISIONS.md` OD-14, OD-15) | **The Laravel (Livewire) admin.** The React dashboard stays in use only until each module is moved. The shop stays React (D-003 and D-009 are unchanged for the shop) | The later explicit decision wins (document 08 §2), and the request of 17 November is to complete the Laravel admin. The owner's log has no date and reads as written before 16 November | **T-001**: the owner confirms, because the log was re-sent after the decision |
-| X-2 | **A staff API.** Document 04 §5 lists about 75 `/api/v1` endpoints for the dashboard | **Not built, and not needed**: a Livewire screen is rendered on the server and has no JSON API of its own. `/api/v1` is for the shop and for outside clients only | Follows from X-1 | T-063 |
+| X-2 | **A staff API.** Document 04 §5 lists about 75 `/api/v1` endpoints for the dashboard | **Not built, and not needed**: a Livewire screen is rendered on the server and has no JSON API of its own. `/api/v1` is for the shop and for outside clients only | Follows from X-1 | Recorded on 19 November in document 29 (T-063, done) |
 | X-3 | **Where production runs.** The list of 17 November (version 1) asked the owner to choose between Hostinger and Vercel | **Hostinger shared hosting with MySQL** — the owner's log already says so (D-004, D-005), as does OD-3 ("Hostinger Business plan"). The question is withdrawn. Vercel is the demo | The owner's recorded decision | T-006, T-130… |
 | X-4 | **Colours and corners.** Document 05 §5 gives a charcoal sidebar, green `#4F9D21`, 8 px controls | The store's palette (DL-013) and the look of the Reimagined theme (DL-017): light sidebar, green `#629924` / `#52801e`, 4 px controls, 12 px cards. The charcoal sidebar is one setting away | Two later owner messages | T-005 (approval) |
 | X-5 | **Smallest text.** Document 05 §5: captions 12 px minimum. The Reimagined theme sets group labels at 10 px, and the admin now has text between 9.5 and 11 px in about twenty places | Not settled. Recommended: 12 px, as the specification says | Readability; an accessibility requirement outranks a look | T-049 |
@@ -57,7 +57,7 @@ Document 08 §2 forbids settling such a difference silently. Each is listed with
 | §1 Business back end: Laravel, by domain | Yes: 13 domain folders, 116 action classes, 93 models | — |
 | §1 Database: MySQL on Hostinger | The suite runs on MySQL 8.4 in CI. No hosted database exists | T-130 to T-133 |
 | §1 Scheduler from cron; database queue | 30 scheduled entries, 8 every minute, two of them queue workers that stop when empty; 14 queued classes. **Nothing calls the scheduler anywhere yet** | T-134 |
-| §1 Versioned JSON API | 7 public endpoints: enquiries, basket quote requests, WhatsApp hand-off, categories, media | T-063, T-105 |
+| §1 Versioned JSON API | 7 public endpoints: enquiries, basket quote requests, WhatsApp hand-off, categories, media. Since 19 November under one set of rules (document 29), with a contract and a contract test (T-063, done) | T-105 |
 | §1, §6 Authentication | Laravel Fortify: session, two-factor (optional), 5 sign-ins a minute. Cookies are Secure, HttpOnly, SameSite=Lax (seen on the live address) | T-022, T-065 |
 | §6 CORS set deliberately | An allow-list for the public API paths only | T-160 (a test) |
 | §6 Puck draft previews protected | No Puck yet | T-115 |
@@ -114,17 +114,17 @@ Document 08 §2 forbids settling such a difference silently. Each is listed with
 | Requirement | State | Task |
 |---|---|---|
 | §2 Base path `/api/v1`, JSON, UTF-8 | Yes for the 7 endpoints | — |
-| §2 Pagination, filter and sort allow-lists | Categories and media lists; no general convention | T-063 |
-| §2 Idempotency keys for retryable creates | Basket requests carry a request key and conflict on changed content (tested); a repeated enquiry joins the open lead (tested) | T-063 (as a rule for every create) |
+| §2 Pagination, filter and sort allow-lists | **The rule is set and held** (19 November, T-063): an address reads the query parameters its route names and refuses any other (400); pages have one builder, tested. No address of today is in pages or takes a filter | T-105 (the first list in pages) |
+| §2 Idempotency keys for retryable creates | **Met** (19 November, T-063): every create under `/api/v1` takes an `Idempotency-Key`; sent twice it is written once and answered the same, with other content it is refused. Tested, also with two sendings in the same moment on three database servers | — |
 | §2 Correlation ID | Missing | T-062 |
-| §3 Envelope `data` / `meta` / `error` with codes | **Not used**: the enquiry endpoint answers `{ok, reference, message}` | T-063 |
-| §4 Status codes | 201, 200, 202, 405, 422, 429, 404 are used and tested on the enquiry endpoints | — |
+| §3 Envelope `data` / `meta` / `error` with codes | **Met** (19 November, T-063): all seven addresses, with a closed list of fifteen codes; the contract test compares every answer key by key | — |
+| §4 Status codes | 200, 201, 202, 400, 404, 405, 409, 415, 422, 429, 500 and 503 are documented in the contract for each address that can give them, and each is asked for by the contract test | — |
 | §5 Resource groups (about 75 endpoints) | Not built for staff (X-2). The shop needs: products and series (read), orders (create, status), published pages, navigation, theme, redirects, forms, warranty cases | T-105, T-106, T-108, T-116 |
 | §6 Explicit transitions, never a status patch | Met in the domain layer: one action class per transition (send, approve, accept, void, verify…), each tested | — |
 | §7 Server computes totals | Met and tested | — |
 | §8 Puck save and publish contract | No Puck yet | T-115 |
 | §9 API client requirements | Concern the React shop's client | T-105 |
-| §10 Open decisions: money format, throttles, webhook policy | Money: integer minor units. Throttles: set and tested on public forms. Session rather than tokens for staff | T-063 records them |
+| §10 Open decisions: money format, throttles, webhook policy | Recorded on 19 November in document 29 §13 (T-063): money is whole minor units, decided; the limits are kept as they were; a cookie or a token for a sign-in and the webhook policy stay open, the owner's, to be decided with the first private address; online payment at checkout was answered before (none at launch) | T-106 |
 
 ---
 
@@ -232,7 +232,7 @@ acceptance), 9 (a migration and reconciliation plan with real data) and 10 (the 
 | Layer | State | Task |
 |---|---|---|
 | Unit | 121 tests: money, phone numbers, quotation arithmetic, design tokens. No Puck validators (no Puck) | T-115 |
-| API feature | The public endpoints are tested (throttles, replays, validation). The error contract is not the specification's | T-063 |
+| API feature | The public endpoints are tested (throttles, replays, validation), and since 19 November each is held to a contract key by key, the error shape included (T-063, done) | — |
 | Database: migrations from a clean MySQL | In CI on MySQL 8.4, every push | — |
 | Database: rollback, precision, immutability | Tested for payments, receipts, journals, frozen documents | — |
 | Database: stock invariants | No stock module | T-109 |

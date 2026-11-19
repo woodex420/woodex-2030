@@ -58,10 +58,9 @@
         {
           "text": "Requirements, API and schema approved.",
           "state": "open",
-          "evidence": "Documents 05 and 07 are the requirements, and the schema is 106 migrations that build an empty MySQL 8.4 in CI on every push. No module has had its requirements, its addresses and its schema approved as a set.",
+          "evidence": "Documents 05 and 07 are the requirements. The schema is 109 migrations that build an empty MySQL 8.4 in CI on every push. The addresses of `/api/v1` are a contract, held by a test on every push since 19 November (document 29, `platform/resources/api/v1.openapi.json`). No module has had its requirements, its addresses and its schema approved as a set.",
           "lines": [
-            "T-171",
-            "T-063"
+            "T-171"
           ]
         },
         {

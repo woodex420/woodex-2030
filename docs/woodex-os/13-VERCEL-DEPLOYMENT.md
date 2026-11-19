@@ -103,6 +103,7 @@ visitor → Vercel → routes of vercel.json
 | The Health page gave Hostinger advice and a green tick for the uploads folder | Wrong on a host without a disk | It says that nothing written there lasts |
 | The command palette offered "Canned replies" and "WhatsApp templates" while their modules were off | A "not found" page, on every host | The palette checks the module switch, as the sidebar does |
 | `platform/.vercelignore` | Vercel reported "Removed 0 ignored files" for a Git deployment with a Root Directory | Kept for uploads by the Vercel CLI; nothing relies on it |
+| PHP's own server finds the entry in a folder named `api`, and announced every request below `/api` as the script `/api/index.php` with the rest behind it. **Not found by the rehearsal, which did not ask:** found from outside on 19 November (defect D-041) | Everything under `/api` answered the admin's "This page does not exist": the enquiry address and all of `/api/v1` | The entry announces itself as `/index.php`, the front controller it stands in for. Three addresses under `/api` are among the checks of §5, and the live check asks two more |
 
 The runtime's `php.ini` keeps compiled scripts in `/tmp` and never reads a changed file again
 (`opcache.file_cache=/tmp`, `validate_timestamps=0`). Within one copy of the function no PHP file changes, so
@@ -117,7 +118,7 @@ every screen" (workflow `vercel-livewire.yml`), on every change under `platform/
 It uses Vercel's own parts, fetched from npm: the PHP 8.5 runtime of `vercel-php@0.9.0` with its `php.ini`, and
 its launcher. It installs the packages with the builder's own Composer command, runs `composer run vercel`, makes
 the tree read-only, and serves it from `/var/task` through the `routes` and `env` of `vercel.json`. Only
-Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 79 checks, among them:
+Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 84 checks, among them:
 
 - without settings, with half the settings, or with a database that is not MySQL: 503;
 - a real deployment's build touches nothing; a demo without passwords fails the build;
@@ -169,8 +170,10 @@ the `[demo] workspace ready` line, and run the workflow "Vercel live check (WOOD
 (`vercel-live-check.yml`): from outside, without any secret, it opens the sign-in page of the deployed address,
 tries a wrong password, reads the security headers (the content policy among them) and the marks on the session
 cookie, asks for a screen that does not exist (the admin's own 404 page, with the request number that the
-answer's `X-Request-Id` header carries) and sends a form without its token (419), and asks for files that
-must stay closed. Its findings are one notice on the run. It never signs in: a signed-in check of the live
+answer's `X-Request-Id` header carries) and sends a form without its token (419), asks for files that
+must stay closed, and asks two addresses of `/api/v1`: one that is not there (the API's own error shape, with the
+request number in the body and the header alike, and no cookie) and the list of replaced photographs (a whole
+list with its size). Its findings are one notice on the run. It never signs in: a signed-in check of the live
 address needs the demo password as a GitHub secret, which only the owner can add (line T-151 of
 [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)).
 

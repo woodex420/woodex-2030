@@ -53,9 +53,9 @@ Counted from the master list ([`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)) 
 
 | Round | Lines | What |
 |---|---|---|
-| 1 | T-043, T-086 | A warning before leaving an unsaved form; a quotation line chosen from the catalogue keeps its product and price |
-| 2 | T-093 | The ledger with two people writing at once (new, §8) |
-| 3 | T-063 | The rules of `/api/v1`, which the shop will read |
+| 1 | T-043, T-086 | A warning before leaving an unsaved form; a quotation line chosen from the catalogue keeps its product and price. **Done on 18 November (pull request #44)** |
+| 2 | T-093 | The ledger with two people writing at once (new, §8). **Done on 18 November (pull request #45)** |
+| 3 | T-063 | The rules of `/api/v1`, which the shop will read. **Done on 19 November (pull request #47).** The round after it is the shop's reading of its products (T-105), on the owner's word (DL-037); the order as it stands now is document 21 |
 | 4 | T-041 | One table for every list |
 | 5 | T-172, T-175 | The shop's database: its functions, and every table mapped to its new owner |
 | 6 | T-071, T-152, T-153, T-154, T-142, T-189, T-174 | Packages, the demo's housekeeping, the documents the code points at (new, §6) |
@@ -74,7 +74,7 @@ Eleven more lines wait only for one of these.
 | **13 destinations exist only in the old dashboard**: orders, delivery and installation, support and warranty, the operations board, suppliers, purchase orders, goods receipts, supplier invoices, production, the stock ledger, warehouses, stock transfers, reservations | To be built in this admin. The Interior admin has none of them: there is nothing to reuse | T-106 to T-111 |
 | **5 destinations are built nowhere**: site overview, navigation, sections and templates, workspace preferences, team onboarding | To be built. **Since 18 November, later the same day: 3.** Workspace preferences and Team onboarding are built (T-056, report 27) | T-116, T-056 |
 | **21 destinations are in the code and switched off** | §5 and §9 of this page | T-085, T-112, T-118, T-119, T-120, T-115 to T-117 |
-| The shop reading its products from this admin, and its forms writing to it | The rules of the API come first | T-063, T-100, T-105 |
+| The shop reading its products from this admin, and its forms writing to it | The rules of the API came first: done on 19 November (T-063). The reading of the products is next | T-100, T-105 |
 | Moving the old system's records, and the cutover | The old database holds almost none (1 lead, 1 client, 148 sample products) | T-175 to T-181, T-121 |
 | The admin on Hostinger with real data | A release is ready and proved away from the host; nothing is on the account | T-006, T-130 to T-141 |
 
