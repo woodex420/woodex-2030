@@ -189,10 +189,7 @@ it('narrows the list by category, by its children and by series, and never widen
                 .' total='.($body['meta']['total'] ?? '?').' err='.($body['error']['code'] ?? '-')
                 .' sql='.$q->toSql();
         }
-        // STDOUT, because a workflow command is read from the step's standard output and not its error stream.
-        foreach ($lines as $i => $line) {
-            fwrite(STDOUT, "\n::warning title=probe{$i}::{$line}\n");
-        }
+        file_put_contents('/tmp/probe.json', json_encode($lines, JSON_PRETTY_PRINT));
     }
     expect($this->getJson('/api/v1/catalogue/products?category=office-tables')->json('data.*.id'))
         ->toEqualCanonicalizing(['executive-desk', 'meeting-desk'], 'a product in a category below is listed under its parent too')
