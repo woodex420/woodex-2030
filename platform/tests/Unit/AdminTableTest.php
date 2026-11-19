@@ -295,7 +295,6 @@ it('counts the screens that still write a table by hand: the list may only get s
         'livewire/admin/marketing/attribution-index.blade.php',
         'livewire/admin/marketing/social-planner.blade.php',
         'livewire/admin/projects/project-costs.blade.php',
-        'livewire/admin/projects/projects-index.blade.php',
         'livewire/admin/reports/receivables.blade.php',
         'livewire/admin/reports/revenue-collections.blade.php',
         'livewire/admin/reports/sales-funnel.blade.php',

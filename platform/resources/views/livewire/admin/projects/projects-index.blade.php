@@ -23,89 +23,79 @@
         @endforeach
     </div>
 
-    <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-        <div class="relative md:col-span-2">
-            <x-icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gray-400" />
-            <input type="search" wire:model.live.debounce.300ms="search" placeholder="Project, client or quotation number" class="wx-input pl-10" aria-label="Search projects">
-        </div>
-        <select wire:model.live="stage" class="wx-input" aria-label="Filter by stage">
-            <option value="">All stages</option>
-            @foreach ($stages as $option)
-                <option value="{{ $option->value }}">{{ $option->label() }}</option>
-            @endforeach
-        </select>
-        <select wire:model.live="owner" class="wx-input" aria-label="Filter by project manager">
-            <option value="">Everyone</option>
-            <option value="me">My projects</option>
-            @foreach ($staff as $member)
-                <option value="{{ $member->id }}">{{ $member->name }}</option>
-            @endforeach
-        </select>
-    </div>
+    <x-admin.table label="Projects" :rows="$projects">
+        <x-slot:filters class="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div class="relative md:col-span-2">
+                <x-icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gray-400" />
+                <input type="search" wire:model.live.debounce.300ms="search" placeholder="Project, client or quotation number" class="wx-input pl-10" aria-label="Search projects">
+            </div>
+            <select wire:model.live="stage" class="wx-input" aria-label="Filter by stage">
+                <option value="">All stages</option>
+                @foreach ($stages as $option)
+                    <option value="{{ $option->value }}">{{ $option->label() }}</option>
+                @endforeach
+            </select>
+            <select wire:model.live="owner" class="wx-input" aria-label="Filter by project manager">
+                <option value="">Everyone</option>
+                <option value="me">My projects</option>
+                @foreach ($staff as $member)
+                    <option value="{{ $member->id }}">{{ $member->name }}</option>
+                @endforeach
+            </select>
+        </x-slot:filters>
 
-    <x-admin.card :padding="false">
-        <div class="overflow-x-auto" wire:loading.class="opacity-60">
-            <table class="min-w-full text-left text-theme-sm">
-                <thead class="border-b border-gray-100 text-theme-xs tracking-wide text-gray-500 uppercase dark:border-gray-800">
-                    <tr>
-                        <th class="px-5 py-3 font-medium">Project</th>
-                        <th class="hidden px-5 py-3 font-medium lg:table-cell">Client</th>
-                        <th class="px-5 py-3 font-medium">Stage</th>
-                        <th class="hidden px-5 py-3 font-medium sm:table-cell">Progress</th>
-                        <th class="hidden px-5 py-3 font-medium lg:table-cell">Next milestone</th>
-                        <th class="px-5 py-3 text-right font-medium">Value</th>
-                        <th class="hidden px-5 py-3 text-right font-medium md:table-cell">Collected</th>
-                        <th class="px-5 py-3 font-medium">Target</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                    @forelse ($projects as $project)
-                        @php($next = $project->nextMilestone())
-                        <tr wire:key="project-{{ $project->id }}" class="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                            <td class="px-5 py-3">
-                                <a href="{{ route('admin.projects.show', $project) }}" wire:navigate class="block font-medium text-gray-800 hover:underline dark:text-white/90">{{ $project->name }}</a>
-                                <span class="block text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$project->code, $project->business_line->tag()])) }}</span>
-                                @if ($project->status !== \App\Domain\Projects\Enums\ProjectStatus::Active)
-                                    <span class="mt-1 inline-block"><x-admin.badge :color="$project->status->color()">{{ $project->status->label() }}</x-admin.badge></span>
-                                @endif
-                            </td>
-                            <td class="hidden px-5 py-3 lg:table-cell">
-                                <span class="block text-gray-700 dark:text-gray-300">{{ $project->contact?->name }}</span>
-                                <span class="block text-theme-xs text-gray-500">{{ $project->area ? $project->area.', ' : '' }}{{ $project->city }}</span>
-                            </td>
-                            <td class="px-5 py-3"><x-admin.badge :color="$project->stage->color()">{{ $project->stage->label() }}</x-admin.badge></td>
-                            <td class="hidden px-5 py-3 sm:table-cell">
-                                <div class="flex items-center gap-2">
-                                    <div class="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-white/10" role="progressbar" aria-valuenow="{{ $project->progress_percent }}" aria-valuemin="0" aria-valuemax="100">
-                                        <div class="h-full rounded-full bg-navy-700" style="width: {{ $project->progress_percent }}%"></div>
-                                    </div>
-                                    <span class="tabular-nums text-theme-xs text-gray-500">{{ $project->progress_percent }}%</span>
-                                </div>
-                            </td>
-                            <td class="hidden max-w-[14rem] px-5 py-3 lg:table-cell">
-                                <span class="block truncate text-gray-700 dark:text-gray-300">{{ $next?->name ?? '—' }}</span>
-                                <span class="block text-theme-xs text-gray-500">{{ $next?->due_date?->format('j M Y') ?? 'no date' }}</span>
-                            </td>
-                            <td class="px-5 py-3 text-right tabular-nums text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $project->value_minor)->format($lakh) }}</td>
-                            <td class="hidden px-5 py-3 text-right md:table-cell">
-                                <span class="block tabular-nums text-gray-800 dark:text-white/90">{{ Money::ofMinor($project->collectedMinor())->format($lakh) }}</span>
-                                <span class="block tabular-nums text-theme-xs text-gray-500">of {{ Money::ofMinor($project->invoicedMinor())->format($lakh) }}</span>
-                            </td>
-                            <td class="px-5 py-3 {{ $project->isOverdue() ? 'text-red-600 dark:text-red-400' : 'text-gray-500' }}">
-                                {{ $project->target_date?->format('j M Y') ?? '—' }}@if ($project->isOverdue()) · late @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8">
-                                <x-admin.empty icon="hammer" :title="$search !== '' || $stage !== '' || $status !== 'active' ? 'No projects match' : 'No projects yet'"
-                                               description="A project appears here as soon as a client accepts a quotation." />
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        {{ $projects->links('components.admin.pagination') }}
-    </x-admin.card>
+        <x-slot:head>
+            <x-admin.table.heading>Project</x-admin.table.heading>
+            <x-admin.table.heading class="hidden lg:table-cell">Client</x-admin.table.heading>
+            <x-admin.table.heading>Stage</x-admin.table.heading>
+            <x-admin.table.heading class="hidden sm:table-cell">Progress</x-admin.table.heading>
+            <x-admin.table.heading class="hidden lg:table-cell">Next milestone</x-admin.table.heading>
+            <x-admin.table.heading align="right">Value</x-admin.table.heading>
+            <x-admin.table.heading align="right" class="hidden md:table-cell">Collected</x-admin.table.heading>
+            <x-admin.table.heading>Target</x-admin.table.heading>
+        </x-slot:head>
+
+        @foreach ($projects as $project)
+            @php($next = $project->nextMilestone())
+            <x-admin.table.row wire:key="project-{{ $project->id }}">
+                <x-admin.table.cell header>
+                    <a href="{{ route('admin.projects.show', $project) }}" wire:navigate class="block font-medium text-gray-800 hover:underline dark:text-white/90">{{ $project->name }}</a>
+                    <span class="block text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$project->code, $project->business_line->tag()])) }}</span>
+                    @if ($project->status !== \App\Domain\Projects\Enums\ProjectStatus::Active)
+                        <span class="mt-1 inline-block"><x-admin.badge :color="$project->status->color()">{{ $project->status->label() }}</x-admin.badge></span>
+                    @endif
+                </x-admin.table.cell>
+                <x-admin.table.cell class="hidden lg:table-cell">
+                    <span class="block text-gray-700 dark:text-gray-300">{{ $project->contact?->name }}</span>
+                    <span class="block text-theme-xs text-gray-500">{{ $project->area ? $project->area.', ' : '' }}{{ $project->city }}</span>
+                </x-admin.table.cell>
+                <x-admin.table.cell><x-admin.badge :color="$project->stage->color()">{{ $project->stage->label() }}</x-admin.badge></x-admin.table.cell>
+                <x-admin.table.cell class="hidden sm:table-cell">
+                    <div class="flex items-center gap-2">
+                        <div class="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-white/10" role="progressbar" aria-valuenow="{{ $project->progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="h-full rounded-full bg-navy-700" style="width: {{ $project->progress_percent }}%"></div>
+                        </div>
+                        <span class="tabular-nums text-theme-xs text-gray-500">{{ $project->progress_percent }}%</span>
+                    </div>
+                </x-admin.table.cell>
+                <x-admin.table.cell class="hidden max-w-[14rem] lg:table-cell">
+                    <span class="block truncate text-gray-700 dark:text-gray-300">{{ $next?->name ?? '—' }}</span>
+                    <span class="block text-theme-xs text-gray-500">{{ $next?->due_date?->format('j M Y') ?? 'no date' }}</span>
+                </x-admin.table.cell>
+                <x-admin.table.cell align="right" numeric class="text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $project->value_minor)->format($lakh) }}</x-admin.table.cell>
+                <x-admin.table.cell align="right" class="hidden md:table-cell">
+                    <span class="block tabular-nums text-gray-800 dark:text-white/90">{{ Money::ofMinor($project->collectedMinor())->format($lakh) }}</span>
+                    <span class="block tabular-nums text-theme-xs text-gray-500">of {{ Money::ofMinor($project->invoicedMinor())->format($lakh) }}</span>
+                </x-admin.table.cell>
+                <x-admin.table.cell class="{{ $project->isOverdue() ? 'text-red-600 dark:text-red-400' : 'text-gray-500' }}">
+                    {{ $project->target_date?->format('j M Y') ?? '—' }}@if ($project->isOverdue()) · late @endif
+                </x-admin.table.cell>
+            </x-admin.table.row>
+        @endforeach
+
+        <x-slot:empty>
+            <x-admin.empty icon="hammer" :title="$search !== '' || $stage !== '' || $status !== 'active' ? 'No projects match' : 'No projects yet'"
+                           description="A project appears here as soon as a client accepts a quotation." />
+        </x-slot:empty>
+    </x-admin.table>
 </div>
