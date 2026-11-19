@@ -16,6 +16,7 @@ use App\Domain\Crm\Models\Activity;
 use App\Domain\Crm\Models\Contact;
 use App\Domain\Crm\Models\Lead;
 use App\Domain\Crm\Models\PipelineStage;
+use App\Domain\Crm\Services\EnquiryTurn;
 use App\Models\User;
 use App\Settings\BusinessSettings;
 use App\Settings\SalesSettings;
@@ -40,6 +41,7 @@ final class CaptureLead
         private readonly BusinessSettings $business,
         private readonly SalesSettings $sales,
         private readonly ScoreLead $scoreLead,
+        private readonly EnquiryTurn $turn,
     ) {}
 
     public function handle(LeadInput $input): CaptureResult
@@ -59,6 +61,10 @@ final class CaptureLead
         }
 
         return DB::transaction(function () use ($input, $phone, $email): CaptureResult {
+            // One enquiry at a time from here to the end: the question below holds the empty place of a person
+            // who is not known yet, and two enquiries holding each other's place end in a deadlock (EnquiryTurn).
+            $this->turn->take();
+
             $contact = $this->findContact($phone, $email);
             $contactCreated = $contact === null;
 
