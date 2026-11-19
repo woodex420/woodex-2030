@@ -319,7 +319,7 @@ button.wx-summary-card:hover { border-color:var(--color-navy-300); background:va
 .wx-filter-pill,.wx-history-button { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--color-gray-200); border-radius:999px; background:white; padding:.45rem .9rem; font-size:.75rem; color:var(--color-gray-600); }
 .wx-filter-pill[aria-pressed=true] { background:var(--color-navy-900); color:white; border-color:var(--color-navy-900); }
 .wx-leads-table thead { background:var(--color-gray-50); }
-.wx-leads-table td { padding-top:1rem; padding-bottom:1rem; }
+.wx-leads-table td,.wx-leads-table tbody th { padding-top:1rem; padding-bottom:1rem; }
 .wx-section-nav { border-bottom:1px solid var(--color-gray-200); }
 .wx-activity-timeline > li { padding-bottom:.7rem; }
 .wx-activity-timeline > li > div { border:1px solid var(--color-gray-100); border-radius:.8rem; padding:.85rem 1rem; background:var(--color-gray-25); }
