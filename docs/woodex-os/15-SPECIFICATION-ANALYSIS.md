@@ -118,7 +118,7 @@ Document 08 §2 forbids settling such a difference silently. Each is listed with
 | §2 Idempotency keys for retryable creates | **Met** (19 November, T-063): every create under `/api/v1` takes an `Idempotency-Key`; sent twice it is written once and answered the same, with other content it is refused. Tested, also with two sendings in the same moment on three database servers | — |
 | §2 Correlation ID | Missing | T-062 |
 | §3 Envelope `data` / `meta` / `error` with codes | **Met** (19 November, T-063): all seven addresses, with a closed list of fifteen codes; the contract test compares every answer key by key | — |
-| §4 Status codes | 200, 201, 202, 400, 404, 405, 409, 415, 422, 429, 500 and 503 are documented in the contract for each address that can give them, and each is asked for by the contract test | — |
+| §4 Status codes | 200, 201, 202, 400, 404, 409, 415, 422, 429, 500 and 503 are documented in the contract for each address that can give them, and each is asked for by the contract test; 405 is one rule for every address, tested too | — |
 | §5 Resource groups (about 75 endpoints) | Not built for staff (X-2). The shop needs: products and series (read), orders (create, status), published pages, navigation, theme, redirects, forms, warranty cases | T-105, T-106, T-108, T-116 |
 | §6 Explicit transitions, never a status patch | Met in the domain layer: one action class per transition (send, approve, accept, void, verify…), each tested | — |
 | §7 Server computes totals | Met and tested | — |
