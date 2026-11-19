@@ -169,12 +169,12 @@ it('narrows the list by category, by its children and by series, and never widen
     if (getenv('WX_DEBUG_IDS')) {
         foreach (['office-tables', 'meeting-tables', 'executive-tables'] as $debugSlug) {
             $debugBody = $this->getJson('/api/v1/catalogue/products?category='.$debugSlug)->json();
-            fwrite(STDERR, "\n  [{$debugSlug}] status/ids: ".json_encode([$debugBody['data'] ?? $debugBody['error'] ?? null ? array_column($debugBody['data'] ?? [], 'id') : null, 'total' => $debugBody['meta']['total'] ?? null])."\n");
+            fwrite(STDERR, "\n::warning title=[{$debugSlug}]::ids=".implode(',', array_column($debugBody['data'] ?? [], 'id')).' total='.($debugBody['meta']['total'] ?? 'n/a').' err='.($debugBody['error']['code'] ?? 'none')."\n");
         }
         $debugRow = DB::table('commerce_products')->get(['id', 'slug', 'updated_at', 'published_revision_id']);
-        fwrite(STDERR, '  rows: '.json_encode($debugRow)."\n");
+        fwrite(STDERR, "\n::warning title=rows::".implode(' | ', $debugRow->map(fn ($r) => $r->id.':'.$r->slug.':'.$r->updated_at.':p'.$r->published_revision_id)->all())."\n");
         $debugRev = DB::table('commerce_product_revisions')->get(['id', 'product_id', 'content']);
-        fwrite(STDERR, '  revisions: '.json_encode($debugRev->map(fn ($r) => ['id' => $r->id, 'p' => $r->product_id, 'cats' => json_decode($r->content, true)['category_ids'] ?? 'NONE']))."\n");
+        fwrite(STDERR, "\n::warning title=revisions::".implode(' | ', $debugRev->map(fn ($r) => $r->id.':p'.$r->product_id.':cats='.implode('/', json_decode($r->content, true)['category_ids'] ?? []))->all())."\n");
     }
     expect($this->getJson('/api/v1/catalogue/products?category=office-tables')->json('data.*.id'))
         ->toEqualCanonicalizing(['executive-desk', 'meeting-desk'], 'a product in a category below is listed under its parent too')
