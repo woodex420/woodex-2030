@@ -23,10 +23,10 @@ shorter, and the screen pass (T-045) takes them area by area. PDF and mail templ
         <x-admin.table.heading label="Actions" />
     </x-slot:head>
     @foreach ($quotes as $quote)
-        <x-admin.table.row wire:key="quote-{{ $quote->id }}">
-            <x-admin.table.cell header>…what names the row…</x-admin.table.cell>
-            <x-admin.table.cell align="right" numeric>…</x-admin.table.cell>
-        </x-admin.table.row>
+        <tr wire:key="quote-{{ $quote->id }}" class="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+            <th scope="row" class="px-5 py-3 font-normal">…what names the row…</th>
+            <td class="px-5 py-3 text-right tabular-nums">…</td>
+        </tr>
     @endforeach
     <x-slot:empty> <x-admin.empty title="No quotations yet" description="…the way to make one…" /> </x-slot:empty>
 </x-admin.table>
@@ -36,7 +36,8 @@ shorter, and the screen pass (T-045) takes them area by area. PDF and mail templ
 |---|---|
 | Name | `label` is required. It is the table's caption (read out, not shown) and is used in the words of each state |
 | Headings | Every column has one. A column with nothing written above it (tick boxes, actions) has `label="…"` for a screen reader |
-| The row's name | The cell that says what the row is has `header`: it is read out before the other cells of its row |
+| Rows and cells | Plain `<tr>` and `<td class="px-5 py-3">` (`py-2.5` in a `dense` table). **Not a component each**: that was built and measured, and the leads list with 100 rows took 198 ms to draw where the table written by hand took 107; with plain rows and cells inside the shared frame it takes 125. What is drawn a thousand times on a page is written plainly |
+| The row's name | The cell that says what the row is, is `<th scope="row" class="px-5 py-3 font-normal">`: it is read out before the other cells of its row |
 | Sorting | `:sort` takes the list's own words with the way each goes: `['newest' => 'descending', 'oldest' => 'ascending']`. The first is what one press gives; a second press takes the next. The list keeps its property (`$sort`) and its query; the component knows no word of any list. A sort that has no column stays in a choice above the table |
 | Filters | The `filters` slot, above the table: sent as they change (`wire:model.live`), never behind a button |
 | Pages | Hand the paginator to `:rows`. The page links are the shared ones (§5) |

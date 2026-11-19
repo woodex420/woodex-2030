@@ -15,6 +15,8 @@
 
     The property and the word travel in data- attributes, not inside the script (tests/Feature/Security/
     StoredScriptTest.php: only numbers and fixed words may be printed into an attribute that is run).
+
+    The cells under a heading are plain <td class="px-5 py-3"> (py-2.5 in a dense table): see the table's own note.
 --}}
 @php
     $sorts = is_array($sort) ? $sort : [];

@@ -17,8 +17,8 @@
         </x-slot:head>
         @foreach ($members as $member)
             @php $role = $member->getRoleNames()->first(); @endphp
-            <x-admin.table.row wire:key="user-{{ $member->id }}" :hover="false" @class(['opacity-60' => ! $member->is_active])>
-                <x-admin.table.cell header>
+            <tr wire:key="user-{{ $member->id }}" @class(['opacity-60' => ! $member->is_active])>
+                <th scope="row" class="px-5 py-3 font-normal">
                     <div class="flex items-center gap-3">
                         <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-navy-900 text-theme-xs font-semibold text-white">{{ $member->initials() }}</span>
                         <div class="min-w-0">
@@ -26,23 +26,23 @@
                             <p class="truncate text-theme-xs text-gray-500">{{ $member->email }}{{ $member->title ? ' · '.$member->title : '' }}{{ $member->phone ? ' · '.Phone::display($member->phone) : '' }}</p>
                         </div>
                     </div>
-                </x-admin.table.cell>
-                <x-admin.table.cell>
+                </th>
+                <td class="px-5 py-3">
                     <x-admin.badge :color="$role === 'owner' ? 'wood' : 'navy'" :dot="false">{{ $roleLabels[$role] ?? 'No role' }}</x-admin.badge>
                     @unless ($member->is_active)
                         <x-admin.badge color="error" class="ml-1">Deactivated</x-admin.badge>
                     @endunless
-                </x-admin.table.cell>
-                <x-admin.table.cell>
+                </td>
+                <td class="px-5 py-3">
                     <div class="flex flex-wrap gap-1.5">
                         <x-admin.badge :color="$member->hasTwoFactorEnabled() ? 'success' : 'warning'" :dot="false">{{ $member->hasTwoFactorEnabled() ? '2FA on' : '2FA off' }}</x-admin.badge>
                         @if ($member->telegramLink?->is_active)
                             <x-admin.badge color="info" :dot="false">Telegram</x-admin.badge>
                         @endif
                     </div>
-                </x-admin.table.cell>
-                <x-admin.table.cell class="whitespace-nowrap text-theme-xs text-gray-500">{{ $member->last_login_at?->diffForHumans() ?? 'Never' }}</x-admin.table.cell>
-                <x-admin.table.cell align="right" class="whitespace-nowrap">
+                </td>
+                <td class="px-5 py-3 whitespace-nowrap text-theme-xs text-gray-500">{{ $member->last_login_at?->diffForHumans() ?? 'Never' }}</td>
+                <td class="px-5 py-3 text-right whitespace-nowrap">
                     <div class="inline-flex items-center gap-1">
                         <x-admin.button size="sm" variant="ghost" icon="pencil" wire:click="openEdit({{ $member->id }})">Edit</x-admin.button>
                         @if ($member->is_active && $member->last_login_at === null)
@@ -56,8 +56,8 @@
                             @endif
                         @endunless
                     </div>
-                </x-admin.table.cell>
-            </x-admin.table.row>
+                </td>
+            </tr>
         @endforeach
     </x-admin.table>
 

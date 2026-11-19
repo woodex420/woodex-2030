@@ -39,12 +39,12 @@
                             <x-admin.table.heading align="right">Balance</x-admin.table.heading>
                         </x-slot:head>
                         @foreach ($bucket['bills'] as $bill)
-                            <x-admin.table.row wire:key="aging-{{ $bill->id }}" :hover="false">
-                                <x-admin.table.cell class="text-gray-800 dark:text-white/90">{{ $bill->vendor?->name ?? '—' }}</x-admin.table.cell>
-                                <x-admin.table.cell header class="text-gray-600 dark:text-gray-400">{{ $bill->number }}</x-admin.table.cell>
-                                <x-admin.table.cell class="hidden text-gray-600 sm:table-cell dark:text-gray-400">{{ $bill->due_date?->format('j M Y') ?? '—' }}</x-admin.table.cell>
-                                <x-admin.table.cell align="right" numeric class="text-gray-800 dark:text-white/90">{{ Money::ofMinor($bill->balanceMinor())->format($lakh) }}</x-admin.table.cell>
-                            </x-admin.table.row>
+                            <tr wire:key="aging-{{ $bill->id }}">
+                                <td class="px-5 py-2.5 text-gray-800 dark:text-white/90">{{ $bill->vendor?->name ?? '—' }}</td>
+                                <th scope="row" class="px-5 py-2.5 font-normal text-gray-600 dark:text-gray-400">{{ $bill->number }}</th>
+                                <td class="px-5 py-2.5 hidden text-gray-600 sm:table-cell dark:text-gray-400">{{ $bill->due_date?->format('j M Y') ?? '—' }}</td>
+                                <td class="px-5 py-2.5 text-right tabular-nums text-gray-800 dark:text-white/90">{{ Money::ofMinor($bill->balanceMinor())->format($lakh) }}</td>
+                            </tr>
                         @endforeach
                     </x-admin.table>
                 </x-admin.card>

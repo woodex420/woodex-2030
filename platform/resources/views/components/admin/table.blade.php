@@ -29,7 +29,10 @@
             <x-admin.table.heading align="right">Value</x-admin.table.heading>
         </x-slot:head>
         @foreach ($quotes as $quote)
-            <x-admin.table.row wire:key="quote-{{ $quote->id }}"> <x-admin.table.cell>…</x-admin.table.cell> </x-admin.table.row>
+            <tr wire:key="quote-{{ $quote->id }}" class="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                <th scope="row" class="px-5 py-3 font-normal">…what names the row…</th>
+                <td class="px-5 py-3 text-right tabular-nums">…</td>
+            </tr>
         @endforeach
         <x-slot:empty> <x-admin.empty title="No quotations yet" /> </x-slot:empty>
     </x-admin.table>
@@ -37,6 +40,12 @@
     Its five states, in the owner's words: loading, empty, error, no-permission, success. A screen that gives
     :rows gets "empty" and "success" by itself; "loading", "error" and "no-permission" a screen says with state="…".
     While Livewire is asking, the rows dim and a screen reader is told; that is not a state of its own.
+
+    Rows and cells are plain <tr>, <th scope="row"> and <td>, on purpose. A component for every row and cell was
+    built first and measured: the leads list with 100 rows took 198 ms to draw where the table written by hand
+    took 107. With plain rows and cells inside this frame it takes 125, about 10 of them for the tick box of each
+    row (release report 34, §8). The frame, the headings and the tick boxes are components; what is drawn a
+    thousand times on a page is not.
 
     The pages are the shared page links (components.admin.pagination). The words and roles are held by
     tests/Unit/AdminTableTest.php; which screens still write a table by hand is counted there too.

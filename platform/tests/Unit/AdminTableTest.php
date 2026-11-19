@@ -18,6 +18,9 @@ use Tests\TestCase;
 | that sort, a place for filters, pages, the choosing of rows with what can be done to all chosen, and five states
 | in the owner's words: loading, empty, error, no-permission, success.
 |
+| The rows and cells inside it are plain <tr>, <th scope="row"> and <td>: a component for every cell nearly doubled
+| the time to draw a list (the table's own note has the figures). The last test here holds that too.
+|
 | These tests draw the component and read it as a screen reader does: by the names and roles in the page, not by
 | the classes. The last one counts the screens that still write a table by hand. That list may only get shorter.
 */
@@ -45,11 +48,11 @@ function drawnTable(string $inside, array $data = [], string $attributes = ':row
 
 const TABLE_ROWS = <<<'BLADE'
     @foreach ($rows as $row)
-        <x-admin.table.row>
-            <x-admin.table.cell header>{{ $row['ref'] }}</x-admin.table.cell>
-            <x-admin.table.cell class="hidden md:table-cell">{{ $row['client'] }}</x-admin.table.cell>
-            <x-admin.table.cell align="right" numeric>{{ $row['value'] }}</x-admin.table.cell>
-        </x-admin.table.row>
+        <tr>
+            <th scope="row" class="px-5 py-3 font-normal">{{ $row['ref'] }}</th>
+            <td class="hidden px-5 py-3 md:table-cell">{{ $row['client'] }}</td>
+            <td class="px-5 py-3 text-right tabular-nums">{{ $row['value'] }}</td>
+        </tr>
     @endforeach
     BLADE;
 
@@ -208,10 +211,10 @@ it('chooses rows: a named box for each, one for the page, and what can be done o
                 <x-admin.table.heading>Lead</x-admin.table.heading>
             </x-slot:head>
             @foreach ($rows as $row)
-                <x-admin.table.row :chosen="in_array((string) $row['id'], $selected, true)">
+                <tr>
                     <x-admin.table.select :value="$row['id']" label="Select {{ $row['ref'] }}" />
-                    <x-admin.table.cell>{{ $row['ref'] }}</x-admin.table.cell>
-                </x-admin.table.row>
+                    <th scope="row" class="px-5 py-3 font-normal">{{ $row['ref'] }}</th>
+                </tr>
             @endforeach
         </x-admin.table>
         BLADE, ['rows' => [['id' => 41, 'ref' => 'L-0041'], ['id' => 42, 'ref' => 'L-0042']], 'selected' => $selected]).'</body>', LIBXML_NOERROR);
@@ -342,7 +345,13 @@ it('counts the screens that still write a table by hand: the list may only get s
     sort($found);
     sort($written);
 
-    expect($found)->toBe($written)
+    // The parts of the table are the frame, a heading and the two tick boxes. A part for each row or each cell was
+    // built and measured, and taken out again: it is drawn a thousand times on a page.
+    $parts = collect((new Finder)->files()->in(resource_path('views/components/admin/table'))->name('*.blade.php')->sortByName())
+        ->map(fn ($file) => $file->getBasename('.blade.php'))->values()->all();
+
+    expect($parts)->toBe(['heading', 'select-all', 'select'])
+        ->and($found)->toBe($written)
         // 51 on 19 November 2026, before the first list moved; 45 once the first six had. It may only fall.
         ->and(count($found))->toBeLessThanOrEqual(45)
         // A screen is on one side or the other: it does not draw the shared table and one of its own.

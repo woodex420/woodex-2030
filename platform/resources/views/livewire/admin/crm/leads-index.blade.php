@@ -157,14 +157,14 @@
         </x-slot:head>
 
         @foreach ($leads as $lead)
-            <x-admin.table.row wire:key="lead-{{ $lead->id }}" :chosen="in_array((string) $lead->id, array_map('strval', $selected), true)">
+            <tr wire:key="lead-{{ $lead->id }}" @class(['hover:bg-gray-50 dark:hover:bg-white/[0.02]', 'bg-navy-50/50 dark:bg-white/[0.03]' => in_array((string) $lead->id, array_map('strval', $selected), true)])>
                 <x-admin.table.select :value="$lead->id" label="Select {{ $lead->ref }}" />
-                <x-admin.table.cell header class="whitespace-nowrap">
+                <th scope="row" class="px-5 py-3 font-normal whitespace-nowrap">
                     <a href="{{ route('admin.leads.show', $lead) }}" wire:navigate class="font-medium text-navy-800 hover:underline dark:text-white/90">{{ $lead->ref }}</a>
                     <span class="block text-theme-xs text-gray-400">{{ $lead->created_at?->timezone('Asia/Karachi')->format('j M, g:i a') }}</span>
-                </x-admin.table.cell>
+                </th>
                 @if (in_array('contact', $columns, true))
-                    <x-admin.table.cell>
+                    <td class="px-5 py-3">
                         <button type="button" wire:click="openLeadDrawer({{ $lead->id }})" class="block text-left font-medium text-gray-800 hover:text-brand-600 hover:underline dark:text-white/90">{{ $lead->contact->name }}</button>
                         <span class="flex items-center gap-1 text-theme-xs text-gray-500">
                             {{ \App\Support\Phone::display($lead->contact->phone) ?: $lead->contact->email }}
@@ -175,10 +175,10 @@
                                 <a href="tel:{{ $lead->contact->phone }}" class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-navy-600 hover:bg-gray-100 hover:text-navy-800 dark:text-gray-300 dark:hover:bg-white/5" title="Call" aria-label="Call {{ $lead->contact->name }}"><x-icon name="phone" class="size-4" /></a>
                             @endif
                         </span>
-                    </x-admin.table.cell>
+                    </td>
                 @endif
                 @if (in_array('line', $columns, true))
-                    <x-admin.table.cell>
+                    <td class="px-5 py-3">
                         @if ($lead->business_line->tag() !== '')
                             {{ $lead->business_line->tag() }}
                             @if ($lead->service)
@@ -187,24 +187,24 @@
                         @else
                             {{ $lead->service ? \Illuminate\Support\Str::headline($lead->service) : '—' }}
                         @endif
-                    </x-admin.table.cell>
+                    </td>
                 @endif
                 @if (in_array('source', $columns, true))
-                    <x-admin.table.cell class="whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->source->label() }}</x-admin.table.cell>
+                    <td class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->source->label() }}</td>
                 @endif
                 @if (in_array('stage', $columns, true))
-                    <x-admin.table.cell><x-admin.badge :color="$lead->stage->badgeColor()">{{ $lead->stage->name }}</x-admin.badge></x-admin.table.cell>
+                    <td class="px-5 py-3"><x-admin.badge :color="$lead->stage->badgeColor()">{{ $lead->stage->name }}</x-admin.badge></td>
                 @endif
                 @if (in_array('owner', $columns, true))
-                    <x-admin.table.cell class="whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->owner?->name ?? 'Unassigned' }}</x-admin.table.cell>
+                    <td class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->owner?->name ?? 'Unassigned' }}</td>
                 @endif
                 @if (in_array('score', $columns, true))
-                    <x-admin.table.cell align="right" numeric>
+                    <td class="px-5 py-3 text-right tabular-nums">
                         <span @class(['font-medium text-wood-700 dark:text-wood-300' => $lead->isHot(), 'text-gray-600 dark:text-gray-400' => ! $lead->isHot()])>{{ $lead->score }}</span>
-                    </x-admin.table.cell>
+                    </td>
                 @endif
                 @if (in_array('next', $columns, true))
-                    <x-admin.table.cell class="whitespace-nowrap">
+                    <td class="px-5 py-3 whitespace-nowrap">
                         @if ($lead->next_action_at)
                             <span @class(['font-medium', 'text-error-600' => $lead->isOverdue(), 'text-gray-700 dark:text-gray-300' => ! $lead->isOverdue()])>
                                 {{ $lead->next_action_type?->label() ?? 'Follow up' }}
@@ -213,9 +213,9 @@
                         @else
                             <span class="text-gray-400">—</span>
                         @endif
-                    </x-admin.table.cell>
+                    </td>
                 @endif
-            </x-admin.table.row>
+            </tr>
         @endforeach
 
         <x-slot:empty>

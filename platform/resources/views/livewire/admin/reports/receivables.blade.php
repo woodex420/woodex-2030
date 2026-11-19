@@ -39,29 +39,29 @@
         </x-slot:head>
 
         @foreach ($rows as $row)
-            <x-admin.table.row :hover="false">
-                <x-admin.table.cell header class="font-medium text-gray-800 dark:text-white/90">
+            <tr>
+                <th scope="row" class="px-5 py-3 font-normal font-medium text-gray-800 dark:text-white/90">
                     <a href="{{ route('admin.contacts.show', $row['contact_id']) }}" wire:navigate class="hover:underline">{{ $row['contact'] }}</a>
-                </x-admin.table.cell>
-                <x-admin.table.cell align="right">{{ $row['invoices'] }}</x-admin.table.cell>
-                <x-admin.table.cell align="right">{{ Money::ofMinor($row['invoiced_minor'])->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell align="right">{{ Money::ofMinor($row['paid_minor'])->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell align="right" class="font-medium">{{ Money::ofMinor($row['balance_minor'])->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell align="right">{{ Money::ofMinor($row['current'])->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell align="right" class="{{ $row['d1_30'] > 0 ? 'text-warning-700 dark:text-warning-400' : 'text-gray-400' }}">{{ Money::ofMinor($row['d1_30'])->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell align="right" class="{{ $row['d31_60'] > 0 ? 'text-warning-700 dark:text-warning-400' : 'text-gray-400' }}">{{ Money::ofMinor($row['d31_60'])->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell align="right" class="{{ $row['d61_90'] > 0 ? 'text-warning-700 dark:text-warning-400' : 'text-gray-400' }}">{{ Money::ofMinor($row['d61_90'])->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell align="right" class="{{ $row['d90_plus'] > 0 ? 'font-medium text-error-600 dark:text-error-400' : 'text-gray-400' }}">{{ Money::ofMinor($row['d90_plus'])->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell>{{ $row['oldest_due']?->format('j M Y') ?? '—' }}</x-admin.table.cell>
-                <x-admin.table.cell class="print:hidden">
+                </th>
+                <td class="px-5 py-3 text-right">{{ $row['invoices'] }}</td>
+                <td class="px-5 py-3 text-right">{{ Money::ofMinor($row['invoiced_minor'])->format($lakh) }}</td>
+                <td class="px-5 py-3 text-right">{{ Money::ofMinor($row['paid_minor'])->format($lakh) }}</td>
+                <td class="px-5 py-3 text-right font-medium">{{ Money::ofMinor($row['balance_minor'])->format($lakh) }}</td>
+                <td class="px-5 py-3 text-right">{{ Money::ofMinor($row['current'])->format($lakh) }}</td>
+                <td class="px-5 py-3 text-right {{ $row['d1_30'] > 0 ? 'text-warning-700 dark:text-warning-400' : 'text-gray-400' }}">{{ Money::ofMinor($row['d1_30'])->format($lakh) }}</td>
+                <td class="px-5 py-3 text-right {{ $row['d31_60'] > 0 ? 'text-warning-700 dark:text-warning-400' : 'text-gray-400' }}">{{ Money::ofMinor($row['d31_60'])->format($lakh) }}</td>
+                <td class="px-5 py-3 text-right {{ $row['d61_90'] > 0 ? 'text-warning-700 dark:text-warning-400' : 'text-gray-400' }}">{{ Money::ofMinor($row['d61_90'])->format($lakh) }}</td>
+                <td class="px-5 py-3 text-right {{ $row['d90_plus'] > 0 ? 'font-medium text-error-600 dark:text-error-400' : 'text-gray-400' }}">{{ Money::ofMinor($row['d90_plus'])->format($lakh) }}</td>
+                <td class="px-5 py-3">{{ $row['oldest_due']?->format('j M Y') ?? '—' }}</td>
+                <td class="px-5 py-3 print:hidden">
                     @php
                         $whatsapp = $this->whatsappFor((int) $row['contact_id']);
                     @endphp
                     @if ($whatsapp)
                         <a href="{{ $whatsapp }}" target="_blank" rel="noopener" class="text-theme-xs font-medium text-brand-600 hover:underline dark:text-brand-400">Nudge</a>
                     @endif
-                </x-admin.table.cell>
-            </x-admin.table.row>
+                </td>
+            </tr>
         @endforeach
 
         <x-slot:empty>

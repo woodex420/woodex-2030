@@ -57,40 +57,40 @@
 
         @foreach ($projects as $project)
             @php($next = $project->nextMilestone())
-            <x-admin.table.row wire:key="project-{{ $project->id }}">
-                <x-admin.table.cell header>
+            <tr wire:key="project-{{ $project->id }}" class="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                <th scope="row" class="px-5 py-3 font-normal">
                     <a href="{{ route('admin.projects.show', $project) }}" wire:navigate class="block font-medium text-gray-800 hover:underline dark:text-white/90">{{ $project->name }}</a>
                     <span class="block text-theme-xs text-gray-500">{{ implode(' · ', array_filter([$project->code, $project->business_line->tag()])) }}</span>
                     @if ($project->status !== \App\Domain\Projects\Enums\ProjectStatus::Active)
                         <span class="mt-1 inline-block"><x-admin.badge :color="$project->status->color()">{{ $project->status->label() }}</x-admin.badge></span>
                     @endif
-                </x-admin.table.cell>
-                <x-admin.table.cell class="hidden lg:table-cell">
+                </th>
+                <td class="px-5 py-3 hidden lg:table-cell">
                     <span class="block text-gray-700 dark:text-gray-300">{{ $project->contact?->name }}</span>
                     <span class="block text-theme-xs text-gray-500">{{ $project->area ? $project->area.', ' : '' }}{{ $project->city }}</span>
-                </x-admin.table.cell>
-                <x-admin.table.cell><x-admin.badge :color="$project->stage->color()">{{ $project->stage->label() }}</x-admin.badge></x-admin.table.cell>
-                <x-admin.table.cell class="hidden sm:table-cell">
+                </td>
+                <td class="px-5 py-3"><x-admin.badge :color="$project->stage->color()">{{ $project->stage->label() }}</x-admin.badge></td>
+                <td class="px-5 py-3 hidden sm:table-cell">
                     <div class="flex items-center gap-2">
                         <div class="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-white/10" role="progressbar" aria-valuenow="{{ $project->progress_percent }}" aria-valuemin="0" aria-valuemax="100">
                             <div class="h-full rounded-full bg-navy-700" style="width: {{ $project->progress_percent }}%"></div>
                         </div>
                         <span class="tabular-nums text-theme-xs text-gray-500">{{ $project->progress_percent }}%</span>
                     </div>
-                </x-admin.table.cell>
-                <x-admin.table.cell class="hidden max-w-[14rem] lg:table-cell">
+                </td>
+                <td class="px-5 py-3 hidden max-w-[14rem] lg:table-cell">
                     <span class="block truncate text-gray-700 dark:text-gray-300">{{ $next?->name ?? '—' }}</span>
                     <span class="block text-theme-xs text-gray-500">{{ $next?->due_date?->format('j M Y') ?? 'no date' }}</span>
-                </x-admin.table.cell>
-                <x-admin.table.cell align="right" numeric class="text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $project->value_minor)->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell align="right" class="hidden md:table-cell">
+                </td>
+                <td class="px-5 py-3 text-right tabular-nums text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $project->value_minor)->format($lakh) }}</td>
+                <td class="px-5 py-3 text-right hidden md:table-cell">
                     <span class="block tabular-nums text-gray-800 dark:text-white/90">{{ Money::ofMinor($project->collectedMinor())->format($lakh) }}</span>
                     <span class="block tabular-nums text-theme-xs text-gray-500">of {{ Money::ofMinor($project->invoicedMinor())->format($lakh) }}</span>
-                </x-admin.table.cell>
-                <x-admin.table.cell class="{{ $project->isOverdue() ? 'text-red-600 dark:text-red-400' : 'text-gray-500' }}">
+                </td>
+                <td class="px-5 py-3 {{ $project->isOverdue() ? 'text-red-600 dark:text-red-400' : 'text-gray-500' }}">
                     {{ $project->target_date?->format('j M Y') ?? '—' }}@if ($project->isOverdue()) · late @endif
-                </x-admin.table.cell>
-            </x-admin.table.row>
+                </td>
+            </tr>
         @endforeach
 
         <x-slot:empty>

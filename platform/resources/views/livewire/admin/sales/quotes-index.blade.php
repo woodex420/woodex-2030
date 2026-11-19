@@ -69,23 +69,23 @@
         </x-slot:head>
 
         @foreach ($quotes as $quote)
-            <x-admin.table.row wire:key="quote-{{ $quote->id }}">
-                <x-admin.table.cell header>
+            <tr wire:key="quote-{{ $quote->id }}" class="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                <th scope="row" class="px-5 py-3 font-normal">
                     <a href="{{ route('admin.quotes.show', $quote) }}" wire:navigate class="block">
                         <span class="block font-medium text-gray-800 hover:underline dark:text-white/90">{{ $quote->label() }}</span>
                         <span class="block max-w-xs truncate text-theme-xs text-gray-500">{{ $quote->title }}</span>
                         <span class="block text-theme-xs text-gray-500 md:hidden">{{ $quote->contact?->name }}</span>
                     </a>
-                </x-admin.table.cell>
-                <x-admin.table.cell class="hidden md:table-cell">
+                </th>
+                <td class="px-5 py-3 hidden md:table-cell">
                     <span class="block text-gray-700 dark:text-gray-300">{{ $quote->contact?->name }}</span>
                     <span class="block text-theme-xs text-gray-500">{{ $quote->company?->name ?? ($quote->lead ? 'Enquiry '.$quote->lead->ref : '') }}</span>
-                </x-admin.table.cell>
-                <x-admin.table.cell><x-admin.badge :color="$quote->status->color()">{{ $quote->status->label() }}</x-admin.badge></x-admin.table.cell>
-                <x-admin.table.cell align="right" numeric class="font-medium text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $quote->total_minor)->format($lakh) }}</x-admin.table.cell>
-                <x-admin.table.cell class="hidden text-gray-600 lg:table-cell dark:text-gray-400">{{ $quote->owner?->name ?? '—' }}</x-admin.table.cell>
-                <x-admin.table.cell class="hidden text-gray-500 sm:table-cell" title="{{ $quote->updated_at?->format('j M Y, g:i a') }}">{{ $quote->updated_at?->diffForHumans() }}</x-admin.table.cell>
-            </x-admin.table.row>
+                </td>
+                <td class="px-5 py-3"><x-admin.badge :color="$quote->status->color()">{{ $quote->status->label() }}</x-admin.badge></td>
+                <td class="px-5 py-3 text-right tabular-nums font-medium text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $quote->total_minor)->format($lakh) }}</td>
+                <td class="px-5 py-3 hidden text-gray-600 lg:table-cell dark:text-gray-400">{{ $quote->owner?->name ?? '—' }}</td>
+                <td class="px-5 py-3 hidden text-gray-500 sm:table-cell" title="{{ $quote->updated_at?->format('j M Y, g:i a') }}">{{ $quote->updated_at?->diffForHumans() }}</td>
+            </tr>
         @endforeach
 
         <x-slot:empty>
