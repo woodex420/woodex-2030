@@ -339,8 +339,8 @@ it('counts the screens that still write a table by hand: the list may only get s
     sort($written);
 
     expect($found)->toBe($written)
-        // Written down on 19 November 2026, before the first list moved: 51. It may only fall.
-        ->and(count($found))->toBeLessThanOrEqual(51)
+        // 51 on 19 November 2026, before the first list moved; 45 once the first six had. It may only fall.
+        ->and(count($found))->toBeLessThanOrEqual(45)
         // A screen is on one side or the other: it does not draw the shared table and one of its own.
         ->and(array_values(array_intersect($using, $found)))->toBe([]);
 });
