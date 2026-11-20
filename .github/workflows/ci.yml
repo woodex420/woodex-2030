@@ -63,6 +63,15 @@ jobs:
         run: |
           node scripts/verify-plan.mjs
           node scripts/test-verify-plan.mjs
+      - name: Every table of the old system has its place in the admin
+        # docs/woodex-os/acceptance/tables.json says where each table of the old system goes in the Laravel admin
+        # (master list T-175). Fails when a table of the old schema files has no row or two, when a row sends
+        # rows into a table that no migration of the admin creates, when its owner is not a screen of the admin,
+        # when its wave is not the wave the master list gives its line, or when document 36 does not show what
+        # the file says. The second command tries the check itself, one mistake at a time.
+        run: |
+          node scripts/verify-table-map.mjs
+          node scripts/test-verify-table-map.mjs
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps
