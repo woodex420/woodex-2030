@@ -1,0 +1,453 @@
+{
+ "about": "The decisions an importer of the old system follows, written by hand; each is a proposal until the mapping of its module is approved (master list T-181). \"words\": for every column of the old system whose words are listed and whose table moves, the place of each word in an enumeration of the admin (\"places\": old word, then the value of the enumeration), or why it has none (\"without\"). \"unique\": every unique index of the tables an importer writes to, with who gives the value (\"admin\": the admin makes it; \"numbers\": only numbers of other records; \"key\": the one class of T-177; \"carried\": the old system's value is written) and, for a carried value, the rule when two old values meet as the database compares them (\"stop\": the import stops and names both; \"first\": the one with the lower old number is kept, the other is listed). \"lines\": where one old row makes several records in one table of the admin (the lines of a quotation), those records get no entry in the table of the old numbers: the entry of their parent answers for them (T-177). Read by App\\Domain\\System\\Import\\OldSystem\\Rules; checked against the old schema and written into document 36 by scripts/verify-old-shape.mjs; checked against the admin's enumerations and against the database's own indexes by the admin's tests.",
+ "words": {
+  "accounts.kind": {
+   "enum": "App\\Domain\\Accounts\\Enums\\AccountType",
+   "places": {
+    "asset": "asset",
+    "liability": "liability",
+    "equity": "equity",
+    "revenue": "income",
+    "expense": "expense"
+   },
+   "without": {}
+  },
+  "activities.kind": {
+   "enum": "App\\Domain\\Crm\\Enums\\ActivityType",
+   "places": {
+    "call": "call",
+    "meeting": "meeting",
+    "note": "note",
+    "email": "email",
+    "payment": "payment",
+    "system": "system"
+   },
+   "without": {
+    "status_change": "The admin keeps three kinds for this: a change of stage, an event of a quotation, an event of an invoice. Which one depends on what the entry is about, not on the word.",
+    "document": "The admin's timeline has no kind for \"a document was attached\"."
+   }
+  },
+  "conversations.status": {
+   "enum": "App\\Domain\\Conversations\\Enums\\ConversationStatus",
+   "places": {
+    "open": "open",
+    "pending": "pending",
+    "resolved": "closed",
+    "snoozed": "snoozed"
+   },
+   "without": {}
+  },
+  "invoices.status": {
+   "enum": "App\\Domain\\Sales\\Enums\\InvoiceStatus",
+   "places": {
+    "Issued": "issued",
+    "Partially Paid": "partially_paid",
+    "Paid": "paid",
+    "Cancelled": "void"
+   },
+   "without": {},
+   "note": "The old system works \"Overdue\" out when it shows an invoice and never stores it; so does the admin."
+  },
+  "meetings.channel": {
+   "enum": "App\\Domain\\Crm\\Enums\\TaskType",
+   "places": {
+    "in-person": "meeting",
+    "phone": "call",
+    "video": "meeting"
+   },
+   "without": {},
+   "note": "A meeting becomes a task and an entry on the timeline. That it was held by video is kept in the note, not in the kind."
+  },
+  "meetings.status": {
+   "enum": "App\\Domain\\Crm\\Enums\\TaskStatus",
+   "places": {
+    "scheduled": "open",
+    "held": "done",
+    "cancelled": "cancelled"
+   },
+   "without": {
+    "no_show": "A task of the admin is open, done or cancelled. A meeting nobody came to is none of the three."
+   }
+  },
+  "messages.direction": {
+   "enum": "App\\Domain\\Conversations\\Enums\\MessageDirection",
+   "places": {
+    "inbound": "in",
+    "outbound": "out"
+   },
+   "without": {
+    "system": "A message of the admin comes in or goes out. A line the system wrote itself is neither: in the admin it is a note inside the conversation."
+   }
+  },
+  "projects.stage": {
+   "enum": "App\\Domain\\Projects\\Enums\\ProjectStage",
+   "places": {
+    "Planning": "planning",
+    "Procurement": "procurement",
+    "Handover": "handover"
+   },
+   "without": {
+    "Production": "The admin's stages are those of a fit-out: design, execution, finishing. The making of furniture has no stage of its own there.",
+    "Delivery": "The admin has no stage for the delivery.",
+    "Installation": "The admin has no stage for the installation."
+   }
+  },
+  "quotes.status": {
+   "enum": "App\\Domain\\Sales\\Enums\\QuoteStatus",
+   "places": {
+    "Draft": "draft",
+    "Approval": "pending_approval",
+    "Sent": "sent",
+    "Viewed": "viewed",
+    "Negotiation": "changes_requested",
+    "Accepted": "accepted",
+    "Rejected": "declined",
+    "Expired": "expired",
+    "Cancelled": "void"
+   },
+   "without": {
+    "Review": "The admin has one step before a quotation is sent (waiting for approval); the old system has two, and this is the first of them.",
+    "Revised": "In the old system a quotation that is changed after it was sent stays one record with this status. In the admin the change is a new revision, and the earlier one is marked as replaced.",
+    "Approved": "The same word, another meaning. In the old system it is the last step: the customer agreed. In the admin \"approved\" is a step inside the company, before the quotation is sent. It must not be matched by its name."
+   }
+  },
+  "site_visits.status": {
+   "enum": "App\\Domain\\Crm\\Enums\\VisitStatus",
+   "places": {
+    "Scheduled": "scheduled",
+    "Confirmed": "confirmed",
+    "Completed": "completed",
+    "Cancelled": "cancelled"
+   },
+   "without": {}
+  },
+  "supplier_invoices.match_state": {
+   "enum": null,
+   "places": {},
+   "without": {
+    "matched": "The admin does not compare a bill with its purchase order and its goods receipt, so it keeps no result of that comparison.",
+    "tolerance": "The admin does not compare a bill with its purchase order and its goods receipt, so it keeps no result of that comparison.",
+    "variance": "The admin does not compare a bill with its purchase order and its goods receipt, so it keeps no result of that comparison.",
+    "unlinked": "The admin does not compare a bill with its purchase order and its goods receipt, so it keeps no result of that comparison."
+   }
+  },
+  "supplier_invoices.status": {
+   "enum": "App\\Domain\\Accounts\\Enums\\BillStatus",
+   "places": {
+    "draft": "draft",
+    "posted": "received",
+    "paid": "paid",
+    "cancelled": "void"
+   },
+   "without": {},
+   "note": "The admin works \"part paid\" out from what was paid; the old system has no such word."
+  },
+  "tasks.priority": {
+   "enum": "App\\Domain\\Crm\\Enums\\LeadPriority",
+   "places": {
+    "low": "low",
+    "normal": "normal",
+    "high": "high"
+   },
+   "without": {}
+  }
+ },
+ "unique": [
+  {
+   "table": "bill_payments",
+   "columns": [
+    "idempotency_key"
+   ],
+   "value": "admin",
+   "why": "The admin makes this key itself, once for each payment it records."
+  },
+  {
+   "table": "bill_payments",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "bills",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "bills",
+   "columns": [
+    "vendor_id",
+    "number"
+   ],
+   "value": "carried",
+   "from": "supplier_invoices.supplier_ref",
+   "rule": "stop",
+   "why": "The number the supplier wrote on the invoice. Two invoices of one supplier under one number cannot both be entered."
+  },
+  {
+   "table": "chart_of_accounts",
+   "columns": [
+    "code"
+   ],
+   "value": "carried",
+   "from": "accounts.code",
+   "rule": "stop",
+   "why": "The code of an account. Two accounts cannot share one."
+  },
+  {
+   "table": "commerce_products",
+   "columns": [
+    "slug"
+   ],
+   "value": "carried",
+   "from": "products.id",
+   "rule": "stop",
+   "why": "The address of a product. By the map the old products stay where they are; if that changes, two products cannot share an address."
+  },
+  {
+   "table": "commerce_products",
+   "columns": [
+    "source_key"
+   ],
+   "value": "carried",
+   "from": "products.id",
+   "rule": "stop",
+   "why": "The code under which a product came in. By the map the old products stay where they are; if that changes, two products cannot share a code."
+  },
+  {
+   "table": "conversations",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "conversations",
+   "columns": [
+    "widget_token"
+   ],
+   "value": "admin",
+   "why": "The admin makes this key itself for a chat on the website."
+  },
+  {
+   "table": "expenses",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "invoices",
+   "columns": [
+    "number"
+   ],
+   "value": "carried",
+   "from": "invoices.ref",
+   "rule": "stop",
+   "why": "The number printed on an invoice. The old system does not hold it unique, the admin does: two invoices under one number stop the import."
+  },
+  {
+   "table": "invoices",
+   "columns": [
+    "project_milestone_id"
+   ],
+   "value": "numbers",
+   "why": "One invoice for one milestone of a project."
+  },
+  {
+   "table": "invoices",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "invoices",
+   "columns": [
+    "source_quote_id"
+   ],
+   "value": "numbers",
+   "why": "One invoice from one quotation."
+  },
+  {
+   "table": "journal_entries",
+   "columns": [
+    "entry_no"
+   ],
+   "value": "carried",
+   "from": "journal_entries.ref",
+   "rule": "stop",
+   "why": "The number of an entry of the books."
+  },
+  {
+   "table": "journal_entries",
+   "columns": [
+    "source_type",
+    "source_id"
+   ],
+   "value": "admin",
+   "why": "The admin writes here which of its own records an entry was made for."
+  },
+  {
+   "table": "leads",
+   "columns": [
+    "ref"
+   ],
+   "value": "carried",
+   "from": "leads.ref",
+   "rule": "stop",
+   "why": "The number of an enquiry. The old system does not hold it unique, the admin does."
+  },
+  {
+   "table": "legacy_refs",
+   "columns": [
+    "legacy_table",
+    "legacy_id"
+   ],
+   "value": "key",
+   "why": "The old name and the old number of a record. Only the one class writes them, in a form in which upper and lower case cannot meet (T-177)."
+  },
+  {
+   "table": "media",
+   "columns": [
+    "uuid"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "messages",
+   "columns": [
+    "external_id"
+   ],
+   "value": "admin",
+   "why": "The number a provider gives a message. The old system kept none, so it stays empty."
+  },
+  {
+   "table": "payment_allocations",
+   "columns": [
+    "payment_id",
+    "invoice_id"
+   ],
+   "value": "numbers",
+   "why": "One share of a payment for one invoice."
+  },
+  {
+   "table": "payments",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "payments",
+   "columns": [
+    "receipt_number"
+   ],
+   "value": "admin",
+   "why": "The admin numbers its receipts itself."
+  },
+  {
+   "table": "projects",
+   "columns": [
+    "code"
+   ],
+   "value": "carried",
+   "from": "projects.ref",
+   "rule": "stop",
+   "why": "The number of a project."
+  },
+  {
+   "table": "projects",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "projects",
+   "columns": [
+    "quote_id"
+   ],
+   "value": "numbers",
+   "why": "One project from one quotation."
+  },
+  {
+   "table": "quote_templates",
+   "columns": [
+    "slug"
+   ],
+   "value": "carried",
+   "from": "quote_templates.name",
+   "rule": "stop",
+   "why": "The address of a template, made from its name. Two templates whose names differ only in case would get one address."
+  },
+  {
+   "table": "quote_versions",
+   "columns": [
+    "quote_id",
+    "revision"
+   ],
+   "value": "numbers",
+   "why": "One record for each revision of a quotation."
+  },
+  {
+   "table": "quotes",
+   "columns": [
+    "number",
+    "option_label"
+   ],
+   "value": "carried",
+   "from": "quotes.ref",
+   "rule": "stop",
+   "why": "The number printed on a quotation. The old system does not hold it unique, the admin does."
+  },
+  {
+   "table": "quotes",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  },
+  {
+   "table": "users",
+   "columns": [
+    "email"
+   ],
+   "value": "carried",
+   "from": "users.email",
+   "rule": "first",
+   "why": "An address for signing in. By the map nobody's account is carried over: people are invited. If that changes, one mailbox is one person: the account with the lower old number is kept and the other is listed for you."
+  },
+  {
+   "table": "vendors",
+   "columns": [
+    "public_id"
+   ],
+   "value": "admin",
+   "why": "The admin makes this identifier itself for every new record."
+  }
+ ],
+ "lines": [
+  {
+   "from": "invoices",
+   "into": "invoice_items",
+   "why": "The lines of an invoice are one block inside the old row and rows of their own in the admin. They are written with their invoice and replaced with it; the entry of the invoice answers for them."
+  },
+  {
+   "from": "quotes",
+   "into": "quote_items",
+   "why": "The lines of a quotation are one block inside the old row and rows of their own in the admin. They are written with their quotation and replaced with it; the entry of the quotation answers for them."
+  }
+ ]
+}
