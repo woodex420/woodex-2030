@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\ViewException;
 use Symfony\Component\Finder\Finder;
+use Tests\Support\Card;
 use Tests\TestCase;
 
 /*
@@ -23,6 +24,11 @@ use Tests\TestCase;
 |
 | These tests draw the component and read it as a screen reader does: by the names and roles in the page, not by
 | the classes. The last one counts the screens that still write a table by hand. That list may only get shorter.
+|
+| On a narrow screen (master list T-042) a list that says cards is drawn as cards, by the stylesheet alone. What a
+| test can read of that without a browser is here: which cells a card holds and under which word, and that the
+| rules for cards stand inside one media query, so that the table from 640 px up is the table it was. How a card
+| looks, and that nothing scrolls sideways, a browser measures (scripts/os-journeys.mjs, the last step).
 */
 
 uses(TestCase::class);
@@ -274,6 +280,150 @@ it('keeps a total under the rows, and drops it when there are none', function ()
 
     expect(trim((string) preg_replace('/\s+/', ' ', drawnTable(TABLE_ROWS.$foot)->querySelector('tfoot')->textContent)))->toBe('Total Rs 4,50,000')
         ->and(drawnTable(TABLE_ROWS.$foot, ['rows' => []])->querySelector('tfoot'))->toBeNull();
+});
+
+it('draws a row as a card on a narrow screen: what names it, each fact under its word, and nothing the list did not mark', function () {
+    $rows = <<<'BLADE'
+        @foreach ($rows as $row)
+            <tr>
+                <th scope="row" class="px-5 py-3 font-normal"><a href="/quotes/{{ $row['ref'] }}">{{ $row['ref'] }}</a></th>
+                <td data-label="Client" class="hidden px-5 py-3 md:table-cell">{{ $row['client'] }}</td>
+                <td data-label="Value" class="px-5 py-3 text-right tabular-nums">{{ $row['value'] }}</td>
+            </tr>
+        @endforeach
+        BLADE;
+
+    $cards = drawnTable($rows, attributes: ':rows="$rows" cards');
+    $frame = $cards->querySelector('[data-table-state]');
+
+    // The list says it with one word; the stylesheet does the rest, and only for a table that shows rows.
+    expect($frame->classList->contains('wx-table-cards'))->toBeTrue()
+        ->and($frame->classList->contains('wx-table-choose'))->toBeFalse()
+        ->and($frame->getAttribute('data-table-state'))->toBe('success')
+        ->and(drawnTable($rows)->querySelector('[data-table-state]')->classList->contains('wx-table-cards'))->toBeFalse();
+
+    // It is one table and one row for each record: a card is the row itself, not a second drawing of it.
+    expect($cards->querySelectorAll('table')->length)->toBe(1)
+        ->and($cards->querySelectorAll('tbody > tr')->length)->toBe(1);
+
+    $row = $cards->querySelector('tbody > tr');
+    expect(Card::of($row))->toBe(['name' => 'Q-0001', 'facts' => ['Client: Ahsan Traders', 'Value: Rs 4,50,000'], 'leads' => '/quotes/Q-0001'])
+        // The word on a card is the heading of the cell's column, word for word: the two cannot drift apart.
+        ->and(Card::wordsThatDiffer($row))->toBe([]);
+
+    // A list that calls a fact by another word than its column is named by the same reading.
+    $drifted = drawnTable(str_replace('data-label="Client"', 'data-label="Customer"', $rows), attributes: ':rows="$rows" cards');
+    expect(Card::wordsThatDiffer($drifted->querySelector('tbody > tr')))->toBe(['Customer under "Client"']);
+
+    // A state that is not rows keeps its one wide cell: the frame says which state it is, and the rules that lay a
+    // row out as a card name "success" only. (The headings are not drawn in any state, below 640 px.)
+    $empty = drawnTable($rows, ['rows' => []], ':rows="$rows" cards')->querySelector('[data-table-state]');
+    expect($empty->getAttribute('data-table-state'))->toBe('empty')
+        ->and($empty->classList->contains('wx-table-cards'))->toBeTrue();
+});
+
+it('keeps the choosing of rows within reach on a card: the box of each row, and one for the page with its words', function () {
+    $page = HTMLDocument::createFromString('<!DOCTYPE html><body>'.Blade::render(<<<'BLADE'
+        <x-admin.table label="Leads" :rows="$rows" :selected="[]" cards>
+            <x-slot:head>
+                <x-admin.table.select-all :ids="collect($rows)->pluck('id')" :selected="[]" />
+                <x-admin.table.heading>Lead</x-admin.table.heading>
+                <x-admin.table.heading>Stage</x-admin.table.heading>
+            </x-slot:head>
+            @foreach ($rows as $row)
+                <tr>
+                    <x-admin.table.select :value="$row['id']" label="Select {{ $row['ref'] }}" />
+                    <th scope="row" class="px-5 py-3 font-normal">{{ $row['ref'] }}</th>
+                    <td data-label="Stage" class="px-5 py-3">{{ $row['stage'] }}</td>
+                </tr>
+            @endforeach
+        </x-admin.table>
+        BLADE, ['rows' => [['id' => 41, 'ref' => 'L-0041', 'stage' => 'Contacted']]]).'</body>', LIBXML_NOERROR);
+
+    $frame = $page->querySelector('[data-table-state]');
+    $all = $page->querySelector('thead th.wx-select-all');
+    $words = $all->querySelector('label > .wx-card-only');
+
+    expect($frame->classList->contains('wx-table-cards'))->toBeTrue()
+        ->and($frame->classList->contains('wx-table-choose'))->toBeTrue()
+        // The box of a row is found by the stylesheet, to stand left of its card.
+        ->and($page->querySelector('tbody > tr > td.wx-select input[type="checkbox"]')->getAttribute('aria-label'))->toBe('Select L-0041')
+        // The headings are not drawn on cards. "Select all on this page" stays, with its words beside the box: they
+        // are inside the label, so a press on them ticks the box, and hidden from a screen reader, which already
+        // has them as the name of the box.
+        ->and(trim($words->textContent))->toBe('Select all on this page')
+        ->and($words->getAttribute('aria-hidden'))->toBe('true')
+        ->and($all->querySelector('input[type="checkbox"]')->getAttribute('aria-label'))->toBe('Select all on this page')
+        ->and($all->querySelector('label')->contains($all->querySelector('input')))->toBeTrue()
+        ->and(Card::of($page->querySelector('tbody > tr')))->toBe(['name' => 'L-0041', 'facts' => ['Stage: Contacted'], 'leads' => null])
+        // The box of the row and the cell that names it stand before the fact: the word is still the word of its column.
+        ->and(Card::wordsThatDiffer($page->querySelector('tbody > tr')))->toBe([]);
+
+    // Where the list does not say cards, the same parts are drawn and nothing is marked for the stylesheet.
+    $table = HTMLDocument::createFromString('<!DOCTYPE html><body>'.Blade::render('<x-admin.table label="Leads" :rows="[1]" :selected="[]"><x-slot:head><x-admin.table.select-all :ids="[1]" :selected="[]" /></x-slot:head><tr><th scope="row">L</th></tr></x-admin.table>').'</body>', LIBXML_NOERROR);
+    expect($table->querySelector('[data-table-state]')->classList->contains('wx-table-choose'))->toBeFalse();
+});
+
+it('changes nothing from 640 px up: every rule for cards stands inside one media query, in the source and in the built stylesheet', function () {
+    $source = (string) file_get_contents(resource_path('css/admin.css'));
+
+    // The one block, by its opening words, and where it ends (the braces are counted).
+    $opens = strpos($source, '@media (width < 40rem) {');
+    expect($opens)->not->toBeFalse()
+        ->and(substr_count($source, '@media (width < 40rem) {'))->toBe(1);
+
+    $depth = 0;
+    $closes = null;
+    for ($at = strpos($source, '{', $opens); $at < strlen($source); $at++) {
+        $depth += $source[$at] === '{' ? 1 : ($source[$at] === '}' ? -1 : 0);
+        if ($depth === 0) {
+            $closes = $at;
+            break;
+        }
+    }
+    $block = substr($source, $opens, $closes - $opens);
+
+    // Every rule that names the cards is inside it …
+    preg_match_all('/\.wx-table-cards/', $source, $everywhere, PREG_OFFSET_CAPTURE);
+    $outside = array_filter($everywhere[0], function (array $found) use ($source, $opens, $closes) {
+        // The note above the block names the class too; a note is not a rule.
+        $inNote = strrpos(substr($source, 0, $found[1]), '/*') > strrpos(substr($source, 0, $found[1]), '*/');
+
+        return ! $inNote && ($found[1] < $opens || $found[1] > $closes);
+    });
+    expect($everywhere[0])->not->toBeEmpty()
+        ->and($outside)->toBe([]);
+
+    // … and the block holds nothing else: each of its rules begins with the cards' own class.
+    $rules = array_filter(array_map('trim', preg_split('/\}\s*/', (string) preg_replace('#/\*.*?\*/#s', '', substr($block, strpos($block, '{') + 1)))));
+    foreach ($rules as $rule) {
+        expect($rule)->toMatch('/^(\.dark )?\.wx-table-cards[.\[ ]/');
+    }
+    expect(count($rules))->toBeGreaterThan(10);
+
+    // The words beside "Select all" are not drawn at all unless a rule for cards shows them.
+    expect($source)->toContain('.wx-card-only { display:none; }');
+
+    // The stylesheet the browser gets is the built one (public/build is committed: AGENTS.md §6). A rule written
+    // in the source and not built does nothing; this fails then.
+    $manifest = json_decode((string) file_get_contents(public_path('build/manifest.json')), true, flags: JSON_THROW_ON_ERROR);
+    $built = (string) file_get_contents(public_path('build/'.$manifest['resources/css/admin.css']['file']));
+    $from = strpos($built, '@media not all and (width>=40rem){.wx-table-cards');
+    expect($from)->not->toBeFalse();
+
+    $depth = 0;
+    $to = null;
+    for ($at = strpos($built, '{', $from); $at < strlen($built); $at++) {
+        $depth += $built[$at] === '{' ? 1 : ($built[$at] === '}' ? -1 : 0);
+        if ($depth === 0) {
+            $to = $at;
+            break;
+        }
+    }
+    preg_match_all('/\.wx-table-cards/', $built, $inBuilt, PREG_OFFSET_CAPTURE);
+    expect(array_filter($inBuilt[0], fn (array $found) => $found[1] < $from || $found[1] > $to))->toBe([])
+        ->and($built)->toContain('.wx-card-only{display:none}')
+        ->and($built)->toContain('content:attr(data-label)');
 });
 
 it('counts the screens that still write a table by hand: the list may only get shorter', function () {

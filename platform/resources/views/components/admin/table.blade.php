@@ -7,6 +7,7 @@
     'model' => 'selected',          // the Livewire property that holds them
     'card' => true,                 // false where the screen already draws the card
     'dense' => false,               // tighter rows, for a short table inside a section
+    'cards' => false,               // below 640 px each row is drawn as a card (see "On a narrow screen" below)
     'tableClass' => '',
     'emptyIcon' => 'inbox',
     'emptyTitle' => null,
@@ -47,6 +48,20 @@
     row (release report 34, §8). The frame, the headings and the tick boxes are components; what is drawn a
     thousand times on a page is not.
 
+    On a narrow screen (master list T-042; document 05 §9: "table-to-card treatment for key workflows"). A list
+    that says cards is drawn as cards below 640 px, by the stylesheet alone (resources/css/admin.css, "The shared
+    table on a narrow screen"): the same rows, cells and links, laid out one under the other, so a card cannot
+    differ from its row. On a card stand, in this order:
+      · the tick box, where rows can be chosen;
+      · the cell that names the row, <th scope="row">;
+      · every cell the list gave a data-label, with that label before it:
+            <td data-label="Stage" class="px-5 py-3">…</td>
+        The label is the heading of the cell's column, word for word (a test holds the two together).
+    A cell without a data-label is left off the card, on purpose: the list says what matters on a phone. The
+    headings are not drawn on cards, so the label is what tells a person, and a screen reader, what a fact is.
+    Sorting stays with the list's own choice above the table; "Select all on this page" stays, as a line above
+    the cards. From 640 px up nothing of this applies and the table is the table it was.
+
     The pages are the shared page links (components.admin.pagination). The words and roles are held by
     tests/Unit/AdminTableTest.php; which screens still write a table by hand is counted there too.
 --}}
@@ -68,7 +83,7 @@
     $name = \Illuminate\Support\Str::lcfirst((string) $label);
     $rule = 'px-6 py-12 text-center';
 @endphp
-<div {{ $attributes->class(['wx-table']) }} data-table-state="{{ $state }}">
+<div {{ $attributes->class(['wx-table', 'wx-table-cards' => $cards, 'wx-table-choose' => $cards && is_array($selected)]) }} data-table-state="{{ $state }}">
     @isset($filters)
         <div role="search" aria-label="Filter {{ $name }}" {{ $filters->attributes->class(['mb-4']) }}>{{ $filters }}</div>
     @endisset
