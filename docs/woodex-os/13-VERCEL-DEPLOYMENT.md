@@ -200,13 +200,14 @@ address needs the demo password as a GitHub secret, which only the owner can add
 
 ## 7. Sizes
 
-**The function holds 187.8 MB in 11,190 files; Vercel's limit is 250 MB.** Measured on 20 November 2026 by the
-rehearsal in CI, on the packages as Vercel's builder installs them (without the development packages):
+**The function holds 188.4 MB in 11,220 files; Vercel's limit is 250 MB.** Measured on 20 November 2026 by the
+rehearsal in CI (`cc9b695`), on the packages as Vercel's builder installs them (without the development
+packages). Before the packages were brought up to date the same day it was 187.8 MB in 11,190 files:
 
 | Part | MB |
 |---|---|
 | Vercel's PHP runtime (`@libphp/almalinux-9-v85`, with `vercel-php@0.9.0`) | 115.6 |
-| The application's packages (`vendor/`) | 53.0 |
+| The application's packages (`vendor/`) | 53.6 |
 | `public/` | 7.9 |
 | `tests/` and `tools/` | 2.3 |
 | The rest of the application | 8.9 |
@@ -225,7 +226,7 @@ rehearsal in CI, on the packages as Vercel's builder installs them (without the 
   `b16fd49`), so the number is this repository's own count of the files, not Vercel's. Vercel's limit applies to
   the files unpacked; if Vercel counts differently, the 10 MB between 240 and 250 is the margin.
 - `tests/` and `tools/` could be left out with the builder's `excludeFiles` option. That would save 2.3 MB of
-  187.8 and is not done.
+  188.4 and is not done.
 
 ## 8. How long a browser keeps a file
 
@@ -235,7 +236,7 @@ Vite gives the stylesheets and scripts it builds a name that changes when their 
 | What | `Cache-Control` | Why |
 |---|---|---|
 | The eight built files with a marked name (`/build/assets/<name>-<8 characters>.<ext>`) | `public, max-age=31536000, immutable` (one year) | A new build gives a new name |
-| `build/assets/site.css`, `site.js` (fixed names), the build's manifest, every other file of `public/` | Vercel's own (`max-age=0`: ask again each time) | The name stays while the content changes |
+| `build/assets/site.css`, `site.js` (fixed names), the build's manifest, every other file of `public/` | Vercel's own: `public, max-age=0, must-revalidate` (ask again each time) | The name stays while the content changes |
 | A marked name that does not exist | 404, no long life | The rule is applied only to a file that was found |
 | A page of the admin | The application's own: `no-store, private` on the sign-in pages, `no-cache, private` on the others | An answer of the function is not a file that was found: the rule does not reach it |
 
@@ -247,6 +248,12 @@ and the scripts on each page.
 - `scripts/test-vercel-livewire-root.mjs` holds the rule: it reads the build's manifest and fails when a marked
   file is not covered, when a file with a fixed name is, when the life is shorter, and when a third fixed name
   appears in `vite.config.js`.
+- **Where the form of the rule comes from.** Vercel's own builder for Next.js writes its one-year rule for built
+  files in the same place and the same form: after `handle: hit`, headers only, `continue: true` (`@vercel/next`
+  31.0.1, read on 20 November). On that rule it also sets `important: true`, a flag that Vercel's routing schema
+  marks as deprecated and explains nowhere (`@vercel/routing-utils` 6.6.1); the same builder writes an
+  application's own header rules in that place without it. This repository's rule does not set the flag. **If
+  the outside check ever finds that the year is not sent, that flag is the first thing to try.**
 - **Vercel's network cannot be rehearsed.** The rehearsal applies the rule as Vercel's own development server
   does. That Vercel's network does the same is read from outside after each deployment: the outside check asks
   for the stylesheet the sign-in page names and must read one year, and asks for a marked name that does not
@@ -260,7 +267,11 @@ carries the header `X-Woodex-Cold-Start: 1`**; every later answer of that copy h
 set when `/tmp/woodex-livewire` does not exist yet, which is true once in the life of a copy.
 
 The outside check's first request is the sign-in page, timed, and its notice says whether that answer carried the
-mark. Readings are written here as they are taken:
+mark. Read from Vercel on 20 November, for the build of this project: one function, in one region (`iad1`,
+Washington), on Vercel's "Fluid" setting, on the Hobby plan. How long Vercel keeps a copy that nobody asks is
+Vercel's to decide. The check after a merge comes eight minutes after the push, when Vercel has built anew, and
+is expected to meet a copy that has not started yet; whether it did is what the mark says. Readings are written
+here as they are taken:
 
 | When (UTC) | Asked from | Cold start | First byte |
 |---|---|---|---|
