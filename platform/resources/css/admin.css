@@ -327,7 +327,8 @@ button.wx-summary-card:hover { border-color:var(--color-navy-300); background:va
    without one is left off the card. It is the same markup as the table, laid out another way, so a card cannot
    differ from its row. Only a table that shows rows is laid out so ([data-table-state='success']): "empty",
    "error" and the other states keep their one wide cell. The headings are not drawn in any state: with nothing
-   under them they only made the frame wider than a phone, and pushed "No leads match" out of sight.
+   under them they only made the list wider than a phone (the leads: 730 px in a frame of 356), and "No leads match
+   these filters" stood half outside the window.
    Every rule that names .wx-table-cards stands inside this one media query (tests/Unit/AdminTableTest.php reads
    this file for it): from 640 px up the table is the table it was. Outside the layers on purpose, so that these
    rules win over the utilities a cell carries (hidden, px-5, text-right, whitespace-nowrap). */

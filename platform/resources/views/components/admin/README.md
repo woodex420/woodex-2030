@@ -92,7 +92,7 @@ Quotations and Invoices do (T-042).
 | A cell that a wider table hides (`hidden md:table-cell`) can still be on the card | Below 640 px there is room for it under the name, where the table had none beside it |
 | Where rows can be chosen, the tick box stands left of its card, "Select all on this page" in a line above the cards, and what can be done with the chosen rows in its bar above | Choosing works on a phone as on a desktop |
 | Sorting on a phone is the list's own choice above the table | The headings that sort are not drawn. A list whose headings sort keeps a "Sort" choice for this |
-| Only a table that shows rows is laid out as cards | "Nothing here yet", an error and the other states keep their one wide cell. The headings are not drawn in those states either: with nothing under them they made the frame wider than a phone and pushed the words out of sight |
+| Only a table that shows rows is laid out as cards | "Nothing here yet", an error and the other states keep their one wide cell. The headings are not drawn in those states either: with nothing under them they made the list wider than a phone, and "No leads match these filters" stood half outside the window |
 | Every rule for cards stands inside one media query, below 640 px | From 640 px up the table is the table it was. `tests/Unit/AdminTableTest.php` reads the stylesheet, and the built one, for it |
 
 A browser measures what a test cannot read from the page's markup: that nothing of the list scrolls sideways at
