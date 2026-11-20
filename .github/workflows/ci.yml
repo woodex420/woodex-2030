@@ -83,6 +83,12 @@ jobs:
         run: |
           node scripts/verify-old-shape.mjs
           node scripts/test-verify-old-shape.mjs
+      - name: The list of accepted security advisories is whole, and the audit that reads it can fail
+        # docs/woodex-os/acceptance/advisories.json names the known advisories that are accepted for now, each
+        # with its reason (master list T-071). The audit itself asks the advisory databases and runs in its own
+        # workflow; here its judgement is tried without a network, one change at a time: a reason taken out, an
+        # advisory that is not on the list, an entry that nothing reports any more.
+        run: node scripts/test-audit-advisories.mjs
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps
