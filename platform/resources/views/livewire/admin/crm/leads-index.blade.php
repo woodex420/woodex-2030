@@ -125,7 +125,10 @@
         @endif
     </div>
 
-    <x-admin.table label="Leads" :rows="$leads" :selected="$selected" table-class="wx-leads-table">
+    {{-- On a phone each lead is a card (cards): its reference, then who, where it stands, whose it is and what is
+         due next: the cells that carry a data-label. Service, source and score are left off a card on purpose;
+         they are one press away, on the lead's page. --}}
+    <x-admin.table label="Leads" :rows="$leads" :selected="$selected" table-class="wx-leads-table" cards>
         {{-- What can be done with every chosen lead --}}
         <x-slot:bulk>
             @if ($staff->isNotEmpty())
@@ -164,7 +167,7 @@
                     <span class="block text-theme-xs text-gray-400">{{ $lead->created_at?->timezone('Asia/Karachi')->format('j M, g:i a') }}</span>
                 </th>
                 @if (in_array('contact', $columns, true))
-                    <td class="px-5 py-3">
+                    <td data-label="Contact" class="px-5 py-3">
                         <button type="button" wire:click="openLeadDrawer({{ $lead->id }})" class="block text-left font-medium text-gray-800 hover:text-brand-600 hover:underline dark:text-white/90">{{ $lead->contact->name }}</button>
                         <span class="flex items-center gap-1 text-theme-xs text-gray-500">
                             {{ \App\Support\Phone::display($lead->contact->phone) ?: $lead->contact->email }}
@@ -193,10 +196,10 @@
                     <td class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->source->label() }}</td>
                 @endif
                 @if (in_array('stage', $columns, true))
-                    <td class="px-5 py-3"><x-admin.badge :color="$lead->stage->badgeColor()">{{ $lead->stage->name }}</x-admin.badge></td>
+                    <td data-label="Stage" class="px-5 py-3"><x-admin.badge :color="$lead->stage->badgeColor()">{{ $lead->stage->name }}</x-admin.badge></td>
                 @endif
                 @if (in_array('owner', $columns, true))
-                    <td class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->owner?->name ?? 'Unassigned' }}</td>
+                    <td data-label="Owner" class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->owner?->name ?? 'Unassigned' }}</td>
                 @endif
                 @if (in_array('score', $columns, true))
                     <td class="px-5 py-3 text-right tabular-nums">
@@ -204,7 +207,7 @@
                     </td>
                 @endif
                 @if (in_array('next', $columns, true))
-                    <td class="px-5 py-3 whitespace-nowrap">
+                    <td data-label="Next action" class="px-5 py-3 whitespace-nowrap">
                         @if ($lead->next_action_at)
                             <span @class(['font-medium', 'text-error-600' => $lead->isOverdue(), 'text-gray-700 dark:text-gray-300' => ! $lead->isOverdue()])>
                                 {{ $lead->next_action_type?->label() ?? 'Follow up' }}

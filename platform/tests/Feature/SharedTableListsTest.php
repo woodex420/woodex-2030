@@ -18,6 +18,7 @@ use Dom\Element;
 use Dom\HTMLDocument;
 use Dom\Node;
 use Livewire\Livewire;
+use Tests\Support\Card;
 
 /*
 | The lists on the shared table. The first six (master list T-041): Leads, Quotations, Projects, Payables by age,
@@ -25,6 +26,11 @@ use Livewire\Livewire;
 | still pass. These add what moving could have broken and no list's test asked: that the table has a name, that a
 | heading sorts by a word the list knows and the rows come in that order, that the pages and the chosen rows are
 | the ones they were.
+|
+| On a phone three of them are drawn as cards (T-042): Leads, Quotations and Invoices. The last tests here read
+| each card as a screen reader does: what names it, each fact under the word of its column, where it leads. That
+| a card is laid out as a card, and that nothing scrolls sideways at 390 px, a browser measures
+| (scripts/os-journeys.mjs, the last step).
 |
 | The component itself is drawn state by state in tests/Unit/AdminTableTest.php.
 */
@@ -252,4 +258,54 @@ it('sorts the quotations by a heading exactly as by the list\'s own choice', fun
 
     $screen->set('search', 'nothing-by-this-name');
     expect(saidBy(drawnScreen($screen->html())->querySelector('tbody [role="status"]')))->toContain('No quotations match');
+});
+
+/*
+| On a phone (master list T-042): the three lists that are drawn as cards.
+*/
+
+it('draws each lead as a card: who, where it stands, whose it is and what is due, under the words of their columns', function () {
+    $manager = $this->userWithRole('sales_manager');
+    $older = Lead::factory()->create(['owner_id' => $manager->id, 'created_at' => now()->subDays(2), 'next_action_at' => now()->addDay()]);
+    $newer = Lead::factory()->create(['owner_id' => null, 'created_at' => now()->subDay()]);
+
+    $screen = Livewire::actingAs($manager)->test(LeadsIndex::class);
+    $page = drawnScreen($screen->html());
+    $frame = $page->querySelector('[data-table-state]');
+    $rows = [...$page->querySelectorAll('tbody > tr')];
+
+    // The list says "cards", and that rows can be chosen: the stylesheet does the rest below 640 px.
+    expect($frame->classList->contains('wx-table-cards'))->toBeTrue()
+        ->and($frame->classList->contains('wx-table-choose'))->toBeTrue()
+        // A card is the row itself: one table, one row for each lead, in the list's own order. Nothing is drawn twice.
+        ->and($page->querySelectorAll('table')->length)->toBe(1)
+        ->and(count($rows))->toBe(2)
+        ->and($page->querySelectorAll('a[href="'.route('admin.leads.show', $newer).'"]')->length)->toBe(1);
+
+    $first = Card::of($rows[0]);
+    $second = Card::of($rows[1]);
+
+    expect($first['name'])->toStartWith($newer->ref)
+        ->and($first['leads'])->toBe(route('admin.leads.show', $newer))
+        ->and($second['name'])->toStartWith($older->ref)
+        ->and(Card::words($rows[0]))->toBe(['Contact', 'Stage', 'Owner', 'Next action'])
+        ->and(Card::wordsThatDiffer($rows[0]))->toBe([])
+        // Each fact is said with its word, not as a bare word.
+        ->and($first['facts'][0])->toStartWith('Contact: '.$newer->contact->name)
+        ->and($first['facts'][1])->toBe('Stage: '.$newer->stage->name)
+        ->and($first['facts'][2])->toBe('Owner: Unassigned')
+        ->and($second['facts'][2])->toBe('Owner: '.$manager->name)
+        ->and($second['facts'][3])->toStartWith('Next action: ')
+        // What a lead's card can do: open the lead (above), open it beside the list, and be chosen.
+        ->and($rows[0]->querySelector('td[data-label="Contact"] button')?->getAttribute('wire:click'))->toBe('openLeadDrawer('.$newer->id.')')
+        ->and($rows[0]->querySelector('td.wx-select input[type="checkbox"]')?->getAttribute('aria-label'))->toBe('Select '.$newer->ref)
+        ->and(trim($page->querySelector('thead th.wx-select-all .wx-card-only')->textContent))->toBe('Select all on this page');
+
+    // Service and source are columns of the table and are left off a card, on purpose: they carry no word.
+    $off = collect([...$rows[0]->children])->filter(fn ($cell) => $cell->tagName === 'TD' && ! $cell->hasAttribute('data-label') && ! $cell->classList->contains('wx-select'));
+    expect($off->count())->toBe(2);
+
+    // A column the person switched off is on neither: the card follows the columns.
+    $screen->call('toggleColumn', 'owner');
+    expect(Card::words(drawnScreen($screen->html())->querySelector('tbody > tr')))->toBe(['Contact', 'Stage', 'Next action']);
 });
