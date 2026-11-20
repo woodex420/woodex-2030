@@ -56,7 +56,7 @@ Counted from the master list ([`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)) 
 | 1 | T-043, T-086 | A warning before leaving an unsaved form; a quotation line chosen from the catalogue keeps its product and price. **Done on 18 November (pull request #44)** |
 | 2 | T-093 | The ledger with two people writing at once (new, §8). **Done on 18 November (pull request #45)** |
 | 3 | T-063 | The rules of `/api/v1`, which the shop will read. **Done on 19 November (pull request #47).** The round after it is the shop's reading of its products (T-105), on the owner's word (DL-037); the order as it stands now is document 21 |
-| 4 | T-041 | One table for every list |
+| 4 | T-041 | One table for every list. **Done on 20 November (pull request #49).** It was done before the shop's reading of its products (T-105), which was being built on another branch at the time (DL-039) |
 | 5 | T-172, T-175 | The shop's database: its functions, and every table mapped to its new owner |
 | 6 | T-071, T-152, T-153, T-154, T-142, T-189, T-174 | Packages, the demo's housekeeping, the documents the code points at (new, §6) |
 | 7 | T-044 | The dashboard |

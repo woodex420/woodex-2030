@@ -21,6 +21,16 @@ final class ReleaseNotes
     {
         return [
             [
+                'date' => '2026-11-20',
+                'title' => 'Leads and Quotations sort by a press on a column\'s heading',
+                'notes' => [
+                    'Leads and Quotations: press the heading of a column to sort the list by it. On Leads a second press on "Lead" turns the list round, oldest first. An arrow in the heading shows which way the list is sorted. It works from the keyboard too: Tab to the heading, then Enter. The choice "Sort" above the list is still there.',
+                    'Leads: "Newest first" and "Oldest first" now go by the date of the enquiry, the date you see under each reference. Leads brought in from a sheet with their own dates no longer stand on top as the newest.',
+                    'Leads: the tick boxes are easier to hit with a mouse. The box looks the same; the space around it now counts.',
+                    'Six lists are drawn by one shared table now: Leads, Quotations, Projects, Payables by age, Users and Receivables. They look as they did. A screen reader is told the name of each table, and which cell names a row.',
+                ],
+            ],
+            [
                 'date' => '2026-11-19',
                 'title' => 'Two enquiries in the same moment are both saved, and an enquiry sent twice is one',
                 'notes' => [

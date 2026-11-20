@@ -313,6 +313,13 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   `#4f9d21` carries no white text (3.4 : 1); `brand-500` does.
 - **`public/build` is committed** — the production host has no Node.js. After changing CSS or JavaScript run
   `npm ci && npm run build` in `platform/` and commit the new files with the old ones removed.
+- **A list does not write `<table>`: it draws `<x-admin.table>`** (master list T-041). The component and its
+  parts are `platform/resources/views/components/admin/table.blade.php` and the folder beside it; how to use
+  them, and the rules for dialogs, confirmations, toasts and page links, are in the `README.md` of that folder.
+  `tests/Unit/AdminTableTest.php` lists the views that still write a table by hand: a list moves by losing its
+  line there, and a new line there wants a reason. Nothing is printed into an attribute that is run as script:
+  hand it over in a `data-` attribute. And a Tailwind class that no view used before is not in the built
+  stylesheet: build again (the point above), or the class does nothing.
 - **A release that changes what a person sees says so on Feature status.** Add its entry to
   `platform/app/Support/ReleaseNotes.php` in the same pull request: the date, a title, and lines in the words
   of the person at the screen (no list line, no commit: `tests/Feature/WorkspacePreferencesTest.php` refuses

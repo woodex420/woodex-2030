@@ -21,7 +21,7 @@ four of them. A large line can take more than one.
 ## The short version
 
 <!-- generated:short — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-1. **115 lines of the list are not done.** 18 can start now and need nobody: they are planned in 9 rounds (§2). 29 wait for you (§3). 68 wait for an earlier line (§4), and 50 of those stand behind an answer of yours.
+1. **114 lines of the list are not done.** 20 can start now and need nobody: they are planned in 10 rounds (§2). 29 wait for you (§3). 65 wait for an earlier line (§4), and 50 of those stand behind an answer of yours.
 2. **The next round** is round 1: T-105, The shop reads products, categories and series from `/api/v1`.
 3. **The answers of yours that the most lines stand behind:** T-006, Install the trial site on Hostinger (document 24) and send its address (20 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (4 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
 4. **1 critical defect is open:** D-002, The owner password of the old dashboard was printed in a public document — T-021, which waits for you.
@@ -36,11 +36,11 @@ four of them. A large line can take more than one.
 |  |  |
 |---|---|
 | Lines on the list | 153 |
-| Done | 38 |
-| **Can start now, needing nobody** | **18**, in 9 rounds (§2) |
+| Done | 39 |
+| **Can start now, needing nobody** | **20**, in 10 rounds (§2) |
 | **Wait for you** | **29** (§3) |
-| Wait for an earlier line | 68 (§4): 50 stand behind an answer of yours · 10 stand behind lines that need nobody · 8 go with a wave, a date or an event |
-| Not done, by priority | 24 P0, 53 P1, 28 P2, 10 P3 |
+| Wait for an earlier line | 65 (§4): 50 stand behind an answer of yours · 7 stand behind lines that need nobody · 8 go with a wave, a date or an event |
+| Not done, by priority | 24 P0, 52 P1, 28 P2, 10 P3 |
 <!-- /generated:numbers -->
 
 ---
@@ -88,27 +88,27 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the draft handed out in place of the published copy, the test of the unpublished product names it; with the shop's reader left reading rupees where paisa arrive, its script names the price.
 - **The way back:** The shop's switch stays off: the live shop reads what it reads today, and the round changes no setting of either Vercel project. The new addresses hand out only published products, and none is published on the demo. The Node catalogue is not closed in this round.
 
-### Round 2 — One table for every list
+### Round 2 — On a phone, the key lists are cards
 
-**Lines:** T-041 · **Why here:** P1 and part of gate A. Three lines wait for it (T-042, T-050, T-051), and the screen pass (T-045) builds on it. · **When it is merged, these can start:** T-042 (On a phone, the key lists show cards instead of a wide table); T-050 (A reference screen showing every shared component and state); T-051 (Placeholders while a list loads; a notice when the connection is lost).
+**Lines:** T-042 · **Why here:** P1, and the line it waited for is done (T-041). The page of a list is never wider than a phone, but the list inside it is: a person scrolls sideways within the leads list to reach a lead's stage. The shared table is the one place to put that right for every list. · **When it is merged, these can start:** no waiting line.
 
-#### T-041 · P1 · large — One table component for every list, with the five states
+#### T-042 · P1 · medium — On a phone, the key lists show cards instead of a wide table
 
-- **Done when** (the list): One list per area uses it; a test renders each state
-- **Found on 19 November 2026:** 50 screens write their own table: 14 in Sales, 10 in Accounts, 6 in CRM, 5 in System, the others in reports, projects and modules that are switched off. Commerce's lists are not tables. 29 lists turn pages: 15 through the shared page links, 14 through the framework's plain ones. Shared parts exist for buttons, cards, fields, dialogs, toasts, the empty state and the page links; none for a table. (36 more tables are in PDF and mail templates; those stay as they are.)
+- **Done when** (the list): At 390 px each row's main facts and its action are visible without sideways scrolling
+- **Found on 19 November 2026:** Measured in a browser on 19 November, on the rehearsal at 390 px, as the owner. Leads: all eight columns are drawn; the table is 1,036 px wide in a frame of 356 px. Invoices: four of six columns, 391 px in 356. Quotations: three of six columns, and it fits. Tasks is not a table and fits. Projects (363 px in 356), Users (837 px) and the Receivables report (916 px) scroll inside their frame too; the line does not name them. Leads, Quotations and Projects draw the shared table; Invoices still writes its own.
 - **What is built:**
-  1. One table component: headings that sort, a place for filters, pages, the choosing of rows with actions on all chosen, and the five states: loading, empty, error, no permission, success.
-  2. One list of each area that has tables moves to it first: Leads, Quotations, Projects, Payables by age, Users, and one report. The other lists follow in the screen pass (T-045).
-  3. The standards for dialogs and toasts are written beside it.
+  1. The shared table learns a second way to draw its rows for a narrow screen: below 640 px a row is a card, with the cell that names the row on top, the cells the list marks as main under it, each with its heading, and the row's action. The list says which cells are main; a cell that is left off a card is left off on purpose.
+  2. Leads, Quotations and Invoices use it; Invoices moves to the shared table first. Tasks is measured again and left as it is if it still fits.
+  3. Choosing rows, and what can be done with all chosen, stay within reach on a card.
 - **Tests written:**
-  1. A test draws the component in each of the five states and reads its words and its roles for a screen reader: a named table, headings that say how they sort.
-  2. For each list that moves: sorting, filtering, paging and an action on chosen rows give the same rows as before. The lists' existing tests pass unchanged.
-  3. A test counts the screens that still write their own table. The number is written down and may only fall.
+  1. A test draws a list in the narrow way and reads each card as a screen reader does: the row's name, each main fact with its heading ("Stage: Contacted", not a bare word), the action.
+  2. For each of the three lists: the cards are the same rows, in the same order, with the same links, as the table.
+  3. The count of views that write a table by hand falls by one (Invoices).
 - **In a browser:**
-  1. The crawl opens the moved lists as each role at 1366 and 390 px: no sideways scrolling, no console error.
-  2. A journey step sorts the leads by a heading, by keyboard, and reads the first row.
-- **Tried against:** With the empty state taken out of the component, the first test fails. With a hand-written table put back, the count fails.
-- **The way back:** Views only. Each list moves in its own commit and can be put back alone.
+  1. At 390 px each of the four lists is measured: no frame inside the page scrolls sideways, and the page does not.
+  2. A journey step, on a phone: a lead is opened from its card and moved to another stage.
+- **Tried against:** With the narrow way taken off the leads list, the measurement at 390 px names the frame that scrolls.
+- **The way back:** Views and styles only; the built stylesheet changes. Each list in its own commit, and the wide table is untouched.
 
 ### Round 3 — The shop's database: its functions and the map of its tables
 
@@ -306,7 +306,44 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the check of the person's rights taken out, "is not offered" fails.
 - **The way back:** One migration that only adds; its way back removes the table.
 
-### Round 7 — Lighter pages; nothing smaller than 12 px
+### Round 7 — Every shared part on one screen; a slow list and a lost connection
+
+**Lines:** T-050, T-051 · **Why here:** Both waited for the shared table (T-041), and both are P2. The first is a criterion of gate A ("shared component examples"). The second finishes the five states: the table can say "loading" since 20 November and no screen says it. · **When it is merged, these can start:** no waiting line.
+
+#### T-050 · P2 · medium — A reference screen showing every shared component and state
+
+- **Done when** (the list): One screen under System, for owner and admin
+- **Found on 19 November 2026:** No screen shows the shared parts side by side. The parts are 25 files in `platform/resources/views/components/admin` and the three parts of the table beside them; their rules are written there since 20 November (`README.md`). A new screen is a 69th destination: the registry of destinations, Feature status and the tests that count destinations change with it.
+- **What is built:**
+  1. One screen under System, for owner and admin: every shared part in each of its states, drawn by the part itself with sample values, never by a copy of its markup. Buttons, badges, cards, fields with and without an error, the empty state, the dialog, the toast, the page links, and the table in its five states.
+  2. The destination is added to the registry with its permission, so that the menu, Feature status and the route agree.
+- **Tests written:**
+  1. The screen opens for owner and admin and is refused to the other roles.
+  2. A test lists the files under `components/admin`: a part that is not drawn on the screen, and is not on a short written list of parts that cannot stand alone, fails it.
+  3. The table's five states on the screen are read with the words and roles the component's own test reads.
+- **In a browser:**
+  1. The crawl opens it at 1366 px and 390 px: no console error, nothing wider than the window. It is looked at in the dark theme, and one picture of it goes into the report for gate A.
+- **Tried against:** With one part taken off the screen, the test that lists the parts names it.
+- **The way back:** A screen that changes no record. It can be taken out of the registry alone.
+
+#### T-051 · P2 · medium — Placeholders while a list loads; a notice when the connection is lost
+
+- **Done when** (the list): Seen in a browser with the network slowed and cut
+- **Found on 19 November 2026:** No screen says "loading": a Livewire screen arrives with its rows, and no component is loaded late. `wire:loading` is written 117 times in 64 views, to dim rows or to stop a button being pressed twice. Nothing tells a person that the connection is lost: `wire:offline` is written nowhere and no script listens for it, so a press then does nothing and says nothing. The shared table has had a loading state since 20 November (T-041).
+- **What is built:**
+  1. A notice in the top bar while the browser is offline or the server does not answer, and that it is back when it is: said to a screen reader, and never laid over the form a person is typing in.
+  2. A press that could not be sent says so, and what was typed stays.
+  3. With the network slowed on the rehearsal, each list of the shared table is timed. A list that is slow there is loaded late and draws the table's loading state first; a list that arrives in time is left as it is, and the report names both kinds.
+- **Tests written:**
+  1. A test draws the notice and reads its words and its role.
+  2. For each list that is loaded late: what stands there first is the table's loading state, and the rows that follow are the rows of before.
+- **In a browser:**
+  1. A journey step cuts the network with the browser's own switch, presses Save on a form, reads the notice, brings the network back and saves: nothing typed is lost.
+  2. With the network slowed, the placeholder of a late list is seen and then replaced by its rows.
+- **Tried against:** With the notice taken out, the journey step fails where it reads it.
+- **The way back:** Views and one small script; the built files change. The notice can be taken out alone, and a late list made an early one again by one word.
+
+### Round 8 — Lighter pages; nothing smaller than 12 px
 
 **Lines:** T-052, T-049 · **Why here:** Both change the same shared parts: the menu, the top bar, the search. · **When it is merged, these can start:** no waiting line.
 
@@ -341,7 +378,7 @@ protection is taken away once, by hand, and the test must go red.
 - **The way back:** Views and the stylesheets; the bundle is rebuilt and committed.
 - **Yours:** If a place cannot take 12 px, it is shown to you as a named exception to accept or refuse.
 
-### Round 8 — The content policy without `eval`
+### Round 9 — The content policy without `eval`
 
 **Lines:** T-072 · **Why here:** After the rounds that replace whole parts of the views (the table, the dashboard, the top bar, the menu), so that nothing is converted twice; and before the screen pass, which its test then holds to the strict form from the first view. · **When it is merged, these can start:** no waiting line.
 
@@ -363,7 +400,7 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one arrow function left in a view, the crawl reports the refusal and fails.
 - **The way back:** `SECURITY_CSP=report` or `off` on the site; or the strict build off and the word back in the policy, in one commit.
 
-### Round 9 — The screen pass, area by area
+### Round 10 — The screen pass, area by area
 
 **Lines:** T-045 · **Why here:** P1, and last all the same: it is the largest line, several rounds of its own, one for each area in the order you set (DL-008): E-commerce, CRM, Sales, then the others. Every round before it changes a part it builds on. · **When it is merged, these can start:** no waiting line.
 
@@ -500,14 +537,11 @@ answer is added here.
 | T-185 | P1 | A runbook: deploy, roll back, restore, passwords, accounts | T-137 | T-006 | Written, and each step done once on staging |
 | T-190 | P2 | The WhatsApp inbox takes the enquiry's turn before it asks who is writing | T-118 — Cannot happen today: the inbox is switched off and no WhatsApp account is connected (D-044). Done with the inbox's own acceptance (T-118), before it is switched on. | T-014 | `ReceiveWhatsAppMessage` takes the enquiry's turn before it asks; `tools/ci/two-writers.php` has a step that sends two messages of two strangers at once, and without the turn that step reports the fault |
 
-#### Behind lines that need nobody (10)
+#### Behind lines that need nobody (7)
 
 | # | Pri | Task | Waits for | Stands behind | Done when |
 |---|---|---|---|---|---|
-| T-042 | P1 | On a phone, the key lists show cards instead of a wide table | T-041 | T-041 (round 2) | At 390 px each row's main facts and its action are visible without sideways scrolling |
 | T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 6) | "stock" finds Stock Ledger; "clients" finds Contacts |
-| T-050 | P2 | A reference screen showing every shared component and state | T-041 | T-041 (round 2) | One screen under System, for owner and admin |
-| T-051 | P2 | Placeholders while a list loads; a notice when the connection is lost | T-041 | T-041 (round 2) | Seen in a browser with the network slowed and cut |
 | T-115 | P2 | The page-builder prototype (gate C) | T-105 — Building the prototype needs nobody. Accepting it is yours: gate C. | T-105 (round 1) | The owner accepts the prototype before any broad build |
 | T-116 | P2 | Website Studio on Puck | T-115 | T-105 (round 1) | A page is edited, approved, published and rolled back |
 | T-117 | P2 | Today's pages moved into the page builder | T-116 | T-105 (round 1) | Selected pages are approved; the old content is kept |
@@ -539,18 +573,19 @@ of them pass on its last commit.
 <!-- generated:standing — written by scripts/verify-plan.mjs --write; do not edit by hand -->
 | Check | Where it runs | On 19 November 2026 | What it stops |
 |---|---|---|---|
-| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,674 pass, 36 skipped, none fails: run in the sandbox on 19 November, 12:40 to 12:45 UTC, on the code of pull request #47. In CI on `d93b112`, on each of the three servers: 2,675 pass, 35 skipped | A rule, a screen or a permission that no longer does what its test says |
+| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,699 pass, 36 skipped, none fails: run in the sandbox on 19 November, 20:36 to 20:43 UTC, on the code of pull request #49 (`3b8a331`). In CI on the same commit, on each of the three servers: 2,700 pass, 35 skipped | A rule, a screen or a permission that no longer does what its test says |
 | Two writers at the same moment: in the accounts, and two enquiries or baskets of the shop (`platform/tools/ci/two-writers.php`) | CI, job `two-writers` of `os-ci.yml`, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, on every push that touches `platform/`. In the sandbox on the server that `platform/tools/preview/sandbox/database.sh` builds (MariaDB 10.2) | 33 steps of 50 runs hold on each of the three servers; with a lock taken out, each of six checks reports the fault it is for (CI, `d93b112`). The four new steps send an enquiry and a basket as the shop sends them: one sent twice with its key, and two of two visitors at once | What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, an enquiry written twice, or one of two people stopped by the database with an error page |
 | The contract of `/api/v1` (`platform/resources/api/v1.openapi.json`, held by `tests/Feature/Api/V1ContractTest.php`) | Part of the Laravel suite, so in the sandbox and in CI on the three servers. The file itself is read as OpenAPI 3.1 by a validator, by hand, when it changes | every route under `/api/v1` is in the contract, and each of the seven addresses answers key by key as the contract says, for every status it documents (CI, `d93b112`) | An address that answers in a shape its callers were not told; a route added without its contract; a key, a code or a header that is in the answer and not in the contract, or the other way round |
+| The shared table: its five states, its headings, and the count of views that still write a table by hand (`platform/tests/Unit/AdminTableTest.php`, `platform/tests/Feature/SharedTableListsTest.php`) | Part of the Laravel suite, so in the sandbox and in CI on the three servers | 25 tests pass. 45 views write a table by hand; it was 51 before 20 November | A list that writes its own table again; a state without its words or its role; a heading that does not say how it sorts; a word printed into a script |
 | A release installed and deployed again by a browser (`scripts/os-install.mjs`) | CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite | the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d93b112`) | A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change |
-| Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 37 of 37 steps hold, both ways (CI, `d93b112`) | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
-| Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 253 pages, none fails (CI, `d93b112`) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
+| Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 38 of 38 steps hold with the demo's settings (sandbox, 19 November, on the code of pull request #49). CI runs them both ways on every push; its result for a merge is on the pull request | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
+| Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 253 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (sandbox, 19 November, on the code of pull request #49) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
 | The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes, 84 checks, three of them addresses under `/api` since 19 November (CI, `d93b112`) | A site that starts without its settings, hands out a file, or loses the session |
 | The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `d93b112`) | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository |
 | Known weaknesses in the packages (`audit.yml`) | CI, when a lock file changes and every Monday | last run green on 17 November (`ef31589`); it reports one low and eleven moderate advisories (T-071) | A package with a known high or critical weakness |
 | The live sites from outside (`live-check-after-merge.yml`) | GitHub, eight minutes after every merge into `main` | after the merge of pull request #45 one point of the shop's fifteen failed: a preview that Vercel had removed answered 410, where the check accepted the sign-in or 404 (run 44343060920, issue #46); cured in `6b3789d`, and the shop's 16 points hold on the branch (run 44455587053, 19 November, 04:02 UTC). The admin's points held in every run. Since 19 November the admin is also asked six points of `/api/v1`, which can only hold once pull request #47 is on `main` | A live site that does not answer as it should after a merge. A failure opens an issue |
-| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28) and for the contract test, the idempotency key and the enquiry's turn (report 30) | A test that would pass whatever the code does |
-| Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39, #40 and #47 (the shop's changed files are named in report 30) | A change to the React shop that the report does not name; a merge with a check still red |
+| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30) and for the shared table and its count (report 34) | A test that would pass whatever the code does |
+| Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39, #40, #47 and #49 (the shop's changed files are named in report 30; #49 changes none) | A change to the React shop that the report does not name; a merge with a check still red |
 <!-- /generated:standing -->
 
 **Not covered by any of them today**, each a line of the list: a signed-in visit to the live demo (T-151) ·

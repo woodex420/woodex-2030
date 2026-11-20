@@ -26,10 +26,9 @@
         {
           "text": "Shared component examples.",
           "state": "open",
-          "evidence": "No screen shows the shared components and their states side by side.",
+          "evidence": "No screen shows the shared components and their states side by side. What such a screen would show exists since 20 November: the standards are written (`platform/resources/views/components/admin/README.md`), and a test draws the shared table in each of its five states (`Unit/AdminTableTest.php`).",
           "lines": [
-            "T-050",
-            "T-041"
+            "T-050"
           ]
         },
         {
