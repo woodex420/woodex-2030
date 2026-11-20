@@ -11,16 +11,17 @@
 --     are both zero, the check passes, and an entry that does not balance is
 --     kept. scripts/test-search-path.mjs does exactly this, and requires the
 --     entry to be refused.
---   • wx_gc_final calls array_to_string, datetime casts to timestamp: the same
---     lookup, for a function instead of a table. The same suite puts another
---     array_to_string in front and requires the true one to be used.
+--   • wx_gc_final calls array_to_string; wx_gc_trans and datetime use
+--     operators ("||", and the "=" inside NULLIF): the same lookup, for a
+--     function or an operator instead of a table. The same suite puts another
+--     array_to_string in front and requires PostgreSQL's own to be used.
 --
--- Nobody but the owner of this schema can create anything in it, and nobody
--- but a signed-in database role can set a session's path, so this was not a
--- hole somebody could reach from outside. It is closed because a rule of the
--- books should not hang on a setting of the session, and because Supabase's
--- security advisor lists each such function (its lint 0011; master list
--- T-172, defect D-029).
+-- On the hosted database nobody but its owner can create anything in this
+-- schema, and nobody but a signed-in database role can set a session's path
+-- (read on 20 November 2026), so this was not a hole somebody could reach from
+-- outside. It is closed because a rule of the books should not hang on a
+-- setting of the session, and because Supabase's security advisor lists each
+-- such function (its lint 0011; master list T-172, defect D-029).
 --
 -- What it does. One statement for each of the nine, named one by one below:
 --
@@ -34,11 +35,11 @@
 -- ── THE AGGREGATE ────────────────────────────────────────────────────────────
 --
 -- group_concat is the tenth routine of the schema and is not in the list:
--- PostgreSQL gives an aggregate no setting ("is an aggregate function", tried
--- on PostgreSQL 17 and 18). It has no body of its own; it runs wx_gc_trans for
--- every row and wx_gc_final at the end, and those two are in the list. The
--- advisor's rule does not leave aggregates out, so it will go on listing this
--- one name.
+-- PostgreSQL gives an aggregate no setting ("is an aggregate function"; the
+-- suite asks for one in three ways and expects each refusal). It has no body
+-- of its own; it runs wx_gc_trans for every row and wx_gc_final at the end,
+-- and those two are in the list. The advisor's rule does not leave aggregates
+-- out, so it will go on listing this one name.
 --
 -- ── WHAT IT COSTS ────────────────────────────────────────────────────────────
 --
@@ -49,8 +50,7 @@
 -- without the setting, 98 ms with it, which is about one millionth of a second
 -- more for each row. (The planner never wrote this function into the calling
 -- query, with or without a setting: its body is less constant than its label
--- IMMUTABLE says. So nothing is lost there.) The lists that use it hold tens
--- of rows.
+-- IMMUTABLE says. So nothing is lost there.) The lists that use it are short.
 --
 -- ── FUNCTIONS CREATED LATER ──────────────────────────────────────────────────
 --
