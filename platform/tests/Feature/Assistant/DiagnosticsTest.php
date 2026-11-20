@@ -81,8 +81,15 @@ it('never exposes credentials or labels configuration as a successful connection
 it('redacts database exception details instead of echoing DSNs or credentials', function () {
     $owner = $this->userWithRole('owner');
     expect($owner->can('system.health'))->toBeTrue();
+    $database = DB::getFacadeRoot();
     DB::shouldReceive('connection')->withNoArgs()->once()->andThrow(new RuntimeException('private-fixture-dsn-password'));
-    $answer = app(Diagnostics::class)->runtime($owner);
+    try {
+        $answer = app(Diagnostics::class)->runtime($owner);
+    } finally {
+        // The real database manager goes back before the test ends. From Laravel 13.43 a test closes every
+        // connection when it ends and asks the manager for them; the stand-in above knows one question only.
+        DB::swap($database);
+    }
     expect(json_encode($answer))->toContain('Failed. Ask the owner')->not->toContain('private-fixture-dsn-password');
 });
 

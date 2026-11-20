@@ -89,6 +89,17 @@ jobs:
         # workflow; here its judgement is tried without a network, one change at a time: a reason taken out, an
         # advisory that is not on the list, an entry that nothing reports any more.
         run: node scripts/test-audit-advisories.mjs
+      - name: Every decision, document and requirement the Laravel admin's code names can be looked up
+        # The admin's code came from the Interior studio's system and says why a thing is so by naming that
+        # system's records: "D-58", "docs/06 §4", "QUO-006". Three of those records are kept, unchanged, in
+        # docs/laravel-os/source/ (master list T-174). The first command reads the code and fails, with the file
+        # and the line, on a decision, a numbered document or a requirement that is defined neither there nor in
+        # this repository's own records, unless docs/laravel-os/source/unresolved.json lists it with its reason;
+        # and on one of the three documents that no longer has the checksum of the studio's file. The second
+        # command tries the check itself, one change at a time in a copy.
+        run: |
+          node scripts/verify-code-references.mjs
+          node scripts/test-verify-code-references.mjs
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps
