@@ -1,7 +1,7 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
-  "written": "2026-11-19",
-  "commit": "d93b112",
+  "written": "2026-11-20",
+  "commit": "c00f90a",
   "sizes": {
     "S": "small",
     "M": "medium",
@@ -32,8 +32,6 @@
     "T-026": "Look at the React shop as it was rebuilt, and say whether it stays",
     "T-027": "Say whether Google sign-in, the AI bridge and the old site bridge are wanted",
     "T-033": "Interior lists and fields in open screens replaced by Furniture's wording",
-    "T-041": "One table component for every list, with the five states",
-    "T-042": "On a phone, the key lists show cards instead of a wide table",
     "T-044": "The dashboard as a widget framework, with the missing widgets",
     "T-045": "Screen pass, area by area: theme colours, page patterns, dark theme",
     "T-046": "Help, pinned screens and recently opened screens in the top bar",
@@ -159,33 +157,6 @@
           ],
           "against": "With the draft handed out in place of the published copy, the test of the unpublished product names it; with the shop's reader left reading rupees where paisa arrive, its script names the price.",
           "back": "The shop's switch stays off: the live shop reads what it reads today, and the round changes no setting of either Vercel project. The new addresses hand out only published products, and none is published on the demo. The Node catalogue is not closed in this round."
-        }
-      ]
-    },
-    {
-      "name": "One table for every list",
-      "why": "P1 and part of gate A. Three lines wait for it (T-042, T-050, T-051), and the screen pass (T-045) builds on it.",
-      "lines": [
-        {
-          "id": "T-041",
-          "size": "L",
-          "found": "50 screens write their own table: 14 in Sales, 10 in Accounts, 6 in CRM, 5 in System, the others in reports, projects and modules that are switched off. Commerce's lists are not tables. 29 lists turn pages: 15 through the shared page links, 14 through the framework's plain ones. Shared parts exist for buttons, cards, fields, dialogs, toasts, the empty state and the page links; none for a table. (36 more tables are in PDF and mail templates; those stay as they are.)",
-          "build": [
-            "One table component: headings that sort, a place for filters, pages, the choosing of rows with actions on all chosen, and the five states: loading, empty, error, no permission, success.",
-            "One list of each area that has tables moves to it first: Leads, Quotations, Projects, Payables by age, Users, and one report. The other lists follow in the screen pass (T-045).",
-            "The standards for dialogs and toasts are written beside it."
-          ],
-          "tests": [
-            "A test draws the component in each of the five states and reads its words and its roles for a screen reader: a named table, headings that say how they sort.",
-            "For each list that moves: sorting, filtering, paging and an action on chosen rows give the same rows as before. The lists' existing tests pass unchanged.",
-            "A test counts the screens that still write their own table. The number is written down and may only fall."
-          ],
-          "browser": [
-            "The crawl opens the moved lists as each role at 1366 and 390 px: no sideways scrolling, no console error.",
-            "A journey step sorts the leads by a heading, by keyboard, and reads the first row."
-          ],
-          "against": "With the empty state taken out of the component, the first test fails. With a hand-written table put back, the count fails.",
-          "back": "Views only. Each list moves in its own commit and can be put back alone."
         }
       ]
     },
@@ -422,6 +393,51 @@
       ]
     },
     {
+      "name": "Every shared part on one screen; a slow list and a lost connection",
+      "why": "Both waited for the shared table (T-041), and both are P2. The first is a criterion of gate A (\"shared component examples\"). The second finishes the five states: the table can say \"loading\" since 20 November and no screen says it.",
+      "lines": [
+        {
+          "id": "T-050",
+          "size": "M",
+          "found": "No screen shows the shared parts side by side. The parts are 25 files in `platform/resources/views/components/admin` and the three parts of the table beside them; their rules are written there since 20 November (`README.md`). A new screen is a 69th destination: the registry of destinations, Feature status and the tests that count destinations change with it.",
+          "build": [
+            "One screen under System, for owner and admin: every shared part in each of its states, drawn by the part itself with sample values, never by a copy of its markup. Buttons, badges, cards, fields with and without an error, the empty state, the dialog, the toast, the page links, and the table in its five states.",
+            "The destination is added to the registry with its permission, so that the menu, Feature status and the route agree."
+          ],
+          "tests": [
+            "The screen opens for owner and admin and is refused to the other roles.",
+            "A test lists the files under `components/admin`: a part that is not drawn on the screen, and is not on a short written list of parts that cannot stand alone, fails it.",
+            "The table's five states on the screen are read with the words and roles the component's own test reads."
+          ],
+          "browser": [
+            "The crawl opens it at 1366 px and 390 px: no console error, nothing wider than the window. It is looked at in the dark theme, and one picture of it goes into the report for gate A."
+          ],
+          "against": "With one part taken off the screen, the test that lists the parts names it.",
+          "back": "A screen that changes no record. It can be taken out of the registry alone."
+        },
+        {
+          "id": "T-051",
+          "size": "M",
+          "found": "No screen says \"loading\": a Livewire screen arrives with its rows, and no component is loaded late. `wire:loading` is written 117 times in 64 views, to dim rows or to stop a button being pressed twice. Nothing tells a person that the connection is lost: `wire:offline` is written nowhere and no script listens for it, so a press then does nothing and says nothing. The shared table has had a loading state since 20 November (T-041).",
+          "build": [
+            "A notice in the top bar while the browser is offline or the server does not answer, and that it is back when it is: said to a screen reader, and never laid over the form a person is typing in.",
+            "A press that could not be sent says so, and what was typed stays.",
+            "With the network slowed on the rehearsal, each list of the shared table is timed. A list that is slow there is loaded late and draws the table's loading state first; a list that arrives in time is left as it is, and the report names both kinds."
+          ],
+          "tests": [
+            "A test draws the notice and reads its words and its role.",
+            "For each list that is loaded late: what stands there first is the table's loading state, and the rows that follow are the rows of before."
+          ],
+          "browser": [
+            "A journey step cuts the network with the browser's own switch, presses Save on a form, reads the notice, brings the network back and saves: nothing typed is lost.",
+            "With the network slowed, the placeholder of a late list is seen and then replaced by its rows."
+          ],
+          "against": "With the notice taken out, the journey step fails where it reads it.",
+          "back": "Views and one small script; the built files change. The notice can be taken out alone, and a late list made an early one again by one word."
+        }
+      ]
+    },
+    {
       "name": "Lighter pages; nothing smaller than 12 px",
       "why": "Both change the same shared parts: the menu, the top bar, the search.",
       "lines": [
@@ -500,7 +516,7 @@
           "size": "L",
           "found": "3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.",
           "build": [
-            "In each area: greys move to the theme's roles; what is selected takes the theme's green; each page follows the patterns of document 05 §8; its lists use the table of T-041.",
+            "In each area: greys move to the theme's roles; what is selected takes the theme's green; each page follows the patterns of document 05 §8; its lists use the table of T-041, and are drawn as cards on a phone (T-042) where people work the list from a phone.",
             "The dark theme is looked at on every screen of the area."
           ],
           "tests": [
@@ -522,7 +538,7 @@
     {
       "check": "The Laravel test suite",
       "where": "In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/`",
-      "today": "2,674 pass, 36 skipped, none fails: run in the sandbox on 19 November, 12:40 to 12:45 UTC, on the code of pull request #47. In CI on `d93b112`, on each of the three servers: 2,675 pass, 35 skipped",
+      "today": "2,706 pass, 36 skipped, none fails: run in the sandbox on 20 November, 04:50 to 04:57 UTC, on the code of pull request #49 (`c00f90a`). In CI on the same commit, on each of the three servers: 2,707 pass, 35 skipped",
       "catches": "A rule, a screen or a permission that no longer does what its test says"
     },
     {
@@ -538,6 +554,12 @@
       "catches": "An address that answers in a shape its callers were not told; a route added without its contract; a key, a code or a header that is in the answer and not in the contract, or the other way round"
     },
     {
+      "check": "The shared table: its five states, its headings, its cards on a phone, and the count of views that still write a table by hand (`platform/tests/Unit/AdminTableTest.php`, `platform/tests/Feature/SharedTableListsTest.php`)",
+      "where": "Part of the Laravel suite, so in the sandbox and in CI on the three servers",
+      "today": "32 tests pass. 44 views write a table by hand; it was 51 before 20 November. Leads, Quotations and Invoices are cards below 640 px",
+      "catches": "A list that writes its own table again; a state without its words or its role; a heading that does not say how it sorts; a word printed into a script; a fact on a card without the word of its column; a rule for cards that reaches a wide screen, or that was written and not built"
+    },
+    {
       "check": "A release installed and deployed again by a browser (`scripts/os-install.mjs`)",
       "where": "CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite",
       "today": "the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d93b112`)",
@@ -546,13 +568,13 @@
     {
       "check": "Two journeys in a browser (`scripts/os-journeys.mjs`)",
       "where": "On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's",
-      "today": "37 of 37 steps hold, both ways (CI, `d93b112`)",
+      "today": "39 of 39 steps hold with the demo's settings (sandbox, 20 November, on the code of pull request #49). The last step is on a phone: no key list scrolls sideways at 390 px, and a lead is chosen, opened and moved from its card. CI runs them both ways on every push; its result for a merge is on the pull request",
       "catches": "A step of a working day or of a sale that a person can no longer do; anything the content policy refuses"
     },
     {
       "check": "Every screen as four roles (`scripts/os-screens.mjs`)",
       "where": "The same rehearsal, at 1366 px and at 390 px",
-      "today": "253 pages, none fails (CI, `d93b112`)",
+      "today": "253 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (sandbox, 20 November, on the code of pull request #49)",
       "catches": "A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch"
     },
     {
@@ -582,13 +604,13 @@
     {
       "check": "Each new test, tried once against its protection taken away",
       "where": "By hand, when the test is written; recorded in the round's report",
-      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28) and for the contract test, the idempotency key and the enquiry's turn (report 30)",
+      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30) for the shared table and its count (report 34) and for the cards on a phone, in the tests and in the journey (report 35)",
       "catches": "A test that would pass whatever the code does"
     },
     {
       "check": "Before the merge: the files changed against `main` are read, and every check is green",
       "where": "By hand; the release report is written first",
-      "today": "done for pull requests #37, #39, #40 and #47 (the shop's changed files are named in report 30)",
+      "today": "done for pull requests #37, #39, #40, #47 and #49 (the shop's changed files are named in report 30; #49 changes none)",
       "catches": "A change to the React shop that the report does not name; a merge with a check still red"
     }
   ]

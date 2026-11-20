@@ -66,7 +66,9 @@ const specSeverities = [...spec10.matchAll(/^\| (Critical|High|Medium|Low) \| ([
 
 const listRows = new Set([...read('docs/woodex-os/14-PRODUCTION-TODO.md').matchAll(/^\| (T-\d{3}) \|/gm)].map((match) => match[1]));
 const decisions = new Set([...read('docs/woodex-os/12-DECISION-LOG.md').matchAll(/^\| (DL-\d{3}) \|/gm)].map((match) => match[1]));
-const journeySteps = new Set([...read('scripts/os-journeys.mjs').matchAll(/\bstep\('((?:\\.|[^'\\])*)'/g)].map((match) => match[1].replace(/\\(.)/g, '$1')));
+// A step's name stands in single or in double quotes (one has an apostrophe in it). Reading the single ones only,
+// this counted 37 steps where the journeys press 38 (found on 19 November, on reading document 16 against a run).
+const journeySteps = new Set([...read('scripts/os-journeys.mjs').matchAll(/\bstep\((['"])((?:\\.|(?!\1)[^\\])*)\1/g)].map((match) => match[2].replace(/\\(.)/g, '$1')));
 
 const declared = new Map();
 /** The names of the tests a Pest file declares: it('…') and test('…'), with either kind of quote. */

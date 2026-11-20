@@ -26,16 +26,15 @@
         {
           "text": "Shared component examples.",
           "state": "open",
-          "evidence": "No screen shows the shared components and their states side by side.",
+          "evidence": "No screen shows the shared components and their states side by side. What such a screen would show exists since 20 November: the standards are written (`platform/resources/views/components/admin/README.md`), and a test draws the shared table in each of its five states (`Unit/AdminTableTest.php`).",
           "lines": [
-            "T-050",
-            "T-041"
+            "T-050"
           ]
         },
         {
           "text": "Responsive shell prototype.",
           "state": "met",
-          "evidence": "Sidebar, top bar and phone drawer are built. On 17 November a browser opened 241 screens as four roles at 1366 px and at 390 px; none was wider than the window (`scripts/os-screens.mjs`).",
+          "evidence": "Sidebar, top bar and phone drawer are built. On 17 November a browser opened 241 screens as four roles at 1366 px and at 390 px; none was wider than the window (`scripts/os-screens.mjs`). Since 20 November the three lists a person works from a phone, Leads, Quotations and Invoices, are drawn as cards below 640 px, and a browser measures at 390 px that none of them scrolls sideways (T-042; the last step of `scripts/os-journeys.mjs`).",
           "lines": []
         },
         {

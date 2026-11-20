@@ -156,13 +156,13 @@ Document 08 §2 forbids settling such a difference silently. Each is listed with
 | §5 Tokens | Superseded (X-4); contrast is tested for three tones | T-005 |
 | §5 Caption 12 px minimum | Not met in about twenty places (X-5) | T-049 |
 | §6 Shared components: buttons, fields, cards, tabs, badges, dialogs, toasts, page headers, upload, media picker, document preview | Exist as `x-admin.*` components, restyled to the theme | T-050 (a reference screen) |
-| §6 **Tables with sort, filters, pagination, selection and bulk actions** as one standard | Leads has all of it; other lists are hand-written tables (28 of 131 components paginate) | T-041 |
-| §6 States: empty, loading, error, no permission, **offline** | Empty and no-permission exist; loading is a spinner attribute, no skeleton; no offline notice | T-041, T-051 |
+| §6 **Tables with sort, filters, pagination, selection and bulk actions** as one standard | **The standard exists** since 20 November (T-041, done): one table component with all five, and six lists draw it (Leads, Quotations, Projects, Payables by age, Users, Receivables). 45 views still write a table by hand; a test holds the number, which may only fall | T-045 |
+| §6 States: empty, loading, error, no permission, **offline** | The shared table draws loading, empty, error, no-permission and success, each with its words and role (20 November, T-041, done). No screen says "loading", "error" or "no-permission" yet; no offline notice | T-051, T-050 |
 | §7 Dashboard: business snapshot, **sales funnel, finance, commerce and operations, projects**, activity | Present: period figures, six live queues, needs-attention, pipeline, new leads chart, recent activity. Missing: funnel with conversion rate, overdue ageing and payables due, project health and milestones; charts do not state currency and definition | T-044 |
 | §8 List, detail, create/edit and approval patterns | Followed unevenly | T-045 |
 | §8 **Unsaved-change warning** | No warning on leaving a form anywhere. Six editors (page builder, series, category, product, estimate, rates) say on the screen that edits are unsaved | T-043 |
 | §8 An approver cannot approve their own request | Met for quotations (the owner excepted), tested | T-081 (other approval types) |
-| §9 Phone: drawer, stacked figures, **table-to-card for key workflows** | Drawer and stacking met; tables scroll sideways inside their box | T-042 |
+| §9 Phone: drawer, stacked figures, **table-to-card for key workflows** | Drawer and stacking met. **Cards since 20 November (T-042, done)** for Leads, Quotations and Invoices: below 640 px each row is a card, and nothing of the list scrolls sideways. Tasks is no table and fits. The other lists still scroll sideways inside their box | T-045 (each list in its area's turn) |
 | §9 Focus ring, labels, contrast, no colour-only status | Met: 0 unlabelled fields, 0 small targets, contrast tested; pills carry text | T-054 |
 | §10 Acceptance | Not yet declared | T-005 |
 
@@ -236,7 +236,7 @@ acceptance), 9 (a migration and reconciliation plan with real data) and 10 (the 
 | Database: migrations from a clean MySQL | In CI on MySQL 8.4, every push | — |
 | Database: rollback, precision, immutability | Tested for payments, receipts, journals, frozen documents | — |
 | Database: stock invariants | No stock module | T-109 |
-| Screens (the specification says "frontend") | Livewire component tests for every open screen; route access by role; search | T-041 (states) |
+| Screens (the specification says "frontend") | Livewire component tests for every open screen; route access by role; search. The states of a list are drawn and read by a test since 20 November (T-041, done) | T-051 (a list that loads late) |
 | **Browser end to end: 11 flows** | 3 exist in part (lead capture by staff, draft quotation, permission denied). Missing: lead assignment and conversion; estimate to quotation; approval and issue; invoice and payment allocation; order creation; purchase order and receipt; stock transfer; project task and handover; page edit to publish | **T-165** |
 | **Operational: Hostinger staging, cron, queue, upload limits, backup and restore, failed jobs, load** | None done; staging has never started | T-130 to T-139 |
 

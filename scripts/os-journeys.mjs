@@ -1207,6 +1207,195 @@ if (signedIn) {
     await shown(page.locator('.wx-toast-stack > div', { hasText: `A new link to set a password was sent to ${mail}.` }), 8000, 'the notice that the link was sent');
     return `${mail}: link sent and not used, not signed in, waiting; the link was sent again; ${await count('through')} of ${await count('members')} members are through`;
   });
+
+  // The shared table (master list T-041): a heading sorts the list, and it does so for somebody who has no mouse.
+  await step('the leads are sorted by a heading with the keyboard only; the heading says which way, and the list fits a phone', async () => {
+    await become('owner');
+    await page.goto(`${base}/admin/leads`, { waitUntil: 'domcontentloaded' });
+    await quiet();
+    const table = page.getByRole('table', { name: 'Leads' });
+    await shown(table, 15000, 'a table that is named "Leads"');
+    const heading = table.locator('thead th', { has: page.locator('button[data-sort]', { hasText: /^\s*Lead\b/ }) }).first();
+    const button = heading.locator('button');
+    const first = async () => flat(await table.locator('tbody tr').first().locator('th[scope="row"]').innerText());
+    const sorted = async (way, what) => {
+      const until = Date.now() + 15000;
+      while (Date.now() < until) {
+        if ((await heading.getAttribute('aria-sort')) === way) return;
+        await page.waitForTimeout(200);
+      }
+      throw new Error(`${what}: the heading "Lead" says "${await heading.getAttribute('aria-sort')}", not "${way}"`);
+    };
+    const rows = await table.locator('tbody tr').count();
+    must(rows >= 2, `the list has ${rows} row: there is nothing to sort`);
+    await sorted('descending', 'as the screen opens');
+    const newest = await first();
+
+    // Tab, from the tick box before it, lands on the heading's button: it is in the order of the page, and it shows where the focus is.
+    await table.locator('thead input[type="checkbox"]').focus();
+    await page.keyboard.press('Tab');
+    const focus = await button.evaluate((el) => ({ here: el === document.activeElement, ring: getComputedStyle(el).outlineStyle !== 'none' && parseFloat(getComputedStyle(el).outlineWidth) > 0 }));
+    must(focus.here, 'Tab from "Select all on this page" does not land on the heading "Lead"');
+    must(focus.ring, 'the heading "Lead" shows no outline when the keyboard has brought the focus to it');
+
+    await page.keyboard.press('Enter');
+    await sorted('ascending', 'after Enter on the heading');
+    await quiet();
+    const oldest = await first();
+    must(oldest !== newest, `the first row is "${oldest}" before and after: the list did not turn round`);
+    // The list was drawn again by the server; the focus is still where the person left it, so a second press needs no search.
+    must(await button.evaluate((el) => el === document.activeElement), 'the focus left the heading when the list was drawn again');
+    await page.keyboard.press('Enter');
+    await sorted('descending', 'after a second Enter');
+    await quiet();
+    must((await first()) === newest, `after two presses the first row is "${await first()}", not "${newest}" as at the start`);
+
+    // On a phone the page is as wide as the window: what does not fit scrolls inside the list's own frame.
+    const desk = page.viewportSize();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await quiet();
+    await shown(page.getByRole('table', { name: 'Leads' }), 15000, 'the table named "Leads" at 390 px');
+    const wide = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, window: window.innerWidth }));
+    await page.setViewportSize(desk);
+    must(wide.page <= wide.window, `at 390 px the page is ${wide.page} px wide in a window of ${wide.window} px`);
+    return `${rows} rows; newest first "${newest.slice(0, 40)}", Enter on the heading: oldest first "${oldest.slice(0, 40)}", Enter again: as at the start; the focus stayed on the heading; at 390 px the page is ${wide.page} px wide`;
+  });
+
+  // The key lists on a phone (master list T-042): below 640 px a row of the shared table is a card. The stylesheet
+  // does it, so only a browser can say that it is so: nothing of a list scrolls sideways, each fact stands under
+  // the word of its column, what the list left off a card is not drawn, and a lead is worked from its card.
+  await step('on a phone the key lists are cards: no list scrolls sideways, each fact stands under its word, and a lead is moved to another stage from its card', async () => {
+    must(leadPath, 'no lead was created');
+    await become('owner');
+    const desk = page.viewportSize();
+    await page.setViewportSize({ width: 390, height: 844 });
+    try {
+      const lists = [
+        { name: 'Leads', path: '/admin/leads', words: ['Contact', 'Stage', 'Owner', 'Next action'], chosen: true },
+        { name: 'Quotations', path: '/admin/quotes', words: ['Status', 'Value', 'Updated'], chosen: false },
+        { name: 'Invoices', path: '/admin/invoices', words: ['Client', 'Status', 'Amount', 'Balance', 'Due'], chosen: false },
+      ];
+      const told = [];
+      for (const list of lists) {
+        await page.goto(`${base}${list.path}`, { waitUntil: 'domcontentloaded' });
+        await quiet();
+        const table = page.getByRole('table', { name: list.name });
+        await shown(table, 15000, `the table named "${list.name}" at 390 px`);
+        const found = await table.evaluate((el) => {
+          const frame = el.closest('.overflow-x-auto');
+          const edge = frame.getBoundingClientRect();
+          const drawn = (node) => { const style = getComputedStyle(node); const box = node.getBoundingClientRect(); return style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0 && box.height > 0; };
+          const word = (cell) => getComputedStyle(cell, '::before').content.replace(/^"|"$/g, '');
+          const rows = [...el.querySelectorAll('tbody > tr')];
+          const cards = rows.map((row) => {
+            const cells = [...row.children];
+            return {
+              laidOut: getComputedStyle(row).display,
+              name: (cells.find((cell) => cell.matches('th[scope="row"]'))?.innerText || '').replace(/\s+/g, ' ').trim(),
+              leads: !!row.querySelector('th[scope="row"] a[href]') && drawn(row.querySelector('th[scope="row"] a[href]')),
+              words: cells.filter((cell) => cell.matches('td[data-label]') && drawn(cell)).map(word),
+              wordless: cells.filter((cell) => cell.matches('td[data-label]') && drawn(cell) && (word(cell) !== cell.getAttribute('data-label') || parseFloat(getComputedStyle(cell).paddingLeft) < 80)).map((cell) => cell.getAttribute('data-label')),
+              bare: cells.filter((cell) => cell.matches('td:not([data-label]):not(.wx-select)') && drawn(cell)).map((cell) => cell.innerText.replace(/\s+/g, ' ').trim().slice(0, 30)),
+              outside: cells.filter((cell) => drawn(cell) && (cell.getBoundingClientRect().right > edge.right + 0.5 || cell.getBoundingClientRect().left < edge.left - 0.5)).length,
+              box: !!row.querySelector('td.wx-select input[type="checkbox"]') && drawn(row.querySelector('td.wx-select input[type="checkbox"]')),
+            };
+          });
+          const all = el.querySelector('thead th.wx-select-all');
+          return {
+            page: document.documentElement.scrollWidth, window: window.innerWidth,
+            list: frame.scrollWidth, room: frame.clientWidth,
+            headings: [...el.querySelectorAll('thead th')].filter((heading) => drawn(heading) && !heading.matches('.wx-select-all')).length,
+            selectAll: all ? { drawn: drawn(all), words: [...all.querySelectorAll('.wx-card-only')].filter(drawn).map((node) => node.innerText.trim()).join(' ') } : null,
+            cards,
+          };
+        });
+        must(found.page <= found.window, `${list.name}: at 390 px the page is ${found.page} px wide in a window of ${found.window} px`);
+        must(found.list <= found.room + 1, `${list.name}: the list is ${found.list} px wide in a frame of ${found.room} px: it scrolls sideways`);
+        must(found.cards.length >= 1, `${list.name}: the list has no row to draw as a card`);
+        must(found.headings === 0, `${list.name}: ${found.headings} headings of the table are drawn above the cards`);
+        for (const card of found.cards) {
+          must(card.laidOut === 'grid', `${list.name}, "${card.name}": the row is laid out as "${card.laidOut}", not as a card`);
+          must(card.name !== '' && card.leads, `${list.name}, "${card.name}": the card has no name that leads to its record`);
+          must(JSON.stringify(card.words) === JSON.stringify(list.words), `${list.name}, "${card.name}": the facts stand under "${card.words.join(', ')}", not under "${list.words.join(', ')}"`);
+          must(card.wordless.length === 0, `${list.name}, "${card.name}": ${card.wordless.join(', ')} is drawn without its word before it`);
+          must(card.bare.length === 0, `${list.name}, "${card.name}": a cell the list left off a card is drawn: ${card.bare.join('; ')}`);
+          must(card.outside === 0, `${list.name}, "${card.name}": ${card.outside} cells reach outside the card`);
+          must(card.box === list.chosen, `${list.name}, "${card.name}": ${list.chosen ? 'the tick box of the row is not on its card' : 'a tick box is drawn where no row can be chosen'}`);
+        }
+        if (list.chosen) must(found.selectAll && found.selectAll.drawn && found.selectAll.words === 'Select all on this page', `${list.name}: "Select all on this page" does not stand above the cards with its words (${JSON.stringify(found.selectAll)})`);
+        told.push(`${list.name} ${found.cards.length} card${found.cards.length === 1 ? '' : 's'}, ${found.list} px in ${found.room}`);
+      }
+
+      // Tasks is a list of its own, not a table. It fitted before and is left as it is, as long as it fits.
+      await page.goto(`${base}/admin/tasks`, { waitUntil: 'domcontentloaded' });
+      await quiet();
+      const tasks = await page.evaluate(() => ({
+        page: document.documentElement.scrollWidth, window: window.innerWidth,
+        scrolling: [...document.querySelectorAll('main *')].filter((el) => /(auto|scroll)/.test(getComputedStyle(el).overflowX) && el.scrollWidth > el.clientWidth + 1 && !el.matches('[role="tablist"]')).map((el) => `${el.tagName.toLowerCase()}.${String(el.className).split(/\s+/).slice(0, 2).join('.')} ${el.scrollWidth} in ${el.clientWidth}`),
+      }));
+      must(tasks.page <= tasks.window, `Tasks: at 390 px the page is ${tasks.page} px wide in a window of ${tasks.window} px`);
+      must(tasks.scrolling.length === 0, `Tasks: something scrolls sideways at 390 px: ${tasks.scrolling.join('; ')}`);
+
+      // A search that finds nothing: the words that say so are in front of the person, not pushed out of sight by
+      // headings with nothing under them.
+      await page.goto(`${base}/admin/leads`, { waitUntil: 'domcontentloaded' });
+      await quiet();
+      await page.getByRole('searchbox', { name: 'Search leads' }).fill(`nobody-${stamp}`);
+      const nothing = page.locator('[data-table-state="empty"]');
+      await shown(nothing.getByText('No leads match these filters'), 15000, '"No leads match these filters" after a search that finds nothing');
+      const empty = await nothing.evaluate((el) => {
+        const frame = el.querySelector('.overflow-x-auto');
+        const words = [...el.querySelectorAll('h3')].find((node) => /No leads match/.test(node.textContent)).getBoundingClientRect();
+        return { list: frame.scrollWidth, room: frame.clientWidth, from: Math.round(words.left), to: Math.round(words.right), window: window.innerWidth };
+      });
+      must(empty.list <= empty.room + 1, `Leads with nothing found: the list is ${empty.list} px wide in a frame of ${empty.room} px`);
+      must(empty.from >= 0 && empty.to <= empty.window, `Leads with nothing found: "No leads match these filters" stands from ${empty.from} to ${empty.to} px in a window of ${empty.window} px`);
+
+      // A lead is worked from its card: a finger on the contact's name opens the lead beside the list, the stage is
+      // changed there, and the card says the new stage.
+      await page.goto(`${base}/admin/leads`, { waitUntil: 'domcontentloaded' });
+      await quiet();
+      const leads = page.getByRole('table', { name: 'Leads' });
+      const card = leads.locator('tbody > tr', { hasText: person }).first();
+      await shown(card, 15000, `the card of ${person}`);
+      // What the browser hands a screen reader for a fact: its word first, then the fact.
+      await shown(card.getByRole('cell', { name: /^Stage \S/ }), 8000, 'a cell of the card that a screen reader is told as "Stage …"');
+      // Choosing stays within reach: the box on the card, the one for the whole page above the cards, and what can
+      // be done with the chosen leads in a bar that is no wider than the window.
+      const count = await leads.locator('tbody > tr').count();
+      await card.getByRole('checkbox').check();
+      const bar = page.getByRole('group', { name: 'Actions on the chosen rows' });
+      await shown(bar.getByText('1 selected', { exact: true }), 15000, '"1 selected" after a press on the box of a card');
+      const within = await bar.evaluate((el) => ({ right: Math.round(el.getBoundingClientRect().right), left: Math.round(el.getBoundingClientRect().left), window: window.innerWidth, wide: el.scrollWidth - el.clientWidth }));
+      must(within.left >= 0 && within.right <= within.window && within.wide <= 1, `the bar of what can be done with the chosen leads reaches from ${within.left} to ${within.right} px in a window of ${within.window} px`);
+      for (const name of ['Move selected leads', 'Clear selection']) must(await bar.getByRole(name === 'Clear selection' ? 'button' : 'combobox', { name }).isVisible(), `"${name}" is not in the bar on a phone`);
+      await leads.getByRole('checkbox', { name: 'Select all on this page' }).check();
+      await shown(bar.getByText(`${count} selected`, { exact: true }), 15000, `"${count} selected" after "Select all on this page"`);
+      await bar.getByRole('button', { name: 'Clear selection' }).click();
+      await bar.waitFor({ state: 'detached', timeout: 15000 });
+      must(!(await card.getByRole('checkbox').isChecked()), 'the box of the card is still ticked after "Clear selection"');
+
+      const stage = card.locator('td[data-label="Stage"]');
+      const before = flat(await stage.innerText());
+      const to = before === 'Negotiation' ? 'On Hold' : 'Negotiation';
+      await card.locator('td[data-label="Contact"] button').first().click();
+      const drawer = page.getByRole('dialog', { name: person });
+      await shown(drawer.locator('#drawer-stage'), 15000, 'the stage of the lead, in the panel its card opened');
+      await drawer.locator('#drawer-stage').selectOption({ label: to });
+      await shown(page.locator('.wx-toast-stack > div', { hasText: `moved to ${to}.` }), 15000, `the notice that the lead moved to ${to}`);
+      await drawer.locator('header').getByRole('button', { name: 'Close' }).click();
+      await drawer.waitFor({ state: 'detached', timeout: 15000 });
+      must(flat(await stage.innerText()) === to, `the card says "${flat(await stage.innerText())}" after the move to ${to}`);
+      // And the name of the card opens the lead's own page.
+      await Promise.all([page.waitForURL((url) => url.pathname === leadPath, { timeout: 20000 }), card.locator('th[scope="row"] a').click()]);
+      await quiet();
+      must(await page.getByRole('heading', { name: person }).first().isVisible(), 'the page the card led to is not the lead');
+      return `${told.join('; ')}; Tasks fits as it is; a search that finds nothing says so inside the window; one lead chosen on its card, then all ${count}, then none; ${person} moved from ${before} to ${to} from its card, and the card's name opened the lead`;
+    } finally {
+      await page.setViewportSize(desk);
+    }
+  });
 }
 
 await browser.close();

@@ -319,7 +319,40 @@ button.wx-summary-card:hover { border-color:var(--color-navy-300); background:va
 .wx-filter-pill,.wx-history-button { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--color-gray-200); border-radius:999px; background:white; padding:.45rem .9rem; font-size:.75rem; color:var(--color-gray-600); }
 .wx-filter-pill[aria-pressed=true] { background:var(--color-navy-900); color:white; border-color:var(--color-navy-900); }
 .wx-leads-table thead { background:var(--color-gray-50); }
-.wx-leads-table td { padding-top:1rem; padding-bottom:1rem; }
+.wx-leads-table td,.wx-leads-table tbody th { padding-top:1rem; padding-bottom:1rem; }
+
+/* The shared table on a narrow screen (master list T-042; the owner's document 05 §9: "table-to-card treatment for
+   key workflows"). A list that says cards="true" on <x-admin.table> is drawn as cards below 640 px: the tick box,
+   the cell that names the row, then every cell the list gave a data-label, with that label before it. A cell
+   without one is left off the card. It is the same markup as the table, laid out another way, so a card cannot
+   differ from its row. Only a table that shows rows is laid out so ([data-table-state='success']): "empty",
+   "error" and the other states keep their one wide cell. The headings are not drawn in any state: with nothing
+   under them they only made the list wider than a phone (the leads: 730 px in a frame of 356), and "No leads match
+   these filters" stood half outside the window.
+   Every rule that names .wx-table-cards stands inside this one media query (tests/Unit/AdminTableTest.php reads
+   this file for it): from 640 px up the table is the table it was. Outside the layers on purpose, so that these
+   rules win over the utilities a cell carries (hidden, px-5, text-right, whitespace-nowrap). */
+.wx-card-only { display:none; }
+@media (width < 40rem) {
+  .wx-table-cards thead { display:none; }
+  .wx-table-cards[data-table-state='success'] :is(table, tbody, tfoot) { display:block; }
+  .wx-table-cards[data-table-state='success'] :is(tbody, tfoot) > tr { display:grid; grid-template-columns:minmax(0,1fr); row-gap:.375rem; padding:.875rem 1rem; }
+  .wx-table-cards[data-table-state='success'] :is(tbody, tfoot) > tr > * { padding:0; }
+  .wx-table-cards[data-table-state='success'] :is(tbody, tfoot) > tr > td { display:none; }
+  .wx-table-cards[data-table-state='success'] :is(tbody, tfoot) > tr > th { display:block; white-space:normal; text-align:left; }
+  .wx-table-cards[data-table-state='success'] :is(tbody, tfoot) > tr > td[data-label] { display:block; position:relative; min-height:1.25rem; padding-left:6.25rem; text-align:left; white-space:normal; overflow-wrap:anywhere; }
+  .wx-table-cards[data-table-state='success'] :is(tbody, tfoot) > tr > td[data-label]::before { content:attr(data-label); position:absolute; top:0; left:0; width:5.5rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.75rem; line-height:1.25rem; font-weight:400; color:var(--color-gray-500); }
+  /* Where rows can be chosen: the tick box stands left of its card, and "Select all on this page" in a line above the cards. */
+  .wx-table-cards.wx-table-choose[data-table-state='success'] :is(tbody, tfoot) > tr { grid-template-columns:1.5rem minmax(0,1fr); column-gap:.75rem; }
+  .wx-table-cards.wx-table-choose[data-table-state='success'] :is(tbody, tfoot) > tr > * { grid-column:2; }
+  .wx-table-cards.wx-table-choose[data-table-state='success'] :is(tbody, tfoot) > tr > td.wx-select { display:block; grid-column:1; grid-row:1; }
+  .wx-table-cards.wx-table-choose[data-table-state='success'] thead { display:block; }
+  .wx-table-cards.wx-table-choose[data-table-state='success'] thead > tr { display:block; padding:.5rem 1rem; }
+  .wx-table-cards.wx-table-choose[data-table-state='success'] thead th { display:none; }
+  .wx-table-cards.wx-table-choose[data-table-state='success'] thead th.wx-select-all { display:block; width:auto; padding:0; }
+  .wx-table-cards.wx-table-choose[data-table-state='success'] .wx-card-only { display:inline; }
+  .dark .wx-table-cards[data-table-state='success'] :is(tbody, tfoot) > tr > td[data-label]::before { color:var(--color-gray-400); }
+}
 .wx-section-nav { border-bottom:1px solid var(--color-gray-200); }
 .wx-activity-timeline > li { padding-bottom:.7rem; }
 .wx-activity-timeline > li > div { border:1px solid var(--color-gray-100); border-radius:.8rem; padding:.85rem 1rem; background:var(--color-gray-25); }
