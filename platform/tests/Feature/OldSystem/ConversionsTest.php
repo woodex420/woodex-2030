@@ -103,7 +103,7 @@ it('keeps a time of the old system as the same moment on every server and shows 
     }
 });
 
-it('returns the workspace clock because a time handed over in UTC is kept five hours late', function () {
+it('returns the workspace clock because a time handed over in UTC is kept five hours early', function () {
     // The mistake this conversion is shaped to prevent, pinned so that nobody "tidies" the answer into UTC:
     // the admin writes the wall clock of the object it is given, and the database takes it for Pakistan time.
     $utc = Convert::time('2026-11-08T20:54:28.341Z')->utc();

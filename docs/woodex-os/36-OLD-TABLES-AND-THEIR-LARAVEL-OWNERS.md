@@ -1,8 +1,9 @@
 # 36 — The old system's tables, and who owns each in the admin
 
-**Master list T-175.** One row for every table of the old system (the React shop and dashboard with their Node
-API, on PostgreSQL): what it holds, whether its rows are brought over, into which tables of the Laravel admin,
-which screen owns it there, and in which wave.
+**Master list T-175, T-176 and T-177.** One row for every table of the old system (the React shop and dashboard
+with their Node API, on PostgreSQL): what it holds, whether its rows are brought over, into which tables of the
+Laravel admin, which screen owns it there, and in which wave (§1 to §7). Then how a value is brought over (§8,
+T-176) and how a record keeps its old number (§9, T-177).
 
 The tables below are written from [`acceptance/tables.json`](acceptance/tables.json) by
 `node scripts/verify-table-map.mjs --write`. CI runs the same script as a check: it reads the old schema files,
@@ -30,6 +31,10 @@ of a module is approved by you before its first real record is brought over (T-1
    map says which line builds each (§2, §5).
 5. **A name that stands on both sides is not the same table.** 24 names do: `leads`, `quotes`, `invoices`,
    `payments` and twenty more. The shapes differ in every case (§4).
+6. **What a move does with a value, and with a record's number, is decided and tested** (§8, §9): a time, an
+   amount of money, a list inside a cell, yes and no, a status, a text that is too long, two values that differ
+   only in capital letters, and the old number of a record. The tests run on the three database servers the
+   admin is promised for. Nothing uses the code yet, and no record has moved.
 
 <!-- generated:numbers — written by scripts/verify-table-map.mjs --write; do not edit by hand -->
 |  |  |
@@ -255,8 +260,9 @@ system's 765 columns are, by type: 466 text, 208 whole numbers, 45 times with a 
 - **Numbers of records.** The same record gets a new number in the admin. The table `legacy_refs` keeps the old
   number beside the new one, so that a second run finds what the first brought over.
 
-The next two lines of the master list test and settle exactly this: T-176 (the differences between PostgreSQL
-and MySQL, on real shapes) and T-177 (one rule for the numbers of records).
+Two lines of the master list have tested and settled exactly this: T-176 (the differences between PostgreSQL
+and MySQL, on real shapes) is §8, and T-177 (one rule for the numbers of records) is §9. Who a written-out
+person becomes is not settled there: that is each module's importer (T-178).
 
 ## 5. Wave by wave
 
@@ -296,6 +302,8 @@ the check to fail and to name the reason. Both run in CI (`ci.yml`).
 The check cannot read the live database: CI has no address for it. What the database held is written into the
 file by hand, with its time, each time it is read.
 
+§8 and §9 have checks of their own; the end of §9 lists them.
+
 ## 7. What this map does not decide
 
 1. **Whether a record moves at all.** Which customers and which documents may be brought over is yours
@@ -305,5 +313,398 @@ file by hand, with its time, each time it is read.
 3. **Options of a product.** `product_variants` waits for your answer on how options are sold (T-011).
 4. **The people.** By this map nobody's account is carried over: each person is invited and sets a password.
    If you want the accounts moved instead, say so; the passwords cannot be.
-5. **The order of the columns, and every value's conversion.** That is the importer of each module (T-178),
-   with its dry run and its reconciliation (T-179).
+5. **Which column goes into which, record by record.** That is the importer of each module (T-178), with its
+   dry run and its reconciliation (T-179). How a value is converted on the way is §8, and how the record keeps
+   its old number is §9. Both are proposals in the same sense as the rows of the map: the 14 words that have no
+   place yet (§8), and every rule of §8 and §9, are yours to change when you approve a module (T-181).
+
+## 8. How a value is brought over (T-176)
+
+The old system keeps its records in PostgreSQL and was written for JavaScript. The admin keeps them in MySQL or
+MariaDB and is written in PHP. The two disagree about a value in more ways than §4 names, and the three servers
+the admin is promised for (MySQL 8.4, MariaDB 10.11, MariaDB 11.4) disagree with each other as well. A test on
+the sandbox's own database (SQLite) shows almost none of it.
+
+So every importer goes through one class, `App\Domain\System\Import\OldSystem\Convert` (in `platform/`), and
+nothing else converts a value of the old system. The class rounds nothing, cuts nothing and guesses nothing.
+A value that does not fit is **refused by name**: what it was meant to be, the value, and the reason. An
+importer's dry run lists the refusals (T-179), so you see them before a record moves.
+
+Nothing uses the class yet. It runs against no data.
+
+<!-- generated:shape-numbers — written by scripts/verify-old-shape.mjs --write; do not edit by hand -->
+|  |  |
+|---|---|
+| Tables of the old system | **73**. The key is one number in 65, one text in 6, two columns in 2 |
+| Columns whose words are listed | **42**, with 185 words: 39 by a CHECK constraint of the schema (163 words), 3 only by the old API's code (22 words) |
+| Of them in tables that move today | **13** columns, 64 words: **50** have a place in the admin, **14** have none, each with its reason |
+| In tables that wait or stay | 29 columns, 121 words. They get a place when their table gets one |
+| Columns held to 0 or 1 · true yes-or-no columns | 13 · 3 |
+| Unique indexes an importer can meet | **32**: 15 the admin fills itself, 5 hold only numbers of other records, 1 is the table of the old numbers, **11** take a value of the old system (10 stop the import when two meet, 1 keeps the first) |
+| Names in the table of the old numbers | **35**, for the 29 tables that move. All begin with `node.` |
+<!-- /generated:shape-numbers -->
+
+### The rules, kind by kind
+
+| A value | As the old system holds it | In the admin | Refused |
+|---|---|---|---|
+| **A time** | A text, in 105 columns: `2026-11-08T20:54:28.341Z`. The `Z` says UTC | The same moment. A screen shows it in Pakistan time: 9 November, 01:54. The part of a second is dropped | A text that is no time (`Invalid Date`, `08/11/2026`, `next Tuesday`); a day that does not exist (30 February); a time of day with no time zone, unless the importer says where that clock stood; a moment before 1970 or after 19 January 2038, which a time column of the admin cannot hold |
+| **A day** | A text: `2026-11-08` (`tasks.due`, `invoices.due`) | The same day. No time zone moves it: in a day column it stays 8 November; in a time column it is the start of 8 November in Pakistan | A day that does not exist; a year before 1000 |
+| **Money, exact** | Rupees with two decimals, in 13 columns: `1234.50` | Whole paisa: 123,450 | `1234.565`: it is not whole paisa. It is not rounded |
+| **Money, floating** | Rupees as a floating number, in 23 columns. 0.1 + 0.2 is 0.30000000000000004 there | Whole paisa. That number is 30 paisa: the tail is the noise of floating numbers, far smaller than a millionth of a paisa. Rs 99,999,999.99 arrives as 9,999,999,999 paisa | `1234.565`: half a paisa is not noise. Rs 100 billion or more: a floating number that large no longer holds its paisa for certain |
+| **A list inside a cell** | A text of JSON, in 24 columns | The value, read back the same on every server: Urdu, an emoji, a number above 9,007,199,254,740,992 to the last digit | A text that is not JSON, with the reason |
+| **Yes and no** | 0 and 1 in a whole-number column; `t` and `f` in three true yes-or-no columns | No and yes | 2, `yes`, an empty text. An empty cell stays empty: whether that means no is the importer's to say |
+| **A word** (a status, a stage, a priority) | One of the words the old system allows, compared exactly: `Paid`, not `paid` | Its place in the admin's list of the same thing (the table below) | A word the old system does not allow there; a word that has no place in the admin; a word of a table that does not move yet |
+| **A text** | Of any length | The same text, if it fits the column. Letters are counted, not bytes: an Urdu letter and an emoji count one each | A text longer than the column, with both lengths |
+| **A value that must be unique** | Two spellings can stand side by side: `WX-Desk-01`, `wx-desk-01` | The rule written for that column decides before anything is written (the last table of this section) | Two values that meet, where the rule says the import stops |
+
+Two things follow for whoever writes an importer.
+
+**Add the paisa, never the rupees.** A thousand floating amounts added up have drifted: in the test the sum of
+a thousand lines differs from the true amount. Each line converted to paisa and then added is exact, and the
+database adds the thousand lines to the same paisa on every server.
+
+**Hand a time over as the conversion returns it.** The admin writes a time as the clock of the object it is
+given, and the database takes that clock for Pakistan time. A time handed over in UTC is kept five hours early,
+on every server and without an error. The conversion therefore returns the moment on the workspace's clock,
+and a test pins the mistake so that nobody tidies it away.
+
+### Where the servers disagree
+
+Each line is pinned by a test that says which server is answering.
+
+| What is done | MySQL 8.4 | MariaDB 10.11 and 11.4 | SQLite (the sandbox) | So the conversion |
+|---|---|---|---|---|
+| A time with a part of a second is handed to a time column | Rounds it: 20:54:28.641 becomes 20:54:29 | Cuts it: 20:54:28 | Keeps the text as it came | Drops the part of a second before the database sees it |
+| A moment after 19 January 2038 | Refuses it | Refuses it | Keeps it, and says nothing | Refuses it itself, by name |
+| A text longer than its column | Refuses it | Refuses it | Keeps all of it | Refuses it itself, by name |
+| A list with named parts is written to a JSON column | Hands the names back in an order of its own | Keeps the text as it was written | Keeps the text | Relies on no such order: what must stay in order goes in a list, and a list keeps its order on all of them |
+| Two values that differ only in capital letters, in a unique column | Holds them to be one, and refuses the second | The same | Holds them to be two | Applies the written rule of that column first |
+| `Strasse` and `Straße` in a unique column | Holds them to be one | The same | Holds them to be two | Does not see this one. The database refuses the second value, and the import stops there |
+
+The last line is the limit of the rule, said plainly. What a person can type differently is foreseen: capital
+and small letters, a letter with and without its accent, spaces at the end. What only the database's own table
+of letters knows is not; there the unique column itself is the protection, and it stops the import instead of
+losing a record.
+
+### Where each word goes
+
+A status, a stage or a priority is a word in the old system, and the old system lists the words a column may
+hold. The admin keeps its own list for the same thing. This table says where each word of a table that moves
+goes. It is written from `platform/resources/data/old-system-rules.json`, a file kept by hand.
+
+<!-- generated:shape-words — written by scripts/verify-old-shape.mjs --write; do not edit by hand -->
+| Column of the old system | Its word | In the admin |
+|---|---|---|
+| `accounts.kind` | `asset` | `asset` (AccountType) |
+| `accounts.kind` | `liability` | `liability` (AccountType) |
+| `accounts.kind` | `equity` | `equity` (AccountType) |
+| `accounts.kind` | `revenue` | `income` (AccountType) |
+| `accounts.kind` | `expense` | `expense` (AccountType) |
+| `activities.kind` | `call` | `call` (ActivityType) |
+| `activities.kind` | `meeting` | `meeting` (ActivityType) |
+| `activities.kind` | `note` | `note` (ActivityType) |
+| `activities.kind` | `email` | `email` (ActivityType) |
+| `activities.kind` | `status_change` | **No place.** The admin keeps three kinds for this: a change of stage, an event of a quotation, an event of an invoice. Which one depends on what the entry is about, not on the word. |
+| `activities.kind` | `document` | **No place.** The admin's timeline has no kind for "a document was attached". |
+| `activities.kind` | `payment` | `payment` (ActivityType) |
+| `activities.kind` | `system` | `system` (ActivityType) |
+| `conversations.status` | `open` | `open` (ConversationStatus) |
+| `conversations.status` | `pending` | `pending` (ConversationStatus) |
+| `conversations.status` | `resolved` | `closed` (ConversationStatus) |
+| `conversations.status` | `snoozed` | `snoozed` (ConversationStatus) |
+| `invoices.status` | `Issued` | `issued` (InvoiceStatus) |
+| `invoices.status` | `Partially Paid` | `partially_paid` (InvoiceStatus) |
+| `invoices.status` | `Paid` | `paid` (InvoiceStatus) |
+| `invoices.status` | `Cancelled` | `void` (InvoiceStatus) |
+| `meetings.channel` | `in-person` | `meeting` (TaskType) |
+| `meetings.channel` | `phone` | `call` (TaskType) |
+| `meetings.channel` | `video` | `meeting` (TaskType) |
+| `meetings.status` | `scheduled` | `open` (TaskStatus) |
+| `meetings.status` | `held` | `done` (TaskStatus) |
+| `meetings.status` | `cancelled` | `cancelled` (TaskStatus) |
+| `meetings.status` | `no_show` | **No place.** A task of the admin is open, done or cancelled. A meeting nobody came to is none of the three. |
+| `messages.direction` | `inbound` | `in` (MessageDirection) |
+| `messages.direction` | `outbound` | `out` (MessageDirection) |
+| `messages.direction` | `system` | **No place.** A message of the admin comes in or goes out. A line the system wrote itself is neither: in the admin it is a note inside the conversation. |
+| `projects.stage` | `Planning` | `planning` (ProjectStage) |
+| `projects.stage` | `Procurement` | `procurement` (ProjectStage) |
+| `projects.stage` | `Production` | **No place.** The admin's stages are those of a fit-out: design, execution, finishing. The making of furniture has no stage of its own there. |
+| `projects.stage` | `Delivery` | **No place.** The admin has no stage for the delivery. |
+| `projects.stage` | `Installation` | **No place.** The admin has no stage for the installation. |
+| `projects.stage` | `Handover` | `handover` (ProjectStage) |
+| `quotes.status` | `Draft` | `draft` (QuoteStatus) |
+| `quotes.status` | `Review` | **No place.** The admin has one step before a quotation is sent (waiting for approval); the old system has two, and this is the first of them. |
+| `quotes.status` | `Approval` | `pending_approval` (QuoteStatus) |
+| `quotes.status` | `Sent` | `sent` (QuoteStatus) |
+| `quotes.status` | `Viewed` | `viewed` (QuoteStatus) |
+| `quotes.status` | `Negotiation` | `changes_requested` (QuoteStatus) |
+| `quotes.status` | `Revised` | **No place.** In the old system a quotation that is changed after it was sent stays one record with this status. In the admin the change is a new revision, and the earlier one is marked as replaced. |
+| `quotes.status` | `Accepted` | `accepted` (QuoteStatus) |
+| `quotes.status` | `Approved` | **No place.** The same word, another meaning. In the old system it is the last step: the customer agreed. In the admin "approved" is a step inside the company, before the quotation is sent. It must not be matched by its name. |
+| `quotes.status` | `Rejected` | `declined` (QuoteStatus) |
+| `quotes.status` | `Expired` | `expired` (QuoteStatus) |
+| `quotes.status` | `Cancelled` | `void` (QuoteStatus) |
+| `site_visits.status` | `Scheduled` | `scheduled` (VisitStatus) |
+| `site_visits.status` | `Confirmed` | `confirmed` (VisitStatus) |
+| `site_visits.status` | `Completed` | `completed` (VisitStatus) |
+| `site_visits.status` | `Cancelled` | `cancelled` (VisitStatus) |
+| `supplier_invoices.match_state` | `matched` | **No place.** The admin does not compare a bill with its purchase order and its goods receipt, so it keeps no result of that comparison. |
+| `supplier_invoices.match_state` | `tolerance` | **No place.** The admin does not compare a bill with its purchase order and its goods receipt, so it keeps no result of that comparison. |
+| `supplier_invoices.match_state` | `variance` | **No place.** The admin does not compare a bill with its purchase order and its goods receipt, so it keeps no result of that comparison. |
+| `supplier_invoices.match_state` | `unlinked` | **No place.** The admin does not compare a bill with its purchase order and its goods receipt, so it keeps no result of that comparison. |
+| `supplier_invoices.status` | `draft` | `draft` (BillStatus) |
+| `supplier_invoices.status` | `posted` | `received` (BillStatus) |
+| `supplier_invoices.status` | `paid` | `paid` (BillStatus) |
+| `supplier_invoices.status` | `cancelled` | `void` (BillStatus) |
+| `tasks.priority` | `low` | `low` (LeadPriority) |
+| `tasks.priority` | `normal` | `normal` (LeadPriority) |
+| `tasks.priority` | `high` | `high` (LeadPriority) |
+
+- `invoices.status`: The old system works "Overdue" out when it shows an invoice and never stores it; so does the admin.
+- `meetings.channel`: A meeting becomes a task and an entry on the timeline. That it was held by video is kept in the note, not in the kind.
+- `supplier_invoices.status`: The admin works "part paid" out from what was paid; the old system has no such word.
+<!-- /generated:shape-words -->
+
+**A word with no place is not lost and not guessed.** An importer that meets one stops at that record and the
+dry run names it. Before the module is approved you say where the word goes, or that the admin's list gets a
+new entry for it. The one to look at first is `Approved` on a quotation: the same word means "the customer
+agreed" in the old system and "passed inside the company, not sent yet" in the admin. Matched by its name it
+would turn every won quotation into one that was never sent.
+
+Two columns hold no closed list, so nothing is placed here. `leads.status` takes any text; the old dashboard
+offers nine stages, and in the admin a stage is a row of the pipeline, not a word. `orders.due` takes any text.
+Two more lists stand only in the old API's code and are neither a status, a stage nor a priority: the channel of
+a message and the kind of a project's file. All four are for the importer of their module (T-178).
+
+### The words of tables that do not move yet
+
+These get a place when their table gets one. Until then the conversion refuses them and names the line of the
+master list the table waits for.
+
+<!-- generated:shape-waiting-words — written by scripts/verify-old-shape.mjs --write; do not edit by hand -->
+| Column of the old system | Its words | Its table |
+|---|---|---|
+| `bom_lines.item_kind` | `product`, `material` | Waits for T-111 (wave 8) |
+| `credit_notes.status` | `draft`, `issued`, `applied`, `cancelled` | Waits for T-113 (wave 9) |
+| `deliveries.condition` | `good`, `damaged`, `partial`, `rejected` | Waits for T-107 (wave 6) |
+| `deliveries.status` | `pending`, `in_transit`, `delivered`, `failed`, `returned` | Waits for T-107 (wave 6) |
+| `dispatch_runs.status` | `planned`, `dispatched`, `completed`, `cancelled` | Waits for T-107 (wave 6) |
+| `installed_assets.status` | `installed`, `removed`, `replaced`, `faulty` | Waits for T-108 (wave 6) |
+| `job_card_materials.item_kind` | `product`, `material` | Waits for T-111 (wave 8) |
+| `job_cards.stage` | `queued`, `in_progress`, `qc`, `done`, `cancelled` | Waits for T-111 (wave 8) |
+| `orders.stage` | `production`, `qc`, `dispatch`, `delivery`, `installation` | Waits for T-106 (wave 6) |
+| `orders.status` | `Pending`, `On Track`, `In Progress`, `On Hold`, `Delayed`, `Completed` | Waits for T-106 (wave 6) |
+| `password_resets.reason` | `forgotten`, `compromised`, `offboarding`, `initial` | Stays in the old system |
+| `payment_schedules.status` | `pending`, `paid`, `waived` | Waits for T-113 (wave 9) |
+| `products.status` | `draft`, `published`, `archived` | Stays in the old system |
+| `purchase_order_lines.item_kind` | `product`, `material` | Waits for T-110 (wave 7) |
+| `purchase_orders.status` | `draft`, `approved`, `sent`, `partially_received`, `received`, `cancelled` | Waits for T-110 (wave 7) |
+| `returns.state` | `Requested`, `Inspecting`, `Refunding`, `Closed` | Waits for T-106 (wave 6) |
+| `service_visits.status` | `scheduled`, `attended`, `completed`, `missed`, `cancelled` | Waits for T-108 (wave 6) |
+| `stock_movements.reason` | `receipt`, `sale`, `return`, `adjustment`, `transfer`, `wastage`, `production` | Waits for T-109 (wave 7) |
+| `stock_reservations.status` | `held`, `released`, `consumed` | Waits for T-109 (wave 7) |
+| `stock_transfers.status` | `draft`, `dispatched`, `received`, `cancelled` | Waits for T-109 (wave 7) |
+| `tax_records.kind` | `sales`, `purchase`, `withholding` | Stays in the old system |
+| `throttle_buckets.kind` | `login`, `ip` | Stays in the old system |
+| `tickets.category` | `damage`, `defect`, `missing_part`, `fitting`, `finish`, `delivery`, `other` | Waits for T-108 (wave 6) |
+| `tickets.channel` | `phone`, `email`, `whatsapp`, `visit`, `web` | Waits for T-108 (wave 6) |
+| `tickets.priority` | `low`, `normal`, `high`, `urgent` | Waits for T-108 (wave 6) |
+| `tickets.status` | `open`, `in_progress`, `waiting`, `resolved`, `closed` | Waits for T-108 (wave 6) |
+| `tickets.waiting_on` | `us`, `them` | Waits for T-108 (wave 6) |
+| `users.role` | `owner`, `editor`, `sales`, `finance`, `purchasing`, `production`, `viewer` | Stays in the old system |
+| `warranty_claims.verdict` | `pending`, `covered`, `not_covered`, `goodwill` | Waits for T-108 (wave 6) |
+<!-- /generated:shape-waiting-words -->
+
+### Every unique column, and its rule
+
+PostgreSQL holds `WX-Desk-01` and `wx-desk-01` to be two values. MySQL and MariaDB, as the admin sets them up,
+hold them to be one; the same goes for `Café` and `cafe`, and for a value with a space after it. Two old records
+that differ only so meet on a column that must be unique.
+
+The table lists every unique column of the tables an importer can write to: the 28 that receive rows by the
+map, the table of the old numbers, and `users` and `commerce_products`, which the map leaves alone today. For
+each it says who gives the value. Where the old system's value is written, it says what happens when two meet:
+the import stops and names both records, or the first is kept and the other is listed for you. **Stopping is
+the rule almost everywhere**, because two invoices under one number is a question for a person, not for a
+program. A test compares this table with the unique columns the database itself reports; a unique column that
+is added later fails it until its rule is written.
+
+<!-- generated:shape-unique — written by scripts/verify-old-shape.mjs --write; do not edit by hand -->
+| Unique in the admin | What it is | The value comes from | When two old values meet |
+|---|---|---|---|
+| `bill_payments.idempotency_key` | The admin makes this key itself, once for each payment it records. | The admin makes it | — |
+| `bill_payments.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `bills.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `bills.vendor_id + number` | The number the supplier wrote on the invoice. Two invoices of one supplier under one number cannot both be entered. | The old system: `supplier_invoices.supplier_ref` | **The import stops** and names both records |
+| `chart_of_accounts.code` | The code of an account. Two accounts cannot share one. | The old system: `accounts.code` | **The import stops** and names both records |
+| `commerce_products.slug` | The address of a product. By the map the old products stay where they are; if that changes, two products cannot share an address. | The old system: `products.id` | **The import stops** and names both records |
+| `commerce_products.source_key` | The code under which a product came in. By the map the old products stay where they are; if that changes, two products cannot share a code. | The old system: `products.id` | **The import stops** and names both records |
+| `conversations.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `conversations.widget_token` | The admin makes this key itself for a chat on the website. | The admin makes it | — |
+| `expenses.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `invoices.number` | The number printed on an invoice. The old system does not hold it unique, the admin does: two invoices under one number stop the import. | The old system: `invoices.ref` | **The import stops** and names both records |
+| `invoices.project_milestone_id` | One invoice for one milestone of a project. | Numbers of other records only | — |
+| `invoices.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `invoices.source_quote_id` | One invoice from one quotation. | Numbers of other records only | — |
+| `journal_entries.entry_no` | The number of an entry of the books. | The old system: `journal_entries.ref` | **The import stops** and names both records |
+| `journal_entries.source_type + source_id` | Which record an entry of the books was made for: a type name of the admin's own, and that record's number there. No text of the old system is written here, so capital letters cannot matter. Two old entries made for one record would meet here; the importer of the books settles that (T-178). | The admin makes it | — |
+| `leads.ref` | The number of an enquiry. The old system does not hold it unique, the admin does. | The old system: `leads.ref` | **The import stops** and names both records |
+| `legacy_refs.legacy_table + legacy_id` | The old name and the old number of a record. Only the one class writes them, in a form in which upper and lower case cannot meet (T-177). | The one class of §9 | — |
+| `media.uuid` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `messages.external_id` | The number a provider gives a message. The old system kept none, so an importer leaves it empty; the admin fills it for the messages it receives itself. | The admin makes it | — |
+| `payment_allocations.payment_id + invoice_id` | One share of a payment for one invoice. | Numbers of other records only | — |
+| `payments.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `payments.receipt_number` | The admin numbers its receipts itself. | The admin makes it | — |
+| `projects.code` | The number of a project. | The old system: `projects.ref` | **The import stops** and names both records |
+| `projects.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `projects.quote_id` | One project from one quotation. | Numbers of other records only | — |
+| `quote_templates.slug` | The address of a template, made from its name. Two templates whose names differ only in case would get one address. | The old system: `quote_templates.name` | **The import stops** and names both records |
+| `quote_versions.quote_id + revision` | One record for each revision of a quotation. | Numbers of other records only | — |
+| `quotes.number + option_label` | The number printed on a quotation. The old system does not hold it unique, the admin does. | The old system: `quotes.ref` | **The import stops** and names both records |
+| `quotes.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+| `users.email` | An address for signing in. By the map nobody's account is carried over: people are invited. If that changes, one mailbox is one person: the account with the lower old number is kept and the other is listed for you. | The old system: `users.email` | **The first is kept** (the lower old number); the other is listed |
+| `vendors.public_id` | The admin makes this identifier itself for every new record. | The admin makes it | — |
+<!-- /generated:shape-unique -->
+
+## 9. The number of a record (T-177)
+
+A record gets a new number in the admin. The table `legacy_refs` keeps the old number beside the new one, so
+that a second run of an importer finds what the first brought over, and so that a reference can be followed:
+which enquiry of the admin is the old enquiry 17?
+
+For the old system one class writes that table: `App\Domain\System\Import\OldSystem\Refs`. An importer asks it
+"was this row brought over, and has it changed since?", and the class writes the answer. An importer never
+names the table itself; a test reads every file of the admin and fails on one that does.
+
+### The rule
+
+1. **The name.** A row is entered under `node.`, the old table, `>` and the admin's table:
+   `node.leads>contacts`. `node.` stands for this old system, and no other importer's names begin with it, so
+   the old enquiry 17 and the enquiry 17 of the studio's older CRM never meet. The name is derived from the
+   table's name and from the map; the map gains nothing.
+2. **The key.** The row's own key, as one text.
+   - A number is its digits: `17`. Never `017` or `17.0`, which would be a second text for the same record.
+   - A text is kept letter for letter where it is made of small letters, digits, `-`, `_` and `.`. Every other
+     sign is written as `%` and two digits for each of its bytes: a capital letter, a space, an accent, an Urdu
+     letter. `Desk` is written `%44esk`. This is why: the admin's database holds `Desk` and `desk` to be the
+     same text, and the old one does not. Written so, two different keys are two different texts on every
+     server.
+   - A key of two columns is joined with `:`, as `lead:17`. A `:` inside a value is written `%3a`, so `1` with
+     `27` and `12` with `7` cannot come out alike, and neither can a value that holds the joining sign.
+   - The column holds 64 characters. A key that is longer, as it is written, is refused by name. It is not cut.
+3. **One row, two records.** An old enquiry becomes a contact and a lead. It is entered once for each, under
+   the same key: `node.leads>contacts` and `node.leads>leads`. Two old rows may point at one record (two
+   enquiries of one person are one contact). Where one row makes several records in one table (the lines of a
+   quotation), those get no entry of their own: they are written and replaced with their quotation, and its
+   entry answers for them.
+4. **The checksum.** SHA-256 of the row as the importer read it: the columns in the order of their names, each
+   value as a text, an empty cell as nothing. The same row gives the same checksum in whatever order it was
+   read. A row whose content changed gives another, and is seen as changed.
+
+An entry holds the name, the key, the admin's table, the number of the record there, the checksum and the time.
+
+### What a run does
+
+| The row | What happens |
+|---|---|
+| Was never brought over | The importer makes the record, and the entry is written with it, both or neither. A record is never left without its entry, which would make a second record on the next run |
+| Was brought over, and is as it was | Nothing is made and nothing is written: not a record, not an entry, not a time. A test counts the statements a second run sends, and none of them writes |
+| Was brought over, and has changed | The importer is told so, with the number of the record. If it says what to do, that is done and the entry takes the new checksum. If it says nothing, nothing is written, and the row is reported as changed on every run until somebody has dealt with it. A change is never passed over quietly |
+| Was brought over by another run at the same moment | The database refuses the second entry, what this run made is taken back, and the refusal says so |
+
+### The names
+
+<!-- generated:shape-entries — written by scripts/verify-old-shape.mjs --write; do not edit by hand -->
+| Table of the old system | Its key | Entered under |
+|---|---|---|
+| `accounts` | `id` (a number) | `node.accounts>chart_of_accounts` |
+| `activities` | `id` (a number) | `node.activities>activities` |
+| `attachments` | `id` (a number) | `node.attachments>media` |
+| `audit_logs` | `id` (a number) | `node.audit_logs>activity_log` |
+| `client_links` | `entity` (a text) and `entity_id` (a number) | `node.client_links>leads`, `node.client_links>quotes`, `node.client_links>invoices`, `node.client_links>tasks` |
+| `clients` | `id` (a number) | `node.clients>contacts` |
+| `companies` | `id` (a number) | `node.companies>companies` |
+| `contacts` | `id` (a number) | `node.contacts>contacts` |
+| `conversations` | `id` (a number) | `node.conversations>conversations` |
+| `expenses` | `id` (a number) | `node.expenses>expenses` |
+| `invoices` | `id` (a number) | `node.invoices>invoices` |
+| `journal_entries` | `id` (a number) | `node.journal_entries>journal_entries` |
+| `journal_lines` | `id` (a number) | `node.journal_lines>journal_lines` |
+| `leads` | `id` (a number) | `node.leads>leads`, `node.leads>contacts` |
+| `meetings` | `id` (a number) | `node.meetings>tasks`, `node.meetings>activities` |
+| `messages` | `id` (a number) | `node.messages>messages` |
+| `payments` | `id` (a number) | `node.payments>payments`, `node.payments>payment_allocations` |
+| `project_files` | `id` (a number) | `node.project_files>media` |
+| `project_milestones` | `id` (a number) | `node.project_milestones>project_milestones` |
+| `projects` | `id` (a number) | `node.projects>projects` |
+| `quote_templates` | `id` (a text) | `node.quote_templates>quote_templates` |
+| `quote_versions` | `id` (a number) | `node.quote_versions>quote_versions` |
+| `quotes` | `id` (a number) | `node.quotes>quotes` |
+| `site_visits` | `id` (a number) | `node.site_visits>site_visits` |
+| `supplier_invoice_lines` | `id` (a number) | `node.supplier_invoice_lines>bill_items` |
+| `supplier_invoices` | `id` (a number) | `node.supplier_invoices>bills` |
+| `supplier_payments` | `id` (a number) | `node.supplier_payments>bill_payments` |
+| `suppliers` | `id` (a number) | `node.suppliers>vendors` |
+| `tasks` | `id` (a number) | `node.tasks>tasks` |
+
+No entry of their own:
+
+- `invoices` into `invoice_items`: The lines of an invoice are one block inside the old row and rows of their own in the admin. They are written with their invoice and replaced with it; the entry of the invoice answers for them.
+- `quotes` into `quote_items`: The lines of a quotation are one block inside the old row and rows of their own in the admin. They are written with their quotation and replaced with it; the entry of the quotation answers for them.
+
+Not entered today, because their rows are not brought over, and with a key that is not one number: `materials` (`id` (a text); waits for T-110, wave 7), `meta` (`key` (a text); stays in the old system), `products` (`id` (a text); stays in the old system), `services` (`id` (a text); waits for T-117, wave 10), `sessions` (`token` (a text); stays in the old system), `stock_levels` (`product_id` (a text) and `location_id` (a number); waits for T-109, wave 7). The other 38 tables that wait or stay have one number for their key.
+<!-- /generated:shape-entries -->
+
+### The longest key
+
+The column holds 64 characters, and this round widens nothing. A number has at most 19 digits. The key of
+`quote_templates` is made by the old API as `qt-` and 36 characters, 39 in all. The key of `client_links` is a
+short word and a number. So no key of a table that moves today can be too long.
+
+Two tables that do not move today can have one. The old API allows a product's code of up to 80 characters
+(small letters, digits and dashes), which is more than 64, and `stock_levels` has that code and a number for its
+key. In the sample data the longest code has 31 characters, and in the admin's own catalogue file 37. **How long
+the longest code in the live database is was not read**: the connection to it was switched off when this was
+written. `products` stays and `stock_levels` waits for T-109, so nothing is refused today. The line that moves
+either of them reads the longest key first; if it is longer than 64, that line adds one migration that only
+widens the column. Until then the class refuses such a key by name.
+
+### Who else writes the table
+
+Six classes that came with the admin write or delete entries, for other old systems and under names of their
+own. None is changed by this round.
+
+| File (under `platform/`) | What it brings over | Its names |
+|---|---|---|
+| `app/Domain/System/Import/V21Importer.php` | The studio's older CRM | `wx_users`, `wx_clients`, `wx_leads`, `wx_lead_notes`, `wx_bookings` |
+| `app/Domain/System/Import/LeadCsvImporter.php` | A list of leads from a file | `lead_csv_` and the year |
+| `app/Console/Commands/ImportWebsite.php` | A website's pages and pictures, as one bundle | `website-bundle`, `website-image` |
+| `app/Domain/Website/Import/ImportLegacyPage.php` | One page of the old website | `website-page` |
+| `app/Domain/Website/Import/ImportLegacyMedia.php` | The pictures of the old website | `website-image` |
+| `app/Console/Commands/ResetWebsite.php` | Nothing: it deletes the website's entries | `website-bundle`, `website-page`, `website-image`, `legacy-website` |
+
+The plan counted these six. Reading every file found two more that name the table, and the test lists them
+too: `app/Console/Commands/ImportLegacy.php` only asks whether a page was brought over, and the test checks
+that it does not write; `database/quarantine/interior-content/2026_10_17_000200_reload_the_complete_website.php`
+is a migration that is kept out of use and wrote a marker under `website-reload`.
+
+### How §8 and §9 are kept true
+
+| When this changes | Which check says so |
+|---|---|
+| A migration of the old system adds a table, a key, or a word to a list | `scripts/verify-old-shape.mjs` (in `build-and-test`): the file that tells the admin the old system's shape is no longer what the schema gives |
+| A word of a table that moves has neither a place nor a reason | The same script names the word; so does the admin's test, which sends every word through the conversion |
+| A word is sent to a value the admin's list does not have | Both, with the word and the list |
+| A unique column is added to a table an importer writes to | The admin's test: the database reports a unique column that has no written rule |
+| A new file of the admin names `legacy_refs` | The admin's test names the file |
+| An importer that came with the admin takes a new name, or one that begins with `node.` | The admin's test: the list of names in use differs |
+| The map sends a table somewhere else | The script: the names of §9 are written again, and the test's count follows the map |
+| This document no longer shows what the two files say | The script names the block to write again (`node scripts/verify-old-shape.mjs --write`) |
+
+`platform/tests/Feature/OldSystem/` holds the admin's tests: 66 of them, run on MySQL 8.4, MariaDB 10.11 and
+MariaDB 11.4 in CI and on SQLite in a sandbox. They were tried against 38 mistakes, one at a time, on a copy:
+money rounded instead of refused, a word taken out, a time handed over in UTC, the check for a changed row
+removed, a key written as it comes, a seventh class that writes the table, and 32 more. Each was noticed and
+named ([report 38](38-RELEASE-2026-11-20-VALUES-AND-RECORD-NUMBERS.md)). `scripts/test-verify-old-shape.mjs` does the
+same for the script.

@@ -236,7 +236,7 @@ the way out.
 | The live database, made-up rows, no table touched | 116 to 119 ms (before, three runs) | 147, 148 and 161 ms (after, three runs) |
 
 - That is about one to two millionths of a second a call. The shop's largest table holds 148 rows.
-- The two measurements on the live database were made with statements of the same kind, an hour apart; the
+- The two measurements on the live database were made with statements of the same kind, 40 to 60 minutes apart; the
   text of the first was not kept. Read the difference as a size, not as a figure.
 - `datetime()` was never written into the calling query by the planner, before or after: the setting did not
   take that away.

@@ -23,9 +23,27 @@
  *   - a CHECK constraint on one text column compares it with words in a way this script cannot read (so that
  *     it is taught, not fooled).
  *
- *   node scripts/verify-old-shape.mjs                 check (CI)
- *   node scripts/verify-old-shape.mjs --write         write the file, then check
- *   node scripts/verify-old-shape.mjs --file <path>   check another file instead (the test of this check uses it)
+ * Beside that file stands one that is written by hand, the decisions an importer follows:
+ *
+ *   platform/resources/data/old-system-rules.json
+ *
+ * the place of each word of the old system in an enumeration of the admin, the rule of every unique column, and
+ * which records get no entry in the table of the old numbers. This script holds it to the old system. It fails when
+ *   - a column of a table that moves lists its words and the rules leave it out, or leave one word without a
+ *     place and without a reason, or name a word the old system does not allow;
+ *   - a place is a value the admin's enumeration does not have (read from the enumeration's file);
+ *   - a unique column is said to take its value from a column the old system does not have;
+ *   - records are said to get no entry in a table the map does not send their row into;
+ *   - docs/woodex-os/36-OLD-TABLES-AND-THEIR-LARAVEL-OWNERS.md does not show what the two files say (§8, §9).
+ * What only a database can say (the admin's own unique indexes, on each server) is held by the admin's tests,
+ * platform/tests/Feature/OldSystem.
+ *
+ *   node scripts/verify-old-shape.mjs                     check (CI)
+ *   node scripts/verify-old-shape.mjs --write             write the shape file and the blocks of document 36, then check
+ *   node scripts/verify-old-shape.mjs --file <path>       check another shape file instead
+ *   node scripts/verify-old-shape.mjs --rules <path>      check another rules file instead
+ *   node scripts/verify-old-shape.mjs --document <path>   check another copy of document 36 instead
+ * (the last three are what the test of this check uses)
  *
  * scripts/test-verify-old-shape.mjs tries the check itself, one mistake at a time.
  */
@@ -36,7 +54,12 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, createPgliteDatabase, openPglite } from './lib/pg-fixture.mjs';
 
 export const SHAPE_PATH = 'platform/resources/data/old-system-shape.json';
+export const RULES_PATH = 'platform/resources/data/old-system-rules.json';
+export const DOCUMENT_PATH = 'docs/woodex-os/36-OLD-TABLES-AND-THEIR-LARAVEL-OWNERS.md';
 const MAP_PATH = 'docs/woodex-os/acceptance/tables.json';
+
+/** The beginning of every name the old system's rows are entered under (App\\Domain\\System\\Import\\OldSystem\\Refs::SYSTEM). */
+export const SYSTEM = 'node.';
 
 /**
  * Words that no CHECK constraint holds but the old API refuses to write: the column, and the constant of the
@@ -105,8 +128,10 @@ export async function buildShape({ root = ROOT } = {}) {
   const dir = path.join(work, 'db');
   await createPgliteDatabase(dir);
   const db = await openPglite(dir);
-  let keys; let checks; let booleans;
+  let keys; let checks; let booleans; let columnRows;
   try {
+    columnRows = await db.q(`
+      SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema() ORDER BY 1, 2`);
     keys = await db.q(`
       SELECT c.relname AS table_name,
              (SELECT json_agg(json_build_array(a.attname, format_type(a.atttypid, NULL)) ORDER BY k.ord)
@@ -175,7 +200,182 @@ export async function buildShape({ root = ROOT } = {}) {
 
   for (const table of Object.values(tables)) { table.flags.sort(); table.booleans.sort(); }
   const sorted = Object.fromEntries(Object.keys(tables).sort().map((name) => [name, tables[name]]));
-  return { shape: { about: ABOUT, tables: sorted }, problems };
+  // Every column of the old schema, as "table.column": not written to the file, used to check the rules.
+  const columns = new Set(columnRows.map((row) => `${row.table_name}.${row.column_name}`));
+  return { shape: { about: ABOUT, tables: sorted }, problems, columns };
+}
+
+/* ---------- the rules, written by hand ---------- */
+
+/** The words a column may hold by the shape: by a CHECK constraint, or else by the old API's code. */
+const wordsBy = (table, column) => table.words[column] ?? table.words_in_code[column]?.words ?? null;
+
+/** Every column of the shape whose words are listed, as [where, table's name, column, words]. */
+export function vocabularies(shape) {
+  const found = [];
+  for (const [name, table] of Object.entries(shape.tables)) {
+    for (const column of Object.keys({ ...table.words, ...table.words_in_code })) found.push([`${name}.${column}`, name, column, wordsBy(table, column)]);
+  }
+  return found.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+}
+
+/** The values of a PHP enumeration, read from its file: `App\\Domain\\Sales\\Enums\\InvoiceStatus` → ['draft', …]; null when unreadable. */
+export function enumValues(className, root = ROOT) {
+  const match = /^App\\((?:[A-Za-z0-9_]+\\)*[A-Za-z0-9_]+)$/.exec(className ?? '');
+  if (!match) return null;
+  const file = path.join(root, 'platform/app', `${match[1].replaceAll('\\', '/')}.php`);
+  if (!fs.existsSync(file)) return null;
+  const source = fs.readFileSync(file, 'utf8');
+  if (!new RegExp(`^enum ${className.split('\\').pop()}: string`, 'm').test(source)) return null;
+  return [...source.matchAll(/^\s*case\s+\w+\s*=\s*'([^']*)';/gm)].map((found) => found[1]);
+}
+
+const VALUES = ['admin', 'numbers', 'key', 'carried'];
+const WHEN_TWO_MEET = ['stop', 'first'];
+
+/** What the rules say against the old system: one sentence for each mistake. */
+export function rulesProblems(shape, rules, columns, { root = ROOT } = {}) {
+  const found = [];
+  if (!rules || typeof rules !== 'object' || Array.isArray(rules)) return ['the file holds no rules'];
+  for (const part of ['about', 'words', 'unique', 'lines']) if (rules[part] === undefined) found.push(`the part "${part}" is missing`);
+  if (found.length) return found;
+
+  const listed = new Map(vocabularies(shape).map(([where, table, column, words]) => [where, { table, column, words }]));
+  for (const [where, { table, words }] of listed) {
+    if (shape.tables[table].fate !== 'moves') continue;
+    const rule = rules.words[where];
+    if (!rule) { found.push(`${where}: the old system lists its words and its table moves, but the rules give them no place`); continue; }
+    const places = Object.keys(rule.places ?? {}); const without = Object.keys(rule.without ?? {});
+    for (const word of words) {
+      if (!places.includes(word) && !without.includes(word)) found.push(`${where}: the word "${word}" has neither a place nor a reason for having none`);
+      if (places.includes(word) && without.includes(word)) found.push(`${where}: the word "${word}" has a place and a reason for having none`);
+    }
+    for (const word of [...places, ...without]) if (!words.includes(word)) found.push(`${where}: the word "${word}" is written, but the old system does not allow it there`);
+    for (const [word, why] of Object.entries(rule.without ?? {})) if (typeof why !== 'string' || !why.trim()) found.push(`${where}: the word "${word}" has no place and no reason is written`);
+    if (places.length) {
+      const values = enumValues(rule.enum, root);
+      if (!values) found.push(`${where}: "${rule.enum}" is not an enumeration of the admin that this script can read`);
+      else for (const [word, place] of Object.entries(rule.places)) if (!values.includes(place)) found.push(`${where}: the word "${word}" is sent to "${place}", which ${rule.enum.split('\\').pop()} does not have`);
+    }
+  }
+  for (const where of Object.keys(rules.words)) {
+    const known = listed.get(where);
+    if (!known) found.push(`${where}: the rules place its words, but the old system lists none for it`);
+    else if (shape.tables[known.table].fate !== 'moves') found.push(`${where}: the rules place its words, but by the map the rows of "${known.table}" are not brought over`);
+  }
+
+  const seen = new Set();
+  for (const rule of rules.unique) {
+    const name = `${rule.table}: ${(rule.columns ?? []).join(' + ')}`;
+    if (seen.has(name)) found.push(`${name}: written twice`);
+    seen.add(name);
+    if (!VALUES.includes(rule.value)) found.push(`${name}: "value" is "${rule.value}"; it is one of ${VALUES.join(', ')}`);
+    if (typeof rule.why !== 'string' || !rule.why.trim()) found.push(`${name}: nothing says what the column is`);
+    if (rule.value === 'carried') {
+      if (!WHEN_TWO_MEET.includes(rule.rule)) found.push(`${name}: the old system's value is written here, and no rule says what happens when two meet ("stop" or "first")`);
+      if (!columns.has(rule.from)) found.push(`${name}: its value is said to come from "${rule.from}", and the old system has no such column`);
+    } else if (rule.rule !== undefined || rule.from !== undefined) found.push(`${name}: only a value the old system brings has a rule and a column it comes from`);
+  }
+
+  for (const rule of rules.lines) {
+    const table = shape.tables[rule.from];
+    if (!table || table.fate !== 'moves') found.push(`lines: "${rule.from}" is not a table of the old system that moves`);
+    else if (!table.to.includes(rule.into)) found.push(`lines: the map does not send the rows of "${rule.from}" into "${rule.into}"`);
+    if (typeof rule.why !== 'string' || !rule.why.trim()) found.push(`lines: ${rule.from} > ${rule.into}: no reason is written`);
+  }
+  return found;
+}
+
+/* ---------- document 36, §8 and §9 ---------- */
+
+const code = (text) => `\`${text}\``;
+const cell = (text) => String(text).replaceAll('|', '\\|').replaceAll('\n', ' ');
+const table = (head, rows) => [`| ${head.join(' | ')} |`, `|${head.map(() => '---').join('|')}|`, ...rows.map((row) => `| ${row.map(cell).join(' | ')} |`)].join('\n');
+const waitsFor = (entry) => (entry.fate === 'waits' ? `Waits for ${entry.line} (wave ${entry.wave})` : 'Stays in the old system');
+
+/** The names the rows of a table are entered under: one for each table of the admin, without the lines. */
+export function entryNames(shape, rules) {
+  const names = [];
+  for (const [name, entry] of Object.entries(shape.tables)) {
+    if (entry.fate !== 'moves') continue;
+    for (const into of entry.to) if (!rules.lines.some((rule) => rule.from === name && rule.into === into)) names.push([name, into, `${SYSTEM}${name}>${into}`]);
+  }
+  return names;
+}
+
+/** The blocks of document 36 that are written from the two files. */
+export function documentBlocks(shape, rules) {
+  const tables = Object.entries(shape.tables);
+  const all = vocabularies(shape);
+  const moving = all.filter(([, name]) => shape.tables[name].fate === 'moves');
+  const other = all.filter(([, name]) => shape.tables[name].fate !== 'moves');
+  const sum = (list, pick) => list.reduce((total, item) => total + pick(item), 0);
+  const byCheck = tables.flatMap(([, entry]) => Object.values(entry.words));
+  const byCode = tables.flatMap(([, entry]) => Object.values(entry.words_in_code));
+  const placed = sum(Object.values(rules.words), (rule) => Object.keys(rule.places).length);
+  const without = sum(Object.values(rules.words), (rule) => Object.keys(rule.without).length);
+  const names = entryNames(shape, rules);
+  const kinds = (value) => rules.unique.filter((rule) => rule.value === value);
+  const keyOf = (entry) => entry.key.map(([column, kind]) => `${code(column)} (a ${kind})`).join(' and ');
+  const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+
+  const numbers = table(['', ''], [
+    ['Tables of the old system', `**${tables.length}**. The key is one number in ${tables.filter(([, e]) => e.key.length === 1 && e.key[0][1] === 'number').length}, one text in ${tables.filter(([, e]) => e.key.length === 1 && e.key[0][1] === 'text').length}, two columns in ${tables.filter(([, e]) => e.key.length > 1).length}`],
+    ['Columns whose words are listed', `**${all.length}**, with ${sum(all, ([, , , words]) => words.length)} words: ${byCheck.length} by a CHECK constraint of the schema (${sum(byCheck, (words) => words.length)} words), ${byCode.length} only by the old API's code (${sum(byCode, (list) => list.words.length)} words)`],
+    ['Of them in tables that move today', `**${moving.length}** columns, ${sum(moving, ([, , , words]) => words.length)} words: **${placed}** have a place in the admin, **${without}** have none, each with its reason`],
+    ['In tables that wait or stay', `${other.length} columns, ${sum(other, ([, , , words]) => words.length)} words. They get a place when their table gets one`],
+    ['Columns held to 0 or 1 · true yes-or-no columns', `${sum(tables, ([, e]) => e.flags.length)} · ${sum(tables, ([, e]) => e.booleans.length)}`],
+    ['Unique indexes an importer can meet', `**${rules.unique.length}**: ${kinds('admin').length} the admin fills itself, ${kinds('numbers').length} hold only numbers of other records, ${kinds('key').length} is the table of the old numbers, **${kinds('carried').length}** take a value of the old system (${kinds('carried').filter((r) => r.rule === 'stop').length} stop the import when two meet, ${kinds('carried').filter((r) => r.rule === 'first').length} keeps the first)`],
+    ['Names in the table of the old numbers', `**${names.length}**, for the ${tables.filter(([, e]) => e.fate === 'moves').length} tables that move. All begin with ${code(SYSTEM)}`],
+  ]);
+
+  const words = table(['Column of the old system', 'Its word', 'In the admin'], moving.flatMap(([where, , , list]) => {
+    const rule = rules.words[where] ?? { places: {}, without: {} };
+    const short = (rule.enum ?? '').split('\\').pop();
+    return list.map((word) => [code(where), code(word), rule.places[word] !== undefined ? `${code(rule.places[word])} (${short})` : `**No place.** ${rule.without[word] ?? 'No reason is written.'}`]);
+  }));
+  const notes = Object.entries(rules.words).filter(([, rule]) => rule.note).map(([where, rule]) => `- ${code(where)}: ${rule.note}`);
+
+  const waiting = table(['Column of the old system', 'Its words', 'Its table'], other.map(([where, name, , list]) => [code(where), list.map(code).join(', '), waitsFor(shape.tables[name])]));
+
+  const whoGives = (rule) => ({ admin: 'The admin makes it', numbers: 'Numbers of other records only', key: 'The one class of §9', carried: `The old system: ${code(rule.from)}` })[rule.value];
+  const whenTwoMeet = (rule) => (rule.value !== 'carried' ? '—' : rule.rule === 'stop' ? '**The import stops** and names both records' : '**The first is kept** (the lower old number); the other is listed');
+  const unique = table(['Unique in the admin', 'What it is', 'The value comes from', 'When two old values meet'],
+    rules.unique.map((rule) => [code(`${rule.table}.${rule.columns.join(' + ')}`), rule.why, whoGives(rule), whenTwoMeet(rule)]));
+
+  const grouped = new Map();
+  for (const [name, , full] of names) grouped.set(name, [...(grouped.get(name) ?? []), full]);
+  const entries = table(['Table of the old system', 'Its key', 'Entered under'], [...grouped].map(([name, list]) => [code(name), keyOf(shape.tables[name]), list.map(code).join(', ')]));
+  const noEntry = rules.lines.map((rule) => `- ${code(`${rule.from}`)} into ${code(rule.into)}: ${rule.why}`);
+  const others = tables.filter(([, entry]) => entry.fate !== 'moves' && (entry.key.length > 1 || entry.key[0][1] === 'text'))
+    .map(([name, entry]) => `${code(name)} (${keyOf(entry)}; ${entry.fate === 'waits' ? `waits for ${entry.line}, wave ${entry.wave}` : 'stays in the old system'})`);
+
+  return {
+    'shape-numbers': numbers,
+    'shape-words': `${words}${notes.length ? `\n\n${notes.join('\n')}` : ''}`,
+    'shape-waiting-words': waiting,
+    'shape-unique': unique,
+    'shape-entries': `${entries}\n\nNo entry of their own:\n\n${noEntry.join('\n')}\n\nNot entered today, because their rows are not brought over, and with a key that is not one number: ${others.join(', ')}. `
+      + `The other ${plural(tables.filter(([, entry]) => entry.fate !== 'moves').length - others.length, 'table')} that wait or stay have one number for their key.`,
+  };
+}
+
+const marks = (name) => [`<!-- generated:${name} — written by scripts/verify-old-shape.mjs --write; do not edit by hand -->`, `<!-- /generated:${name} -->`];
+
+/** Put the blocks into the document's text. Returns { text, problems }: a problem for each block that is missing or differs. */
+export function placeBlocks(text, blocks) {
+  const problems = [];
+  let document = text;
+  for (const [name, body] of Object.entries(blocks)) {
+    const [open, close] = marks(name);
+    const from = document.indexOf(open); const to = document.indexOf(close);
+    if (from < 0 || to < from) { problems.push(`the marks of the block "${name}" are missing`); continue; }
+    const wanted = `\n${body}\n`;
+    if (document.slice(from + open.length, to) === wanted) continue;
+    problems.push(`the block "${name}" does not show what the two files say (run: node scripts/verify-old-shape.mjs --write)`);
+    document = `${document.slice(0, from + open.length)}${wanted}${document.slice(to)}`;
+  }
+  return { text: document, problems };
 }
 
 export const print = (shape) => `${JSON.stringify(shape, null, 1)}\n`;
@@ -203,7 +403,8 @@ export function differences(built, onDisk) {
 async function main() {
   const write = process.argv.includes('--write');
   const other = process.argv.indexOf('--file');
-  const { shape, problems } = await buildShape();
+  const option = (name) => { const at = process.argv.indexOf(name); return at >= 0 ? path.resolve(process.argv[at + 1] ?? '') : null; };
+  const { shape, problems, columns } = await buildShape();
   // `--file <path>` compares another file with what was built: the test of this check hands it a changed copy.
   const target = other >= 0 ? path.resolve(process.argv[other + 1] ?? '') : path.join(ROOT, SHAPE_PATH);
   if (write && other < 0 && !problems.length) fs.writeFileSync(target, print(shape));
@@ -220,6 +421,30 @@ async function main() {
     }
   }
 
+  // The rules, written by hand, and what document 36 shows of the two files.
+  const rulesFile = option('--rules') ?? path.join(ROOT, RULES_PATH);
+  const documentFile = option('--document') ?? path.join(ROOT, DOCUMENT_PATH);
+  let rules = null;
+  if (!fs.existsSync(rulesFile)) problems.push(`${RULES_PATH} does not exist`);
+  else {
+    try { rules = JSON.parse(fs.readFileSync(rulesFile, 'utf8')); } catch (error) { problems.push(`${RULES_PATH} is not JSON: ${error.message}`); }
+  }
+  if (rules) {
+    const found = rulesProblems(shape, rules, columns);
+    for (const problem of found) problems.push(`${RULES_PATH}: ${problem}`);
+    if (!found.length) {
+      if (!fs.existsSync(documentFile)) problems.push(`${DOCUMENT_PATH} does not exist`);
+      else {
+        const before = fs.readFileSync(documentFile, 'utf8');
+        const placed = placeBlocks(before, documentBlocks(shape, rules));
+        const missing = placed.problems.filter((problem) => problem.includes('are missing'));
+        if (write && !option('--document') && !missing.length) { if (placed.text !== before) fs.writeFileSync(documentFile, placed.text); }
+        else for (const problem of placed.problems) problems.push(`${DOCUMENT_PATH}: ${problem}`);
+        for (const problem of write && !option('--document') ? missing : []) problems.push(`${DOCUMENT_PATH}: ${problem}`);
+      }
+    }
+  }
+
   const tables = Object.values(shape.tables);
   const count = (pick) => tables.reduce((sum, table) => sum + pick(table), 0);
   if (problems.length) {
@@ -232,6 +457,11 @@ async function main() {
     + `${count((t) => Object.keys(t.words).length)} columns whose words a CHECK constraint lists (${count((t) => Object.values(t.words).reduce((n, w) => n + w.length, 0))} words), `
     + `${count((t) => Object.keys(t.words_in_code).length)} whose words only the code lists (${count((t) => Object.values(t.words_in_code).reduce((n, w) => n + w.words.length, 0))} words); `
     + `${count((t) => t.flags.length)} columns held to 0 or 1, ${count((t) => t.booleans.length)} true yes-or-no columns. ${SHAPE_PATH} agrees.`);
+  const placed = Object.values(rules.words).reduce((sum, rule) => sum + Object.keys(rule.places).length, 0);
+  const without = Object.values(rules.words).reduce((sum, rule) => sum + Object.keys(rule.without).length, 0);
+  console.log(`Old system's rules: ${Object.keys(rules.words).length} columns of tables that move have their words placed (${placed} with a place, ${without} with a reason for none); `
+    + `${rules.unique.length} unique indexes have a rule (${rules.unique.filter((rule) => rule.value === 'carried').length} take a value of the old system); `
+    + `${entryNames(shape, rules).length} names in the table of the old numbers. ${RULES_PATH} agrees with the old system, and document 36 shows both files.`);
   process.exit(0);
 }
 

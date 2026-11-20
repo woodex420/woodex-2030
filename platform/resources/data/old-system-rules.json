@@ -293,7 +293,7 @@
     "source_id"
    ],
    "value": "admin",
-   "why": "The admin writes here which of its own records an entry was made for."
+   "why": "Which record an entry of the books was made for: a type name of the admin's own, and that record's number there. No text of the old system is written here, so capital letters cannot matter. Two old entries made for one record would meet here; the importer of the books settles that (T-178)."
   },
   {
    "table": "leads",
@@ -328,7 +328,7 @@
     "external_id"
    ],
    "value": "admin",
-   "why": "The number a provider gives a message. The old system kept none, so it stays empty."
+   "why": "The number a provider gives a message. The old system kept none, so an importer leaves it empty; the admin fills it for the messages it receives itself."
   },
   {
    "table": "payment_allocations",

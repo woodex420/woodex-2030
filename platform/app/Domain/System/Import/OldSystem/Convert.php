@@ -54,7 +54,7 @@ final class Convert
      * The answer is the moment itself, written as the wall clock of the workspace (Asia/Karachi). That is on
      * purpose: Eloquent and the query builder write a time as the wall clock of the object they are given, and the
      * database session speaks the workspace's time (config/database.php). A time handed over in UTC would be kept
-     * five hours late, on every server and without an error. Ask `->utc()` of the answer for the UTC writing.
+     * five hours early, on every server and without an error. Ask `->utc()` of the answer for the UTC writing.
      *
      *   - nothing, or an empty text                    nothing
      *   - `2026-11-08T20:54:28.341Z`, `…+05:00`, `2026-11-08 20:54:28.341+00`   that moment; the part of a second is
