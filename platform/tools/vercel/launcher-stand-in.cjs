@@ -5,6 +5,10 @@
  * 1. The "routes" of vercel.json are applied as Vercel applies them: the first route whose pattern matches the path
  *    decides. A destination under /public/ is a static file (the @vercel/static build of public/**); a missing file
  *    is 404. The destination api/index.php is the function.
+ *    The routes after {"handle": "hit"} add headers to an answer that was found, and to no other: a file that is
+ *    not there gets none of them. Each is tried on the destination, as `vercel dev` does it (vercel 41.0.0,
+ *    src/util/dev/server.ts: the hit phase is run on the route's `dest`); vercel.json writes its pattern so that
+ *    the address a visitor asked for matches as well, because Vercel's own network is not open to be read.
  * 2. A request for the function becomes the event that the vercel-php launcher receives on Vercel, and the
  *    launcher's answer becomes the HTTP response. The launcher is Vercel's own
  *    (node_modules/vercel-php/dist/launchers/builtin.js, the file that ships in the function): it starts PHP's
@@ -31,13 +35,32 @@ const types = {
   '.txt': 'text/plain; charset=utf-8', '.map': 'application/json; charset=utf-8',
 };
 
+// The routes come in phases: those before the first {"handle": …} decide where a path goes; those after
+// {"handle": "hit"} apply to an answer that was found.
+const phases = { first: [] };
+let phase = 'first';
+for (const route of routes) {
+  if (route.handle) { phase = route.handle; phases[phase] = phases[phase] || []; continue; }
+  phases[phase].push(route);
+}
+const whole = (pattern) => new RegExp(`${pattern.startsWith('^') ? '' : '^'}${pattern}${pattern.endsWith('$') ? '' : '$'}`);
+
 /** The destination of a path under the routes of vercel.json, or null when no route matches. */
 function destination(pathname) {
-  for (const route of routes) {
-    const match = new RegExp(`^${route.src}$`).exec(pathname);
+  for (const route of phases.first) {
+    const match = whole(route.src).exec(pathname);
     if (match) return route.dest.replace(/\$(\d+)/g, (_, index) => match[Number(index)] ?? '');
   }
   return null;
+}
+
+/** The headers that the routes after {"handle": "hit"} add to an answer found at this destination. */
+function headersOfAHit(target) {
+  const added = {};
+  for (const route of phases.hit || []) {
+    if (route.headers && whole(route.src).test(target)) Object.assign(added, route.headers);
+  }
+  return added;
 }
 
 http.createServer((request, response) => {
@@ -56,7 +79,14 @@ http.createServer((request, response) => {
       response.writeHead(404, { 'content-type': 'text/plain', 'x-stand-in': 'static' });
       return response.end('NOT_FOUND');
     }
-    response.writeHead(200, { 'content-type': types[path.extname(file).toLowerCase()] || 'application/octet-stream', 'x-stand-in': 'static' });
+    // "public, max-age=0, must-revalidate" is what Vercel sends with a static file that no route says anything
+    // about (read on the live demo on 17 November 2026).
+    response.writeHead(200, {
+      'content-type': types[path.extname(file).toLowerCase()] || 'application/octet-stream',
+      'cache-control': 'public, max-age=0, must-revalidate',
+      ...headersOfAHit(target),
+      'x-stand-in': 'static',
+    });
     return response.end(fs.readFileSync(file));
   }
 
@@ -76,7 +106,8 @@ http.createServer((request, response) => {
           body: body.length > 0 ? body.toString('base64') : undefined,
         }),
       });
-      const headers = { ...answer.headers, 'x-stand-in': 'function' };
+      // What the application says about its own answer stands; a route only adds what the answer lacks.
+      const headers = { ...headersOfAHit(target), ...answer.headers, 'x-stand-in': 'function' };
       // The body arrives complete; headers that describe how PHP's server sent it no longer apply.
       for (const name of ['transfer-encoding', 'connection', 'content-length', 'keep-alive']) delete headers[name];
       response.writeHead(answer.statusCode, headers);

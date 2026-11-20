@@ -60,7 +60,10 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/vercel-php" --no-audit --no-fund "$builder"
       - name: Make /var/task writable (the function's folder on Vercel)
         run: sudo mkdir -p /var/task && sudo chown "$(id -u):$(id -g)" /var/task
-      - name: Build as the builder does, serve read-only, and check what a visitor gets
+      # The size of the function is measured here, after the packages were installed as the builder installs them
+      # and the demo's workspace was built: it is printed (and written as a notice of this run), and the step fails
+      # above 240 MB. Vercel refuses a function above 250 MB (master list T-153).
+      - name: Build as the builder does, measure the function, serve read-only, and check what a visitor gets
         working-directory: platform
         env:
           VERCEL_PHP: ${{ runner.temp }}/vercel-php/node_modules

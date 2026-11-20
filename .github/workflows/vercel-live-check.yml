@@ -13,9 +13,16 @@ on:
         default: false
   # Called by live-check-after-merge.yml a few minutes after every push to main, once Vercel has built it.
   workflow_call:
-  # Every six hours. GitHub starts a timer only from the default branch, so this runs once the branch is merged.
+  # Every six hours: 03:47, 09:47, 15:47 and 21:47 UTC. GitHub starts a timer only from the default branch, so
+  # this runs once the branch is merged.
+  # Until 20 November 2026 the times were 00:23, 06:23, 12:23 and 18:23 UTC. In the three days the timer had then
+  # been on main, the 06:23 and the 18:23 brought a run every time (six of six, started between 1 h 08 min and
+  # 2 h 43 min late) and the 00:23 and the 12:23 never did (none of six): GitHub starts a timer late when many are
+  # due and drops it when it is too late, and midnight and noon UTC are when most are due. So the hours moved
+  # away from them, and the minute with them (master list T-142). How many of the times due bring a run is read
+  # from GitHub's list at the start of every round and written into the list.
   schedule:
-    - cron: "23 */6 * * *"
+    - cron: "47 3,9,15,21 * * *"
   push:
     branches: ["arena/**"]
     paths: [".github/workflows/vercel-live-check.yml"]
@@ -42,6 +49,18 @@ jobs:
           # built: on main it must hold, on a branch it is only written down. (A push that changes this file runs
           # it from the branch, against the live site.)
           expect() { if [ "${GITHUB_REF_NAME:-}" = "main" ]; then must "$@"; else note "after the merge: $1 (now $2, then $3)"; fi; }
+
+          # The very first request, timed by itself (master list T-154). Vercel stops an instance of the function
+          # when nobody asks for a while and starts one for the next request; the entry marks the answer for which
+          # it was started (X-Woodex-Cold-Start). So this says how long a visitor waits who comes after a quiet
+          # time, and whether this run met such a start at all: after a merge and after six quiet hours it mostly
+          # does. One request from this runner's network: a reading, not a measurement.
+          first="$(curl -s -o /dev/null -D "$out/first" -w '%{time_starttransfer}' --max-time 60 "$SITE/admin/login")"
+          if tr -d '\r' < "$out/first" | grep -qi '^x-woodex-cold-start: 1'; then
+            note "first request: sign-in page first byte after $first s, and the function was started for it (a cold start)"
+          else
+            note "first request: sign-in page first byte after $first s; the function was running already, or this build does not say"
+          fi
 
           must "health /up" "$(code "$SITE/up")" 200
           must "sign-in page" "$(code "$SITE/admin/login")" 200
@@ -127,10 +146,19 @@ jobs:
             fi
           }
           wall "the main branch's other address asks for Vercel's sign-in" "$SITE_BRANCH/admin/login"
+          # How long a browser may keep a file (master list T-152): a year for a built file whose name carries a
+          # mark of its content, and for nothing else. vercel.json puts the rule on answers that were found; that
+          # Vercel reads it so, only its own network can show: a marked name that is not there must not be kept.
           code "${style:-$SITE/missing}" > /dev/null
-          note "stylesheet cache-control: $(header cache-control)"
+          expect "the stylesheet may be kept for a year" "$(header cache-control | tr 'A-Z' 'a-z')" "public, max-age=31536000, immutable"
+          must "the client pages' stylesheet is served" "$(code "$SITE/build/assets/site.css")" 200
+          must "…and is asked for again (its name stays when its content changes)" "$(header cache-control | grep -ci 'max-age=31536000\|immutable')" 0
+          note "…it says: $(header cache-control)"
+          must "a built file's name that is not there: not found" "$(code "$SITE/build/assets/admin-AAAAAAAA.css")" 404
+          must "…and not kept" "$(header cache-control | grep -ci 'max-age=31536000\|immutable')" 0
+          note "…it says: $(header cache-control)"
           # One request from this runner's network: an impression, not a measurement.
-          note "sign-in page first byte after $(curl -s -o /dev/null -w '%{time_starttransfer}' --max-time 40 "$SITE/admin/login") s"
+          note "sign-in page first byte after $(curl -s -o /dev/null -w '%{time_starttransfer}' --max-time 40 "$SITE/admin/login") s with the function running"
 
           for file in /install /composer.json /.env /index.php /api/index.php /vendor/autoload.php /database/woodex-synthetic-vercel-demo.sqlite /database/woodex-synthetic-vercel-demo.sqlite.key; do
             status="$(code "$SITE$file")"

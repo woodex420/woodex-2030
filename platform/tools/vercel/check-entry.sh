@@ -142,12 +142,15 @@ if [ -d /var/task ] && [ -w /var/task ]; then TASK=/var/task; rm -f /var/task/us
 ln -s "$PWD" "$TASK/user"; ln -s "$PHP_DIR" "$TASK/php"; ln -s "$LIB_DIR" "$TASK/lib"
 if [ "$TASK" = /var/task ]; then EXTENSIONS=(); echo "Function folder: /var/task, as on Vercel"; else EXTENSIONS=(PHP_INI_EXTENSION_DIR="$PHP_DIR/modules" PHP_INI_SCAN_DIR=":$PACKAGE/conf"); echo "Function folder: a private one (/var/task cannot be written here)"; fi
 
+# The wait is on /up, which the function answers: PHP is then running, as on an instance that has served before.
+# WAIT_ON=/favicon.svg waits on a static file instead, which Vercel's network answers by itself: the function is
+# then still to be started, and the next request is the first it gets (section 6).
 serve() { # serve NAME=value ...   (starts the function with vercel.json's settings plus the ones given)
   stop
   env -i PATH="$PATH" HOME="$HOME_DIR" "${BLOCK[@]}" "$@" LAMBDA_TASK_ROOT="$TASK" NOW_ENTRYPOINT=api/index.php NOW_PHP_DEV=0 VERCEL_PHP_PACKAGE="$PACKAGE" \
     STAND_IN_PORT="$PORT" STAND_IN_ROUTES="$ROUTES" LD_LIBRARY_PATH="$LIB_DIR" "${EXTENSIONS[@]}" node "$OUT/stand-in.cjs" > "$OUT/server.log" 2>&1 &
   SERVER=$!
-  for _ in $(seq 1 100); do curl -s -o /dev/null "$BASE/up" && return 0; sleep 0.1; done
+  for _ in $(seq 1 100); do curl -s -o /dev/null "$BASE${WAIT_ON:-/up}" && return 0; sleep 0.1; done
   echo "The function did not start:"; tail -8 "$OUT/server.log"; exit 1
 }
 # Every request carries what Vercel's network adds: the scheme and the host the visitor used.
@@ -171,6 +174,8 @@ visit() {
   printf '%s' "$code"
 }
 token() { grep -o 'name="_token" value="[^"]*"' "$1" | head -1 | sed 's/.*value="//;s/"$//'; }
+# said NAME   what the last answer said under this header, or nothing.
+said() { tr -d '\r' < "$OUT/head" | grep -i "^$1:" | head -1 | sed 's/^[^:]*: *//'; }
 sign_in() { visit /admin/login -X POST --data-urlencode "_token=$(token "$OUT/body")" --data-urlencode "email=$1" --data-urlencode "password=$2"; }
 # The files a page loads (stylesheets, scripts, icons, images), as paths on this site.
 loaded_by() { grep -oE '(href|src)="[^"]+\.(css|js|mjs|svg|png|jpe?g|webp|gif|ico|woff2?|mp3)(\?[^"]*)?"' "$1" | sed -E 's/^(href|src)="//;s/"$//;s#^https?://demo\.woodex\.test##' | grep '^/' | sed 's/&amp;/\&/g' | sort -u; }
@@ -179,6 +184,7 @@ echo "1. Without settings the function refuses to start"
 serve
 check "no settings: 503" "$(get /admin/login)" 503
 check "no settings: the plain message" "$(cat "$OUT/body")" "Admin service is not configured."
+check "…and a refusal never says that the function was started for it" "[$(said x-woodex-cold-start)]" "[]"
 serve APP_KEY="$KEY" DB_CONNECTION=sqlite DB_HOST=x DB_DATABASE=x DB_USERNAME=x DB_PASSWORD=x
 check "a database that is not MySQL: 503" "$(get /admin/login)" 503
 serve DB_CONNECTION=mysql DB_HOST=x DB_DATABASE=x DB_USERNAME=x DB_PASSWORD=x
@@ -208,6 +214,25 @@ grep '\[demo\]' "$OUT/build.log" | tail -1 | sed 's/^/        /'
 DEMO_KEY="$(cat "$DEMO_DB.key" 2>/dev/null)"
 [ "${#DEMO_KEY}" -ge 50 ] && [ "$DEMO_KEY" != "$KEY" ] && ok "the build made a key for this demo alone" || bad "the demo has no key of its own"
 hasnt "the build log shows no password and no key" "$PW_OWNER\|$PW_OTHER\|real-db-password\|${DEMO_KEY:-no-key-was-made}\|$KEY" "$OUT/build.log"
+
+echo "3b. The size of the function (Vercel refuses one above 250 MB)"
+# Counted the way the builder collects the files (tools/vercel/function-size.cjs). It is judged only where the
+# packages were installed as the builder installs them: with the development packages it is larger than on Vercel.
+LIMIT_MB="${FUNCTION_LIMIT_MB:-240}"
+if [ "$BUILD" = 1 ]; then
+  node tools/vercel/function-size.cjs --runtime "$VERCEL_PHP" --limit-mb "$LIMIT_MB" > "$OUT/size.log" 2>&1
+  CODE=$?
+  cat "$OUT/size.log"
+  check "the function is not larger than $LIMIT_MB MB" "$CODE" 0
+  # A guard that cannot fail guards nothing: the same measure against a limit just below today's size must fail.
+  SIZE_MB="$(sed -n 's/^The function: \([0-9]*\)\..*/\1/p' "$OUT/size.log" | head -1)"
+  node tools/vercel/function-size.cjs --quiet --runtime "$VERCEL_PHP" --limit-mb "$(( ${SIZE_MB:-2} - 1 ))" > "$OUT/size-low.log" 2>&1
+  check "…and against a limit of $(( ${SIZE_MB:-2} - 1 )) MB, below today's size, the same measure fails" "$?" 1
+  has "…and names the size" "the function is ${SIZE_MB:-?}\.[0-9] MB, more than the $(( ${SIZE_MB:-2} - 1 )) MB allowed here" "$OUT/size-low.log"
+else
+  node tools/vercel/function-size.cjs --quiet --only-print --runtime "$VERCEL_PHP" 2>&1 | sed 's/^/        /'
+  echo "  note  the size is printed, not judged: run with --build, which installs the packages as Vercel's builder does"
+fi
 
 echo "4. The demo, served as on Vercel$([ "$READONLY" = 1 ] && echo ' (read-only file system)')"
 fresh_instance
@@ -298,6 +323,19 @@ for file in $(grep -oE 'url\([^)]+\)' "$OUT/admin.css" | sed -E 's/^url\(//;s/\)
 done
 [ -z "$MISSING" ] && ok "the fonts and images the stylesheet names are served" || bad "named by the stylesheet but not served:$MISSING"
 
+# How long a browser may keep a file (master list T-152). A built file whose name carries a mark of its content
+# never changes under that name: a year, and no asking again. Everything else is asked for again every time.
+check "the stylesheet's name carries a mark of its content: a browser may keep it for a year" "$(get "$STYLE") $(said cache-control)" "200 public, max-age=31536000, immutable"
+FONT="$(grep -oE '[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{8}\.woff2' "$OUT/admin.css" | head -1)"
+check "…and so may the font it names" "$(get "/build/assets/${FONT:-no-font-found}") $(said cache-control)" "200 public, max-age=31536000, immutable"
+check "the client pages' stylesheet keeps its name when its content changes: a browser asks again" "$(get /build/assets/site.css) $(said cache-control)" "200 public, max-age=0, must-revalidate"
+check "…and so does their script" "$(get /build/assets/site.js) $(said cache-control)" "200 public, max-age=0, must-revalidate"
+check "a marked name that is not there is not kept: 404, and nothing said about keeping it" "$(get /build/assets/admin-AAAAAAAA.css) [$(said cache-control)]" "404 []"
+check "the list of built files is asked for again" "$(get /build/manifest.json) $(said cache-control)" "200 public, max-age=0, must-revalidate"
+check "an icon is asked for again" "$(get /favicon.svg) $(said cache-control)" "200 public, max-age=0, must-revalidate"
+get /admin/login > /dev/null
+case "$(said cache-control)" in *no-store*) ok "a page is never kept (the sign-in page says no-store)" ;; *) bad "the sign-in page may be kept: [$(said cache-control)]" ;; esac
+
 # A browser drops a cookie longer than 4096 bytes without a word, and the visitor is signed out.
 LONGEST="$(awk '{ if (length($0) > max) max = length($0) } END { print max + 0 }' "$OUT/cookies")"
 [ "$LONGEST" -gt 100 ] && [ "$LONGEST" -lt 3800 ] && ok "the longest cookie fits in a browser ($LONGEST of 4096 bytes; $(wc -l < "$OUT/cookies") cookies, $(cookies | wc -c) bytes together)" || bad "the longest cookie is $LONGEST bytes (a browser keeps at most 4096)"
@@ -336,6 +374,21 @@ serve WOODEX_DEMO=1 WOODEX_DEMO_SHOW_PASSWORD=1 "${PASSWORDS[@]}"
 check "sign-in page: 200" "$(get /admin/login)" 200
 has "WOODEX_DEMO_SHOW_PASSWORD=1 prints the demo password on the sign-in page" "$PW_OWNER" "$OUT/body"
 hasnt "…and only the owner's" "$PW_OTHER" "$OUT/body"
+
+echo "6. An answer says when the function had to be started for it"
+# Vercel starts the function for the first request an instance gets, and stops the instance when nobody asks for
+# a while. The entry marks that one answer, so that a slow first answer can be told from a slow site.
+stop; fresh_instance
+WAIT_ON=/favicon.svg serve WOODEX_DEMO=1 "${PASSWORDS[@]}"
+timed() { curl -s -o "$OUT/body" -D "$OUT/head" -w '%{http_code} %{time_starttransfer}' -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: demo.woodex.test' "$BASE$1"; }
+FIRST="$(timed /admin/login)"
+check "the first request a new instance gets: the sign-in page, 200" "${FIRST%% *}" 200
+check "…and the answer carries the mark" "[$(said x-woodex-cold-start)]" "[1]"
+SECOND="$(timed /admin/login)"
+check "the second request: 200" "${SECOND%% *}" 200
+check "…without the mark" "[$(said x-woodex-cold-start)]" "[]"
+check "a third answer, of another address: without the mark" "$(get /up) [$(said x-woodex-cold-start)]" "200 []"
+echo "        first byte after ${FIRST##* } s when the function is started for the request, ${SECOND##* } s when it is running (on this machine, not on Vercel)"
 stop
 [ "$READONLY" = 1 ] && chmod -R u+w .
 
