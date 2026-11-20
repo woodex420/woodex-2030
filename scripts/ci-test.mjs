@@ -166,6 +166,15 @@ try {
   console.log("[ci] Checking row-level security on every table of the PostgreSQL schema.");
   await runChecked(process.execPath, ["scripts/test-rls.mjs"], baseEnv, "rls", 300_000);
 
+  /* A fixed search path for every function of the schema (migration 021). A
+     function without one looks names up along the path of the session that
+     calls it: with another schema in front, the trigger that keeps the books
+     in balance added up the wrong table. The suite builds the schema from
+     every migration file, so a function that a later migration creates
+     without a path fails here. */
+  console.log("[ci] Checking that every function of the PostgreSQL schema has a fixed search path.");
+  await runChecked(process.execPath, ["scripts/test-search-path.mjs"], baseEnv, "search-path", 300_000);
+
   /* Every module suite, on BOTH engines. Each owns a throwaway database and
      asserts the contract that matters for its module:
 

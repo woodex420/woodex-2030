@@ -74,7 +74,8 @@
     "catalog:check": "node scripts/catalog-build.mjs --check",
     "test:catalog-build": "node scripts/test-catalog-build.mjs",
     "test:catalog": "node --experimental-sqlite scripts/test-catalog.mjs",
-    "test:rls": "node scripts/test-rls.mjs"
+    "test:rls": "node scripts/test-rls.mjs",
+    "test:search-path": "node scripts/test-search-path.mjs"
   },
   "engines": {
     "node": ">=22.5"

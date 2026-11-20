@@ -105,7 +105,7 @@ Document 08 §2 forbids settling such a difference silently. Each is listed with
 | Website and CMS | `pages`, `page_versions`, `page_templates`, `saved_sections`, `navigation_items`, `theme_tokens`, `redirects`, `master_media_assets` with versions and usages, `content_entries` | These belong to the imported HTML builder: a page is HTML (`canvas_html`), not Puck data | The Puck model of §8: revisions of validated JSON, publish events, schema versions — T-115, T-116 |
 | Automation and integrations | `automations`, `automation_steps`, `automation_step_runs`, `automation_sequences`, `automation_enrolments`, `whatsapp_templates`, `canned_replies`, `integration_connections`, `webhook_events`, `failed_jobs` | — | — (all switched off: T-118 to T-120) |
 
-**Migration requirements (§10).** None of the ten steps has been done for real data: no export of the live PostgreSQL schema, no table-to-owner map for its tables (72 by today's count of the schema files; the master plan counted 74), no rehearsal on a clean MySQL. A mapping table for old and new identifiers exists (`legacy_refs`). Tasks T-175 to T-181.
+**Migration requirements (§10).** Since 20 November the tables of the old system are mapped to their owners in the admin: 73 rows, checked against the old schema files, the admin's migrations and the live database's own catalogue ([`36-OLD-TABLES-AND-THEIR-LARAVEL-OWNERS.md`](36-OLD-TABLES-AND-THEIR-LARAVEL-OWNERS.md), T-175; the master plan counted 74 tables, the files create 72 and the migration tool one). No other of the ten steps has been done for real data: no importer, no reconciliation, no rehearsal on a clean MySQL. A mapping table for old and new identifiers exists (`legacy_refs`) and has no rule for this system yet. Tasks T-176 to T-181.
 
 ---
 

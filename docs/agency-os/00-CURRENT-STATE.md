@@ -39,7 +39,7 @@ be standardised until it is resolved.
 | Dashboard routes | **48** | `<Route` in `apps/dashboard/src/App.tsx` |
 | PostgreSQL tables | **72** | base schema + `scripts/migrations/*.sql` (distinct names) |
 | SQLite tables | **72** | `apps/api/server.mjs` (distinct names; two are created twice) |
-| Migrations in the repository | **20** | `scripts/migrations/*.sql`. Whether a given database has received all of them is read from its `schema_migrations` table, not from this file. The hosted database received `019_catalogue.sql` and `020_row_level_security.sql` on 2026-11-17: read that day, its ledger held 20 rows for the 20 files |
+| Migrations in the repository | **21** | `scripts/migrations/*.sql`. Whether a given database has received all of them is read from its `schema_migrations` table, not from this file. The hosted database received `019_catalogue.sql` and `020_row_level_security.sql` on 2026-11-17 and `021_function_search_path.sql` on 2026-11-20, 06:57 UTC: read a moment later, its ledger held 21 rows, each with the checksum of its file |
 | CHECK constraints | **155** | distinct `<table>_<rule>` names declared across the migrations |
 | Seed catalogue | **148 products · 16 materials · 7 services** | `apps/api/seed-data.json`. These are demo products for an empty demo or development database. The storefront compiles none of them: it shows what `GET /api/products` returns |
 | Prepared real catalogue | 170 products | `apps/api/catalog-data.json`, built by `npm run catalog:build` from the capture in `catalog/source/`. Loaded as drafts from the dashboard (Catalogue → Import) |

@@ -417,13 +417,17 @@
   {
    "id": "D-029",
    "severity": "low",
-   "state": "open",
+   "state": "closed",
    "found": "2026-11-17",
    "title": "Ten functions of the shop's database have no fixed search path",
    "detail": "The triggers and helpers of the schema (`journal_entry_must_balance`, `activities_are_append_only`, `group_concat` and seven more) are created without `SET search_path`. Supabase's security advisor is known to list such a function as a warning; its page could not be read through the agent's connection. Only the owner of the database can create objects there, so nothing can be put in the functions' way today. Read from the database itself on 17 November, 20:04 UTC: nine functions and one aggregate (`group_concat`) in the public schema, none with a search path, none belonging to an extension.",
    "lines": [
     "T-172"
-   ]
+   ],
+   "closed": {
+    "on": "2026-11-20",
+    "how": "Migration 021 (`scripts/migrations/021_function_search_path.sql`) gives each of the nine functions `search_path = public, pg_temp`. Applied to the live database on 20 November at 06:57 UTC, in one transaction with its row in the ledger (`deploy/supabase/2026-11-20-apply-021-function-search-path.sql`); read back a moment later: nine of nine functions have the path, no body changed, the six triggers are switched on, 21 rows in the ledger; asked from outside, the shop serves its 148 products. The tenth, the aggregate `group_concat`, has no setting and can have none: PostgreSQL refuses it in each of three spellings (tried on PostgreSQL 18.3, the test database; the live one is 17). It needs none: an aggregate holds its two functions by identity, not by name, and those two have their path. What the path is for was shown both ways on the test database: with another schema in front of a session's path, the trigger of the books kept an entry of 100 against 60 without the migration and refused it with it. The same with a temporary table called `journal_lines`, which is why the path names the temporary schema last. This register said that nothing could be put in the functions' way because only the owner can create objects in the schema; a temporary table is not in the schema and any role may make one. Read from the live database on 20 November: of the ten roles that sign in to the database itself, only `postgres` and Supabase's own administrator may write the books, so nobody else could have used it. `scripts/test-search-path.mjs` builds the schema from every migration file in `build-and-test` and names a function without a path, also one a later migration adds or rewrites. Supabase's advisor counts rows of the catalogue and does not leave aggregates out (its rule was read from its source), so it is expected to name `group_concat` still: one name where there were ten. Its page was not read."
+   }
   },
   {
    "id": "D-030",

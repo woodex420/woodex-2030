@@ -1,0 +1,988 @@
+{
+ "about": "Every table of the old system (the React shop and dashboard with their Node API, on PostgreSQL), and where it goes in the Laravel admin: master list T-175. One row a table: what it holds, whether its rows are brought over, into which tables, who owns it in the admin and in which wave. Checked by scripts/verify-table-map.mjs, which writes the tables of docs/woodex-os/36-OLD-TABLES-AND-THEIR-LARAVEL-OWNERS.md from this file and fails when a table of the old schema files is missing here or stands twice, when a target is not created by any Laravel migration, when an owner is not a destination of the admin, or when a wave is not a wave of the master list. Each row is a proposal of the agent: the mapping of a module is approved by the owner before a real record moves (T-181).",
+ "written": "2026-11-20",
+ "kinds": {
+  "moves": "Its rows are brought into tables the admin has today.",
+  "waits": "The admin has no table for it yet. The line named builds it, and the rows are brought over then.",
+  "stays": "Its rows are not brought over. The row says why, and which tables of the admin do the job instead."
+ },
+ "origins": {
+  "base": "scripts/schema.postgres.sql",
+  "NNN": "the migration of that number in scripts/migrations/",
+  "tool": "created by the migration tool itself, scripts/migrate.mjs"
+ },
+ "live": {
+  "about": "What the live database of the shop held when it was last read, reading only. Written here by hand from the answer to the statement that `node scripts/verify-table-map.mjs --query` prints; the check compares the names with the rows below on every run.",
+  "project": "woodex-2030 on Supabase, PostgreSQL 17.11",
+  "read_at": "2026-11-20T06:58:56Z",
+  "tables": 73,
+  "columns": 765,
+  "agrees": "Each of the 73 tables has the columns of the schema built from the files in this repository, name for name, with the same type and the same rule for empty values (read at 06:18:07Z and compared).",
+  "rows": {
+   "accounts": 16,
+   "activities": 0,
+   "attachments": 0,
+   "audit_logs": 0,
+   "bom_lines": 0,
+   "boms": 0,
+   "boq_lines": 0,
+   "client_links": 1,
+   "clients": 1,
+   "companies": 0,
+   "contacts": 0,
+   "conversations": 1,
+   "credit_notes": 0,
+   "deliveries": 0,
+   "delivery_lines": 0,
+   "dispatch_runs": 0,
+   "expenses": 0,
+   "goods_receipt_lines": 0,
+   "goods_receipts": 0,
+   "installed_assets": 0,
+   "invoices": 0,
+   "job_card_materials": 0,
+   "job_cards": 0,
+   "journal_entries": 2,
+   "journal_lines": 4,
+   "leads": 1,
+   "materials": 16,
+   "meetings": 0,
+   "messages": 1,
+   "meta": 2,
+   "orders": 0,
+   "page_blocks": 0,
+   "page_versions": 0,
+   "pages": 1,
+   "password_resets": 0,
+   "payment_schedules": 0,
+   "payments": 0,
+   "product_variants": 0,
+   "products": 148,
+   "project_files": 0,
+   "project_milestones": 0,
+   "projects": 0,
+   "purchase_order_lines": 0,
+   "purchase_orders": 0,
+   "quote_templates": 0,
+   "quote_versions": 0,
+   "quotes": 0,
+   "returns": 0,
+   "saved_sections": 0,
+   "schema_migrations": 21,
+   "service_visits": 0,
+   "services": 7,
+   "sessions": 3,
+   "site_visits": 0,
+   "stock_levels": 0,
+   "stock_movements": 148,
+   "stock_reservations": 0,
+   "stock_transfer_lines": 0,
+   "stock_transfers": 0,
+   "storage_locations": 0,
+   "supplier_invoice_lines": 0,
+   "supplier_invoices": 0,
+   "supplier_payments": 0,
+   "suppliers": 0,
+   "tasks": 1,
+   "tax_records": 0,
+   "throttle_buckets": 6,
+   "ticket_messages": 0,
+   "tickets": 0,
+   "track_events": 0,
+   "users": 1,
+   "warehouses": 0,
+   "warranty_claims": 0
+  }
+ },
+ "tables": [
+  {
+   "table": "leads",
+   "from": "base",
+   "holds": "An enquiry: who asked, for what, through which channel, and how far it has come.",
+   "kind": "moves",
+   "to": [
+    "leads",
+    "contacts"
+   ],
+   "area": "Customers",
+   "destination": "Leads",
+   "line": "T-101",
+   "wave": 3,
+   "note": "One row here becomes two there: the person (name, phone, e-mail) is a contact, the enquiry is a lead of that contact. The stage is a word here and a row of the pipeline there. Where the enquiry came from (`utm_…`, `referrer`) goes into the lead's `attribution`."
+  },
+  {
+   "table": "clients",
+   "from": "base",
+   "holds": "A customer as the old dashboard knows one: a person with a phone number and an e-mail address in a comparable form, and the mark that two were merged.",
+   "kind": "moves",
+   "to": [
+    "contacts"
+   ],
+   "area": "Customers",
+   "destination": "Contacts",
+   "line": "T-101",
+   "wave": 3,
+   "note": "Two clients merged into one here (`merged_into`) arrive as one contact."
+  },
+  {
+   "table": "client_links",
+   "from": "base",
+   "holds": "Which enquiry, quotation, order or task belongs to which client: one row a link.",
+   "kind": "moves",
+   "to": [
+    "leads",
+    "quotes",
+    "invoices",
+    "tasks"
+   ],
+   "area": "Customers",
+   "destination": "Contacts",
+   "line": "T-101",
+   "wave": 3,
+   "note": "No table of its own there. Each link becomes the contact named on the record it points at (`contact_id`). A link to an order waits for orders (wave 6)."
+  },
+  {
+   "table": "companies",
+   "from": "014",
+   "holds": "A firm that buys: name, tax number, city, who looks after it.",
+   "kind": "moves",
+   "to": [
+    "companies"
+   ],
+   "area": "Customers",
+   "destination": "Contacts",
+   "line": "T-101",
+   "wave": 3
+  },
+  {
+   "table": "contacts",
+   "from": "014",
+   "holds": "A person at a company, with their role there and whether they are the main one.",
+   "kind": "moves",
+   "to": [
+    "contacts"
+   ],
+   "area": "Customers",
+   "destination": "Contacts",
+   "line": "T-101",
+   "wave": 3,
+   "note": "The same name on both sides, not the same thing: here a contact always belongs to a company; there a contact is any person, and a client is a contact too."
+  },
+  {
+   "table": "tasks",
+   "from": "base",
+   "holds": "Something to do for a client, an enquiry, a quotation or an order, with a day and an owner.",
+   "kind": "moves",
+   "to": [
+    "tasks"
+   ],
+   "area": "Customers",
+   "destination": "Tasks & Visits",
+   "line": "T-101",
+   "wave": 3,
+   "note": "The owner is a name written out here and a person of the team there."
+  },
+  {
+   "table": "site_visits",
+   "from": "base",
+   "holds": "A visit to a customer's place: when, where, who goes, what came of it.",
+   "kind": "moves",
+   "to": [
+    "site_visits"
+   ],
+   "area": "Customers",
+   "destination": "Tasks & Visits",
+   "line": "T-101",
+   "wave": 3
+  },
+  {
+   "table": "meetings",
+   "from": "014",
+   "holds": "A meeting with a company, a client or about an enquiry: time, place, who attends, the agenda and the outcome.",
+   "kind": "moves",
+   "to": [
+    "tasks",
+    "activities"
+   ],
+   "area": "Customers",
+   "destination": "Tasks & Visits",
+   "line": "T-101",
+   "wave": 3,
+   "note": "A meeting still to come becomes a task of the kind Meeting; one that was held becomes an entry of the history, with its outcome."
+  },
+  {
+   "table": "activities",
+   "from": "014",
+   "holds": "The history of a record: calls, notes, changes of status, in the order they happened. Rows are only added.",
+   "kind": "moves",
+   "to": [
+    "activities"
+   ],
+   "area": "Customers",
+   "destination": "Leads",
+   "line": "T-101",
+   "wave": 3
+  },
+  {
+   "table": "attachments",
+   "from": "014",
+   "holds": "A file attached to a company, a contact or an enquiry: its name, size and where it is kept.",
+   "kind": "moves",
+   "to": [
+    "media"
+   ],
+   "area": "Customers",
+   "destination": "Contacts",
+   "line": "T-101",
+   "wave": 3,
+   "note": "The row moves and so does the file: it is fetched and stored with its record."
+  },
+  {
+   "table": "conversations",
+   "from": "base",
+   "holds": "A thread of messages with one client: who answers it, how many are unread.",
+   "kind": "moves",
+   "to": [
+    "conversations"
+   ],
+   "area": "Customers",
+   "destination": "Conversations",
+   "line": "T-118",
+   "wave": 10,
+   "note": "The inbox is built in the admin and switched off. It opens with its own line, and the old threads move then."
+  },
+  {
+   "table": "messages",
+   "from": "base",
+   "holds": "One message of a thread: the channel, the direction, the words.",
+   "kind": "moves",
+   "to": [
+    "messages"
+   ],
+   "area": "Customers",
+   "destination": "Conversations",
+   "line": "T-118",
+   "wave": 10
+  },
+  {
+   "table": "quotes",
+   "from": "base",
+   "holds": "A quotation: the customer, the lines as one block of JSON, the total, the state.",
+   "kind": "moves",
+   "to": [
+    "quotes",
+    "quote_items"
+   ],
+   "area": "Sales",
+   "destination": "Quotations",
+   "line": "T-103",
+   "wave": 4,
+   "note": "The lines are one block of JSON here and rows there. Money is rupees with decimals here and whole paisa there. The customer is a name written out here and a contact there."
+  },
+  {
+   "table": "quote_versions",
+   "from": "base",
+   "holds": "Each saved state of a quotation, as a snapshot, with who saved it.",
+   "kind": "moves",
+   "to": [
+    "quote_versions"
+   ],
+   "area": "Sales",
+   "destination": "Quotations",
+   "line": "T-103",
+   "wave": 4
+  },
+  {
+   "table": "quote_templates",
+   "from": "base",
+   "holds": "A layout for quotations, as a block of JSON.",
+   "kind": "moves",
+   "to": [
+    "quote_templates"
+   ],
+   "area": "Sales",
+   "destination": "Documents",
+   "line": "T-103",
+   "wave": 4,
+   "note": "The shapes differ: a template there is built of named parts. With few rows it is quicker to make them again in the admin than to convert them."
+  },
+  {
+   "table": "invoices",
+   "from": "base",
+   "holds": "An invoice: the customer, the lines as JSON, discount, tax, shipping, what is paid.",
+   "kind": "moves",
+   "to": [
+    "invoices",
+    "invoice_items"
+   ],
+   "area": "Sales",
+   "destination": "Invoices",
+   "line": "T-103",
+   "wave": 4,
+   "note": "As for quotations: lines become rows, rupees become whole paisa, the customer becomes a contact. The number of an issued invoice is kept as it is."
+  },
+  {
+   "table": "payments",
+   "from": "base",
+   "holds": "Money received against an invoice: amount, method, reference.",
+   "kind": "moves",
+   "to": [
+    "payments",
+    "payment_allocations"
+   ],
+   "area": "Sales",
+   "destination": "Payments",
+   "line": "T-103",
+   "wave": 4,
+   "note": "A payment here belongs to one invoice. There it is a receipt of its own, and a second row says how much of it goes to which invoice."
+  },
+  {
+   "table": "payment_schedules",
+   "from": "013",
+   "holds": "The instalments of one invoice: each with its day, its amount and what is paid of it.",
+   "kind": "waits",
+   "area": "Sales",
+   "destination": "Payments",
+   "line": "T-113",
+   "wave": 9,
+   "note": "The admin splits a quotation into payment steps and bills each step (`quote_milestones`). Instalments of one invoice are not there yet."
+  },
+  {
+   "table": "products",
+   "from": "base",
+   "holds": "A product of the shop: its content as one block of JSON, with the price, the stock count, the code and the state beside it.",
+   "kind": "stays",
+   "instead": [
+    "commerce_products",
+    "commerce_product_revisions",
+    "commerce_product_media"
+   ],
+   "why": "Its rows are the sample catalogue the shop was first filled with: none is a product of Woodex (defect D-007). The real products were loaded into the admin from the capture of woodexfurniture.pk, as drafts, and are published there.",
+   "area": "Commerce",
+   "destination": "Products",
+   "line": "T-105",
+   "wave": 5,
+   "note": "If the real catalogue is loaded into the old shop as well (line T-091), the two meet by the product's code. The stock count beside each product goes with the stock ledger (wave 7)."
+  },
+  {
+   "table": "product_variants",
+   "from": "019",
+   "holds": "The options of a product, each with its own code and price.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Products",
+   "line": "T-011",
+   "wave": 5,
+   "note": "The capture of the real catalogue holds no options, and the admin's products have none yet. Whether and how they are sold is your answer (line T-011)."
+  },
+  {
+   "table": "orders",
+   "from": "base",
+   "holds": "An order: the customer, the lines as JSON, the total, the stage, the token of its tracking page.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Orders",
+   "line": "T-106",
+   "wave": 6,
+   "note": "The admin keeps a basket sent from the shop as a request for a quotation (`storefront_quote_requests`). It has no orders yet."
+  },
+  {
+   "table": "returns",
+   "from": "base",
+   "holds": "Goods sent back: which order, why, what was refunded.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Orders",
+   "line": "T-106",
+   "wave": 6
+  },
+  {
+   "table": "dispatch_runs",
+   "from": "015",
+   "holds": "One trip of a vehicle: driver, crew, when it was due and when it left.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Delivery & Installation",
+   "line": "T-107",
+   "wave": 6
+  },
+  {
+   "table": "deliveries",
+   "from": "015",
+   "holds": "A delivery to a customer: the address, who received and signed, the condition, the photograph.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Delivery & Installation",
+   "line": "T-107",
+   "wave": 6
+  },
+  {
+   "table": "delivery_lines",
+   "from": "015",
+   "holds": "What was on a delivery: each item, how many, its serial number.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Delivery & Installation",
+   "line": "T-107",
+   "wave": 6
+  },
+  {
+   "table": "installed_assets",
+   "from": "015",
+   "holds": "A piece of furniture standing at a customer's: where, since when, its warranty.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Support & Warranty",
+   "line": "T-108",
+   "wave": 6
+  },
+  {
+   "table": "tickets",
+   "from": "016",
+   "holds": "A complaint or a request for service: what is wrong, how urgent, by when it must be answered and solved.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Support & Warranty",
+   "line": "T-108",
+   "wave": 6
+  },
+  {
+   "table": "ticket_messages",
+   "from": "016",
+   "holds": "The messages of a ticket, those to the customer and those among staff.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Support & Warranty",
+   "line": "T-108",
+   "wave": 6
+  },
+  {
+   "table": "service_visits",
+   "from": "016",
+   "holds": "A technician's visit for a ticket: when, what was done, what it cost.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Support & Warranty",
+   "line": "T-108",
+   "wave": 6
+  },
+  {
+   "table": "warranty_claims",
+   "from": "016",
+   "holds": "A claim under warranty and the answer given: covered or not, why, at what cost.",
+   "kind": "waits",
+   "area": "Commerce",
+   "destination": "Support & Warranty",
+   "line": "T-108",
+   "wave": 6
+  },
+  {
+   "table": "projects",
+   "from": "base",
+   "holds": "A project for a client: stage, dates, planned and actual cost, progress.",
+   "kind": "moves",
+   "to": [
+    "projects"
+   ],
+   "area": "Operations",
+   "destination": "Projects",
+   "line": "T-112",
+   "wave": 9,
+   "note": "A project there starts from an accepted quotation and belongs to a contact; here it stands alone and names a client."
+  },
+  {
+   "table": "project_milestones",
+   "from": "base",
+   "holds": "The steps of a project, each with a day and whether it is done.",
+   "kind": "moves",
+   "to": [
+    "project_milestones"
+   ],
+   "area": "Operations",
+   "destination": "Projects",
+   "line": "T-112",
+   "wave": 9,
+   "note": "A step there is also a share of the price that falls due; here it is a date and a tick."
+  },
+  {
+   "table": "boq_lines",
+   "from": "base",
+   "holds": "The bill of quantities of a project: what is supplied, how many, at what cost each.",
+   "kind": "waits",
+   "area": "Operations",
+   "destination": "Projects",
+   "line": "T-112",
+   "wave": 9,
+   "note": "The admin has no bill of quantities of its own: a project carries the lines of its quotation, and its costs are entered as they arise."
+  },
+  {
+   "table": "project_files",
+   "from": "base",
+   "holds": "A file of a project: its name, kind, size and address.",
+   "kind": "moves",
+   "to": [
+    "media"
+   ],
+   "area": "Operations",
+   "destination": "Projects",
+   "line": "T-112",
+   "wave": 9,
+   "note": "The row holds an address. The file is fetched and stored with the project."
+  },
+  {
+   "table": "suppliers",
+   "from": "009",
+   "holds": "A firm Woodex buys from: contact, tax number, payment terms.",
+   "kind": "moves",
+   "to": [
+    "vendors"
+   ],
+   "area": "Procurement & Production",
+   "destination": "Suppliers",
+   "line": "T-110",
+   "wave": 7,
+   "note": "The admin calls them vendors and has them already, for the costs of projects. The two become one list."
+  },
+  {
+   "table": "purchase_orders",
+   "from": "009",
+   "holds": "An order to a supplier: its state, who approved it and when.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Purchase Orders",
+   "line": "T-110",
+   "wave": 7
+  },
+  {
+   "table": "purchase_order_lines",
+   "from": "009",
+   "holds": "The lines of a purchase order: the product or material, how many, at what cost.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Purchase Orders",
+   "line": "T-110",
+   "wave": 7
+  },
+  {
+   "table": "materials",
+   "from": "base",
+   "holds": "The materials and finishes the shop and the workshop name, each a block of JSON: natural oak, a laminate, a fabric.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Purchase Orders",
+   "line": "T-110",
+   "wave": 7,
+   "note": "A purchase order and a bill of material can name a material as the thing bought or used. Its rows come from the seed."
+  },
+  {
+   "table": "goods_receipts",
+   "from": "009",
+   "holds": "Goods that arrived against a purchase order: when, received by whom.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Goods Receipts",
+   "line": "T-110",
+   "wave": 7
+  },
+  {
+   "table": "goods_receipt_lines",
+   "from": "009",
+   "holds": "How many of each ordered line arrived.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Goods Receipts",
+   "line": "T-110",
+   "wave": 7
+  },
+  {
+   "table": "supplier_invoices",
+   "from": "010",
+   "holds": "A supplier's invoice, and how it compares with the order and with what arrived.",
+   "kind": "moves",
+   "to": [
+    "bills"
+   ],
+   "area": "Procurement & Production",
+   "destination": "Supplier Invoices",
+   "line": "T-110",
+   "wave": 7,
+   "note": "The admin calls them bills and shows them under Payables. A bill there is not compared with an order and a receipt yet: that comparison is built by the same line."
+  },
+  {
+   "table": "supplier_invoice_lines",
+   "from": "010",
+   "holds": "The lines of a supplier's invoice.",
+   "kind": "moves",
+   "to": [
+    "bill_items"
+   ],
+   "area": "Procurement & Production",
+   "destination": "Supplier Invoices",
+   "line": "T-110",
+   "wave": 7
+  },
+  {
+   "table": "supplier_payments",
+   "from": "010",
+   "holds": "Money paid to a supplier against an invoice.",
+   "kind": "moves",
+   "to": [
+    "bill_payments"
+   ],
+   "area": "Procurement & Production",
+   "destination": "Supplier Invoices",
+   "line": "T-110",
+   "wave": 7
+  },
+  {
+   "table": "stock_movements",
+   "from": "003",
+   "holds": "The stock ledger: every change of a product's stock, with its reason. Rows are only added.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Stock Ledger",
+   "line": "T-109",
+   "wave": 7,
+   "note": "The rows it holds today are the opening stock of the sample products."
+  },
+  {
+   "table": "stock_reservations",
+   "from": "003",
+   "holds": "Stock held for an order or a quotation until a day.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Reservations",
+   "line": "T-109",
+   "wave": 7
+  },
+  {
+   "table": "warehouses",
+   "from": "012",
+   "holds": "A place where stock is kept.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Warehouses",
+   "line": "T-109",
+   "wave": 7
+  },
+  {
+   "table": "storage_locations",
+   "from": "012",
+   "holds": "A shelf or zone inside a warehouse.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Warehouses",
+   "line": "T-109",
+   "wave": 7
+  },
+  {
+   "table": "stock_levels",
+   "from": "012",
+   "holds": "How many of each product stand at each location: a count kept beside the ledger.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Stock Ledger",
+   "line": "T-109",
+   "wave": 7,
+   "note": "Not copied: counted again from the ledger after the move, and compared with these rows."
+  },
+  {
+   "table": "stock_transfers",
+   "from": "012",
+   "holds": "Stock sent from one location to another: sent when, received when.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Stock Transfers",
+   "line": "T-109",
+   "wave": 7
+  },
+  {
+   "table": "stock_transfer_lines",
+   "from": "012",
+   "holds": "What a transfer carried: each product and how many.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Stock Transfers",
+   "line": "T-109",
+   "wave": 7
+  },
+  {
+   "table": "boms",
+   "from": "011",
+   "holds": "A bill of material: what one product is made of.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Production",
+   "line": "T-111",
+   "wave": 8
+  },
+  {
+   "table": "bom_lines",
+   "from": "011",
+   "holds": "One part or material of a bill of material, and how much of it one piece takes.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Production",
+   "line": "T-111",
+   "wave": 8
+  },
+  {
+   "table": "job_cards",
+   "from": "011",
+   "holds": "A job of the workshop: what is built, how many, its stage, the quality check.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Production",
+   "line": "T-111",
+   "wave": 8
+  },
+  {
+   "table": "job_card_materials",
+   "from": "011",
+   "holds": "What a job needs and what was handed out for it.",
+   "kind": "waits",
+   "area": "Procurement & Production",
+   "destination": "Production",
+   "line": "T-111",
+   "wave": 8
+  },
+  {
+   "table": "accounts",
+   "from": "013",
+   "holds": "The chart of accounts: code, name, kind.",
+   "kind": "moves",
+   "to": [
+    "chart_of_accounts"
+   ],
+   "area": "Accounts",
+   "destination": "Ledger & reports",
+   "line": "T-113",
+   "wave": 9,
+   "note": "The admin has a chart of its own. An account here is matched to one there by its code; only an account without a match is added."
+  },
+  {
+   "table": "journal_entries",
+   "from": "013",
+   "holds": "An entry of the books: its day, what caused it, and the entry it reverses if it is a reversal.",
+   "kind": "moves",
+   "to": [
+    "journal_entries"
+   ],
+   "area": "Accounts",
+   "destination": "Ledger & reports",
+   "line": "T-113",
+   "wave": 9,
+   "note": "Only if the double-entry ledger is part of the launch: your decision (line T-013). An entry is never changed on the way: it arrives with its lines, and what was reversed stays reversed."
+  },
+  {
+   "table": "journal_lines",
+   "from": "013",
+   "holds": "The lines of an entry: an account, a debit or a credit.",
+   "kind": "moves",
+   "to": [
+    "journal_lines"
+   ],
+   "area": "Accounts",
+   "destination": "Ledger & reports",
+   "line": "T-113",
+   "wave": 9,
+   "note": "Rupees with two decimals here, whole paisa there."
+  },
+  {
+   "table": "expenses",
+   "from": "013",
+   "holds": "Money spent: on what, to whom, how it was paid.",
+   "kind": "moves",
+   "to": [
+    "expenses"
+   ],
+   "area": "Accounts",
+   "destination": "Income & expenses",
+   "line": "T-113",
+   "wave": 9
+  },
+  {
+   "table": "credit_notes",
+   "from": "013",
+   "holds": "A reduction of what a customer owes, with its reason, and the entry it posted.",
+   "kind": "waits",
+   "area": "Accounts",
+   "destination": "Income & expenses",
+   "line": "T-113",
+   "wave": 9,
+   "note": "The admin can void an invoice. It has no credit note yet."
+  },
+  {
+   "table": "tax_records",
+   "from": "013",
+   "holds": "A register of tax by period, worked out from invoices, credit notes and expenses.",
+   "kind": "stays",
+   "instead": [
+    "invoices",
+    "journal_lines"
+   ],
+   "why": "It holds nothing that is not on the documents it was worked out from. The admin reads tax from the documents and from the tax accounts of the books; a register by period is worked out again from them, not copied.",
+   "area": "Accounts",
+   "destination": "Ledger & reports",
+   "line": "T-113",
+   "wave": 9
+  },
+  {
+   "table": "pages",
+   "from": "base",
+   "holds": "A page of the shop: its address, title, state, and what was last published.",
+   "kind": "waits",
+   "area": "Website Studio",
+   "destination": "All pages",
+   "line": "T-117",
+   "wave": 10,
+   "note": "The admin has tables called `pages`, `page_blocks`, `page_versions` and `saved_sections`. They belong to the page builder that came with the admin, and that is not where the shop's pages are going: they go to the builder on Puck, once its prototype is accepted (lines T-115 and T-116)."
+  },
+  {
+   "table": "page_blocks",
+   "from": "base",
+   "holds": "The blocks a page is built of, in their order, each with its settings as JSON.",
+   "kind": "waits",
+   "area": "Website Studio",
+   "destination": "Page builder",
+   "line": "T-117",
+   "wave": 10
+  },
+  {
+   "table": "page_versions",
+   "from": "base",
+   "holds": "Earlier states of a page, as snapshots.",
+   "kind": "waits",
+   "area": "Website Studio",
+   "destination": "All pages",
+   "line": "T-117",
+   "wave": 10
+  },
+  {
+   "table": "saved_sections",
+   "from": "base",
+   "holds": "A block kept for use on other pages.",
+   "kind": "waits",
+   "area": "Website Studio",
+   "destination": "Sections & templates",
+   "line": "T-117",
+   "wave": 10
+  },
+  {
+   "table": "services",
+   "from": "base",
+   "holds": "The words and pictures of the shop's service pages, each a block of JSON: what the service is, its steps, its questions and answers.",
+   "kind": "waits",
+   "area": "Website Studio",
+   "destination": "All pages",
+   "line": "T-117",
+   "wave": 10,
+   "note": "Its rows come from the seed. They are pages in all but name, and move with the pages."
+  },
+  {
+   "table": "track_events",
+   "from": "base",
+   "holds": "A log of visits to the shop's pages: views, clicks, how far a page was read, the campaign in the address.",
+   "kind": "stays",
+   "instead": [
+    "leads"
+   ],
+   "why": "Nothing else refers to it, and it is of use for a few weeks. What the admin keeps is where each enquiry came from, on the lead itself.",
+   "area": "Growth",
+   "destination": "Marketing",
+   "line": "T-120",
+   "wave": 10
+  },
+  {
+   "table": "users",
+   "from": "base",
+   "holds": "The people who sign in to the old dashboard: name, role, password.",
+   "kind": "stays",
+   "instead": [
+    "users",
+    "roles",
+    "model_has_roles"
+   ],
+   "why": "A password here is kept in a form the admin cannot read, so no account can arrive ready to use. Each person is invited in the admin and sets a password of their own. What is carried over is the meaning of the five roles (line T-060).",
+   "area": "System",
+   "destination": "Access & team",
+   "line": "T-060",
+   "wave": 2
+  },
+  {
+   "table": "sessions",
+   "from": "base",
+   "holds": "The open sign-ins of the old dashboard.",
+   "kind": "stays",
+   "instead": [
+    "sessions"
+   ],
+   "why": "On the day of the switch everybody signs in to the admin anew.",
+   "area": "System",
+   "destination": "Access & team",
+   "line": "T-065",
+   "wave": 2
+  },
+  {
+   "table": "password_resets",
+   "from": "017",
+   "holds": "Requests for a new password that are not used up yet.",
+   "kind": "stays",
+   "instead": [
+    "password_reset_tokens"
+   ],
+   "why": "Each ends within hours. In the admin a person asks again.",
+   "area": "System",
+   "destination": "Access & team",
+   "line": "T-065",
+   "wave": 2
+  },
+  {
+   "table": "throttle_buckets",
+   "from": "018",
+   "holds": "Counts of wrong passwords, for an e-mail address or a network address, kept for minutes.",
+   "kind": "stays",
+   "why": "They are worth nothing an hour later. The admin counts for itself.",
+   "area": "System",
+   "destination": "Access & team",
+   "line": "T-065",
+   "wave": 2
+  },
+  {
+   "table": "audit_logs",
+   "from": "008",
+   "holds": "Who did what in the old dashboard, with the record before and after.",
+   "kind": "moves",
+   "to": [
+    "activity_log"
+   ],
+   "area": "System",
+   "destination": "Audit & activity",
+   "line": "T-178",
+   "wave": 2,
+   "note": "It arrives as history and changes nothing in the admin. The person is a name written out here; there it is a person of the team where one matches."
+  },
+  {
+   "table": "meta",
+   "from": "base",
+   "holds": "Settings kept by name: today the mark that the sample catalogue was loaded, and how far a supplier's invoice may differ from its order. The shop's theme is kept here too once somebody changes it.",
+   "kind": "stays",
+   "instead": [
+    "settings",
+    "theme_tokens"
+   ],
+   "why": "These are settings, not records. Each is set again in the admin where it belongs: the tolerance with purchasing (line T-110), the theme with the Theme screen (line T-116). The mark of the sample catalogue is not needed.",
+   "area": "System",
+   "destination": "Settings"
+  },
+  {
+   "table": "schema_migrations",
+   "from": "tool",
+   "holds": "The list of schema changes this database has received, kept by the migration tool (`scripts/migrate.mjs`).",
+   "kind": "stays",
+   "why": "It describes this database and no other. The admin keeps a list of its own.",
+   "area": "System",
+   "destination": "Platform"
+  }
+ ]
+}

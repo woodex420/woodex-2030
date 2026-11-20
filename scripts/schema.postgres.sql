@@ -180,6 +180,24 @@ DO $$ BEGIN
     CREATE AGGREGATE group_concat(TEXT) (SFUNC=wx_gc_trans, STYPE=TEXT[], FINALFUNC=wx_gc_final, INITCOND='{}');
   END IF;
 END $$;
+/* A fixed search path for the three functions above (master list T-172; migration
+   021 does the same for the functions that the migrations create, and says why).
+   Each then looks a name up in the system catalogue, in this schema, and in
+   temporary objects last, whatever the path of the session that calls it.
+
+   It is set HERE, after the CREATE OR REPLACE statements, and on every run of this
+   file: CREATE OR REPLACE takes away a setting it does not state, and this file is
+   run again and again (scripts/lib/pg-fixture.mjs, npm run db:apply-schema).
+   Without these lines a second run would leave the three without a path, with
+   migration 021 recorded as applied. The aggregate has no body of its own and
+   PostgreSQL gives it no setting; it runs the two wx_gc_ functions.
+
+   scripts/test-search-path.mjs fails when a function of this schema has no path. */
+DO $$ BEGIN
+  EXECUTE format('ALTER FUNCTION %I.datetime(text) SET search_path = %I, pg_temp', current_schema(), current_schema());
+  EXECUTE format('ALTER FUNCTION %I.wx_gc_trans(text[], text) SET search_path = %I, pg_temp', current_schema(), current_schema());
+  EXECUTE format('ALTER FUNCTION %I.wx_gc_final(text[]) SET search_path = %I, pg_temp', current_schema(), current_schema());
+END $$;
 
 /* ── Tenancy / RLS placeholder (PRD P2 — enable when tenants land) ──
    ALTER TABLE leads ADD COLUMN tenant_id BIGINT NOT NULL DEFAULT 1;  (× all business tables)

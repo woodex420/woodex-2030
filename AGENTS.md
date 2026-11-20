@@ -142,6 +142,13 @@ Several of these exist because the same class of bug shipped more than once:
 - **A new table with an integer id goes in `RETURN_ID_TABLES`**
   (`apps/api/db-adapters.mjs`). `test:return-id` compares that list with the
   database catalogue and fails in both directions, so it cannot be forgotten.
+- **A function in a migration states its search path** (migration 021, master list T-172). Without one it looks
+  names up along the path of the session that calls it: with another schema in front, the trigger that keeps the
+  books in balance added up the wrong table and let an entry of 100 against 60 through. Write
+  `SET search_path = public, pg_temp` into the `CREATE FUNCTION`, and remember that `CREATE OR REPLACE` takes
+  away a setting it does not state: that is why `scripts/schema.postgres.sql`, which is run again and again,
+  sets the path of its three functions itself. `npm run test:search-path` builds the schema from every migration
+  file and names a function without a path; `ci-test.mjs` runs it. An aggregate takes no setting.
 - **`test:migrate` counts rows itself.** The copy tool once printed `ALL GREEN`
   after emptying nine tables, because it verified each table as it went and
   never looked again. Do not trust a tool's own report of its success; count.
@@ -255,6 +262,16 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   the owner says otherwise. When a line is done: mark it done in the list, take it out of its round and its
   title out of `plan.json`, give a round to every line it sets free, and run the script with `--write`. A line
   enters a round only with what is built, its tests, what the tests are tried against and the way back.
+- **Every table of the old system has a row in `docs/woodex-os/acceptance/tables.json`** (master list T-175):
+  what it holds, whether its rows move into tables the admin has, wait for a table a line still builds, or stay
+  and why; the screen of the admin that owns it; the line that brings it over and that line's wave.
+  `docs/woodex-os/36-OLD-TABLES-AND-THEIR-LARAVEL-OWNERS.md` is written from it by
+  `node scripts/verify-table-map.mjs --write`; CI runs the same script as a check, and
+  `node scripts/test-verify-table-map.mjs` tries the check itself. So: a migration under `scripts/migrations/`
+  that creates a table adds its row; a migration under `platform/database/migrations/` that creates the table a
+  row waits for turns that row to `moves`; a screen renamed in `AdminNavigation.php` is renamed there too. What
+  the live database held is written into the file by hand, with its time, each time it is read
+  (`--query` prints the statement, which only reads; `--live <file>` compares the answer).
 - **Push before you merge, and merge last.** When the pull request of your branch is merged, the branch is
   closed to you: no push, no new pull request, and the sandbox with whatever was not pushed can be gone with the
   next message. Work written after a merge and never pushed was lost that way on 18 November (two lines of round
