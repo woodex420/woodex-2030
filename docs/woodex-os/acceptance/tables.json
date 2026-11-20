@@ -14,7 +14,7 @@
  "live": {
   "about": "What the live database of the shop held when it was last read, reading only. Written here by hand from the answer to the statement that `node scripts/verify-table-map.mjs --query` prints; the check compares the names with the rows below on every run.",
   "project": "woodex-2030 on Supabase, PostgreSQL 17.11",
-  "read_at": "2026-11-20T06:18:53Z",
+  "read_at": "2026-11-20T06:58:56Z",
   "tables": 73,
   "columns": 765,
   "agrees": "Each of the 73 tables has the columns of the schema built from the files in this repository, name for name, with the same type and the same rule for empty values (read at 06:18:07Z and compared).",
@@ -68,7 +68,7 @@
    "quotes": 0,
    "returns": 0,
    "saved_sections": 0,
-   "schema_migrations": 20,
+   "schema_migrations": 21,
    "service_visits": 0,
    "services": 7,
    "sessions": 3,

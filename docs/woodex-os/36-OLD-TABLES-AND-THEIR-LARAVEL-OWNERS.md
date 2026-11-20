@@ -20,9 +20,9 @@ of a module is approved by you before its first real record is brought over (T-1
    list of schema changes that its migration tool keeps.
 2. **The live database is the 73 tables of the files, column for column** (read on 20 November, reading only).
    No table is missing there, and none is there that the files do not know.
-3. **It is almost empty.** 19 of the 73 tables hold a row; 54 hold none. Of its 380 rows, 148 are the sample
+3. **It is almost empty.** 19 of the 73 tables hold a row; 54 hold none. Of its 381 rows, 148 are the sample
    products, 148 their opening stock, 16 the chart of accounts, 16 materials and 7 service pages from the seed,
-   20 the list of schema changes. What could be a record of the business is a handful: one enquiry, one client,
+   21 the list of schema changes. What could be a record of the business is a handful: one enquiry, one client,
    one conversation with one message, one task, one page, two entries of the books (§3). The rows were counted,
    not read: whether they are trials is yours to say.
 4. **So what has to move is work, not rows.** The 35 tables that wait are 35 jobs the old dashboard does and
@@ -40,7 +40,7 @@ of a module is approved by you before its first real record is brought over (T-1
 | Stay: their rows are not brought over | **9** |
 | Tables the admin's migrations create | 125. 28 of them receive rows from the old system by this map |
 | Names that stand on both sides | 24. The same name is not the same table: see §4 |
-| In the live database on 20 November 2026 | 73 tables, 765 columns, 380 rows. 19 tables hold rows, 54 are empty |
+| In the live database on 20 November 2026 | 73 tables, 765 columns, 381 rows. 19 tables hold rows, 54 are empty |
 <!-- /generated:numbers -->
 
 ## 2. Every table, by the area of the admin that owns it
@@ -173,19 +173,19 @@ the master list that brings the table over, and the wave that line belongs to.
 | `throttle_buckets` | 018 | Counts of wrong passwords, for an e-mail address or a network address, kept for minutes. | 6 | **Stays.** They are worth nothing an hour later. The admin counts for itself. | Access & team | T-065 · 2 |  |
 | `audit_logs` | 008 | Who did what in the old dashboard, with the record before and after. | 0 | **Moves** into `activity_log` | Audit & activity | T-178 · 2 | It arrives as history and changes nothing in the admin. The person is a name written out here; there it is a person of the team where one matches. |
 | `meta` | base | Settings kept by name: today the mark that the sample catalogue was loaded, and how far a supplier's invoice may differ from its order. The shop's theme is kept here too once somebody changes it. | 2 | **Stays.** These are settings, not records. Each is set again in the admin where it belongs: the tolerance with purchasing (line T-110), the theme with the Theme screen (line T-116). The mark of the sample catalogue is not needed. In the admin: `settings`, `theme_tokens` | Settings | — |  |
-| `schema_migrations` | tool | The list of schema changes this database has received, kept by the migration tool (`scripts/migrate.mjs`). | 20 | **Stays.** It describes this database and no other. The admin keeps a list of its own. | Platform | — |  |
+| `schema_migrations` | tool | The list of schema changes this database has received, kept by the migration tool (`scripts/migrate.mjs`). | 21 | **Stays.** It describes this database and no other. The admin keeps a list of its own. | Platform | — |  |
 <!-- /generated:areas -->
 
 ## 3. What the live database holds
 
 <!-- generated:live — written by scripts/verify-table-map.mjs --write; do not edit by hand -->
-Read on 20 November 2026, 06:18 UTC, from woodex-2030 on Supabase, PostgreSQL 17.11. Each of the 73 tables has the columns of the schema built from the files in this repository, name for name, with the same type and the same rule for empty values (read at 06:18:07Z and compared).
+Read on 20 November 2026, 06:58 UTC, from woodex-2030 on Supabase, PostgreSQL 17.11. Each of the 73 tables has the columns of the schema built from the files in this repository, name for name, with the same type and the same rule for empty values (read at 06:18:07Z and compared).
 
 | Table | Rows | What happens to it |
 |---|---|---|
 | `products` | 148 | Stays |
 | `stock_movements` | 148 | Waits (wave 7) |
-| `schema_migrations` | 20 | Stays |
+| `schema_migrations` | 21 | Stays |
 | `accounts` | 16 | Moves (wave 9) |
 | `materials` | 16 | Waits (wave 7) |
 | `services` | 7 | Waits (wave 10) |
@@ -208,15 +208,19 @@ Read on 20 November 2026, 06:18 UTC, from woodex-2030 on Supabase, PostgreSQL 17
 
 **How it was read.** Through the Supabase connection you switched on, as the database's owner, with statements
 that only read: the names of the tables and their columns from the database's own catalogue, and the number of
-rows of each table. No row's content was read, and nothing was written. The statement that counts the rows is
-printed by `node scripts/verify-table-map.mjs --query`; its answer, saved to a file, is compared with the map by
-`node scripts/verify-table-map.mjs --live <file>`, which names a table the map does not know.
+rows of each table. No row's content was read, and the reading wrote nothing. The statement that counts the
+rows is printed by `node scripts/verify-table-map.mjs --query`; its answer, saved to a file, is compared with
+the map by `node scripts/verify-table-map.mjs --live <file>`, which names a table the map does not know.
+
+The rows were counted twice that morning: at 06:18 UTC, and again at 06:58 UTC, after migration 021 had been
+applied (T-172; it changes no table and no column). The second count is the one above. One figure differs: the
+list of schema changes holds 21 rows where it held 20.
 
 **What "column for column" means.** The schema was built on a test database from the files of this repository
-(the base file and migrations 001 to 020). For each of its 73 tables a fingerprint was made of every column's
-name, type and whether it may be empty; the same was asked of the live database. All 73 fingerprints agree, and
-both sides count 765 columns. Constraints, indexes and triggers were not compared this way; the triggers were
-read by name (six, each attached and switched on).
+(the base file and migrations 001 to 020, at 06:18 UTC; migration 021 adds no column). For each of its 73 tables
+a fingerprint was made of every column's name, type and whether it may be empty; the same was asked of the live
+database. All 73 fingerprints agree, and both sides count 765 columns. Constraints, indexes and triggers were
+not compared this way; the triggers were read by name (six, each attached and switched on).
 
 ## 4. The same name on both sides
 
@@ -224,15 +228,26 @@ read by name (six, each attached and switched on).
 `activities`, `companies`, `contacts`, `conversations`, `expenses`, `invoices`, `journal_entries`, `journal_lines`, `leads`, `messages`, `page_blocks`, `page_versions`, `pages`, `payments`, `project_milestones`, `projects`, `quote_templates`, `quote_versions`, `quotes`, `saved_sections`, `sessions`, `site_visits`, `tasks`, `users`.
 <!-- /generated:names -->
 
-These are tables of the old system whose name the admin uses too. None can be copied as it is:
+These are tables of the old system whose name the admin uses too. None can be copied as it is. The old
+system's 765 columns are, by type: 466 text, 208 whole numbers, 45 times with a zone, 24 floating numbers,
+14 numbers with decimals, 5 days and 3 yes-or-no columns. What that means for a move:
 
-- **Money.** The old system keeps rupees, with decimals, as a floating number (`quotes.total`,
-  `invoices.total`, `payments.amount`) or as a number with two decimals (the books). The admin keeps whole
-  paisa (`total_minor`). Every amount is multiplied by 100 and checked to be whole.
-- **Times.** Most old tables keep a time as text (`created_at TEXT`), written by the API in UTC. The admin keeps
-  a time as a time, in UTC. A text that is not a time has to be found before the move, not during it.
-- **Lists inside a cell.** A quotation's lines, an invoice's lines and an order's lines are one block of JSON in
-  the old system and rows of their own in the admin.
+- **Money.** The old system keeps rupees, with decimals: as a floating number in 23 columns (`quotes.total`,
+  `invoices.total`, `payments.amount`, a product's price, the costs of purchasing) and as a number with two
+  decimals in 13 (the books, expenses, credit notes, payment schedules, tax records, a service visit's charge,
+  a warranty claim's cost). The admin keeps whole paisa (`total_minor`). Every amount is multiplied by 100 and
+  checked to be whole.
+- **Times.** By their names, 105 text columns in 46 tables hold a time or a day: 98 end in `_at`
+  (`created_at TEXT`), four in `_date`, three are called `due`. The old API writes them as text, in the form
+  `2026-11-08T20:54:28.341Z`. Only the newer tables (migrations 014 to 019) keep a time as a time. The admin
+  keeps a time as a time, in UTC. A text that is not a time has to be found before the move, not during it.
+- **Lists inside a cell.** 24 text columns are read as JSON by the old API. A quotation's lines, an invoice's
+  lines and an order's lines are one block of it in the old system and rows of their own in the admin.
+- **Yes and no.** The old system writes 0 and 1 into a whole-number column (13 are held to that by a
+  constraint), and a true yes-or-no in three columns.
+- **Upper and lower case.** PostgreSQL holds the product codes `WX-Desk-01` and `wx-desk-01` to be two
+  values. MySQL, as the admin sets it up, holds them to be one, and the same goes for two spellings of one
+  e-mail address. Two old records that differ only so can meet on a column that must be unique.
 - **People.** The old system writes a person out (`owner TEXT`, `customer TEXT`). The admin points at a member
   of the team or at a contact. A name that matches nobody has to be decided, record by record or by a rule.
 - **Numbers of records.** The same record gets a new number in the admin. The table `legacy_refs` keeps the old
