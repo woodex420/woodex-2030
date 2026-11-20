@@ -21,7 +21,7 @@ four of them. A large line can take more than one.
 ## The short version
 
 <!-- generated:short — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-1. **113 lines of the list are not done.** 19 can start now and need nobody: they are planned in 9 rounds (§2). 29 wait for you (§3). 65 wait for an earlier line (§4), and 50 of those stand behind an answer of yours.
+1. **111 lines of the list are not done.** 19 can start now and need nobody: they are planned in 9 rounds (§2). 29 wait for you (§3). 63 wait for an earlier line (§4), and 50 of those stand behind an answer of yours.
 2. **The next round** is round 1: T-105, The shop reads products, categories and series from `/api/v1`.
 3. **The answers of yours that the most lines stand behind:** T-006, Install the trial site on Hostinger (document 24) and send its address (20 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (4 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
 4. **1 critical defect is open:** D-002, The owner password of the old dashboard was printed in a public document — T-021, which waits for you.
@@ -36,11 +36,11 @@ four of them. A large line can take more than one.
 |  |  |
 |---|---|
 | Lines on the list | 153 |
-| Done | 40 |
+| Done | 42 |
 | **Can start now, needing nobody** | **19**, in 9 rounds (§2) |
 | **Wait for you** | **29** (§3) |
-| Wait for an earlier line | 65 (§4): 50 stand behind an answer of yours · 7 stand behind lines that need nobody · 8 go with a wave, a date or an event |
-| Not done, by priority | 24 P0, 51 P1, 28 P2, 10 P3 |
+| Wait for an earlier line | 63 (§4): 50 stand behind an answer of yours · 5 stand behind lines that need nobody · 8 go with a wave, a date or an event |
+| Not done, by priority | 24 P0, 50 P1, 27 P2, 10 P3 |
 <!-- /generated:numbers -->
 
 ---
@@ -88,40 +88,45 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the draft handed out in place of the published copy, the test of the unpublished product names it; with the shop's reader left reading rupees where paisa arrive, its script names the price.
 - **The way back:** The shop's switch stays off: the live shop reads what it reads today, and the round changes no setting of either Vercel project. The new addresses hand out only published products, and none is published on the demo. The Node catalogue is not closed in this round.
 
-### Round 2 — The shop's database: its functions and the map of its tables
+### Round 2 — Moving data: what differs between the two databases, and one rule for the numbers of records
 
-**Lines:** T-172, T-175 · **Why here:** One reading of the live database serves both lines. T-175 is P1, and the two lines about moving data wait for it (T-176, T-177). · **When it is merged, these can start:** T-176 (The differences between PostgreSQL and MySQL, tested); T-177 (One rule for identifiers; old-to-new numbers kept).
+**Lines:** T-176, T-177 · **Why here:** Both are P1 and waited for the map of the tables (T-175, done on 20 November). Every importer of a later wave is written on top of the two. Neither touches a live system. · **When it is merged, these can start:** no waiting line.
 
-#### T-172 · P2 · small — A fixed search path for the functions of the shop's database
+#### T-176 · P1 · medium — The differences between PostgreSQL and MySQL, tested
 
-- **Done when** (the list): No function of the public schema is without a search path; the module suites pass on PostgreSQL
-- **Found on 20 November 2026:** Read from the live database on 17 November, 20:04 UTC: its public schema holds nine functions and one aggregate, and none has a fixed search path (defect D-029). Six of the functions come from the numbered migrations; three functions and the aggregate from the base schema file. None belongs to an extension. Only the database's owner can create objects there, so nothing can be put in their way today.
+- **Done when** (the list): A test per kind on MySQL in CI
+- **Found on 20 November 2026:** Read on 20 November from the schema built from the old system's files: 765 columns in 73 tables, 466 of them text. By their names, 105 text columns in 46 tables hold a time or a day (98 end in `_at`, four in `_date`, three are called `due`); the old API writes them as text, in the form `2026-11-08T20:54:28.341Z`. Only the newer tables (migrations 014 to 019) keep a time as a time, in 45 columns. Money is a floating number in 23 columns (quotations, invoices, orders, payments, returns, prices, purchasing) and a number with two decimals in 13 (the books, expenses, credit notes, payment schedules, tax records, support); the admin keeps whole paisa. 24 text columns are read as JSON by the old API. 13 whole-number columns are held to 0 or 1 by a constraint and a few more are used so; three columns are true yes-or-no columns. A status, a stage or a priority is a word, and a CHECK constraint lists the words allowed; the admin holds such words in PHP enumerations. PostgreSQL compares text exactly; MySQL as the admin sets it up (`utf8mb4_unicode_ci`) treats upper and lower case as the same, so two old records that differ only in case can meet on a unique column. No test compares the two today. Document 36 §4 names the differences; nothing converts a value yet.
 - **What is built:**
-  1. Migration 021 sets the search path of each of the nine functions, named one by one, with its rollback file.
-  2. The aggregate (`group_concat`) is expected to take no search path of its own in PostgreSQL; its two helper functions do. That is tried on the test database first, and the defect's text then says what was found.
-  3. It is applied to the live database as migration 020 was: the tests first, then one transaction together with its row in the ledger, then a reading back.
+  1. The conversions an importer needs, in one class that nothing else uses yet: a text to a time in UTC, refusing what is not a time; rupees to whole paisa, refusing what does not come out whole; a text of JSON to a value, refusing what is not JSON; 0 and 1 to yes and no; a word of the old system to the admin's enumeration, refusing a word that has no place.
+  2. One test for each kind (times, money, JSON, upper and lower case, vocabularies), run on SQLite in the sandbox and on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 in CI: a value as the old system holds it goes through the conversion, is written to a table of the admin and read back.
+  3. For upper and lower case: the unique columns an importer writes to are listed, and for each the rule is written down, which of two values that differ only in case is kept, or that the import stops.
 - **Tests written:**
-  1. On the PostgreSQL test database, after every migration no function of the public schema is without a search path, and the same test fails for a function added later without one. The rollback brings the earlier state back; applying twice changes nothing.
-  2. The old system's module tests pass on PostgreSQL with 021 applied (CI).
-  3. After it is applied: read back from the live database, no function is without a search path and the ledger has 21 rows; asked from outside, the shop still serves its products.
+  1. Times: a time as the old API writes it (`2026-11-08T20:54:28.341Z`), a bare day, an empty text and a text that is no time. The first two arrive as the same moment on every server and are shown in Pakistan time; the empty one arrives as nothing; the last is refused by name.
+  2. Money: 0.1 + 0.2, 1234.565 and 99999999.99 as floating rupees each arrive as whole paisa or are refused; the sum of a thousand lines is the sum of their paisa.
+  3. JSON: a block with Urdu text, an emoji, a number above 2^53 and keys in a given order is the same value when read back on all three servers, which do not keep JSON alike.
+  4. Upper and lower case: two e-mail addresses and two product codes that differ only in case. What each server does with the unique column is pinned, and the written rule decides before the database does.
+  5. Vocabularies: every word that a CHECK constraint of the old system allows for a status, a stage or a priority is given to the conversion; each has a place in the admin's enumeration or stands on a written list of words without one.
 - **In a browser:** nothing; this line has no screen.
-- **Tried against:** With one function left out of the migration, the first test names it.
-- **The way back:** No row changes, and the rollback file is tested: that is the safe way back your condition asks for (DL-028). No backup is known to exist (T-187).
+- **Tried against:** With the conversion of money made to round instead of refuse, the money test fails; with one word taken out of a vocabulary's table, the vocabulary test names it.
+- **The way back:** Tests and one class that nothing else uses. No migration, and nothing runs against any data.
 
-#### T-175 · P1 · medium — Every table of the old system mapped to its Laravel owner
+#### T-177 · P1 · medium — One rule for identifiers; old-to-new numbers kept
 
-- **Done when** (the list): A table in the repository: source table, target, owner, wave
-- **Found on 20 November 2026:** Read from the live database on 17 November, 20:04 UTC: 73 tables. 72 of them are the tables of the old system's schema files, name for name; the 73rd is the ledger that the migration tool keeps. None is missing and none is unknown. Laravel's migrations create 118 tables.
+- **Done when** (the list): Every importer writes the mapping
+- **Found on 20 November 2026:** Read in the code on 20 November: the table `legacy_refs` has been in the admin since it was copied. A row holds the old table's name (60 characters), the old key as text (64 characters), the admin's record, a checksum and the time; the old table's name and key together are unique. Five classes that came with the admin write it and a sixth deletes from it: the importer of the studio's older CRM (under names that begin with `wx_`), the importer of a list of leads from a file (`lead_csv_` and the year), and those of a website's pages and pictures. None is for this old system. Nothing says under which names its 73 tables are entered, and nothing stops a new importer from taking a name that is in use. One old row that becomes two records (a lead: a contact and a lead) has no way to be entered twice. Read from the schema built from the old system's files: 64 tables have a number as their key; six have a text (`products`, `materials`, `services`, `quote_templates`, `meta`, `sessions`); two have a key of two columns (`client_links`, `stock_levels`), which has to become one text to fit; the last is the migration tool's list. How long the longest key of the live database is was not read.
 - **What is built:**
-  1. One file with a row for each old table: where it goes in Laravel, or that it is not moved and why; the module that owns it; its wave.
-  2. The same table as a document, written from the file.
-  3. The names of the live database's tables are read again when the map is written, reading only, and compared with the files.
+  1. The rule, written into document 36 and held by a test: under which name each table of the old system is entered, how a key of two columns is written as one text, what the checksum is made of, and how one old row that becomes two records is entered. The round decides the last point and records the decision.
+  2. One class every importer of this old system goes through, to ask whether a row was brought over and whether it has changed since, and to write the answer. It is the only place that writes `legacy_refs` for this system.
+  3. The map (`acceptance/tables.json`) gains nothing: the rule is derived from a table's name.
 - **Tests written:**
-  1. A check fails when a table of the old schema files is missing from the file or named twice, when a target table is not created by any Laravel migration, or when a wave is not a wave of the list.
-  2. A table that the live database has and the map does not know is named by the comparison and listed in the round's report.
+  1. A row brought over twice is one record, and the second run changes nothing; a row whose content changed is seen as changed.
+  2. Two old tables with the same key do not meet, and neither do the studio's importers and this system's: every name in use is listed by a test.
+  3. A key of two columns comes out as the same text on every run, and two different keys never as the same text, also when a value holds the sign that joins them.
+  4. A text key of 64 characters is kept whole; a longer one is refused by name before the database cuts it.
+  5. A test reads every class that writes `legacy_refs`: one that does not go through the one class fails it, except the six that came with the admin, which are listed.
 - **In a browser:** nothing; this line has no screen.
-- **Tried against:** With one row taken out of the file, the check names the table.
-- **The way back:** A document and a check. Nothing runs against any data.
+- **Tried against:** With the check for a changed row taken out, "is seen as changed" fails; with a seventh class that writes the table directly, the last test names it.
+- **The way back:** One class and tests. No migration, unless the round finds a key too long for the column: then one migration that only widens it.
 
 ### Round 3 — Packages, the demo's housekeeping, the documents the code points at
 
@@ -515,7 +520,7 @@ answer is added here.
 | T-185 | P1 | A runbook: deploy, roll back, restore, passwords, accounts | T-137 | T-006 | Written, and each step done once on staging |
 | T-190 | P2 | The WhatsApp inbox takes the enquiry's turn before it asks who is writing | T-118 — Cannot happen today: the inbox is switched off and no WhatsApp account is connected (D-044). Done with the inbox's own acceptance (T-118), before it is switched on. | T-014 | `ReceiveWhatsAppMessage` takes the enquiry's turn before it asks; `tools/ci/two-writers.php` has a step that sends two messages of two strangers at once, and without the turn that step reports the fault |
 
-#### Behind lines that need nobody (7)
+#### Behind lines that need nobody (5)
 
 | # | Pri | Task | Waits for | Stands behind | Done when |
 |---|---|---|---|---|---|
@@ -524,8 +529,6 @@ answer is added here.
 | T-116 | P2 | Website Studio on Puck | T-115 | T-105 (round 1) | A page is edited, approved, published and rolled back |
 | T-117 | P2 | Today's pages moved into the page builder | T-116 | T-105 (round 1) | Selected pages are approved; the old content is kept |
 | T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-105 (round 1) | A lead shows the campaign it came from |
-| T-176 | P1 | The differences between PostgreSQL and MySQL, tested | T-175 | T-175 (round 2) | A test per kind on MySQL in CI |
-| T-177 | P1 | One rule for identifiers; old-to-new numbers kept | T-175 | T-175 (round 2) | Every importer writes the mapping |
 
 #### With a wave, a date or an event (8)
 
@@ -559,11 +562,13 @@ of them pass on its last commit.
 | Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 39 of 39 steps hold with the demo's settings (sandbox, 20 November, on the code of pull request #49). The last step is on a phone: no key list scrolls sideways at 390 px, and a lead is chosen, opened and moved from its card. CI runs them both ways on every push; its result for a merge is on the pull request | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
 | Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 253 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (sandbox, 20 November, on the code of pull request #49) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
 | The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes, 84 checks, three of them addresses under `/api` since 19 November (CI, `d93b112`) | A site that starts without its settings, hands out a file, or loses the session |
-| The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `d93b112`) | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository |
+| The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `da09370`, 20 November) | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files, this plan or the map of the old tables out of step with the repository |
+| Every function of the old system's PostgreSQL schema has a fixed search path (`scripts/test-search-path.mjs`) | CI, in `build-and-test` on every push (a step of `scripts/ci-test.mjs`); in the sandbox with `npm run test:search-path`, in seven seconds. On the embedded PostgreSQL, which is 18.3; the live database is 17 | 59 checks pass (sandbox, 20 November; 57 of them in CI on `da09370`, before the two about a temporary table were added). On the live database, read on 20 November at 06:57 UTC: nine of nine functions have the path | A function that a later migration adds without a path, or rewrites with `CREATE OR REPLACE` and so loses it; a base schema file that takes the path off again when it is run a second time; a path that lets a temporary table stand in for a table of the books; a rollback that does not bring back what was there |
+| The map of the old system's tables (`scripts/verify-table-map.mjs`, itself tried by `scripts/test-verify-table-map.mjs`) | CI, in `build-and-test` on every push. The live database is read by hand, reading only, when the map is brought up to date | 73 rows: 29 move, 35 wait, 9 stay; the map agrees with the old schema files, the admin's migrations, its menu, the master list and document 36. The check fails in each of the 29 mistakes made for it (CI, `da09370`). The live database was last read on 20 November at 06:58 UTC | A table of the old system without a place in the admin; a target table that no migration creates; a line or a wave that is not the list's; a screen that is not in the menu; a document that says something else than the file |
 | Known weaknesses in the packages (`audit.yml`) | CI, when a lock file changes and every Monday | last run green on 17 November (`ef31589`); it reports one low and eleven moderate advisories (T-071) | A package with a known high or critical weakness |
 | The live sites from outside (`live-check-after-merge.yml`) | GitHub, eight minutes after every merge into `main` | after the merge of pull request #45 one point of the shop's fifteen failed: a preview that Vercel had removed answered 410, where the check accepted the sign-in or 404 (run 44343060920, issue #46); cured in `6b3789d`, and the shop's 16 points hold on the branch (run 44455587053, 19 November, 04:02 UTC). The admin's points held in every run. Since 19 November the admin is also asked six points of `/api/v1`, which can only hold once pull request #47 is on `main` | A live site that does not answer as it should after a merge. A failure opens an issue |
-| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30) for the shared table and its count (report 34) and for the cards on a phone, in the tests and in the journey (report 35) | A test that would pass whatever the code does |
-| Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39, #40, #47 and #49 (the shop's changed files are named in report 30; #49 changes none) | A change to the React shop that the report does not name; a merge with a check still red |
+| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30), for the shared table and its count (report 34), for the cards on a phone, in the tests and in the journey (report 35), and for the search-path suite and the check of the table map (report 37) | A test that would pass whatever the code does |
+| Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39, #40, #47, #49 and #50 (the shop's changed files are named in report 30; #49 and #50 change none) | A change to the React shop that the report does not name; a merge with a check still red |
 <!-- /generated:standing -->
 
 **Not covered by any of them today**, each a line of the list: a signed-in visit to the live demo (T-151) ·

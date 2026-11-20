@@ -23,8 +23,8 @@ of a module is approved by you before its first real record is brought over (T-1
 3. **It is almost empty.** 19 of the 73 tables hold a row; 54 hold none. Of its 381 rows, 148 are the sample
    products, 148 their opening stock, 16 the chart of accounts, 16 materials and 7 service pages from the seed,
    21 the list of schema changes. What could be a record of the business is a handful: one enquiry, one client,
-   one conversation with one message, one task, one page, two entries of the books (§3). The rows were counted,
-   not read: whether they are trials is yours to say.
+   one conversation with one message, one task, one page, two entries of the books (§3). These rows were
+   counted, not read: whether they are trials is yours to say.
 4. **So what has to move is work, not rows.** The 35 tables that wait are 35 jobs the old dashboard does and
    the admin does not do yet: orders, delivery, support, stock, purchasing, production, the shop's pages. The
    map says which line builds each (§2, §5).
@@ -208,9 +208,11 @@ Read on 20 November 2026, 06:58 UTC, from woodex-2030 on Supabase, PostgreSQL 17
 
 **How it was read.** Through the Supabase connection you switched on, as the database's owner, with statements
 that only read: the names of the tables and their columns from the database's own catalogue, and the number of
-rows of each table. No row's content was read, and the reading wrote nothing. The statement that counts the
-rows is printed by `node scripts/verify-table-map.mjs --query`; its answer, saved to a file, is compared with
-the map by `node scripts/verify-table-map.mjs --live <file>`, which names a table the map does not know.
+rows of each table. No record's content was read, and the reading wrote nothing. Two things that are no
+records were read as they stand: the list of schema changes (the name and the checksum of each migration file)
+and the names, not the values, of the two settings in `meta`. The statement that counts the rows is printed by
+`node scripts/verify-table-map.mjs --query`; its answer, saved to a file, is compared with the map by
+`node scripts/verify-table-map.mjs --live <file>`, which names a table the map does not know.
 
 The rows were counted twice that morning: at 06:18 UTC, and again at 06:58 UTC, after migration 021 had been
 applied (T-172; it changes no table and no column). The second count is the one above. One figure differs: the

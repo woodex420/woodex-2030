@@ -15,6 +15,9 @@
  *   • What it is for. With another schema in front of the session's path, an entry of the books that does not
  *     balance is refused, and the comma-joined list comes out right. The same statements with the migration
  *     taken off keep the entry and hand out the other schema's answer: so the migration is what holds.
+ *   • Why the path ends in pg_temp. Any session can make a temporary table, and PostgreSQL looks there first
+ *     unless the path names the temporary schema. With the migration's path a temporary table called
+ *     journal_lines does not stand in for the books; with a path of "public" alone it does.
  *   • A function added later. The check names a new function without a path, and a function that
  *     CREATE OR REPLACE has just rewritten (which takes a setting away that it does not state).
  *   • The base schema file is run again and again. It must leave its three functions with their path.
@@ -108,6 +111,16 @@ async function undone(db, run) {
 const unbalancedEntry = (db) => refused(async () => {
   await db.exec("SET LOCAL search_path = elsewhere, public");
   await db.exec(`INSERT INTO public.journal_entries(id, ref, entry_date, created_at) VALUES (9001, 'JE-PROBE', '2026-11-20', '2026-11-20T00:00:00Z');
+                 INSERT INTO public.journal_lines(entry_id, account_id, debit, credit) VALUES (9001, 9001, 100, 0), (9001, 9002, 0, 60);
+                 SET CONSTRAINTS ALL IMMEDIATE`);
+});
+/**
+ * The same entry, written by a session that has made itself a temporary table with the name of the books'
+ * table. That needs no right in the schema. Null when the entry is kept, the refusal's text when it is refused.
+ */
+const unbalancedEntryBehindATemporaryTable = (db) => refused(async () => {
+  await db.exec(`CREATE TEMP TABLE journal_lines(entry_id BIGINT, debit NUMERIC(14, 2), credit NUMERIC(14, 2)) ON COMMIT DROP;
+                 INSERT INTO public.journal_entries(id, ref, entry_date, created_at) VALUES (9001, 'JE-PROBE', '2026-11-20', '2026-11-20T00:00:00Z');
                  INSERT INTO public.journal_lines(entry_id, account_id, debit, credit) VALUES (9001, 9001, 100, 0), (9001, 9002, 0, 60);
                  SET CONSTRAINTS ALL IMMEDIATE`);
 });
@@ -207,6 +220,13 @@ $$`);
   check(rightList === 'a,b', 'the comma-joined list is joined by PostgreSQL\'s own function', `it read "${rightList}"`);
   const otherList = await undone(db, async () => { await db.exec(read(ROLLBACK)); return joinedList(db); });
   check(otherList === 'the other schema answered', 'with the migration taken off, the other schema\'s function answers', `it read "${otherList}"`);
+  const behindTemporary = await undone(db, () => unbalancedEntryBehindATemporaryTable(db));
+  check(behindTemporary !== null && /does not balance/.test(behindTemporary), 'a temporary table called journal_lines does not stand in for the books', behindTemporary ?? 'the entry was kept');
+  const pathWithoutTemporary = await undone(db, async () => {
+    await db.exec('ALTER FUNCTION public.journal_entry_must_balance() SET search_path = public');
+    return unbalancedEntryBehindATemporaryTable(db);
+  });
+  check(pathWithoutTemporary === null, 'with a path of "public" alone it does (so naming the temporary schema last is what holds)', pathWithoutTemporary ?? '');
   check(same(prints(await routines(db)), prints(complete)), 'none of these tries left anything behind');
   const stamp = await db.q("SELECT datetime('')::text AS empty, datetime('2026-11-20T06:00:00.000Z')::text AS stamp");
   check(stamp[0].empty === null && stamp[0].stamp === '2026-11-20 06:00:00', 'datetime() reads a time as before, and an empty text as nothing', JSON.stringify(stamp[0]));

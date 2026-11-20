@@ -1,7 +1,7 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
   "written": "2026-11-20",
-  "commit": "c00f90a",
+  "commit": "da09370",
   "sizes": {
     "S": "small",
     "M": "medium",
@@ -106,9 +106,7 @@
     "T-165": "Browser journeys for the remaining flows of document 10",
     "T-168": "Performance: query budgets and a run with realistic volumes",
     "T-171": "Read the eight module sheets: approve or return each",
-    "T-172": "A fixed search path for the functions of the shop's database",
     "T-174": "The documents the code points at are in this repository",
-    "T-175": "Every table of the old system mapped to its Laravel owner",
     "T-176": "The differences between PostgreSQL and MySQL, tested",
     "T-177": "One rule for identifiers; old-to-new numbers kept",
     "T-178": "An importer per module, repeatable, with a dry run",
@@ -161,43 +159,48 @@
       ]
     },
     {
-      "name": "The shop's database: its functions and the map of its tables",
-      "why": "One reading of the live database serves both lines. T-175 is P1, and the two lines about moving data wait for it (T-176, T-177).",
+      "name": "Moving data: what differs between the two databases, and one rule for the numbers of records",
+      "why": "Both are P1 and waited for the map of the tables (T-175, done on 20 November). Every importer of a later wave is written on top of the two. Neither touches a live system.",
       "lines": [
         {
-          "id": "T-172",
-          "size": "S",
-          "found": "Read from the live database on 17 November, 20:04 UTC: its public schema holds nine functions and one aggregate, and none has a fixed search path (defect D-029). Six of the functions come from the numbered migrations; three functions and the aggregate from the base schema file. None belongs to an extension. Only the database's owner can create objects there, so nothing can be put in their way today.",
+          "id": "T-176",
+          "size": "M",
+          "found": "Read on 20 November from the schema built from the old system's files: 765 columns in 73 tables, 466 of them text. By their names, 105 text columns in 46 tables hold a time or a day (98 end in `_at`, four in `_date`, three are called `due`); the old API writes them as text, in the form `2026-11-08T20:54:28.341Z`. Only the newer tables (migrations 014 to 019) keep a time as a time, in 45 columns. Money is a floating number in 23 columns (quotations, invoices, orders, payments, returns, prices, purchasing) and a number with two decimals in 13 (the books, expenses, credit notes, payment schedules, tax records, support); the admin keeps whole paisa. 24 text columns are read as JSON by the old API. 13 whole-number columns are held to 0 or 1 by a constraint and a few more are used so; three columns are true yes-or-no columns. A status, a stage or a priority is a word, and a CHECK constraint lists the words allowed; the admin holds such words in PHP enumerations. PostgreSQL compares text exactly; MySQL as the admin sets it up (`utf8mb4_unicode_ci`) treats upper and lower case as the same, so two old records that differ only in case can meet on a unique column. No test compares the two today. Document 36 §4 names the differences; nothing converts a value yet.",
           "build": [
-            "Migration 021 sets the search path of each of the nine functions, named one by one, with its rollback file.",
-            "The aggregate (`group_concat`) is expected to take no search path of its own in PostgreSQL; its two helper functions do. That is tried on the test database first, and the defect's text then says what was found.",
-            "It is applied to the live database as migration 020 was: the tests first, then one transaction together with its row in the ledger, then a reading back."
+            "The conversions an importer needs, in one class that nothing else uses yet: a text to a time in UTC, refusing what is not a time; rupees to whole paisa, refusing what does not come out whole; a text of JSON to a value, refusing what is not JSON; 0 and 1 to yes and no; a word of the old system to the admin's enumeration, refusing a word that has no place.",
+            "One test for each kind (times, money, JSON, upper and lower case, vocabularies), run on SQLite in the sandbox and on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 in CI: a value as the old system holds it goes through the conversion, is written to a table of the admin and read back.",
+            "For upper and lower case: the unique columns an importer writes to are listed, and for each the rule is written down, which of two values that differ only in case is kept, or that the import stops."
           ],
           "tests": [
-            "On the PostgreSQL test database, after every migration no function of the public schema is without a search path, and the same test fails for a function added later without one. The rollback brings the earlier state back; applying twice changes nothing.",
-            "The old system's module tests pass on PostgreSQL with 021 applied (CI).",
-            "After it is applied: read back from the live database, no function is without a search path and the ledger has 21 rows; asked from outside, the shop still serves its products."
+            "Times: a time as the old API writes it (`2026-11-08T20:54:28.341Z`), a bare day, an empty text and a text that is no time. The first two arrive as the same moment on every server and are shown in Pakistan time; the empty one arrives as nothing; the last is refused by name.",
+            "Money: 0.1 + 0.2, 1234.565 and 99999999.99 as floating rupees each arrive as whole paisa or are refused; the sum of a thousand lines is the sum of their paisa.",
+            "JSON: a block with Urdu text, an emoji, a number above 2^53 and keys in a given order is the same value when read back on all three servers, which do not keep JSON alike.",
+            "Upper and lower case: two e-mail addresses and two product codes that differ only in case. What each server does with the unique column is pinned, and the written rule decides before the database does.",
+            "Vocabularies: every word that a CHECK constraint of the old system allows for a status, a stage or a priority is given to the conversion; each has a place in the admin's enumeration or stands on a written list of words without one."
           ],
           "browser": [],
-          "against": "With one function left out of the migration, the first test names it.",
-          "back": "No row changes, and the rollback file is tested: that is the safe way back your condition asks for (DL-028). No backup is known to exist (T-187)."
+          "against": "With the conversion of money made to round instead of refuse, the money test fails; with one word taken out of a vocabulary's table, the vocabulary test names it.",
+          "back": "Tests and one class that nothing else uses. No migration, and nothing runs against any data."
         },
         {
-          "id": "T-175",
+          "id": "T-177",
           "size": "M",
-          "found": "Read from the live database on 17 November, 20:04 UTC: 73 tables. 72 of them are the tables of the old system's schema files, name for name; the 73rd is the ledger that the migration tool keeps. None is missing and none is unknown. Laravel's migrations create 118 tables.",
+          "found": "Read in the code on 20 November: the table `legacy_refs` has been in the admin since it was copied. A row holds the old table's name (60 characters), the old key as text (64 characters), the admin's record, a checksum and the time; the old table's name and key together are unique. Five classes that came with the admin write it and a sixth deletes from it: the importer of the studio's older CRM (under names that begin with `wx_`), the importer of a list of leads from a file (`lead_csv_` and the year), and those of a website's pages and pictures. None is for this old system. Nothing says under which names its 73 tables are entered, and nothing stops a new importer from taking a name that is in use. One old row that becomes two records (a lead: a contact and a lead) has no way to be entered twice. Read from the schema built from the old system's files: 64 tables have a number as their key; six have a text (`products`, `materials`, `services`, `quote_templates`, `meta`, `sessions`); two have a key of two columns (`client_links`, `stock_levels`), which has to become one text to fit; the last is the migration tool's list. How long the longest key of the live database is was not read.",
           "build": [
-            "One file with a row for each old table: where it goes in Laravel, or that it is not moved and why; the module that owns it; its wave.",
-            "The same table as a document, written from the file.",
-            "The names of the live database's tables are read again when the map is written, reading only, and compared with the files."
+            "The rule, written into document 36 and held by a test: under which name each table of the old system is entered, how a key of two columns is written as one text, what the checksum is made of, and how one old row that becomes two records is entered. The round decides the last point and records the decision.",
+            "One class every importer of this old system goes through, to ask whether a row was brought over and whether it has changed since, and to write the answer. It is the only place that writes `legacy_refs` for this system.",
+            "The map (`acceptance/tables.json`) gains nothing: the rule is derived from a table's name."
           ],
           "tests": [
-            "A check fails when a table of the old schema files is missing from the file or named twice, when a target table is not created by any Laravel migration, or when a wave is not a wave of the list.",
-            "A table that the live database has and the map does not know is named by the comparison and listed in the round's report."
+            "A row brought over twice is one record, and the second run changes nothing; a row whose content changed is seen as changed.",
+            "Two old tables with the same key do not meet, and neither do the studio's importers and this system's: every name in use is listed by a test.",
+            "A key of two columns comes out as the same text on every run, and two different keys never as the same text, also when a value holds the sign that joins them.",
+            "A text key of 64 characters is kept whole; a longer one is refused by name before the database cuts it.",
+            "A test reads every class that writes `legacy_refs`: one that does not go through the one class fails it, except the six that came with the admin, which are listed."
           ],
           "browser": [],
-          "against": "With one row taken out of the file, the check names the table.",
-          "back": "A document and a check. Nothing runs against any data."
+          "against": "With the check for a changed row taken out, \"is seen as changed\" fails; with a seventh class that writes the table directly, the last test names it.",
+          "back": "One class and tests. No migration, unless the round finds a key too long for the column: then one migration that only widens it."
         }
       ]
     },
@@ -586,8 +589,20 @@
     {
       "check": "The React shop's gate (`ci.yml`)",
       "where": "CI, on every push",
-      "today": "passes (CI, `d93b112`)",
-      "catches": "A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files or this plan out of step with the repository"
+      "today": "passes (CI, `da09370`, 20 November)",
+      "catches": "A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files, this plan or the map of the old tables out of step with the repository"
+    },
+    {
+      "check": "Every function of the old system's PostgreSQL schema has a fixed search path (`scripts/test-search-path.mjs`)",
+      "where": "CI, in `build-and-test` on every push (a step of `scripts/ci-test.mjs`); in the sandbox with `npm run test:search-path`, in seven seconds. On the embedded PostgreSQL, which is 18.3; the live database is 17",
+      "today": "59 checks pass (sandbox, 20 November; 57 of them in CI on `da09370`, before the two about a temporary table were added). On the live database, read on 20 November at 06:57 UTC: nine of nine functions have the path",
+      "catches": "A function that a later migration adds without a path, or rewrites with `CREATE OR REPLACE` and so loses it; a base schema file that takes the path off again when it is run a second time; a path that lets a temporary table stand in for a table of the books; a rollback that does not bring back what was there"
+    },
+    {
+      "check": "The map of the old system's tables (`scripts/verify-table-map.mjs`, itself tried by `scripts/test-verify-table-map.mjs`)",
+      "where": "CI, in `build-and-test` on every push. The live database is read by hand, reading only, when the map is brought up to date",
+      "today": "73 rows: 29 move, 35 wait, 9 stay; the map agrees with the old schema files, the admin's migrations, its menu, the master list and document 36. The check fails in each of the 29 mistakes made for it (CI, `da09370`). The live database was last read on 20 November at 06:58 UTC",
+      "catches": "A table of the old system without a place in the admin; a target table that no migration creates; a line or a wave that is not the list's; a screen that is not in the menu; a document that says something else than the file"
     },
     {
       "check": "Known weaknesses in the packages (`audit.yml`)",
@@ -604,13 +619,13 @@
     {
       "check": "Each new test, tried once against its protection taken away",
       "where": "By hand, when the test is written; recorded in the round's report",
-      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30) for the shared table and its count (report 34) and for the cards on a phone, in the tests and in the journey (report 35)",
+      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30), for the shared table and its count (report 34), for the cards on a phone, in the tests and in the journey (report 35), and for the search-path suite and the check of the table map (report 37)",
       "catches": "A test that would pass whatever the code does"
     },
     {
       "check": "Before the merge: the files changed against `main` are read, and every check is green",
       "where": "By hand; the release report is written first",
-      "today": "done for pull requests #37, #39, #40, #47 and #49 (the shop's changed files are named in report 30; #49 changes none)",
+      "today": "done for pull requests #37, #39, #40, #47, #49 and #50 (the shop's changed files are named in report 30; #49 and #50 change none)",
       "catches": "A change to the React shop that the report does not name; a merge with a check still red"
     }
   ]
