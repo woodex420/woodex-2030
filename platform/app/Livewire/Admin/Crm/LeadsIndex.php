@@ -472,13 +472,17 @@ class LeadsIndex extends Component
                 $start = CarbonImmutable::createFromFormat('!Y-m', $this->month, 'Asia/Karachi')->utc();
                 $q->where('created_at', '>=', $start)->where('created_at', '<', $start->addMonth());
             })
+            // "Newest" and "oldest" go by the day the enquiry was made, which is the date the list shows. They went by
+            // the order of entry: leads brought in from a sheet keep their own dates (CaptureLead, historicalAt), so
+            // last year's leads, entered today, stood on top as the newest (found with T-041, when the heading began
+            // to say which way the list is sorted). The order of entry settles two leads of the same moment.
             ->tap(fn (Builder $q) => match ($this->sort) {
-                'oldest' => $q->oldest('id'),
+                'oldest' => $q->oldest('created_at')->oldest('id'),
                 'score' => $q->orderByDesc('score')->latest('id'),
                 'next_action' => $q->orderByRaw('next_action_at is null')->orderBy('next_action_at'),
                 'name' => $q->orderBy(Contact::query()->select('name')->whereColumn('contacts.id', 'leads.contact_id')->limit(1)),
                 'value' => $q->orderByRaw('expected_value_minor is null')->orderByDesc('expected_value_minor'),
-                default => $q->latest('id'),
+                default => $q->latest('created_at')->latest('id'),
             });
     }
 

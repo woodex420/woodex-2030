@@ -125,10 +125,12 @@
         @endif
     </div>
 
-    {{-- Bulk actions --}}
-    @if ($selected !== [])
-        <div class="sticky top-[calc(var(--wx-topbar-h)+8px)] z-20 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-navy-200 bg-navy-50 px-4 py-2.5 text-theme-sm shadow-theme-xs dark:border-white/10 dark:bg-gray-900">
-            <span class="font-medium text-navy-900 dark:text-white">{{ count($selected) }} selected</span>
+    {{-- On a phone each lead is a card (cards): its reference, then who, where it stands, whose it is and what is
+         due next: the cells that carry a data-label. Service, source and score are left off a card on purpose;
+         they are one press away, on the lead's page. --}}
+    <x-admin.table label="Leads" :rows="$leads" :selected="$selected" table-class="wx-leads-table" cards>
+        {{-- What can be done with every chosen lead --}}
+        <x-slot:bulk>
             @if ($staff->isNotEmpty())
                 <select x-data x-on:change="if ($event.target.value) { $wire.bulkAssign($event.target.value); $event.target.value = '' }" class="wx-input h-8 w-auto text-theme-xs" aria-label="Assign selected leads">
                     <option value="">Assign to…</option>
@@ -142,109 +144,93 @@
             @if ($canDelete)
                 <x-admin.button variant="secondary" size="sm" icon="trash" wire:click="bulkDelete" wire:confirm="Move {{ count($selected) }} lead(s) to the recycle bin?">Delete</x-admin.button>
             @endif
-            <button type="button" wire:click="$set('selected', [])" class="ml-auto text-theme-xs text-gray-500 hover:text-gray-800">Clear selection</button>
-        </div>
-    @endif
+        </x-slot:bulk>
 
-    <x-admin.card :padding="false">
-        <div class="overflow-x-auto" wire:loading.class="opacity-60">
-            <table class="wx-leads-table min-w-full text-left text-theme-sm">
-                <thead class="border-b border-gray-100 text-theme-xs tracking-wide text-gray-500 uppercase dark:border-gray-800">
-                    <tr>
-                        <th class="w-10 py-3 pl-5">
-                            <input type="checkbox" class="rounded border-gray-300" aria-label="Select all on this page"
-                                   x-data x-on:change="$wire.set('selected', $event.target.checked ? @js($leads->pluck('id')->map(fn ($id) => (string) $id)->values()) : [])"
-                                   @checked($leads->count() > 0 && count($selected) >= $leads->count())>
-                        </th>
-                        <th class="px-5 py-3 font-medium">Lead</th>
-                        @if (in_array('contact', $columns, true))<th class="px-5 py-3 font-medium">Contact</th>@endif
-                        @if (in_array('line', $columns, true))<th class="px-5 py-3 font-medium">{{ $columnLabels['line'] }}</th>@endif
-                        @if (in_array('source', $columns, true))<th class="px-5 py-3 font-medium">Source</th>@endif
-                        @if (in_array('stage', $columns, true))<th class="px-5 py-3 font-medium">Stage</th>@endif
-                        @if (in_array('owner', $columns, true))<th class="px-5 py-3 font-medium">Owner</th>@endif
-                        @if (in_array('score', $columns, true))<th class="px-5 py-3 text-right font-medium">Score</th>@endif
-                        @if (in_array('next', $columns, true))<th class="px-5 py-3 font-medium">Next action</th>@endif
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                    @forelse ($leads as $lead)
-                        <tr wire:key="lead-{{ $lead->id }}" @class(['hover:bg-gray-50 dark:hover:bg-white/[0.02]', 'bg-navy-50/50 dark:bg-white/[0.03]' => in_array((string) $lead->id, array_map('strval', $selected), true)])>
-                            <td class="py-3 pl-5"><input type="checkbox" wire:model.live="selected" value="{{ $lead->id }}" class="rounded border-gray-300" aria-label="Select {{ $lead->ref }}"></td>
-                            <td class="px-5 py-3 whitespace-nowrap">
-                                <a href="{{ route('admin.leads.show', $lead) }}" wire:navigate class="font-medium text-navy-800 hover:underline dark:text-white/90">{{ $lead->ref }}</a>
-                                <span class="block text-theme-xs text-gray-400">{{ $lead->created_at?->timezone('Asia/Karachi')->format('j M, g:i a') }}</span>
-                            </td>
-                            @if (in_array('contact', $columns, true))
-                                <td class="px-5 py-3">
-                                    <button type="button" wire:click="openLeadDrawer({{ $lead->id }})" class="block text-left font-medium text-gray-800 hover:text-brand-600 hover:underline dark:text-white/90">{{ $lead->contact->name }}</button>
-                                    <span class="flex items-center gap-1 text-theme-xs text-gray-500">
-                                        {{ \App\Support\Phone::display($lead->contact->phone) ?: $lead->contact->email }}
-                                        @if ($wa = \App\Support\Phone::whatsappUrl($lead->contact->whatsappNumber()))
-                                            <a href="{{ $wa }}" target="_blank" rel="noopener" class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-success-600 hover:bg-success-50 hover:text-success-700 dark:hover:bg-white/5" title="WhatsApp" aria-label="WhatsApp {{ $lead->contact->name }}"><x-icon name="whatsapp" class="size-4" /></a>
-                                        @endif
-                                        @if ($lead->contact->phone)
-                                            <a href="tel:{{ $lead->contact->phone }}" class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-navy-600 hover:bg-gray-100 hover:text-navy-800 dark:text-gray-300 dark:hover:bg-white/5" title="Call" aria-label="Call {{ $lead->contact->name }}"><x-icon name="phone" class="size-4" /></a>
-                                        @endif
-                                    </span>
-                                </td>
+        {{-- The headings sort by the list's own words (LeadsIndex::SORTS); "Expected value" has no column and stays in the choice above. --}}
+        <x-slot:head>
+            <x-admin.table.select-all :ids="$leads->pluck('id')" :selected="$selected" />
+            <x-admin.table.heading :sort="['newest' => 'descending', 'oldest' => 'ascending']" :current="$sort">Lead</x-admin.table.heading>
+            @if (in_array('contact', $columns, true))<x-admin.table.heading :sort="['name' => 'ascending']" :current="$sort">Contact</x-admin.table.heading>@endif
+            @if (in_array('line', $columns, true))<x-admin.table.heading>{{ $columnLabels['line'] }}</x-admin.table.heading>@endif
+            @if (in_array('source', $columns, true))<x-admin.table.heading>Source</x-admin.table.heading>@endif
+            @if (in_array('stage', $columns, true))<x-admin.table.heading>Stage</x-admin.table.heading>@endif
+            @if (in_array('owner', $columns, true))<x-admin.table.heading>Owner</x-admin.table.heading>@endif
+            @if (in_array('score', $columns, true))<x-admin.table.heading :sort="['score' => 'descending']" :current="$sort" align="right">Score</x-admin.table.heading>@endif
+            @if (in_array('next', $columns, true))<x-admin.table.heading :sort="['next_action' => 'ascending']" :current="$sort">Next action</x-admin.table.heading>@endif
+        </x-slot:head>
+
+        @foreach ($leads as $lead)
+            <tr wire:key="lead-{{ $lead->id }}" @class(['hover:bg-gray-50 dark:hover:bg-white/[0.02]', 'bg-navy-50/50 dark:bg-white/[0.03]' => in_array((string) $lead->id, array_map('strval', $selected), true)])>
+                <x-admin.table.select :value="$lead->id" label="Select {{ $lead->ref }}" />
+                <th scope="row" class="px-5 py-3 font-normal whitespace-nowrap">
+                    <a href="{{ route('admin.leads.show', $lead) }}" wire:navigate class="font-medium text-navy-800 hover:underline dark:text-white/90">{{ $lead->ref }}</a>
+                    <span class="block text-theme-xs text-gray-400">{{ $lead->created_at?->timezone('Asia/Karachi')->format('j M, g:i a') }}</span>
+                </th>
+                @if (in_array('contact', $columns, true))
+                    <td data-label="Contact" class="px-5 py-3">
+                        <button type="button" wire:click="openLeadDrawer({{ $lead->id }})" class="block text-left font-medium text-gray-800 hover:text-brand-600 hover:underline dark:text-white/90">{{ $lead->contact->name }}</button>
+                        <span class="flex items-center gap-1 text-theme-xs text-gray-500">
+                            {{ \App\Support\Phone::display($lead->contact->phone) ?: $lead->contact->email }}
+                            @if ($wa = \App\Support\Phone::whatsappUrl($lead->contact->whatsappNumber()))
+                                <a href="{{ $wa }}" target="_blank" rel="noopener" class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-success-600 hover:bg-success-50 hover:text-success-700 dark:hover:bg-white/5" title="WhatsApp" aria-label="WhatsApp {{ $lead->contact->name }}"><x-icon name="whatsapp" class="size-4" /></a>
                             @endif
-                            @if (in_array('line', $columns, true))
-                                <td class="px-5 py-3">
-                                    @if ($lead->business_line->tag() !== '')
-                                        {{ $lead->business_line->tag() }}
-                                        @if ($lead->service)
-                                            <span class="block text-theme-xs text-gray-500">{{ \Illuminate\Support\Str::headline($lead->service) }}</span>
-                                        @endif
-                                    @else
-                                        {{ $lead->service ? \Illuminate\Support\Str::headline($lead->service) : '—' }}
-                                    @endif
-                                </td>
+                            @if ($lead->contact->phone)
+                                <a href="tel:{{ $lead->contact->phone }}" class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-navy-600 hover:bg-gray-100 hover:text-navy-800 dark:text-gray-300 dark:hover:bg-white/5" title="Call" aria-label="Call {{ $lead->contact->name }}"><x-icon name="phone" class="size-4" /></a>
                             @endif
-                            @if (in_array('source', $columns, true))
-                                <td class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->source->label() }}</td>
+                        </span>
+                    </td>
+                @endif
+                @if (in_array('line', $columns, true))
+                    <td class="px-5 py-3">
+                        @if ($lead->business_line->tag() !== '')
+                            {{ $lead->business_line->tag() }}
+                            @if ($lead->service)
+                                <span class="block text-theme-xs text-gray-500">{{ \Illuminate\Support\Str::headline($lead->service) }}</span>
                             @endif
-                            @if (in_array('stage', $columns, true))
-                                <td class="px-5 py-3"><x-admin.badge :color="$lead->stage->badgeColor()">{{ $lead->stage->name }}</x-admin.badge></td>
-                            @endif
-                            @if (in_array('owner', $columns, true))
-                                <td class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->owner?->name ?? 'Unassigned' }}</td>
-                            @endif
-                            @if (in_array('score', $columns, true))
-                                <td class="px-5 py-3 text-right tabular-nums">
-                                    <span @class(['font-medium text-wood-700 dark:text-wood-300' => $lead->isHot(), 'text-gray-600 dark:text-gray-400' => ! $lead->isHot()])>{{ $lead->score }}</span>
-                                </td>
-                            @endif
-                            @if (in_array('next', $columns, true))
-                                <td class="px-5 py-3 whitespace-nowrap">
-                                    @if ($lead->next_action_at)
-                                        <span @class(['font-medium', 'text-error-600' => $lead->isOverdue(), 'text-gray-700 dark:text-gray-300' => ! $lead->isOverdue()])>
-                                            {{ $lead->next_action_type?->label() ?? 'Follow up' }}
-                                        </span>
-                                        <span class="block text-theme-xs text-gray-400">{{ $lead->next_action_at->diffForHumans() }}</span>
-                                    @else
-                                        <span class="text-gray-400">—</span>
-                                    @endif
-                                </td>
-                            @endif
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="{{ 2 + count($columns) }}">
-                                @if ($hasFilters)
-                                    <x-admin.empty icon="filter" title="No leads match these filters" description="Try another search or clear the filters.">
-                                        <x-admin.button variant="secondary" wire:click="clearFilters">Clear filters</x-admin.button>
-                                    </x-admin.empty>
-                                @else
-                                    <x-admin.empty icon="users" title="No leads yet" description="Website forms post to /api/public/leads. Enquiries from WhatsApp, social media and phone calls will appear here as each channel goes live." />
-                                @endif
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        {{ $leads->links('components.admin.pagination') }}
-    </x-admin.card>
+                        @else
+                            {{ $lead->service ? \Illuminate\Support\Str::headline($lead->service) : '—' }}
+                        @endif
+                    </td>
+                @endif
+                @if (in_array('source', $columns, true))
+                    <td class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->source->label() }}</td>
+                @endif
+                @if (in_array('stage', $columns, true))
+                    <td data-label="Stage" class="px-5 py-3"><x-admin.badge :color="$lead->stage->badgeColor()">{{ $lead->stage->name }}</x-admin.badge></td>
+                @endif
+                @if (in_array('owner', $columns, true))
+                    <td data-label="Owner" class="px-5 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $lead->owner?->name ?? 'Unassigned' }}</td>
+                @endif
+                @if (in_array('score', $columns, true))
+                    <td class="px-5 py-3 text-right tabular-nums">
+                        <span @class(['font-medium text-wood-700 dark:text-wood-300' => $lead->isHot(), 'text-gray-600 dark:text-gray-400' => ! $lead->isHot()])>{{ $lead->score }}</span>
+                    </td>
+                @endif
+                @if (in_array('next', $columns, true))
+                    <td data-label="Next action" class="px-5 py-3 whitespace-nowrap">
+                        @if ($lead->next_action_at)
+                            <span @class(['font-medium', 'text-error-600' => $lead->isOverdue(), 'text-gray-700 dark:text-gray-300' => ! $lead->isOverdue()])>
+                                {{ $lead->next_action_type?->label() ?? 'Follow up' }}
+                            </span>
+                            <span class="block text-theme-xs text-gray-400">{{ $lead->next_action_at->diffForHumans() }}</span>
+                        @else
+                            <span class="text-gray-400">—</span>
+                        @endif
+                    </td>
+                @endif
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            @if ($hasFilters)
+                <x-admin.empty icon="filter" title="No leads match these filters" description="Try another search or clear the filters.">
+                    <x-admin.button variant="secondary" wire:click="clearFilters">Clear filters</x-admin.button>
+                </x-admin.empty>
+            @else
+                <x-admin.empty icon="users" title="No leads yet" description="Website forms post to /api/public/leads. Enquiries from WhatsApp, social media and phone calls will appear here as each channel goes live." />
+            @endif
+        </x-slot:empty>
+    </x-admin.table>
 
     @if ($showSaveView)
         <x-admin.modal name="showSaveView" title="Save this view" description="Saves the filters, sort, page size and columns you see now." submit="saveView">
