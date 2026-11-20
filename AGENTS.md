@@ -317,9 +317,17 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   parts are `platform/resources/views/components/admin/table.blade.php` and the folder beside it; how to use
   them, and the rules for dialogs, confirmations, toasts and page links, are in the `README.md` of that folder.
   `tests/Unit/AdminTableTest.php` lists the views that still write a table by hand: a list moves by losing its
-  line there, and a new line there wants a reason. Nothing is printed into an attribute that is run as script:
+  line there, and a new line there wants a reason. A list that people work from a phone says `cards` (T-042):
+  below 640 px each row is then a card, by the stylesheet alone. A cell stands on the card when it has
+  `data-label`, which is the heading of its column word for word; a cell without one is left off, so say in the
+  view what is left off and why. Every rule for cards stays inside the one media query of
+  `platform/resources/css/admin.css`, and only a browser can say how a card looks: the last step of
+  `scripts/os-journeys.mjs` measures it. Nothing is printed into an attribute that is run as script:
   hand it over in a `data-` attribute. And a Tailwind class that no view used before is not in the built
   stylesheet: build again (the point above), or the class does nothing.
+- **The sandbox runs PHP 8.5; the product and CI run 8.4** (`composer.json`: `^8.4.1`). A test that passes in the
+  sandbox can fail in CI on a thing 8.5 added: on 20 November it was the `children` of a `Dom\Element`. Write for
+  8.4, and wait for CI's three servers before a merge.
 - **A release that changes what a person sees says so on Feature status.** Add its entry to
   `platform/app/Support/ReleaseNotes.php` in the same pull request: the date, a title, and lines in the words
   of the person at the screen (no list line, no commit: `tests/Feature/WorkspacePreferencesTest.php` refuses

@@ -34,7 +34,7 @@
         {
           "text": "Responsive shell prototype.",
           "state": "met",
-          "evidence": "Sidebar, top bar and phone drawer are built. On 17 November a browser opened 241 screens as four roles at 1366 px and at 390 px; none was wider than the window (`scripts/os-screens.mjs`).",
+          "evidence": "Sidebar, top bar and phone drawer are built. On 17 November a browser opened 241 screens as four roles at 1366 px and at 390 px; none was wider than the window (`scripts/os-screens.mjs`). Since 20 November the three lists a person works from a phone, Leads, Quotations and Invoices, are drawn as cards below 640 px, and a browser measures at 390 px that none of them scrolls sideways (T-042; the last step of `scripts/os-journeys.mjs`).",
           "lines": []
         },
         {

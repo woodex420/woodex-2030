@@ -79,12 +79,14 @@ sentence ("2,484 tests") are readings of 17 November 2026; the four release repo
    had ever reached the application (D-041, closed); of two new visitors who send an enquiry in the same moment
    the database stopped one (D-043, closed); the WhatsApp inbox, which is switched off, still asks in that way
    (D-044, open, T-190). The shop's switches stay off: no visitor's request reaches these addresses yet.
-10. **One table for every list** (pull request #49; report 34). The admin has one table now, with headings that
-    sort and say how, a place for filters, pages, rows that are chosen, and the five states of the owner's
-    document 05: loading, empty, error, no-permission, success. Six lists draw it; on Leads and Quotations a press
-    on a heading sorts the list, from the keyboard too. 45 views still write a table by hand: a test holds the
-    number, which may only fall (T-041 done; T-045 takes the rest). The shop's reading of its products (T-105)
-    was built at the same time on another branch, pull request #48, and is not part of this merge (DL-039).
+10. **One table for every list, and cards on a phone** (pull request #49; reports 34 and 35). The admin has one
+    table now, with headings that sort and say how, a place for filters, pages, rows that are chosen, and the five
+    states of the owner's document 05: loading, empty, error, no-permission, success. Seven lists draw it; on Leads
+    and Quotations a press on a heading sorts the list, from the keyboard too. On a phone Leads, Quotations and
+    Invoices are drawn as cards and nothing of them scrolls sideways; a browser measures it at 390 px and works a
+    lead from its card. 44 views still write a table by hand: a test holds the number, which may only fall (T-041
+    and T-042 done; T-045 takes the rest). The shop's reading of its products (T-105) was built at the same time
+    on another branch, pull request #48, and is not part of this merge (DL-039, DL-040).
 11. **What only the owner can do now**, in this order: change the old dashboard's password (T-021) · look at the
     React shop as the merge rebuilt it, and say whether it stays (T-026) · load the real products into the React
     shop and withdraw the sample ones (T-091) · look at the hosted workspace and approve or return the design
@@ -113,7 +115,7 @@ of the decision log.
 |---|---|---|---|
 | Approved design tokens. | Partly | Tokens, shell and the Reimagined theme the owner asked for (DL-017) are built and pinned by tests (`Unit/AdminDesignTokensTest.php`, `Feature/ThemeTokensTest.php`). The approval itself has not been given. | T-005 |
 | Shared component examples. | Open | No screen shows the shared components and their states side by side. What such a screen would show exists since 20 November: the standards are written (`platform/resources/views/components/admin/README.md`), and a test draws the shared table in each of its five states (`Unit/AdminTableTest.php`). | T-050 |
-| Responsive shell prototype. | Met | Sidebar, top bar and phone drawer are built. On 17 November a browser opened 241 screens as four roles at 1366 px and at 390 px; none was wider than the window (`scripts/os-screens.mjs`). | — |
+| Responsive shell prototype. | Met | Sidebar, top bar and phone drawer are built. On 17 November a browser opened 241 screens as four roles at 1366 px and at 390 px; none was wider than the window (`scripts/os-screens.mjs`). Since 20 November the three lists a person works from a phone, Leads, Quotations and Invoices, are drawn as cards below 640 px, and a browser measures at 390 px that none of them scrolls sideways (T-042; the last step of `scripts/os-journeys.mjs`). | — |
 | Accessibility review. | Partly | Counted by tools on every screen: labels, names, one main heading, 24 px targets. No review by keyboard and by screen reader. | T-054 |
 
 **Gate B — Module readiness**
@@ -220,7 +222,7 @@ and on a phone. A flow counts as pressed only when the journey does what a perso
 merely opens.
 
 <!-- generated:flows — written by scripts/verify-acceptance.mjs --write; do not edit by hand -->
-**11 flows: 4 pressed in full, 2 in part, 5 not pressed.** The journey has 38 steps.
+**11 flows: 4 pressed in full, 2 in part, 5 not pressed.** The journey has 39 steps.
 
 | Flow (document 10 §2) | State | Steps of `scripts/os-journeys.mjs` that press it | Note | Closed by |
 |---|---|---|---|---|
@@ -524,6 +526,7 @@ The first report in this form is [`17-RELEASE-2026-11-17.md`](17-RELEASE-2026-11
 [`26-RELEASE-2026-11-18-SECOND.md`](26-RELEASE-2026-11-18-SECOND.md), the eighth,
 [`27-RELEASE-2026-11-18-THIRD.md`](27-RELEASE-2026-11-18-THIRD.md), the ninth,
 [`28-RELEASE-2026-11-18-FOURTH.md`](28-RELEASE-2026-11-18-FOURTH.md), the tenth,
-[`30-RELEASE-2026-11-19.md`](30-RELEASE-2026-11-19.md), and
-[`34-RELEASE-2026-11-19-ONE-TABLE.md`](34-RELEASE-2026-11-19-ONE-TABLE.md), likewise. (Documents 31 to 33 are
-written on another branch, in pull request #48.)
+[`30-RELEASE-2026-11-19.md`](30-RELEASE-2026-11-19.md), and the two of pull request #49,
+[`34-RELEASE-2026-11-19-ONE-TABLE.md`](34-RELEASE-2026-11-19-ONE-TABLE.md) and
+[`35-RELEASE-2026-11-20-CARDS-ON-A-PHONE.md`](35-RELEASE-2026-11-20-CARDS-ON-A-PHONE.md), likewise. (Documents
+31 to 33 are written on another branch, in pull request #48.)

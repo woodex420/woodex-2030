@@ -1,7 +1,7 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
-  "written": "2026-11-19",
-  "commit": "3b8a331",
+  "written": "2026-11-20",
+  "commit": "c00f90a",
   "sizes": {
     "S": "small",
     "M": "medium",
@@ -32,7 +32,6 @@
     "T-026": "Look at the React shop as it was rebuilt, and say whether it stays",
     "T-027": "Say whether Google sign-in, the AI bridge and the old site bridge are wanted",
     "T-033": "Interior lists and fields in open screens replaced by Furniture's wording",
-    "T-042": "On a phone, the key lists show cards instead of a wide table",
     "T-044": "The dashboard as a widget framework, with the missing widgets",
     "T-045": "Screen pass, area by area: theme colours, page patterns, dark theme",
     "T-046": "Help, pinned screens and recently opened screens in the top bar",
@@ -158,33 +157,6 @@
           ],
           "against": "With the draft handed out in place of the published copy, the test of the unpublished product names it; with the shop's reader left reading rupees where paisa arrive, its script names the price.",
           "back": "The shop's switch stays off: the live shop reads what it reads today, and the round changes no setting of either Vercel project. The new addresses hand out only published products, and none is published on the demo. The Node catalogue is not closed in this round."
-        }
-      ]
-    },
-    {
-      "name": "On a phone, the key lists are cards",
-      "why": "P1, and the line it waited for is done (T-041). The page of a list is never wider than a phone, but the list inside it is: a person scrolls sideways within the leads list to reach a lead's stage. The shared table is the one place to put that right for every list.",
-      "lines": [
-        {
-          "id": "T-042",
-          "size": "M",
-          "found": "Measured in a browser on 19 November, on the rehearsal at 390 px, as the owner. Leads: all eight columns are drawn; the table is 1,036 px wide in a frame of 356 px. Invoices: four of six columns, 391 px in 356. Quotations: three of six columns, and it fits. Tasks is not a table and fits. Projects (363 px in 356), Users (837 px) and the Receivables report (916 px) scroll inside their frame too; the line does not name them. Leads, Quotations and Projects draw the shared table; Invoices still writes its own.",
-          "build": [
-            "The shared table learns a second way to draw its rows for a narrow screen: below 640 px a row is a card, with the cell that names the row on top, the cells the list marks as main under it, each with its heading, and the row's action. The list says which cells are main; a cell that is left off a card is left off on purpose.",
-            "Leads, Quotations and Invoices use it; Invoices moves to the shared table first. Tasks is measured again and left as it is if it still fits.",
-            "Choosing rows, and what can be done with all chosen, stay within reach on a card."
-          ],
-          "tests": [
-            "A test draws a list in the narrow way and reads each card as a screen reader does: the row's name, each main fact with its heading (\"Stage: Contacted\", not a bare word), the action.",
-            "For each of the three lists: the cards are the same rows, in the same order, with the same links, as the table.",
-            "The count of views that write a table by hand falls by one (Invoices)."
-          ],
-          "browser": [
-            "At 390 px each of the four lists is measured: no frame inside the page scrolls sideways, and the page does not.",
-            "A journey step, on a phone: a lead is opened from its card and moved to another stage."
-          ],
-          "against": "With the narrow way taken off the leads list, the measurement at 390 px names the frame that scrolls.",
-          "back": "Views and styles only; the built stylesheet changes. Each list in its own commit, and the wide table is untouched."
         }
       ]
     },
@@ -544,7 +516,7 @@
           "size": "L",
           "found": "3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.",
           "build": [
-            "In each area: greys move to the theme's roles; what is selected takes the theme's green; each page follows the patterns of document 05 §8; its lists use the table of T-041.",
+            "In each area: greys move to the theme's roles; what is selected takes the theme's green; each page follows the patterns of document 05 §8; its lists use the table of T-041, and are drawn as cards on a phone (T-042) where people work the list from a phone.",
             "The dark theme is looked at on every screen of the area."
           ],
           "tests": [
@@ -566,7 +538,7 @@
     {
       "check": "The Laravel test suite",
       "where": "In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/`",
-      "today": "2,699 pass, 36 skipped, none fails: run in the sandbox on 19 November, 20:36 to 20:43 UTC, on the code of pull request #49 (`3b8a331`). In CI on the same commit, on each of the three servers: 2,700 pass, 35 skipped",
+      "today": "2,706 pass, 36 skipped, none fails: run in the sandbox on 20 November, 04:50 to 04:57 UTC, on the code of pull request #49 (`c00f90a`). In CI on the same commit, on each of the three servers: 2,707 pass, 35 skipped",
       "catches": "A rule, a screen or a permission that no longer does what its test says"
     },
     {
@@ -582,10 +554,10 @@
       "catches": "An address that answers in a shape its callers were not told; a route added without its contract; a key, a code or a header that is in the answer and not in the contract, or the other way round"
     },
     {
-      "check": "The shared table: its five states, its headings, and the count of views that still write a table by hand (`platform/tests/Unit/AdminTableTest.php`, `platform/tests/Feature/SharedTableListsTest.php`)",
+      "check": "The shared table: its five states, its headings, its cards on a phone, and the count of views that still write a table by hand (`platform/tests/Unit/AdminTableTest.php`, `platform/tests/Feature/SharedTableListsTest.php`)",
       "where": "Part of the Laravel suite, so in the sandbox and in CI on the three servers",
-      "today": "25 tests pass. 45 views write a table by hand; it was 51 before 20 November",
-      "catches": "A list that writes its own table again; a state without its words or its role; a heading that does not say how it sorts; a word printed into a script"
+      "today": "32 tests pass. 44 views write a table by hand; it was 51 before 20 November. Leads, Quotations and Invoices are cards below 640 px",
+      "catches": "A list that writes its own table again; a state without its words or its role; a heading that does not say how it sorts; a word printed into a script; a fact on a card without the word of its column; a rule for cards that reaches a wide screen, or that was written and not built"
     },
     {
       "check": "A release installed and deployed again by a browser (`scripts/os-install.mjs`)",
@@ -596,13 +568,13 @@
     {
       "check": "Two journeys in a browser (`scripts/os-journeys.mjs`)",
       "where": "On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's",
-      "today": "38 of 38 steps hold with the demo's settings (sandbox, 19 November, on the code of pull request #49). CI runs them both ways on every push; its result for a merge is on the pull request",
+      "today": "39 of 39 steps hold with the demo's settings (sandbox, 20 November, on the code of pull request #49). The last step is on a phone: no key list scrolls sideways at 390 px, and a lead is chosen, opened and moved from its card. CI runs them both ways on every push; its result for a merge is on the pull request",
       "catches": "A step of a working day or of a sale that a person can no longer do; anything the content policy refuses"
     },
     {
       "check": "Every screen as four roles (`scripts/os-screens.mjs`)",
       "where": "The same rehearsal, at 1366 px and at 390 px",
-      "today": "253 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (sandbox, 19 November, on the code of pull request #49)",
+      "today": "253 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (sandbox, 20 November, on the code of pull request #49)",
       "catches": "A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch"
     },
     {
@@ -632,7 +604,7 @@
     {
       "check": "Each new test, tried once against its protection taken away",
       "where": "By hand, when the test is written; recorded in the round's report",
-      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30) and for the shared table and its count (report 34)",
+      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30) for the shared table and its count (report 34) and for the cards on a phone, in the tests and in the journey (report 35)",
       "catches": "A test that would pass whatever the code does"
     },
     {

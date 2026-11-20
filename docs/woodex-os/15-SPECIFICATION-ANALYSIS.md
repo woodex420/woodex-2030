@@ -162,7 +162,7 @@ Document 08 §2 forbids settling such a difference silently. Each is listed with
 | §8 List, detail, create/edit and approval patterns | Followed unevenly | T-045 |
 | §8 **Unsaved-change warning** | No warning on leaving a form anywhere. Six editors (page builder, series, category, product, estimate, rates) say on the screen that edits are unsaved | T-043 |
 | §8 An approver cannot approve their own request | Met for quotations (the owner excepted), tested | T-081 (other approval types) |
-| §9 Phone: drawer, stacked figures, **table-to-card for key workflows** | Drawer and stacking met; tables scroll sideways inside their box | T-042 |
+| §9 Phone: drawer, stacked figures, **table-to-card for key workflows** | Drawer and stacking met. **Cards since 20 November (T-042, done)** for Leads, Quotations and Invoices: below 640 px each row is a card, and nothing of the list scrolls sideways. Tasks is no table and fits. The other lists still scroll sideways inside their box | T-045 (each list in its area's turn) |
 | §9 Focus ring, labels, contrast, no colour-only status | Met: 0 unlabelled fields, 0 small targets, contrast tested; pills carry text | T-054 |
 | §10 Acceptance | Not yet declared | T-005 |
 

@@ -22,12 +22,14 @@ final class ReleaseNotes
         return [
             [
                 'date' => '2026-11-20',
-                'title' => 'Leads and Quotations sort by a press on a column\'s heading',
+                'title' => 'Lists: sort by a press on a heading, and cards on a phone',
                 'notes' => [
+                    'On a phone, Leads, Quotations and Invoices are drawn as cards: nothing of the list scrolls sideways any more. A lead\'s card shows its reference, the contact with call and WhatsApp, the stage, the owner and the next action. A quotation\'s card shows its status, value and when it was last changed. An invoice\'s card shows the client, status, amount, balance and due date. Press the name on top of a card to open the record. On a wider screen the tables are as they were.',
+                    'Leads on a phone: tick a card to choose it, or "Select all on this page" above the cards; "Assign to", "Move to" and "Delete" appear above. To sort on a phone, use the choice above the list.',
                     'Leads and Quotations: press the heading of a column to sort the list by it. On Leads a second press on "Lead" turns the list round, oldest first. An arrow in the heading shows which way the list is sorted. It works from the keyboard too: Tab to the heading, then Enter. The choice "Sort" above the list is still there.',
                     'Leads: "Newest first" and "Oldest first" now go by the date of the enquiry, the date you see under each reference. Leads brought in from a sheet with their own dates no longer stand on top as the newest.',
                     'Leads: the tick boxes are easier to hit with a mouse. The box looks the same; the space around it now counts.',
-                    'Six lists are drawn by one shared table now: Leads, Quotations, Projects, Payables by age, Users and Receivables. They look as they did. A screen reader is told the name of each table, and which cell names a row.',
+                    'Seven lists are drawn by one shared table now: Leads, Quotations, Invoices, Projects, Payables by age, Users and Receivables. On a wide screen they look as they did. A screen reader is told the name of each table, and which cell names a row.',
                 ],
             ],
             [

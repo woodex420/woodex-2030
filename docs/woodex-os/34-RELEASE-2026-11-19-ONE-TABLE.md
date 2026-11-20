@@ -2,7 +2,10 @@
 
 The report of pull request #49, in the ten points of document 10 §9, written **before** the merge (document 16
 §8; the lesson of defect D-014). It was written on 19 November, when the round was built and proved; the merge
-is on 20 November, and the dates in the records are the merge's.
+is on 20 November, and the dates in the records are the merge's. The same pull request carries a second round,
+built on 20 November on the owner's word "Start next": on a phone, the key lists are cards (T-042). Its report is
+document 35. What this report says of a phone ("scrolls inside its frame", "the next line that can start") was
+so when it was written and is changed by that round for Leads, Quotations and Invoices.
 
 **On whose word.** The owner's messages of 19 November: "analyize complete before you start to next phase", and
 then "start". The merge stands on his answer that the agent merges into `main` when every check is green
