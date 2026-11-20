@@ -1,0 +1,99 @@
+name: Composer update for the Laravel admin
+# Moves the packages of platform/ to the newest versions that composer.json allows and writes the new
+# platform/composer.lock to the branch it was started on, as one commit (master list T-071).
+#
+# Why here: the lock file is to be written by Composer, not by hand, and Composer needs its package index for
+# that. A workspace that reaches only GitHub and npm can install from a lock file and cannot make one. So the
+# update runs here, and the suite then runs on the branch like on any other change: this workflow tests nothing.
+#
+# How to use it: on a working branch, start it by hand (`gh workflow run composer-update.yml --ref <branch>`),
+# then pull. It never writes to main: started there, it only says what would move. Nothing of a package is run
+# (no install, no scripts, no plugins), so the token that may write the branch is used by Composer and git alone.
+#
+# What moved is written as a notice of the run, and the commit's message names every package.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/composer-update.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: composer-update-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  update:
+    name: "Write platform/composer.lock anew"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      # composer.json fixes the PHP version the packages are chosen for (config.platform.php), so the answer does
+      # not depend on the PHP of this machine.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+      - name: Ask Composer for the newest versions that composer.json allows
+        working-directory: platform
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: |
+          cp composer.lock "$RUNNER_TEMP/before.lock"
+          composer validate --strict --no-check-publish
+          composer update --with-all-dependencies --no-install --no-scripts --no-plugins --no-interaction --no-progress --prefer-dist
+          node - "$RUNNER_TEMP/before.lock" composer.lock > "$RUNNER_TEMP/moved.txt" <<'NODE'
+          const fs = require('node:fs');
+          const read = (file) => { const lock = JSON.parse(fs.readFileSync(file, 'utf8')); return new Map([...lock.packages.map((p) => [p.name, { version: p.version, dev: false }]), ...lock['packages-dev'].map((p) => [p.name, { version: p.version, dev: true }])]); };
+          const [before, after] = [read(process.argv[2]), read(process.argv[3])];
+          const lines = [];
+          for (const name of [...new Set([...before.keys(), ...after.keys()])].sort()) {
+            const [was, is] = [before.get(name), after.get(name)];
+            const dev = (is ?? was).dev ? ' (development only)' : '';
+            if (was && is && was.version !== is.version) lines.push(`${name} ${was.version} → ${is.version}${dev}`);
+            else if (!was) lines.push(`${name} ${is.version} is new${dev}`);
+            else if (!is) lines.push(`${name} ${was.version} is no longer needed${dev}`);
+          }
+          console.log(lines.join('\n'));
+          NODE
+          count="$(grep -c . "$RUNNER_TEMP/moved.txt" || true)"
+          echo "MOVED=$count" >> "$GITHUB_ENV"
+          if [ "$count" = 0 ]; then
+            echo "::notice title=Composer: nothing to move::every package is at the newest version that composer.json allows"
+          else
+            echo "::notice title=Composer: $count package(s) move::$(paste -sd ';' "$RUNNER_TEMP/moved.txt" | sed 's/;/; /g')"
+            cat "$RUNNER_TEMP/moved.txt"
+          fi
+      - name: What the advisory database says about the new lock file (written as a notice; the audit judges it)
+        if: env.MOVED != '0'
+        working-directory: platform
+        run: |
+          composer audit --locked --format=json > "$RUNNER_TEMP/audit.json" 2> /dev/null || true
+          node ../scripts/audit-advisories.mjs composer "$RUNNER_TEMP/audit.json" || true
+      - name: Write the new lock file to this branch
+        if: env.MOVED != '0' && github.ref_name != 'main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add platform/composer.lock
+          {
+            echo "T-071: Composer's packages moved to the newest versions composer.json allows ($MOVED packages)"
+            echo
+            echo "Written by the workflow composer-update.yml with \`composer update --with-all-dependencies --no-install\`."
+            echo "Nothing was installed or run there; the suite judges this lock file on the branch."
+            echo
+            cat "$RUNNER_TEMP/moved.txt"
+          } > "$RUNNER_TEMP/message.txt"
+          git commit -q -F "$RUNNER_TEMP/message.txt"
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "::notice title=Composer: the new lock file is on the branch::$(git rev-parse --short HEAD) on ${{ github.ref_name }}; pull before the next commit"
+      - name: On main nothing is written
+        if: env.MOVED != '0' && github.ref_name == 'main'
+        run: |
+          echo "::notice title=Composer: nothing written::this run was started on main; start it on a working branch to get the new lock file as a commit"

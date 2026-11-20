@@ -406,13 +406,17 @@
   {
    "id": "D-028",
    "severity": "low",
-   "state": "open",
+   "state": "closed",
    "found": "2026-11-17",
    "title": "One low advisory in Laravel, and eleven moderate ones in the shop's build tools",
    "detail": "`laravel/framework` 13.39.0 carries CVE-2026-128083 (low; fixed in 13.40.0): text injected into the output of a task run through the Concurrency process driver, which this application does not use. `npm audit` reports eleven moderate advisories, in the linter, in `react-router` and in a Tailwind plugin; the fix npm offers for `react-router` is a change of major version. None fails the audit, which stops at high.",
    "lines": [
     "T-071"
-   ]
+   ],
+   "closed": {
+    "on": "2026-11-20",
+    "how": "Laravel's advisory is corrected: Composer's update moved 48 packages, `laravel/framework` from 13.39.0 to 13.43.0 (the correction is in 13.40.0), and Composer's audit reports no advisory (CI, `cc9b695`). npm's eleven were eleven packages touched by four advisories. Three of the four are corrected: the linter's packages moved to 8.73.0, which brings a corrected `minimatch`, and `react-router-dom` moved from 6.30.6 to 7.18.6, a new major version, because no version 6 carries the correction; the shop's gate with its browser acceptance passes on it. The fourth, GHSA-rj75-hqrm-r3gf (moderate), is accepted with its written reason in `docs/woodex-os/acceptance/advisories.json`: it is in a copy of `postcss-selector-parser` that one Tailwind plugin uses only while the shop's stylesheet is built, nothing a visitor sends reaches it, and the plugin has published no version that names a corrected copy. The audit no longer stops at high: it fails on an advisory of any severity that is not on that list, and on an entry of the list that has no reason or that nothing reports any more. Master list T-071, decision DL-043."
+   }
   },
   {
    "id": "D-029",

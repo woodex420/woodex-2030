@@ -1,0 +1,191 @@
+{
+  "about": "What the Laravel admin's code names and what cannot be looked up in this repository, each listed once with the reason. scripts/verify-code-references.mjs fails on a name that is neither defined (in docs/laravel-os/source/ or in this repository's own records) nor listed here, on an entry here without a reason, on an entry the code no longer names, and on an entry that can be looked up after all. The code was taken from woodex420/woodexinterior at commit 603428cca1e45f9da2ffd9c4a0d88eb741285339; no code was changed to make this list shorter.",
+  "unresolved": [
+    {
+      "name": "docs/00",
+      "kind": "document",
+      "what": "docs/00-DEEP-ANALYSIS.md of the studio's repository: why the studio's system was built as it was.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/01",
+      "kind": "document",
+      "what": "docs/01-MASTER-PLAN.md of the studio's repository: the studio's plan of phases.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/03",
+      "kind": "document",
+      "what": "docs/03-MASTER-SYSTEM-PROMPT.md of the studio's repository: the instructions the studio gave its assistant.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/04",
+      "kind": "document",
+      "what": "docs/04-DATABASE-SCHEMA.md of the studio's repository: the studio's database schema, table by table.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/05",
+      "kind": "document",
+      "what": "docs/05-DESIGN-SYSTEM.md of the studio's repository: the studio's design system.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/08",
+      "kind": "document",
+      "what": "docs/08-V21-IMPORT-RUNBOOK.md of the studio's repository: how the studio's old data (version 2.1) is imported.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/09",
+      "kind": "document",
+      "what": "docs/09-WEBSITE-FRONTEND-PLAN.md of the studio's repository: the plan of the studio's public website.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/10",
+      "kind": "document",
+      "what": "docs/10-WEBSITE-LAUNCH-AUDIT.md of the studio's repository: the audit of the studio's website before its launch.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/11",
+      "kind": "document",
+      "what": "docs/11-FRONTEND-V2-PLAN.md of the studio's repository: the plan of the second version of the studio's website.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/12",
+      "kind": "document",
+      "what": "docs/12-FRONTEND-V2-MASTER-PLAN.md of the studio's repository: the master plan of the second version of the studio's website.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/13",
+      "kind": "document",
+      "what": "docs/13-V1-TO-V2-CONVERSION-PLAN.md of the studio's repository: how the first version of the studio's website becomes the second.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/14",
+      "kind": "document",
+      "what": "docs/14-PENDING-TASKS.md of the studio's repository: the studio's list of pending tasks.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/16",
+      "kind": "document",
+      "what": "docs/16-MASTER-PENDING-LIST.md of the studio's repository: the studio's master list of pending work.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/18",
+      "kind": "document",
+      "what": "docs/18-BASIC-SALES-ACCOUNTS-ERP-PLAN.md of the studio's repository: the plan of the studio's sales and accounts.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/19",
+      "kind": "document",
+      "what": "docs/19-DOCUMENTS-ESTIMATION-IMPLEMENTATION-PRD.md of the studio's repository: the requirements of the studio's documents and estimations.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/26",
+      "kind": "document",
+      "what": "docs/26-P8-MASTER-PLAN.md of the studio's repository: the master plan of the studio's phase 8.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/27",
+      "kind": "document",
+      "what": "docs/27-P10-MASTER-PLAN.md of the studio's repository: the master plan of the studio's phase 10.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/audit/08",
+      "kind": "document",
+      "what": "docs/audit/08_FINDINGS_REGISTER_AND_ROADMAP.md of the studio's repository: the findings of the studio's audit and what follows from them.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/audit/16",
+      "kind": "document",
+      "what": "docs/audit/16_MASTER_TODO.md of the studio's repository: the studio's master list of things to do, from its audit.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/audit/20",
+      "kind": "document",
+      "what": "docs/audit/20_CONTENT_SCREENS_VS_FILES.md of the studio's repository: the studio's content screens compared with its files.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/audit/21",
+      "kind": "document",
+      "what": "docs/audit/21_V21_PRO_LANDING.md of the studio's repository: the studio's landing page in the manner of version 2.1.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "docs/audit/31",
+      "kind": "document",
+      "what": "docs/audit/31_DEEP_QA_2026-10-21.md of the studio's repository: the studio's deep check of 21 October 2026.",
+      "reason": "Not kept here. Master list T-174 keeps the three documents that define what the code names by number: the decisions, the requirements and the installation. This one describes the studio's own system and can be read in woodex420/woodexinterior at commit 603428c."
+    },
+    {
+      "name": "D-107",
+      "kind": "decision",
+      "what": "Named as the campaign canvas of the page builder: hand-placed HTML instead of sections.",
+      "reason": "The studio's decision record ends at D-104, at the commit kept here and at the newest commit of its repository (read on 20 November 2026). D-107 is mentioned in the studio's documents 12 and 14, which are not kept here, and is defined in neither. What it decides can only be read from the comments that name it."
+    },
+    {
+      "name": "D-111",
+      "kind": "decision",
+      "what": "Named where a quotation is sent by WhatsApp.",
+      "reason": "The studio's decision record ends at D-104, at the commit kept here and at the newest commit of its repository (read on 20 November 2026). D-111 is written in no document of the studio at that commit. What it decides can only be read from the comments that name it."
+    },
+    {
+      "name": "D-112",
+      "kind": "decision",
+      "what": "Named where WhatsApp events are processed.",
+      "reason": "The studio's decision record ends at D-104, at the commit kept here and at the newest commit of its repository (read on 20 November 2026). D-112 is written in no document of the studio at that commit. What it decides can only be read from the comments that name it."
+    },
+    {
+      "name": "D-115",
+      "kind": "decision",
+      "what": "Named where the WhatsApp credentials are read.",
+      "reason": "The studio's decision record ends at D-104, at the commit kept here and at the newest commit of its repository (read on 20 November 2026). D-115 is mentioned in the studio's documents 14 and 16, which are not kept here, and is defined in neither. What it decides can only be read from the comments that name it."
+    },
+    {
+      "name": "D-116",
+      "kind": "decision",
+      "what": "Named at the theme's design values of the website.",
+      "reason": "The studio's decision record ends at D-104, at the commit kept here and at the newest commit of its repository (read on 20 November 2026). D-116 is mentioned in the studio's documents 12, 14 and 16 and in one of its audit reports, none of which is kept here, and is defined in none. What it decides can only be read from the comments that name it."
+    },
+    {
+      "name": "SHA-256",
+      "kind": "not a reference",
+      "what": "The name of a hash function.",
+      "reason": "It has the form of a requirement code, two to five capitals and three digits, and is none: it names how a checksum or a signature is computed."
+    },
+    {
+      "name": "AES-256",
+      "kind": "not a reference",
+      "what": "The name of a cipher.",
+      "reason": "It has the form of a requirement code and is none: it names how Laravel encrypts (config/app.php)."
+    },
+    {
+      "name": "WI-101",
+      "kind": "not a reference",
+      "what": "The beginning of a quotation number, typed into the search in a test.",
+      "reason": "It has the form of a requirement code and is none: a test searches for quotation WI-10100 by its first six characters."
+    },
+    {
+      "name": "TXN-123",
+      "kind": "not a reference",
+      "what": "A made-up bank reference of a payment in a test.",
+      "reason": "It has the form of a requirement code and is none: a test writes it as the reference of a sample payment."
+    }
+  ]
+}

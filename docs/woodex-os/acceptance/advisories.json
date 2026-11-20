@@ -1,0 +1,17 @@
+{
+  "about": "Known security advisories that are accepted for now. The audit (.github/workflows/audit.yml, scripts/audit-advisories.mjs) fails on an advisory of any severity that is not here, on an entry without a reason, on an entry that nothing reports any more, and on an advisory whose severity has risen since it was accepted. An entry is a decision: it names its row of the decision log, and the owner may overrule it.",
+  "accepted": [
+    {
+      "id": "GHSA-rj75-hqrm-r3gf",
+      "manager": "npm",
+      "package": "postcss-selector-parser",
+      "severity": "moderate",
+      "title": "PostCSS: quadratic complexity in flat selector parsing allows CPU exhaustion",
+      "where": "node_modules/@tailwindcss/typography/node_modules/postcss-selector-parser 6.0.10. The copy every other package uses is 6.1.6, which is corrected.",
+      "reason": "The fault lets a very long selector keep the parser busy. This copy is used by one package, @tailwindcss/typography, and only while the shop's stylesheet is built: the selectors it reads are the ones written in this repository, and nothing a visitor sends reaches it. It is not part of what the shop serves. @tailwindcss/typography names exactly 6.0.10 in every version it has published (0.5.20 is the newest, read on 20 November 2026), so there is no corrected version to move to; what npm offers instead is version 0.5.4 of 2022, a step back that would change how text pages look.",
+      "falls_away_when": "@tailwindcss/typography publishes a version that names a corrected postcss-selector-parser (6.1.5 or newer). The audit then stops reporting it and fails until this entry is taken out.",
+      "accepted_on": "2026-11-20",
+      "decision": "DL-043"
+    }
+  ]
+}

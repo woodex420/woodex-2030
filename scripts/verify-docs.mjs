@@ -175,7 +175,15 @@ const docsRoot = path.join(ROOT, "docs");
 for (const file of walk(docsRoot)) {
   if (!file.endsWith(".md")) continue;
   const rel = path.relative(ROOT, file);
-  const body = fs.readFileSync(file, "utf8");
+  let body = fs.readFileSync(file, "utf8");
+  /* docs/laravel-os/source/ keeps three documents of another repository unchanged (the Interior studio's; master
+     list T-174). Each begins with this repository's note, which ends with one fixed line. The links of the note
+     are checked; a link below that line leads to a document of the studio's repository that is not copied, and
+     the text may not be edited to mend it (scripts/verify-code-references.mjs holds it to its checksum). */
+  if (rel.split(path.sep).join("/").startsWith("docs/laravel-os/source/")) {
+    const end = body.indexOf("<!-- The studio's document follows, unchanged. -->");
+    if (end !== -1) body = body.slice(0, end);
+  }
   for (const m of body.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
     const href = m[1];
     if (/^[a-z]+:/i.test(href) || href.startsWith("#")) continue;

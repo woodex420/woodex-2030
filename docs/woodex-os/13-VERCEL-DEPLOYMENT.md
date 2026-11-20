@@ -80,6 +80,7 @@ take. Vercel is where the admin can be seen.
 ```
 visitor → Vercel → routes of vercel.json
             ├─ a file of public/ (build, assets/*, builder, fonts, images, sounds, favicon) → static file
+            │     └─ a built file with a marked name (build/assets/<name>-<8 characters>.<ext>) → kept one year
             └─ everything else → the function: Vercel's launcher → PHP's built-in server → api/index.php → Laravel
 ```
 
@@ -118,7 +119,7 @@ every screen" (workflow `vercel-livewire.yml`), on every change under `platform/
 It uses Vercel's own parts, fetched from npm: the PHP 8.5 runtime of `vercel-php@0.9.0` with its `php.ini`, and
 its launcher. It installs the packages with the builder's own Composer command, runs `composer run vercel`, makes
 the tree read-only, and serves it from `/var/task` through the `routes` and `env` of `vercel.json`. Only
-Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 84 checks, among them:
+Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 103 checks (20 November), among them:
 
 - without settings, with half the settings, or with a database that is not MySQL: 503;
 - a real deployment's build touches nothing; a demo without passwords fails the build;
@@ -129,10 +130,17 @@ Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 84 checks
 - the longest cookie is under 1 KB (a browser keeps at most 4 KB);
 - the Health page says that this host keeps no files;
 - a new copy of the function keeps the visitor signed in; signing out works;
-- every real setting is empty inside the demo, and its key is its own.
+- every real setting is empty inside the demo, and its key is its own;
+- the function is smaller than 240 MB, and the same measurement fails at a limit 1 MB below today's size
+  (section 7);
+- the eight built files with a marked name are kept one year, and nothing else is (section 8);
+- the first answer of a new copy of the function carries the cold-start mark, the second and third do not
+  (section 9).
 
 Each rule was also broken on purpose once, to see the check fail: site not marked as configured; storage path
-by `putenv()`; real settings not emptied; the project's key used; `TRUSTED_PROXIES` removed.
+by `putenv()`; real settings not emptied; the project's key used; `TRUSTED_PROXIES` removed; the one-year rule
+taken out; the one-year rule widened to every built file; the cold-start mark taken out; the mark sent on every
+answer.
 
 ```
 npm install --prefix /tmp/vercel-php vercel-php@0.9.0
@@ -192,6 +200,83 @@ address needs the demo password as a GitHub secret, which only the owner can add
 
 ## 7. Sizes
 
-The function holds 226 MB of files: Vercel's PHP runtime 153 MB, the application 74 MB (packages 56 MB,
-`public/` 8 MB, tests and tools 1.7 MB). The platform's limit is 250 MB. `tests/` and `tools/` could be left out
-with the builder's `excludeFiles` option; that is not done, because it could not be rehearsed.
+**The function holds 188.4 MB in 11,220 files; Vercel's limit is 250 MB.** Measured on 20 November 2026 by the
+rehearsal in CI (`cc9b695`), on the packages as Vercel's builder installs them (without the development
+packages). Before the packages were brought up to date the same day it was 187.8 MB in 11,190 files:
+
+| Part | MB |
+|---|---|
+| Vercel's PHP runtime (`@libphp/almalinux-9-v85`, with `vercel-php@0.9.0`) | 115.6 |
+| The application's packages (`vendor/`) | 53.6 |
+| `public/` | 7.9 |
+| `tests/` and `tools/` | 2.3 |
+| The rest of the application | 8.9 |
+
+- **The guard.** `tools/vercel/function-size.cjs` counts the files the builder puts into the function: every file
+  of the folder except `node_modules/`, `vercel.json`, `.vercelignore` and `.vercel/`, plus the runtime's
+  `native/php`, `native/php/modules` and `native/lib` without the three programs the builder leaves out. The
+  rehearsal runs it on every change under `platform/`, prints the size as a notice on the run, and **fails above
+  240 MB**. On every run it also tries the same measurement at a limit 1 MB below the size just measured, and
+  that must fail: so the guard is known to be able to fail on the day it is needed.
+- **This page said 226 MB until 20 November, 153 MB of it the runtime.** How those two numbers were measured is
+  not recorded, and they could not be reproduced: the runtime's files as the builder takes them are 115.6 MB.
+  With the development packages installed the same folder measures 292 to 295 MB, which is why the size is
+  judged only on a tree built as the builder builds it (`--build`).
+- **What it does not know.** Vercel prints no size of the function in its build log (read for the deployment of
+  `b16fd49`), so the number is this repository's own count of the files, not Vercel's. Vercel's limit applies to
+  the files unpacked; if Vercel counts differently, the 10 MB between 240 and 250 is the margin.
+- `tests/` and `tools/` could be left out with the builder's `excludeFiles` option. That would save 2.3 MB of
+  188.4 and is not done.
+
+## 8. How long a browser keeps a file
+
+Vite gives the stylesheets and scripts it builds a name that changes when their content changes:
+`build/assets/admin-Ct8n60mi.css`. A file with such a name never changes, so a browser may keep it.
+
+| What | `Cache-Control` | Why |
+|---|---|---|
+| The eight built files with a marked name (`/build/assets/<name>-<8 characters>.<ext>`) | `public, max-age=31536000, immutable` (one year) | A new build gives a new name |
+| `build/assets/site.css`, `site.js` (fixed names), the build's manifest, every other file of `public/` | Vercel's own: `public, max-age=0, must-revalidate` (ask again each time) | The name stays while the content changes |
+| A marked name that does not exist | 404, no long life | The rule is applied only to a file that was found |
+| A page of the admin | The application's own: `no-store, private` on the sign-in pages, `no-cache, private` on the others | An answer of the function is not a file that was found: the rule does not reach it |
+
+Until 20 November every one of these was sent with `max-age=0`: a browser had to ask again for the stylesheet
+and the scripts on each page.
+
+- The rule is the last entry of `routes` in `vercel.json`, after `{"handle": "hit"}`: Vercel applies that part
+  only after it has found a file to serve, and a rule there can add headers and nothing else.
+- `scripts/test-vercel-livewire-root.mjs` holds the rule: it reads the build's manifest and fails when a marked
+  file is not covered, when a file with a fixed name is, when the life is shorter, and when a third fixed name
+  appears in `vite.config.js`.
+- **Where the form of the rule comes from.** Vercel's own builder for Next.js writes its one-year rule for built
+  files in the same place and the same form: after `handle: hit`, headers only, `continue: true` (`@vercel/next`
+  31.0.1, read on 20 November). On that rule it also sets `important: true`, a flag that Vercel's routing schema
+  marks as deprecated and explains nowhere (`@vercel/routing-utils` 6.6.1); the same builder writes an
+  application's own header rules in that place without it. This repository's rule does not set the flag. **If
+  the outside check ever finds that the year is not sent, that flag is the first thing to try.**
+- **Vercel's network cannot be rehearsed.** The rehearsal applies the rule as Vercel's own development server
+  does. That Vercel's network does the same is read from outside after each deployment: the outside check asks
+  for the stylesheet the sign-in page names and must read one year, and asks for a marked name that does not
+  exist and must read 404 without it.
+
+## 9. A cold start
+
+A copy of the function that has served nothing yet has to start PHP and prepare Laravel's storage in
+`/tmp`. That first answer is slower. The entry now marks it: **an answer from a copy that has just started
+carries the header `X-Woodex-Cold-Start: 1`**; every later answer of that copy has no such header. The mark is
+set when `/tmp/woodex-livewire` does not exist yet, which is true once in the life of a copy.
+
+The outside check's first request is the sign-in page, timed, and its notice says whether that answer carried the
+mark. Read from Vercel on 20 November, for the build of this project: one function, in one region (`iad1`,
+Washington), on Vercel's "Fluid" setting, on the Hobby plan. How long Vercel keeps a copy that nobody asks is
+Vercel's to decide. The check after a merge comes eight minutes after the push, when Vercel has built anew, and
+is expected to meet a copy that has not started yet; whether it did is what the mark says. Readings are written
+here as they are taken:
+
+| When (UTC) | Asked from | Cold start | First byte |
+|---|---|---|---|
+| 20 Nov 2026, 13:55 | a GitHub runner, live build `b16fd49` (before the mark existed) | not said by that build | 2.29 s |
+
+Warm, the same page answers in 0.08 to 0.17 s from a GitHub runner. In the rehearsal on a development machine a
+cold start took 0.53 to 0.55 s to the first byte and a warm answer 0.02 to 0.03 s; that says how much of the
+wait is the application's own start, not what a visitor of Vercel waits.

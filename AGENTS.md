@@ -309,6 +309,18 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   job `publish` writes the release to the branch `hostinger-release`: never push to that branch by hand. The
   owner's steps on the host are `docs/woodex-os/24-HOSTINGER-STEP-BY-STEP.md`; nothing has been seen on the
   account itself.
+- **Packages.** A sandbox that reaches only GitHub and npm can install from `platform/composer.lock` and cannot
+  write one. To move Composer's packages, let GitHub do it: the workflow `composer-update.yml` runs
+  `composer update`, names every package that moves and commits the lock file to your branch (started by hand,
+  or by a push to an `arena/**` branch that changes that workflow file; it never writes `main`). Pull, then
+  prove the lock like any change, by the suite. The audit (`audit.yml`, `scripts/audit-advisories.mjs`) fails
+  on an advisory of **any** severity that is not in `docs/woodex-os/acceptance/advisories.json`: move the
+  package, or add an entry with its reason and a row of the decision log.
+- **A comment that names a decision, a document or a requirement must lead somewhere.** `D-58`, `docs/06 §4`
+  and `QUO-006` are records of the Interior studio's system, from which this code came; three of its documents
+  are kept unchanged in `docs/laravel-os/source/` and are never edited. This product's own decisions are
+  `DL-0NN` (`docs/woodex-os/12-DECISION-LOG.md`): name those in new code. `scripts/verify-code-references.mjs`
+  fails, with the file and the line, on a name that can be looked up nowhere.
 - **A page may run only what the policy allows** (`App\Support\ContentPolicy`, sent by `SecurityHeaders`). A
   `<script>` written into a view needs `nonce="{{ Vite::cspNonce() }}"`; an `onclick=` or any other handler
   in the markup never runs — use Alpine (`@click`); a script, font or frame from another server is refused.

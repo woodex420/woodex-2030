@@ -48,6 +48,15 @@ if (! $ready) {
     $refuse('Admin service is not configured.');
 }
 
+// Vercel starts a new instance of this function with an empty /tmp. When the working folder is not there yet, the
+// function was started for this very request: PHP's own server, the folders below, the compiled pages and, in a
+// demo, the copy of the workspace are all made now. The answer says so, so that a slow first answer can be told
+// from a slow site (master list T-154; the readings are in docs/woodex-os/13-VERCEL-DEPLOYMENT.md). It says nothing
+// else: no time, no instance, no version. An answer that refuses to start (above) never carries the mark.
+if (! is_dir('/tmp/woodex-livewire')) {
+    header('X-Woodex-Cold-Start: 1');
+}
+
 $storage = '/tmp/woodex-livewire/storage';
 foreach (['framework/views', 'framework/cache/data', 'framework/sessions', 'logs', 'app/private', 'app/public', 'fonts'] as $directory) {
     $path = $storage.'/'.$directory;
