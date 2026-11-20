@@ -72,6 +72,17 @@ jobs:
         run: |
           node scripts/verify-table-map.mjs
           node scripts/test-verify-table-map.mjs
+      - name: What the admin is told about the old system's shape is what the schema, the code and the map give
+        # platform/resources/data/old-system-shape.json is what an importer of the Laravel admin knows about a
+        # table of the old system: the columns of its key, the words a column may hold, and where the map sends
+        # its rows (master list T-176 and T-177). The first command builds the old schema on the embedded
+        # PostgreSQL from every schema file, asks its catalogue, and fails when the file says anything else: a
+        # migration that adds a table, a key or a word, or a changed row of the map, then fails here until the
+        # file is written again, and the admin's own tests then ask for the new word's place. The second command
+        # tries the check itself, one mistake at a time.
+        run: |
+          node scripts/verify-old-shape.mjs
+          node scripts/test-verify-old-shape.mjs
       - name: Render smoke test (both apps must mount)
         run: npm run smoke:render
       - name: Typecheck both apps
