@@ -24,10 +24,15 @@
  *     (scripts/migrate.mjs), with its ledger row.
  *   • The aggregate. PostgreSQL gives an aggregate no setting; this suite asks it to, and expects the refusal.
  *     If a later PostgreSQL accepts, the suite says so and the migration can be extended.
+ *   • The text that was sent to the hosted database (deploy/supabase/). It holds the migration's block word for
+ *     word and the checksum of the migration's file. Sent to a database in the state the live one was read in:
+ *     kept, with row 21 as the runner would have written it; sent a second time, refused; with a guard that
+ *     fails after the change was made, nothing kept.
  *
  * Runs on the embedded PostgreSQL (PGlite): SQLite has no functions of this kind.
  */
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -43,6 +48,7 @@ const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const BASE = 'scripts/schema.postgres.sql';
 const MIGRATION = 'scripts/migrations/021_function_search_path.sql';
 const ROLLBACK = 'scripts/migrations/rollback/021_function_search_path.rollback.sql';
+const SENT = 'deploy/supabase/2026-11-20-apply-021-function-search-path.sql';
 
 /** The nine functions of migration 021, as PostgreSQL writes their names. */
 const NINE = [
@@ -275,6 +281,50 @@ $$`);
   db = await openPglite(dir);
   const forwardRows = await db.q('SELECT count(*)::int AS n, max(version)::int AS last FROM schema_migrations');
   check(same(prints(await routines(db)), prints(complete)) && forwardRows[0].n === 21 && forwardRows[0].last === 21, 'after it: every function has its path, 21 rows in the ledger');
+
+  /* ── 7 ─────────────────────────────────────────────────────────────────────────────────────────────── */
+  console.log('\nThe text that was sent to the hosted database');
+  const sent = read(SENT);
+  const statement = sent.slice(sent.indexOf('DO $apply$'));
+  const migrationBlock = read(MIGRATION).slice(read(MIGRATION).indexOf('\nDO $$\n') + 1).trimEnd();
+  const checksum = crypto.createHash('sha256').update(read(MIGRATION)).digest('hex');
+  check(statement.startsWith('DO $apply$') && statement.trimEnd().endsWith('$apply$;') && !/^\s*(BEGIN|COMMIT)\s*;/m.test(statement),
+    'it is one statement: all of it is kept, or nothing');
+  check(migrationBlock.startsWith('DO $$') && statement.includes(`EXECUTE $migration$\n${migrationBlock}\n$migration$;`), 'it holds the migration\'s block, word for word');
+  check(statement.includes(`'021_function_search_path.sql', '${checksum}'`), 'it writes row 21 with the checksum of the migration\'s file');
+
+  // A database as the live one was read: 20 rows in the ledger, ten routines, none with a setting.
+  const ledgerState = async () => (await db.q('SELECT count(*)::int AS n, max(version)::int AS last FROM schema_migrations'))[0];
+  await db.exec(read(ROLLBACK));
+  await db.exec('DELETE FROM schema_migrations WHERE version = 21');
+  check(same(prints(await routines(db)), prints(asLive)) && (await ledgerState()).n === 20, '(a database as the live one was read: 20 rows in the ledger, no function with a path)');
+
+  await db.exec("ALTER FUNCTION tickets_freeze_sla() SET search_path = ''");
+  const notAsRead = await refused(() => db.exec(statement));
+  check(notAsRead !== null && /migration 021 not sent: 1 routine\(s\) of the schema have a setting already/.test(notAsRead), 'a database that is not as it was read is left alone', notAsRead ?? 'it ran');
+  await db.exec('ALTER FUNCTION tickets_freeze_sla() RESET search_path');
+  check(same(prints(await routines(db)), prints(asLive)) && (await ledgerState()).n === 20, 'and nothing of it is kept');
+
+  await db.exec('DROP TRIGGER trg_tickets_freeze_sla ON tickets');
+  const guard = await refused(() => db.exec(statement));
+  check(guard !== null && /migration 021 not kept: 5 triggers are attached/.test(guard), 'a guard that fails after the change was made stops it with its reason', guard ?? 'it ran');
+  check(same(prints(await routines(db)), prints(asLive)) && (await ledgerState()).n === 20, 'and nothing is kept: no function with a path, 20 rows in the ledger');
+  await db.exec('CREATE TRIGGER trg_tickets_freeze_sla BEFORE UPDATE ON tickets FOR EACH ROW EXECUTE FUNCTION tickets_freeze_sla()');
+  check(same(await triggers(db), before), '(the trigger put back)');
+
+  await db.exec(statement);
+  const row21 = (await db.q('SELECT version, name, checksum, applied_at, duration_ms FROM schema_migrations ORDER BY version DESC LIMIT 1'))[0];
+  check(same(prints(await routines(db)), prints(complete)) && (await ledgerState()).n === 21, 'sent as it is: every function has its path, 21 rows in the ledger');
+  check(row21.version === 21 && row21.name === '021_function_search_path.sql' && row21.checksum === checksum && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(row21.applied_at) && Number.isInteger(row21.duration_ms),
+    'row 21 is as the runner writes it: the file\'s name, its checksum, the time in UTC, the milliseconds', JSON.stringify(row21));
+  const second = await refused(() => db.exec(statement));
+  check(second !== null && /migration 021 not sent: the ledger holds 21 rows/.test(second), 'sent a second time, it is refused', second ?? 'it ran');
+  check(same(prints(await routines(db)), prints(complete)) && (await ledgerState()).n === 21, 'and changes nothing');
+  await db.close();
+  db = null;
+  const afterwards = runner('--status');
+  check(afterwards.status === 0 && /021\s+applied/.test(afterwards.stdout) && /Ledger consistent/.test(afterwards.stdout), 'the runner then reads the ledger as consistent: the row written by hand is the row it expects',
+    (afterwards.stdout + afterwards.stderr).trim().split('\n').slice(-3).join(' | '));
 } catch (error) {
   problems.push(`the suite stopped: ${error instanceof Error ? error.message : String(error)}`);
   console.log(`  ✗ the suite stopped: ${error instanceof Error ? error.stack : String(error)}`);
