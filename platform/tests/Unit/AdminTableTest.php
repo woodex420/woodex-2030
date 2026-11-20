@@ -458,7 +458,6 @@ it('counts the screens that still write a table by hand: the list may only get s
         'livewire/admin/sales/estimations/estimates.blade.php',
         'livewire/admin/sales/invoice-show.blade.php',
         'livewire/admin/sales/invoice-tracking-board.blade.php',
-        'livewire/admin/sales/invoices-index.blade.php',
         'livewire/admin/sales/payments-index.blade.php',
         'livewire/admin/sales/proposals-index.blade.php',
         'livewire/admin/sales/quote-templates.blade.php',
@@ -502,8 +501,9 @@ it('counts the screens that still write a table by hand: the list may only get s
 
     expect($parts)->toBe(['heading', 'select-all', 'select'])
         ->and($found)->toBe($written)
-        // 51 on 19 November 2026, before the first list moved; 45 once the first six had. It may only fall.
-        ->and(count($found))->toBeLessThanOrEqual(45)
+        // 51 on 19 November 2026, before the first list moved; 45 once the first six had; 44 with Invoices
+        // (T-042). It may only fall.
+        ->and(count($found))->toBeLessThanOrEqual(44)
         // A screen is on one side or the other: it does not draw the shared table and one of its own.
         ->and(array_values(array_intersect($using, $found)))->toBe([]);
 });

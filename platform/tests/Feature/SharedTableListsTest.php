@@ -11,6 +11,7 @@ use App\Livewire\Admin\Accounts\PayablesAging;
 use App\Livewire\Admin\Crm\LeadsIndex;
 use App\Livewire\Admin\Projects\ProjectsIndex;
 use App\Livewire\Admin\Reports\Receivables;
+use App\Livewire\Admin\Sales\InvoicesIndex;
 use App\Livewire\Admin\Sales\QuotesIndex;
 use App\Livewire\Admin\System\UsersIndex;
 use Dom\Element;
@@ -19,10 +20,11 @@ use Dom\Node;
 use Livewire\Livewire;
 
 /*
-| The first six lists on the shared table (master list T-041): Leads, Quotations, Projects, Payables by age, Users
-| and the Receivables report. Each list's own tests were left as they were and still pass. These add what moving
-| could have broken and no list's test asked: that the table has a name, that a heading sorts by a word the list
-| knows and the rows come in that order, that the pages and the chosen rows are the ones they were.
+| The lists on the shared table. The first six (master list T-041): Leads, Quotations, Projects, Payables by age,
+| Users and the Receivables report; Invoices followed (T-042). Each list's own tests were left as they were and
+| still pass. These add what moving could have broken and no list's test asked: that the table has a name, that a
+| heading sorts by a word the list knows and the rows come in that order, that the pages and the chosen rows are
+| the ones they were.
 |
 | The component itself is drawn state by state in tests/Unit/AdminTableTest.php.
 */
@@ -49,7 +51,7 @@ function headingNamed(HTMLDocument $page, string $words): ?Element
     return null;
 }
 
-it('draws each of the six lists as one named table, with headings that name their columns', function (string $screen, string $role, array $names, ?string $empty, ?Closure $before) {
+it('draws each list as one named table, with headings that name their columns', function (string $screen, string $role, array $names, ?string $empty, ?Closure $before) {
     $before?->call($this);
 
     $page = drawnScreen(Livewire::actingAs($this->userWithRole($role))->test($screen)->html());
@@ -81,6 +83,7 @@ it('draws each of the six lists as one named table, with headings that name thei
     'Leads, with none yet' => [LeadsIndex::class, 'sales_manager', ['Leads'], 'No leads yet', null],
     'Leads' => [LeadsIndex::class, 'sales_manager', ['Leads'], null, fn () => Lead::factory()->count(3)->create()],
     'Quotations, with none yet' => [QuotesIndex::class, 'owner', ['Quotations'], 'No quotations yet', null],
+    'Invoices, with none yet' => [InvoicesIndex::class, 'owner', ['Invoices'], 'No invoices yet', null],
     'Projects, with none yet' => [ProjectsIndex::class, 'owner', ['Projects'], 'No projects yet', null],
     'Users' => [UsersIndex::class, 'owner', ['Users'], null, null],
     'Receivables, with nothing owed' => [Receivables::class, 'owner', ['Receivables by client'], 'Nothing outstanding', null],
