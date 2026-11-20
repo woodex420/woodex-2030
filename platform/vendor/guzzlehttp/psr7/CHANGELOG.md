@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 3.5.1 - 2026-11-19
+
+### Fixed
+
+- Fix parsing of absolute-path references containing a colon followed by digits in a path segment
+- Fix network-path references taking a port from a colon followed by digits in a path segment
+
+## 3.5.0 - 2026-11-18
+
+### Added
+
+- Add `Idna` to convert internationalized hosts to ASCII
+
+## 3.4.0 - 2026-11-13
+
+### Added
+
+- Add `UriRedactor`
+
+### Deprecated
+
+- Deprecated `Utils::redact` methods in favor of `UriRedactor`
+
+## 3.3.0 - 2026-11-12
+
+### Added
+
+- Add `ErrorScope` to capture the PHP errors raised beneath a call
+
+### Changed
+
+- Stop stream helpers failing on deprecations and silenced errors
+
+### Fixed
+
+- Fix stream helpers capturing errors raised in other coroutines and fibers
+
+## 3.2.1 - 2026-11-12
+
+### Fixed
+
+- Fix `Header::parse()` truncating parameter values at the first equals sign
+
 ## 3.2.0 - 2026-10-18
 
 ### Fixed

@@ -21,11 +21,19 @@ class ActivityBuffer
             return;
         }
 
-        $records = $this->pending;
+        $records = collect($this->pending)->map(function (array $record) {
+            ksort($record);
+
+            return $record;
+        });
 
         $modelClass = Config::activityModel();
 
-        $modelClass::query()->insert($records);
+        $modelClass::query()->getConnection()->transaction(function () use ($modelClass, $records) {
+            $records
+                ->chunkWhile(fn (array $record, int $key, Collection $chunk) => array_keys($record) === array_keys($chunk->last()))
+                ->each(fn (Collection $chunk) => $modelClass::query()->insert($chunk->all()));
+        });
 
         $this->pending = [];
     }
@@ -43,7 +51,10 @@ class ActivityBuffer
     /** @return array<string, mixed> */
     protected function prepareForInsert(Model $activity): array
     {
-        $now = $activity->freshTimestampString();
+        if ($activity->usesTimestamps()) {
+            $activity->updateTimestamps();
+        }
+
         $attributes = [];
 
         foreach ($activity->getAttributes() as $key => $value) {
@@ -55,9 +66,6 @@ class ActivityBuffer
                 $attributes[$key] = $value;
             }
         }
-
-        $attributes['created_at'] ??= $now;
-        $attributes['updated_at'] ??= $now;
 
         return $attributes;
     }

@@ -6,6 +6,45 @@ All notable changes to `laravel-settings` will be documented in this file
 
 - Make `spatie/data-transfer-object` dependency optional. (#160)
 
+## 3.10.1 - 2026-11-04
+
+### Fixes
+
+- Fix settings migrations failing with `Class not found` when the discovered settings cache references a removed or renamed settings class (#369, fixes #368).
+- Preserve migration casts for settings classes that still exist, without changing the discovered class list or its cache file.
+- Add regressions for stale on-disk discovery, false/zero payloads, surviving-class casts, and the case where no registered classes remain.
+
+### Deployment notes
+
+This fix does not rebuild discovery or discover newly added classes. When deploying added, renamed, or removed settings classes, run `php artisan settings:clear-discovered` followed by `php artisan settings:discover`. Running discovery alone reuses an existing cache. If a migration needs casts from a new or renamed class, rebuild discovery before running migrations. Discovery caching is separate from cached settings values.
+
+This is a non-breaking patch release. PHP and Laravel requirements are unchanged. All seven supported PHP/Laravel test-matrix jobs and PHPStan passed on the reviewed PR head. Local full suites passed on PHP 8.5/Laravel 13 and PHP 8.2/Laravel 12 (160 tests, 500 assertions each), with formatting and Composer validation passing.
+
+Thanks to @MohannadElemary for the fix.
+
+**Full Changelog:** https://github.com/spatie/laravel-settings/compare/3.10.0...3.10.1
+
+## 3.10.0 - 2026-10-19
+
+### New feature
+
+- Generate a settings migration alongside a settings class with `php artisan make:setting SettingName --migration` (or `-m`). The migration uses the existing configured migration path and can be filled in with properties and defaults.
+
+### Fixes and testing
+
+- Preserve a nonzero exit status returned by the migration command instead of reporting success.
+- Cover both flags, configured and legacy migration paths, generated PHP, duplicate protection, and failure propagation.
+- Isolate command test files instead of deleting unrelated files from the system temporary directory.
+- Add reproducible PHP test prerequisites for Amp orbs.
+
+This is an additive, non-breaking release. Existing commands without the new option behave as before. PHP and Laravel requirements are unchanged from 3.9.1.
+
+Thanks to @adereksisusanto for the original feature in #366.
+
+Local validation: 158 tests with 488 assertions passed in the standard test order, along with PHPStan, Composer validation, and formatting checks. Published at the maintainer’s request without waiting for GitHub CI.
+
+**Full Changelog:** https://github.com/spatie/laravel-settings/compare/3.9.1...3.10.0
+
 ## 3.9.1 - 2026-10-19
 
 ### Fixes
@@ -99,6 +138,8 @@ When enabled, settings cache values are stored in memory during a single request
     'enabled' => true,
     'memo' => true, // or env('SETTINGS_CACHE_MEMO', false)
 ],
+
+
 
 
 

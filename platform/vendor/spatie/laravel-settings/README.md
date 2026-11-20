@@ -59,7 +59,7 @@ Let's take a look at how to create your own settings classes.
 
 ## Support us
 
-[![Image](https://github-ads.s3.eu-central-1.amazonaws.com/laravel-settings.jpg)](https://spatie.be/github-ad-click/laravel-settings)
+[![Image](https://spatie.be/github-ad-image/laravel-settings.jpg)](https://spatie.be/github-ad-click/laravel-settings)
 
 We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
 
@@ -915,6 +915,10 @@ You can clear this cache by running:
 ```bash
 php artisan settings:clear-discovered
 ```
+
+When deploying added, renamed, or removed settings classes, clear this cache and run `settings:discover` again. Running `settings:discover` alone does not replace an existing discovery cache with a fresh scan.
+
+Settings migrations skip missing classes in the cached list when resolving casts, so a removed class will not prevent a migration from running. This does not refresh discovery or register newly added classes. Casts are only available for classes that still exist in the registered list; if a migration needs casts from a new or renamed class, clear and rebuild discovery before running migrations. This discovery cache is separate from cached settings values cleared by `settings:clear-cache`.
 
 ### Writing your own casters
 

@@ -3,6 +3,63 @@
 Please refer to [UPGRADING](UPGRADING.md) guide for upgrading to a major version.
 
 
+## 8.5.2 - 2026-11-17
+
+### Security
+
+- Exclude URI fragments from stream handler request targets (GHSA-gqx6-m769-3x35)
+
+
+## 8.5.1 - 2026-11-17
+
+### Fixed
+
+- Cancel cURL multi transfers whose synchronous wait throws instead of leaving them running
+- Reject CR, LF, and NUL in request header fields in the built-in handlers
+- Reject CR, LF, and NUL in request methods in the built-in handlers
+
+
+## 8.5.0 - 2026-11-13
+
+### Added
+
+- Add `Utils::setDefaultHandlerFactory()` to replace the default handler
+
+### Changed
+
+- Adjusted `guzzlehttp/psr7` version constraint to `^3.4`
+
+### Deprecated
+
+- Deprecated `Utils::defaultUserAgent()` in favor of `ClientInterface::MAJOR_VERSION`
+- Deprecated `Utils::headersFromLines()`, `Utils::normalizeHeaderKeys()`, `Utils::debugResource()`, and `Utils::normalizeProtocols()`
+
+
+## 8.4.0 - 2026-11-12
+
+### Added
+
+- Add `max_idle_handles` client and cURL handler option to limit idle handles
+
+### Changed
+
+- Adjusted `guzzlehttp/psr7` version constraint to `^3.3`
+- Send longer-path cookies first in the `Cookie` header, like browsers and libcurl
+- Replace stored cookies in place so a refreshed cookie keeps its position in the `Cookie` header
+
+### Fixed
+
+- Fix overlapping stream handler transfers swallowing and mixing up PHP errors
+- Fix the stream handler sending an empty `From` header with no `from` ini set
+
+
+## 8.3.2 - 2026-11-12
+
+### Fixed
+
+- Fix overlapping stream handler transfers leaving the `from` ini setting blank
+
+
 ## 8.3.1 - 2026-10-25
 
 ### Fixed
