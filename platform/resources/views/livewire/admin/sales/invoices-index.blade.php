@@ -24,7 +24,9 @@
         @endforeach
     </div>
 
-    <x-admin.table label="Invoices" :rows="$invoices">
+    {{-- On a phone each invoice is a card (cards): its number, then who owes it, its status, its amount, what is
+         still owed and when it is due: the cells that carry a data-label. --}}
+    <x-admin.table label="Invoices" :rows="$invoices" cards>
         <x-slot:filters class="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div class="relative md:col-span-2">
                 <x-icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gray-400" />
@@ -59,16 +61,16 @@
                         <a href="{{ route('admin.invoices.pdf', $invoice) }}" class="text-theme-xs text-brand-600 hover:underline dark:text-brand-400" x-on:click.prevent="$dispatch('document-preview', { url: $el.href })">PDF</a>
                     @endif
                 </th>
-                <td class="hidden px-5 py-3 md:table-cell">
+                <td data-label="Client" class="hidden px-5 py-3 md:table-cell">
                     <span class="block text-gray-700 dark:text-gray-300">{{ $invoice->contact?->name }}</span>
                     <span class="block text-theme-xs text-gray-500">{{ $invoice->project?->name ?? $invoice->quote?->title }}</span>
                 </td>
-                <td class="px-5 py-3"><x-admin.badge :color="$invoice->status->color()">{{ $invoice->status->label() }}</x-admin.badge></td>
-                <td class="px-5 py-3 text-right tabular-nums text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $invoice->total_minor)->format($lakh) }}</td>
-                <td class="px-5 py-3 text-right font-medium tabular-nums {{ (int) $invoice->balance_minor > 0 ? 'text-gray-800 dark:text-white/90' : 'text-gray-400' }}">
+                <td data-label="Status" class="px-5 py-3"><x-admin.badge :color="$invoice->status->color()">{{ $invoice->status->label() }}</x-admin.badge></td>
+                <td data-label="Amount" class="px-5 py-3 text-right tabular-nums text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $invoice->total_minor)->format($lakh) }}</td>
+                <td data-label="Balance" class="px-5 py-3 text-right font-medium tabular-nums {{ (int) $invoice->balance_minor > 0 ? 'text-gray-800 dark:text-white/90' : 'text-gray-400' }}">
                     {{ Money::ofMinor((int) $invoice->balance_minor)->format($lakh) }}
                 </td>
-                <td class="hidden px-5 py-3 sm:table-cell {{ $late ? 'text-red-600 dark:text-red-400' : 'text-gray-500' }}">
+                <td data-label="Due" class="hidden px-5 py-3 sm:table-cell {{ $late ? 'text-red-600 dark:text-red-400' : 'text-gray-500' }}">
                     {{ $invoice->due_date?->format('j M Y') ?? '—' }}@if ($late) · overdue @endif
                 </td>
             </tr>

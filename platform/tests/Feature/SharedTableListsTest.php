@@ -5,6 +5,7 @@ use App\Domain\Accounts\Models\Bill;
 use App\Domain\Accounts\Models\Vendor;
 use App\Domain\Crm\Models\Contact;
 use App\Domain\Crm\Models\Lead;
+use App\Domain\Sales\Actions\CreateManualInvoice;
 use App\Domain\Sales\Actions\CreateQuote;
 use App\Domain\Sales\Models\Quote;
 use App\Livewire\Admin\Accounts\PayablesAging;
@@ -337,4 +338,45 @@ it('draws each quotation as a card: its status, its value and when it was touche
         ->and($card['facts'][1])->toStartWith('Value: ')
         ->and($card['facts'][1])->toContain('9')
         ->and($card['facts'][2])->toStartWith('Updated: ');
+});
+
+it('draws each invoice as a card: who owes it, its status, its amount, what is still owed and when it is due', function () {
+    $owner = $this->userWithRole('owner');
+    $contact = Contact::factory()->create(['name' => 'Ahsan Traders']);
+    $invoice = app(CreateManualInvoice::class)->handle($owner, [
+        'contact_id' => $contact->id,
+        'business_line' => 'furniture',
+        'issue_date' => today()->subDays(20)->toDateString(),
+        'due_date' => today()->subDays(5)->toDateString(),
+        'items' => [['description' => 'Reception desk, repolished', 'unit' => 'job', 'qty' => '1', 'rate_minor' => 3_600_000]],
+    ]);
+
+    $page = drawnScreen(Livewire::actingAs($owner)->test(InvoicesIndex::class)->html());
+    $frame = $page->querySelector('[data-table-state]');
+    $rows = [...$page->querySelectorAll('tbody > tr')];
+    $card = Card::of($rows[0]);
+
+    expect($frame->classList->contains('wx-table-cards'))->toBeTrue()
+        ->and($page->querySelectorAll('table')->length)->toBe(1)
+        ->and(saidBy($page->querySelector('table caption')))->toBe('Invoices')
+        ->and(count($rows))->toBe(1)
+        ->and($page->querySelectorAll('tbody > tr > th[scope="row"]')->length)->toBe(1)
+        ->and($card['name'])->toStartWith($invoice->number)
+        ->and($card['leads'])->toBe(route('admin.invoices.show', $invoice))
+        ->and(Card::words($rows[0]))->toBe(['Client', 'Status', 'Amount', 'Balance', 'Due'])
+        ->and(Card::wordsThatDiffer($rows[0]))->toBe([])
+        // The client is a column of the table from 768 px up only; on a card it is a fact of its own.
+        ->and($card['facts'][0])->toStartWith('Client: Ahsan Traders')
+        ->and($card['facts'][1])->toBe('Status: '.$invoice->status->label())
+        ->and($card['facts'][2])->toStartWith('Amount: ')
+        ->and($card['facts'][3])->toStartWith('Balance: ')
+        ->and($card['facts'][4])->toBe('Due: '.today()->subDays(5)->format('j M Y').' · overdue');
+
+    // The search of the list is where a person looks for it, and is named.
+    expect($page->querySelector('[role="search"][aria-label="Filter invoices"] input[type="search"]')?->getAttribute('aria-label'))->toBe('Search invoices');
+
+    // Looking for something that is not there says so in the table's own empty state.
+    $none = drawnScreen(Livewire::actingAs($owner)->test(InvoicesIndex::class)->set('search', 'nothing-by-this-name')->html());
+    expect($none->querySelector('[data-table-state]')->getAttribute('data-table-state'))->toBe('empty')
+        ->and(saidBy($none->querySelector('tbody [role="status"]')))->toContain('No invoices match');
 });
