@@ -28,7 +28,10 @@
         @endforeach
     </div>
 
-    <x-admin.table label="Quotations" :rows="$quotes">
+    {{-- On a phone each quotation is a card (cards): its number, title and client, then its status, its value and
+         when it was last touched: the cells that carry a data-label. The owner is left off a card on purpose, as
+         it is left off the table below 1024 px. --}}
+    <x-admin.table label="Quotations" :rows="$quotes" cards>
         <x-slot:filters class="grid grid-cols-1 gap-3 md:grid-cols-5">
             <div class="relative md:col-span-2">
                 <x-icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gray-400" />
@@ -81,10 +84,10 @@
                     <span class="block text-gray-700 dark:text-gray-300">{{ $quote->contact?->name }}</span>
                     <span class="block text-theme-xs text-gray-500">{{ $quote->company?->name ?? ($quote->lead ? 'Enquiry '.$quote->lead->ref : '') }}</span>
                 </td>
-                <td class="px-5 py-3"><x-admin.badge :color="$quote->status->color()">{{ $quote->status->label() }}</x-admin.badge></td>
-                <td class="px-5 py-3 text-right tabular-nums font-medium text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $quote->total_minor)->format($lakh) }}</td>
+                <td data-label="Status" class="px-5 py-3"><x-admin.badge :color="$quote->status->color()">{{ $quote->status->label() }}</x-admin.badge></td>
+                <td data-label="Value" class="px-5 py-3 text-right tabular-nums font-medium text-gray-800 dark:text-white/90">{{ Money::ofMinor((int) $quote->total_minor)->format($lakh) }}</td>
                 <td class="px-5 py-3 hidden text-gray-600 lg:table-cell dark:text-gray-400">{{ $quote->owner?->name ?? '—' }}</td>
-                <td class="px-5 py-3 hidden text-gray-500 sm:table-cell" title="{{ $quote->updated_at?->format('j M Y, g:i a') }}">{{ $quote->updated_at?->diffForHumans() }}</td>
+                <td data-label="Updated" class="px-5 py-3 hidden text-gray-500 sm:table-cell" title="{{ $quote->updated_at?->format('j M Y, g:i a') }}">{{ $quote->updated_at?->diffForHumans() }}</td>
             </tr>
         @endforeach
 

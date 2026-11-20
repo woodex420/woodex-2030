@@ -309,3 +309,32 @@ it('draws each lead as a card: who, where it stands, whose it is and what is due
     $screen->call('toggleColumn', 'owner');
     expect(Card::words(drawnScreen($screen->html())->querySelector('tbody > tr')))->toBe(['Contact', 'Stage', 'Next action']);
 });
+
+it('draws each quotation as a card: its status, its value and when it was touched', function () {
+    $owner = $this->userWithRole('owner');
+    $lead = Lead::factory()->create(['owner_id' => $owner->id, 'business_line' => 'furniture']);
+    $quote = app(CreateQuote::class)->handle($lead->contact, $lead->business_line, $owner, $lead, null, 'Reception desk');
+    Quote::query()->whereKey($quote->id)->update(['total_minor' => 900_000_00]);
+
+    $page = drawnScreen(Livewire::actingAs($owner)->test(QuotesIndex::class)->html());
+    $frame = $page->querySelector('[data-table-state]');
+    $rows = [...$page->querySelectorAll('tbody > tr')];
+    $card = Card::of($rows[0]);
+
+    expect($frame->classList->contains('wx-table-cards'))->toBeTrue()
+        // No row of this list can be chosen, so nothing is kept of the headings on a card.
+        ->and($frame->classList->contains('wx-table-choose'))->toBeFalse()
+        ->and($page->querySelectorAll('table')->length)->toBe(1)
+        ->and(count($rows))->toBe(1)
+        // The card is named by the number, the title and the client: the name cell already carries all three below 768 px.
+        ->and($card['name'])->toContain($quote->fresh()->label())
+        ->and($card['name'])->toContain('Reception desk')
+        ->and($card['name'])->toContain($lead->contact->name)
+        ->and($card['leads'])->toBe(route('admin.quotes.show', $quote))
+        ->and(Card::words($rows[0]))->toBe(['Status', 'Value', 'Updated'])
+        ->and(Card::wordsThatDiffer($rows[0]))->toBe([])
+        ->and($card['facts'][0])->toBe('Status: '.$quote->fresh()->status->label())
+        ->and($card['facts'][1])->toStartWith('Value: ')
+        ->and($card['facts'][1])->toContain('9')
+        ->and($card['facts'][2])->toStartWith('Updated: ');
+});
