@@ -303,7 +303,7 @@ it('draws each lead as a card: who, where it stands, whose it is and what is due
         ->and(trim($page->querySelector('thead th.wx-select-all .wx-card-only')->textContent))->toBe('Select all on this page');
 
     // Service and source are columns of the table and are left off a card, on purpose: they carry no word.
-    $off = collect([...$rows[0]->children])->filter(fn ($cell) => $cell->tagName === 'TD' && ! $cell->hasAttribute('data-label') && ! $cell->classList->contains('wx-select'));
+    $off = collect(Card::cells($rows[0]))->filter(fn ($cell) => $cell->tagName === 'TD' && ! $cell->hasAttribute('data-label') && ! $cell->classList->contains('wx-select'));
     expect($off->count())->toBe(2);
 
     // A column the person switched off is on neither: the card follows the columns.

@@ -21,7 +21,7 @@ final class Card
         $facts = [];
         $name = null;
 
-        foreach ($row->children as $cell) {
+        foreach (self::cells($row) as $cell) {
             if ($cell->tagName === 'TH' && $cell->getAttribute('scope') === 'row') {
                 $name ??= $cell;
             }
@@ -46,7 +46,7 @@ final class Card
     {
         $words = [];
 
-        foreach ($row->children as $cell) {
+        foreach (self::cells($row) as $cell) {
             if ($cell->tagName === 'TD' && $cell->hasAttribute('data-label')) {
                 $words[] = $cell->getAttribute('data-label');
             }
@@ -66,7 +66,7 @@ final class Card
         $headings = [...$row->closest('table')->querySelectorAll('thead th')];
         $differ = [];
 
-        foreach ([...$row->children] as $index => $cell) {
+        foreach (self::cells($row) as $index => $cell) {
             if (! $cell->hasAttribute('data-label')) {
                 continue;
             }
@@ -81,6 +81,24 @@ final class Card
         }
 
         return $differ;
+    }
+
+    /**
+     * The cells of a row, in their order. Walked from the first to its next and so on: the list of an element's
+     * children as one property came with PHP 8.5, and the product and CI run 8.4 (found by CI, 20 November: the
+     * sandbox runs 8.5 and read the property without a word).
+     *
+     * @return list<Element>
+     */
+    public static function cells(Element $row): array
+    {
+        $cells = [];
+
+        for ($cell = $row->firstElementChild; $cell !== null; $cell = $cell->nextElementSibling) {
+            $cells[] = $cell;
+        }
+
+        return $cells;
     }
 
     private static function said(?Node $node): string
