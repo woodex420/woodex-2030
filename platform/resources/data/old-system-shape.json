@@ -1,0 +1,1586 @@
+{
+ "about": "What the Laravel admin is told about the shape of the old system (the React shop and dashboard with their Node API, on PostgreSQL): for each of its tables the columns of its key, the words its CHECK constraints allow, the words only the old API's code allows, the columns held to 0 or 1, the true yes-or-no columns, and where the map of the tables sends its rows. Written by `node scripts/verify-old-shape.mjs --write` from the old schema files (applied to a test database, whose catalogue is then read), the old API's code and docs/woodex-os/acceptance/tables.json. Do not edit it by hand: CI fails when it is not what those give.",
+ "tables": {
+  "accounts": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "chart_of_accounts"
+   ],
+   "line": "T-113",
+   "wave": 9,
+   "words": {
+    "kind": [
+     "asset",
+     "liability",
+     "equity",
+     "revenue",
+     "expense"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [
+    "active"
+   ],
+   "booleans": []
+  },
+  "activities": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "activities"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {
+    "kind": [
+     "call",
+     "meeting",
+     "note",
+     "email",
+     "status_change",
+     "document",
+     "payment",
+     "system"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "attachments": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "media"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "audit_logs": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "activity_log"
+   ],
+   "line": "T-178",
+   "wave": 2,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "bom_lines": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-111",
+   "wave": 8,
+   "words": {
+    "item_kind": [
+     "product",
+     "material"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "boms": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-111",
+   "wave": 8,
+   "words": {},
+   "words_in_code": {},
+   "flags": [
+    "active"
+   ],
+   "booleans": []
+  },
+  "boq_lines": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-112",
+   "wave": 9,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "client_links": {
+   "key": [
+    [
+     "entity",
+     "text"
+    ],
+    [
+     "entity_id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "leads",
+    "quotes",
+    "invoices",
+    "tasks"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "clients": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "contacts"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "companies": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "companies"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "contacts": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "contacts"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": [
+    "is_primary"
+   ]
+  },
+  "conversations": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "conversations"
+   ],
+   "line": "T-118",
+   "wave": 10,
+   "words": {},
+   "words_in_code": {
+    "status": {
+     "file": "apps/api/server.mjs",
+     "constant": "CONV_STATUS",
+     "words": [
+      "open",
+      "pending",
+      "resolved",
+      "snoozed"
+     ]
+    }
+   },
+   "flags": [],
+   "booleans": []
+  },
+  "credit_notes": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-113",
+   "wave": 9,
+   "words": {
+    "status": [
+     "draft",
+     "issued",
+     "applied",
+     "cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "deliveries": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-107",
+   "wave": 6,
+   "words": {
+    "condition": [
+     "good",
+     "damaged",
+     "partial",
+     "rejected"
+    ],
+    "status": [
+     "pending",
+     "in_transit",
+     "delivered",
+     "failed",
+     "returned"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "delivery_lines": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-107",
+   "wave": 6,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "dispatch_runs": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-107",
+   "wave": 6,
+   "words": {
+    "status": [
+     "planned",
+     "dispatched",
+     "completed",
+     "cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "expenses": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "expenses"
+   ],
+   "line": "T-113",
+   "wave": 9,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "goods_receipt_lines": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-110",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "goods_receipts": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-110",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "installed_assets": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-108",
+   "wave": 6,
+   "words": {
+    "status": [
+     "installed",
+     "removed",
+     "replaced",
+     "faulty"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "invoices": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "invoices",
+    "invoice_items"
+   ],
+   "line": "T-103",
+   "wave": 4,
+   "words": {
+    "status": [
+     "Issued",
+     "Partially Paid",
+     "Paid",
+     "Cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "job_card_materials": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-111",
+   "wave": 8,
+   "words": {
+    "item_kind": [
+     "product",
+     "material"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "job_cards": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-111",
+   "wave": 8,
+   "words": {
+    "stage": [
+     "queued",
+     "in_progress",
+     "qc",
+     "done",
+     "cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "journal_entries": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "journal_entries"
+   ],
+   "line": "T-113",
+   "wave": 9,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "journal_lines": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "journal_lines"
+   ],
+   "line": "T-113",
+   "wave": 9,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "leads": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "leads",
+    "contacts"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "materials": {
+   "key": [
+    [
+     "id",
+     "text"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-110",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "meetings": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "tasks",
+    "activities"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {
+    "channel": [
+     "in-person",
+     "phone",
+     "video"
+    ],
+    "status": [
+     "scheduled",
+     "held",
+     "cancelled",
+     "no_show"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "messages": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "messages"
+   ],
+   "line": "T-118",
+   "wave": 10,
+   "words": {
+    "direction": [
+     "inbound",
+     "outbound",
+     "system"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "meta": {
+   "key": [
+    [
+     "key",
+     "text"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "orders": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-106",
+   "wave": 6,
+   "words": {
+    "stage": [
+     "production",
+     "qc",
+     "dispatch",
+     "delivery",
+     "installation"
+    ],
+    "status": [
+     "Pending",
+     "On Track",
+     "In Progress",
+     "On Hold",
+     "Delayed",
+     "Completed"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "page_blocks": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-117",
+   "wave": 10,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "page_versions": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-117",
+   "wave": 10,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "pages": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-117",
+   "wave": 10,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "password_resets": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "line": "T-065",
+   "wave": 2,
+   "words": {
+    "reason": [
+     "forgotten",
+     "compromised",
+     "offboarding",
+     "initial"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "payment_schedules": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-113",
+   "wave": 9,
+   "words": {
+    "status": [
+     "pending",
+     "paid",
+     "waived"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "payments": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "payments",
+    "payment_allocations"
+   ],
+   "line": "T-103",
+   "wave": 4,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "product_variants": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-011",
+   "wave": 5,
+   "words": {},
+   "words_in_code": {},
+   "flags": [
+    "active",
+    "price_on_request"
+   ],
+   "booleans": []
+  },
+  "products": {
+   "key": [
+    [
+     "id",
+     "text"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "line": "T-105",
+   "wave": 5,
+   "words": {
+    "status": [
+     "draft",
+     "published",
+     "archived"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [
+    "in_stock",
+    "price_on_request",
+    "track_stock"
+   ],
+   "booleans": []
+  },
+  "project_files": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "media"
+   ],
+   "line": "T-112",
+   "wave": 9,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "project_milestones": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "project_milestones"
+   ],
+   "line": "T-112",
+   "wave": 9,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "projects": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "projects"
+   ],
+   "line": "T-112",
+   "wave": 9,
+   "words": {},
+   "words_in_code": {
+    "stage": {
+     "file": "apps/api/server.mjs",
+     "constant": "PROJECT_STAGES",
+     "words": [
+      "Planning",
+      "Procurement",
+      "Production",
+      "Delivery",
+      "Installation",
+      "Handover"
+     ]
+    }
+   },
+   "flags": [],
+   "booleans": []
+  },
+  "purchase_order_lines": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-110",
+   "wave": 7,
+   "words": {
+    "item_kind": [
+     "product",
+     "material"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "purchase_orders": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-110",
+   "wave": 7,
+   "words": {
+    "status": [
+     "draft",
+     "approved",
+     "sent",
+     "partially_received",
+     "received",
+     "cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "quote_templates": {
+   "key": [
+    [
+     "id",
+     "text"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "quote_templates"
+   ],
+   "line": "T-103",
+   "wave": 4,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "quote_versions": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "quote_versions"
+   ],
+   "line": "T-103",
+   "wave": 4,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "quotes": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "quotes",
+    "quote_items"
+   ],
+   "line": "T-103",
+   "wave": 4,
+   "words": {},
+   "words_in_code": {
+    "status": {
+     "file": "apps/api/server.mjs",
+     "constant": "QUOTE_STATUSES",
+     "words": [
+      "Draft",
+      "Review",
+      "Approval",
+      "Sent",
+      "Viewed",
+      "Negotiation",
+      "Revised",
+      "Accepted",
+      "Approved",
+      "Rejected",
+      "Expired",
+      "Cancelled"
+     ]
+    }
+   },
+   "flags": [],
+   "booleans": []
+  },
+  "returns": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-106",
+   "wave": 6,
+   "words": {
+    "state": [
+     "Requested",
+     "Inspecting",
+     "Refunding",
+     "Closed"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "saved_sections": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-117",
+   "wave": 10,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "schema_migrations": {
+   "key": [
+    [
+     "version",
+     "number"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "service_visits": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-108",
+   "wave": 6,
+   "words": {
+    "status": [
+     "scheduled",
+     "attended",
+     "completed",
+     "missed",
+     "cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": [
+    "chargeable"
+   ]
+  },
+  "services": {
+   "key": [
+    [
+     "id",
+     "text"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-117",
+   "wave": 10,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "sessions": {
+   "key": [
+    [
+     "token",
+     "text"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "line": "T-065",
+   "wave": 2,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "site_visits": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "site_visits"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {
+    "status": [
+     "Scheduled",
+     "Confirmed",
+     "Completed",
+     "Cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "stock_levels": {
+   "key": [
+    [
+     "product_id",
+     "text"
+    ],
+    [
+     "location_id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-109",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "stock_movements": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-109",
+   "wave": 7,
+   "words": {
+    "reason": [
+     "receipt",
+     "sale",
+     "return",
+     "adjustment",
+     "transfer",
+     "wastage",
+     "production"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "stock_reservations": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-109",
+   "wave": 7,
+   "words": {
+    "status": [
+     "held",
+     "released",
+     "consumed"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "stock_transfer_lines": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-109",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "stock_transfers": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-109",
+   "wave": 7,
+   "words": {
+    "status": [
+     "draft",
+     "dispatched",
+     "received",
+     "cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "storage_locations": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-109",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [
+    "active"
+   ],
+   "booleans": []
+  },
+  "supplier_invoice_lines": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "bill_items"
+   ],
+   "line": "T-110",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "supplier_invoices": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "bills"
+   ],
+   "line": "T-110",
+   "wave": 7,
+   "words": {
+    "match_state": [
+     "matched",
+     "tolerance",
+     "variance",
+     "unlinked"
+    ],
+    "status": [
+     "draft",
+     "posted",
+     "paid",
+     "cancelled"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "supplier_payments": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "bill_payments"
+   ],
+   "line": "T-110",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "suppliers": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "vendors"
+   ],
+   "line": "T-110",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [
+    "active"
+   ],
+   "booleans": []
+  },
+  "tasks": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "moves",
+   "to": [
+    "tasks"
+   ],
+   "line": "T-101",
+   "wave": 3,
+   "words": {
+    "priority": [
+     "low",
+     "normal",
+     "high"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [
+    "done"
+   ],
+   "booleans": []
+  },
+  "tax_records": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "line": "T-113",
+   "wave": 9,
+   "words": {
+    "kind": [
+     "sales",
+     "purchase",
+     "withholding"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "throttle_buckets": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "line": "T-065",
+   "wave": 2,
+   "words": {
+    "kind": [
+     "login",
+     "ip"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "ticket_messages": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-108",
+   "wave": 6,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": [
+    "internal"
+   ]
+  },
+  "tickets": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-108",
+   "wave": 6,
+   "words": {
+    "category": [
+     "damage",
+     "defect",
+     "missing_part",
+     "fitting",
+     "finish",
+     "delivery",
+     "other"
+    ],
+    "channel": [
+     "phone",
+     "email",
+     "whatsapp",
+     "visit",
+     "web"
+    ],
+    "priority": [
+     "low",
+     "normal",
+     "high",
+     "urgent"
+    ],
+    "status": [
+     "open",
+     "in_progress",
+     "waiting",
+     "resolved",
+     "closed"
+    ],
+    "waiting_on": [
+     "us",
+     "them"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "track_events": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "line": "T-120",
+   "wave": 10,
+   "words": {},
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  },
+  "users": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "stays",
+   "to": [],
+   "line": "T-060",
+   "wave": 2,
+   "words": {
+    "role": [
+     "owner",
+     "editor",
+     "sales",
+     "finance",
+     "purchasing",
+     "production",
+     "viewer"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [
+    "active"
+   ],
+   "booleans": []
+  },
+  "warehouses": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-109",
+   "wave": 7,
+   "words": {},
+   "words_in_code": {},
+   "flags": [
+    "active",
+    "is_default"
+   ],
+   "booleans": []
+  },
+  "warranty_claims": {
+   "key": [
+    [
+     "id",
+     "number"
+    ]
+   ],
+   "fate": "waits",
+   "to": [],
+   "line": "T-108",
+   "wave": 6,
+   "words": {
+    "verdict": [
+     "pending",
+     "covered",
+     "not_covered",
+     "goodwill"
+    ]
+   },
+   "words_in_code": {},
+   "flags": [],
+   "booleans": []
+  }
+ }
+}
