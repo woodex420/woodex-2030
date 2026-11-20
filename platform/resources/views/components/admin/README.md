@@ -3,7 +3,8 @@
 What a screen of the admin is built from, and the rules each part follows. The owner's document 05 §6 asks for
 shared standards "for tables with sort, filters, pagination, selection and bulk actions", for "dialogs,
 confirmations, toasts" and for "empty, loading, error, no-permission … states". This page is those standards for
-the table, the dialog, the confirmation, the toast and the page links (master list T-041).
+the table, the dialog, the confirmation, the toast and the page links (master list T-041), and for the table on
+a phone (T-042; document 05 §9: "table-to-card treatment for key workflows").
 
 A rule that a test holds names its test. A rule the code does not follow yet says so, with the line of the master
 list that closes it.
@@ -11,8 +12,9 @@ list that closes it.
 ## 1. The table: `<x-admin.table>`
 
 **A list does not write `<table>`.** It draws `<x-admin.table>`. `tests/Unit/AdminTableTest.php` lists the views
-that still write one by hand (51 on 19 November 2026, 45 once the first six lists had moved); the list may only get
-shorter, and the screen pass (T-045) takes them area by area. PDF and mail templates keep their own tables.
+that still write one by hand (51 on 19 November 2026, 45 once the first six lists had moved, 44 with Invoices);
+the list may only get shorter, and the screen pass (T-045) takes them area by area. PDF and mail templates keep
+their own tables.
 
 ```blade
 <x-admin.table label="Quotations" :rows="$quotes">
@@ -42,7 +44,7 @@ shorter, and the screen pass (T-045) takes them area by area. PDF and mail templ
 | Filters | The `filters` slot, above the table: sent as they change (`wire:model.live`), never behind a button |
 | Pages | Hand the paginator to `:rows`. The page links are the shared ones (§5) |
 | Choosing rows | `<x-admin.table.select-all>` in the headings, `<x-admin.table.select>` in each row, `:selected` on the table. What can be done with every chosen row goes in the `bulk` slot; it is drawn only while something is chosen, with the number chosen and "Clear selection". An action a person may not take is not offered |
-| Narrow screens | Which columns a narrow screen drops is the screen's choice (`class="hidden md:table-cell"`). The page never scrolls sideways; what does not fit scrolls inside the table's own frame. Cards in place of a table on a phone are T-042 |
+| Narrow screens | Which columns a narrow screen drops is the screen's choice (`class="hidden md:table-cell"`). The page never scrolls sideways; what does not fit scrolls inside the table's own frame, unless the list is drawn as cards on a phone (below) |
 | Script | Nothing is printed into an attribute that is run. The property, the word and the keys travel in `data-` attributes (`tests/Feature/Security/StoredScriptTest.php`) |
 
 **The five states**, in the owner's words. A screen that hands over `:rows` gets the second and the fifth by itself.
@@ -62,6 +64,47 @@ reader. That is not a state: the old rows stay until the new ones are there.
 a failure is the admin's error page, and a person without the right is answered 403 before the screen is drawn.
 Placeholders while a slow list loads, and a notice when the connection is lost, are T-051. The reference screen that
 shows every state side by side is T-050.
+
+### On a phone: a row is a card
+
+A list that people work from a phone says `cards`, and below 640 px each of its rows is drawn as a card. Leads,
+Quotations and Invoices do (T-042).
+
+```blade
+<x-admin.table label="Invoices" :rows="$invoices" cards>
+    …
+    <tr wire:key="invoice-{{ $invoice->id }}">
+        <th scope="row" class="px-5 py-3 font-normal">…what names the row, and the link that opens it…</th>
+        <td data-label="Client" class="hidden px-5 py-3 md:table-cell">…</td>
+        <td data-label="Status" class="px-5 py-3">…</td>
+        <td class="hidden px-5 py-3 lg:table-cell">…left off a card…</td>
+    </tr>
+</x-admin.table>
+```
+
+| Rule | Why |
+|---|---|
+| A card is the row itself. The stylesheet lays the same cells out one under the other (`resources/css/admin.css`, "The shared table on a narrow screen"); nothing is drawn a second time | A card cannot show another value, another link or another order than its row. And the list costs nothing more to draw |
+| On top stands the cell that names the row, `<th scope="row">`, with the link that opens the record | It is what a person looks for, and what a screen reader says first |
+| A fact is on a card when its cell has `data-label`, and the label is drawn before it | The headings are not drawn on cards, so the label is what says what a fact is: "Stage  Contacted", never a bare word. A browser hands the label to a screen reader with the fact |
+| The label is the heading of the cell's column, word for word | What a card calls a fact is what the table calls its column (`Tests\Support\Card::wordsThatDiffer`) |
+| A cell without `data-label` is left off the card | The list says what matters on a phone. What is left off is one press away, on the record's own page. Say in the view what is left off, and why |
+| A cell that a wider table hides (`hidden md:table-cell`) can still be on the card | Below 640 px there is room for it under the name, where the table had none beside it |
+| Where rows can be chosen, the tick box stands left of its card, "Select all on this page" in a line above the cards, and what can be done with the chosen rows in its bar above | Choosing works on a phone as on a desktop |
+| Sorting on a phone is the list's own choice above the table | The headings that sort are not drawn. A list whose headings sort keeps a "Sort" choice for this |
+| Only a table that shows rows is laid out as cards | "Nothing here yet", an error and the other states keep their one wide cell. The headings are not drawn in those states either: with nothing under them they made the frame wider than a phone and pushed the words out of sight |
+| Every rule for cards stands inside one media query, below 640 px | From 640 px up the table is the table it was. `tests/Unit/AdminTableTest.php` reads the stylesheet, and the built one, for it |
+
+A browser measures what a test cannot read from the page's markup: that nothing of the list scrolls sideways at
+390 px, that each fact has its label, that a cell left off is not drawn, and that a lead can be chosen, opened and
+moved to another stage from its card (`scripts/os-journeys.mjs`, the last step).
+
+**Not so yet.** The other lists on the shared table (Projects, Users, Payables by age, Receivables) and the 44 that
+still write their own table scroll inside their frame on a phone; a list becomes cards when a person needs it on a
+phone, in its area's turn (T-045). The rows of status chips and of tabs above some lists scroll sideways on a phone
+on purpose, and are not part of the table. A foot under the rows (a total) follows the same rules as a row and was
+not tried on a card: none of the three lists has one. Nobody has listened to the cards with a screen reader on a
+phone (T-054).
 
 ## 2. The dialog: `<x-admin.modal>`
 
