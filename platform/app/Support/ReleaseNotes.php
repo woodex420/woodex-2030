@@ -22,6 +22,14 @@ final class ReleaseNotes
         return [
             [
                 'date' => '2026-11-21',
+                'title' => 'Website Studio, where it is switched on: two links and the page builder',
+                'notes' => [
+                    'Website, Forms: the two links to "Automations" open Automations. They opened "This page does not exist".',
+                    'Website, Page builder: where the site has no pages yet, the builder says so. It showed a red error. On a phone it says that it needs a wider screen; it was drawn wider than the window.',
+                ],
+            ],
+            [
+                'date' => '2026-11-21',
                 'title' => 'The dashboard: every number opens the records it counts',
                 'notes' => [
                     'Dashboard: every number says how many records it counts and opens exactly those records. "Open the 12 enquiries" opens twelve enquiries, for the same dates and the same business line. The list says above its rows what it is cut to ("Filtered: Enquiries made 1 Nov – 20 Nov 2026"), and "Clear" gives the whole list back.',
