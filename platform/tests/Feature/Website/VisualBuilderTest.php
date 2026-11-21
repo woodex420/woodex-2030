@@ -73,6 +73,42 @@ it('opens the builder on the first page of the site, or the one asked for', func
         ->assertSee('data-boot-page="service/roofing/index.html"', false);
 });
 
+it('opens on a site without a single page and asks for none', function () {
+    // The Furniture copy ships no page of a website. Until 21 November 2026 the builder then asked for
+    // "index.html", was refused (422) and showed the refusal as an error; the crawl with every module on found it.
+    File::deleteDirectory($this->site.'/public/about');
+    File::deleteDirectory($this->site.'/public/service');
+
+    $this->actingAs($this->editor)->get(route('admin.website.builder'))->assertOk()->assertSee('data-boot-page=""', false);
+
+    builderApi($this->editor, ['action' => 'pages'])->assertOk()->assertJson(['ok' => true, 'pages' => []]);
+    // What the builder would have got, had it asked:
+    builderApi($this->editor, ['action' => 'load', 'path' => 'index.html'])->assertStatus(422);
+
+    // It does not ask: with no page in the list, the script stops before it loads one and says so in the canvas.
+    $script = (string) file_get_contents(base_path('public/builder/builder.js'));
+    $guard = strpos($script, 'if (!r.pages.length) {');
+    $load = strpos($script, 'loadPage(want);');
+
+    expect($guard)->not->toBeFalse()
+        ->and($load)->not->toBeFalse()
+        ->and($guard)->toBeLessThan($load)
+        ->and($script)->toContain('This site has no pages yet, so there is nothing to edit here.');
+});
+
+it('says on a narrow window that it needs a wider one, and draws nothing wider than the window', function () {
+    // Four columns: a rail, a panel, the page, a panel. At 390 px the page was 419 px wider than the window.
+    $this->actingAs($this->editor)
+        ->get(route('admin.website.builder'))
+        ->assertOk()
+        ->assertSee('data-builder-narrow', false)
+        ->assertSee('The page builder needs a wider screen')
+        ->assertSee('Back to Woodex OS');
+
+    expect((string) file_get_contents(base_path('public/builder/builder.css')))
+        ->toContain('@media(max-width:759px){.narrow{display:grid}.app{display:none!important}');
+});
+
 it('lists the home file first, and calls it /', function () {
     File::put($this->site.'/public/index.html', '<!DOCTYPE html><html><head><title>Home</title></head><body><h1>Home</h1></body></html>');
 

@@ -4,7 +4,9 @@ use App\Domain\Website\Enums\PageStatus;
 use App\Domain\Website\Enums\PageType;
 use App\Domain\Website\Models\Page;
 use App\Domain\Website\Models\Redirect;
+use App\Domain\Website\Services\SiteRouter;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Tests\Concerns\InteractsWithPublicWebsite;
 
@@ -40,6 +42,55 @@ it('sends an old URL to its new page with one 301 and counts the hit', function 
     expect($redirect->fresh()->hits)->toBe(1);
 
     $this->siteGet('/old-flat-design/')->assertStatus(301);
+    expect($redirect->fresh()->hits)->toBe(2);
+});
+
+it('gives no file a page\'s address: no trailing slash is offered, and it is not found at once', function (string $address) {
+    // A page is a folder, so no part of a page's address has a dot. An address with one names a file. Until
+    // 21 November 2026 each of these was first sent to itself with a slash (301) and only then not found: the
+    // check that asks the live site from outside takes that for a fault on a settings file, and it was one
+    // (decision DL-045).
+    expect(app(SiteRouter::class)->respond(Request::create($address, 'GET')))->toBeNull();
+
+    // The same through the HTTP kernel, where the fallback route asks the router, and with ?preview=1, which
+    // has a redirect of its own for a page.
+    foreach ([$address, $address.'?preview=1'] as $asked) {
+        $response = $this->get($asked);
+
+        expect($response->getStatusCode())->toBe(404)
+            ->and($response->headers->has('Location'))->toBeFalse();
+    }
+})->with([
+    'the settings file' => '/.env',
+    'its example' => '/.env.example',
+    'the history' => '/.git/config',
+    'the web server\'s rules' => '/.htaccess',
+    'the rules of the uploads folder' => '/assets/uploads/.htaccess',
+    'the list of packages' => '/composer.json',
+    'a file of the configuration' => '/config/app.php',
+    'the demo\'s database' => '/database/woodex-synthetic-vercel-demo.sqlite',
+    'the key of the demo\'s database' => '/database/woodex-synthetic-vercel-demo.sqlite.key',
+    'a build script' => '/tools/vercel/build-demo.php',
+    'the front controller, by its folder' => '/public/index.php',
+    'a climb out of a folder' => '/build/../index.php',
+    'another product\'s sign-in' => '/wp-login.php',
+    'a well-known file nobody put there' => '/.well-known/security.txt',
+]);
+
+it('still sends an address that could be a page to its form with a slash', function (string $address) {
+    $response = app(SiteRouter::class)->respond(Request::create($address, 'GET'));
+
+    expect($response?->getStatusCode())->toBe(301)
+        ->and((string) $response?->headers->get('Location'))->toEndWith($address.'/');
+})->with(['/about', '/insights/small-space-ideas', '/About_Us', '/artisan', '/database']);
+
+it('honours a redirect entered for an old address that was a file, in one step', function () {
+    $redirect = Redirect::factory()->create(['from_path' => '/services.html/', 'to_path' => '/interior-design/', 'code' => 301]);
+
+    // Asked as the old site linked it, without a slash: one 301 to the new page, not one to "/services.html/" first.
+    $this->siteGet('/services.html')->assertRedirect($this->siteUrl('/interior-design/'))->assertStatus(301);
+    $this->siteGet('/services.html/')->assertRedirect($this->siteUrl('/interior-design/'))->assertStatus(301);
+
     expect($redirect->fresh()->hits)->toBe(2);
 });
 

@@ -12,7 +12,7 @@ Woodex's real one).
 | Address | `https://woodex-os.vercel.app` (public). Addresses of single deployments ask for a Vercel login |
 | Shop project | `woodex-2030`. Untouched: another project, another address, another database |
 | Runtime | `vercel-php@0.9.0` (PHP 8.5), a community runtime. Vercel has no official PHP support |
-| Mode today | **Preview workspace**: Woodex's real catalogue as drafts; sample customers, leads and documents (section 2) |
+| Mode today | **Preview workspace**: Woodex's real catalogue as drafts; sample customers, leads and documents (section 2). Since 21 November 2026 **every module is on there**, and Feature status links to the old dashboard (section 2, "What the project sets") |
 
 A push to a branch builds a preview of `woodex-os`. The project's production branch is `main`, and `main` holds
 a `platform/` folder since pull request #36 was merged (17 November 2026, 10:22 UTC, merge commit `88ec4cc`;
@@ -51,6 +51,59 @@ For looking at the admin. It is not the business system.
 Settings in the Vercel project (Production and Preview): `WOODEX_DEMO=1`, and the four demo passwords
 `WX_PW_OWNER`, `WX_PW_MANAGER`, `WX_PW_SALES`, `WX_PW_ACCOUNTS` (16 characters or more). No key and no
 database setting is needed.
+
+#### What the project sets beside them, since 21 November 2026
+
+Two more settings stand on the project. They are written in one file of the repository,
+`platform/tools/vercel/as-deployed.conf`, and three checks read that file (section 5).
+
+| Setting | Value | What it does in the demo |
+|---|---|---|
+| `WOODEX_MODULES` | `*` | Every module is on. Without it the demo keeps its own choice: the enquiry address and the client's own pages (DL-026) |
+| `LEGACY_DASHBOARD_URL` | `https://woodex-2030.vercel.app/dashboard` | Feature status links its 13 entries for the old dashboard to that dashboard, each in a new tab. The two do not share a sign-in |
+
+**Where they came from.** Read from Vercel's own record of activity on 21 November at 12:26 UTC: both were added
+that morning with an access token of the account `woodex420`, `WOODEX_MODULES` at 07:32 UTC and
+`LEGACY_DASHBOARD_URL` at 07:50 UTC, for production and preview, each followed within seconds by a new deployment
+of production from the same commit (`86db34d`). At 07:12 UTC the demo owner's password had been read with the same
+token. No commit asked for any of it, and the agent's conversation made no write on Vercel. The agent took both
+settings for the owner's and changed neither (DL-045); he is asked to say that they were his.
+
+**What a visitor of the demo gets since then**, as read on the rehearsal with these settings:
+
+- Feature status says 52 available here, 13 in the old dashboard, none switched off, 3 not built. Before: 32, 13,
+  20 and 3. The 20 that came on are the modules the product ships switched off: Estimations, Conversations and
+  Chat Bot, Automations, Sequences and WhatsApp Templates, Marketing, and thirteen screens of the Website Studio.
+- **The thirteen screens of the Website Studio run a website that Laravel itself would serve. This product has
+  none**: the shop is the React application (document 25 §5). They open, and they are empty. The page builder
+  says "This site has no pages yet".
+- These addresses answer now, where they were "not found": `/robots.txt` (it allows everything but the admin and
+  the client's links, and names a site map), `/sitemap.xml` (empty), `/site/tags.js`, `/assets/theme.css`,
+  `/chat/widget.js` (it says that the web chat is switched off), and the old website's form address
+  `/api/forms.php`, which takes an enquiry into the demo's records, as `/api/v1/leads` did before. Every page
+  still says that it is to be kept out of search engines: the admin's in the answer's header, the client's code
+  page and the "not found" page in the page itself.
+- These answer and refuse: the address for an AI assistant, `/api/mcp` (401 without a key; a key can only be
+  issued by a person who is signed in, and the demo's records hold none), `/api/bridge/v1` (401), the WhatsApp
+  webhook (403), the Telegram webhook and the web chat's start (404). Staff sign-in with Google sends the
+  visitor back to the sign-in page: no Google application is set, and the demo empties every key before Laravel
+  starts.
+- **With Conversations on, every screen asks the server again every 10 seconds while it is in front.** It was
+  every 30 seconds. On Vercel each asking is one more request for the function to answer.
+- Four screens of the Website Studio draw their own page and do not carry the notice that nothing typed is kept:
+  the page builder, Blog, Portfolio and Forms.
+
+**What it brought to light, cured with pull request #55.** With the public website on, its router owns every
+address that nothing else does. Of the 18 files of the application that the rehearsal asks by name, it sent
+eleven to the same address with a slash at its end (301) before it said "not found", `/.env` and the demo's
+database file among them. Nothing was handed out; the outside check asks three of the eleven and failed on them
+at 11:49 UTC (issue #54). A file's name is now left alone: it is not found at once. The crawl
+with every module on found two faulty screens of the Website Studio, both cured: a dead link on its Forms screen,
+and the page builder, which asked for a page that is not there and was wider than a phone's window.
+
+**To take the settings back**: delete the two settings on the project, deploy production again, and take the two
+lines out of `platform/tools/vercel/as-deployed.conf`. Until the file follows, the outside check fails and says
+why.
 
 ### Real — `APP_KEY` and a MySQL database
 
@@ -119,11 +172,15 @@ every screen" (workflow `vercel-livewire.yml`), on every change under `platform/
 It uses Vercel's own parts, fetched from npm: the PHP 8.5 runtime of `vercel-php@0.9.0` with its `php.ini`, and
 its launcher. It installs the packages with the builder's own Composer command, runs `composer run vercel`, makes
 the tree read-only, and serves it from `/var/task` through the `routes` and `env` of `vercel.json`. Only
-Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 103 checks (20 November), among them:
+Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 130 checks (21 November), among them:
 
 - without settings, with half the settings, or with a database that is not MySQL: 503;
 - a real deployment's build touches nothing; a demo without passwords fails the build;
-- no file of the application is handed out (database, key, `composer.json`, PHP source, dot-files);
+- no file of the application is handed out (database, key, `composer.json`, PHP source, dot-files): 18 files
+  asked by name, each "not found" or "forbidden". A redirect counts as a failure;
+- **the same 18 files again with what the project on Vercel sets** (`tools/vercel/as-deployed.conf`, section 7
+  of the script): with every module on, an address that could be a page is still sent to its form with a slash,
+  and a file's name is not, with `?preview=1` either;
 - a wrong password is refused; the demo owner signs in; **every screen the dashboard links to opens**
   (50 screens: the sidebar, the command palette, the dashboard's own links);
 - every stylesheet, script, icon and font those pages load is served;
@@ -140,7 +197,8 @@ Vercel's network is replaced, by `tools/vercel/launcher-stand-in.cjs`. 103 check
 Each rule was also broken on purpose once, to see the check fail: site not marked as configured; storage path
 by `putenv()`; real settings not emptied; the project's key used; `TRUSTED_PROXIES` removed; the one-year rule
 taken out; the one-year rule widened to every built file; the cold-start mark taken out; the mark sent on every
-answer.
+answer; the website's router as it was until 21 November (12 checks fail: eleven files answer 301, and so does
+`/.env?preview=1`).
 
 ```
 npm install --prefix /tmp/vercel-php vercel-php@0.9.0
@@ -166,6 +224,11 @@ through the same parts until stopped. Two scripts in the repository's `scripts/`
   step that is left out a failure; `WOODEX_MODULES=lead_api` before `serve-demo.sh` rehearses the product as it
   ships, with the client's own pages off.
 
+**CI runs both scripts on the demo as it is deployed**: `serve-demo.sh` is started with the settings of
+`tools/vercel/as-deployed.conf` (`set -a; . tools/vercel/as-deployed.conf; set +a`). Since 21 November that is
+every module on: 390 pages as four roles, where the demo's own choice of modules gave 335. The journeys are then
+pressed once more on the product as it ships.
+
 ```
 cd platform && WX_PW_OWNER=… WX_PW_MANAGER=… WX_PW_SALES=… WX_PW_ACCOUNTS=… \
   VERCEL_PHP=/tmp/vercel-php/node_modules bash tools/vercel/serve-demo.sh 8191
@@ -184,6 +247,12 @@ request number in the body and the header alike, and no cookie) and the list of 
 list with its size). Its findings are one notice on the run. It never signs in: a signed-in check of the live
 address needs the demo password as a GitHub secret, which only the owner can add (line T-151 of
 [`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)).
+
+**It also asks whether the live demo runs with the modules that were rehearsed** (since 21 November, DL-045). It
+reads `as-deployed.conf` and asks the live site for an address that nothing owns and that could be a page. With
+the public website on, the answer is a redirect to the same address with a slash; with it off, "not found". When
+the answer and the file disagree, the check fails and names the file. That is the one module it can tell from
+outside, and it is the one that changes what an unknown address gets.
 
 ## 6. Deploying
 
@@ -284,10 +353,16 @@ here as they are taken:
 | 20 Nov 2026, 13:55 | a GitHub runner, live build `b16fd49` (before the mark existed) | not said by that build | 2.29 s |
 | 20 Nov 2026, 15:10 | a GitHub runner, eight minutes after the merge of pull request #52 (run 44759289547), live build `5e2aa26` | no: the copy was running already | 0.34 s |
 | 20 Nov 2026, 22:22 | a GitHub runner, started by the timer (run 44828383242), live build `5e2aa26` | **yes** | **3.89 s** |
+| 21 Nov 2026, 06:04 | a GitHub runner, eight minutes after the merge of pull request #53 (run 44873131273), live build `86db34d` | no: the copy was running already | 0.33 s |
+| 21 Nov 2026, 11:49 | a GitHub runner, started by the timer (run 44900916067), live build `86db34d`, deployed again at 07:51 UTC with every module on | **yes** | **2.55 s** |
+| 21 Nov 2026, 13:10 | a GitHub runner, started by the first push of pull request #55 (run 44907513806), the same live build | **yes** | **2.52 s** |
 
-One cold reading of the three that list line T-154 asks for. The check after a merge was expected to meet a
-copy that had not started yet; on 20 November it did not. The one cold reading so far came from a run that the
-timer started. In that run a second request for the same page took 0.15 s.
+**Three cold readings, which is what list line T-154 asked for: 3.89 s, 2.55 s and 2.52 s to the first byte.** A
+visitor who comes after a quiet time waits two and a half to four seconds for the first page; in the same runs a
+later request for that page took 0.15 s, 0.11 s and 0.18 s. The check after a merge was expected to meet a copy
+that had not started yet; both times it was read, it met a running one. All three cold readings came hours after
+the last deployment. How long Vercel keeps a copy that nobody asks was not found out: between 11:49 and 13:10 UTC
+the copy that the first of those runs had started was gone again.
 
 Warm, the same page answers in 0.08 to 0.17 s from a GitHub runner. In the rehearsal on a development machine a
 cold start took 0.53 to 0.55 s to the first byte and a warm answer 0.02 to 0.03 s; that says how much of the

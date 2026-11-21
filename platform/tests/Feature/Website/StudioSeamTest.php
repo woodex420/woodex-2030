@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Domain\Website\Models\Page;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 /*
 | The ported v2.1 admin talks to Woodex OS through one seam: `{action}` in, `{ok, ...}` out. These tests
@@ -38,6 +40,33 @@ it('lets only the four ported screens be reached by their hash', function () {
         $this->get(route('admin.website.'.$screen))->assertOk();
     }
     $this->get(route('admin.website.estimator'))->assertRedirect(route('admin.estimations.index', ['tab' => 'rates']));
+});
+
+it('names no address of the admin in its scripts that nothing owns', function () {
+    // The ported scripts write their links as plain text. One said "/admin/automations" where the screen is
+    // /admin/automation: two links of the Forms screen opened "This page does not exist" until 21 November 2026.
+    $named = [];
+    foreach ([...glob(public_path('assets/admin-v21/*.js')), ...glob(public_path('builder/*.js'))] as $file) {
+        preg_match_all('~["\'](/admin/[A-Za-z0-9_/-]*)["\'?#]~', (string) file_get_contents($file), $found);
+        foreach ($found[1] as $address) {
+            // "/admin/#profile" is the dashboard with a mark of the old admin behind it: the address is /admin.
+            $named[rtrim($address, '/')][] = basename($file);
+        }
+    }
+
+    expect(array_keys($named))->toContain('/admin/automation', '/admin/leads', '/admin/settings', '/admin/website/studio/api');
+
+    foreach ($named as $address => $files) {
+        $owned = collect(['GET', 'POST'])->contains(function (string $method) use ($address): bool {
+            try {
+                return ! Route::getRoutes()->match(Request::create($address, $method))->isFallback;
+            } catch (Throwable) {
+                return false;
+            }
+        });
+
+        expect($owned)->toBeTrue($address.' (named in '.implode(', ', array_unique($files)).') is no screen and no address of the admin');
+    }
 });
 
 it('does not open a screen that is not switched on', function () {

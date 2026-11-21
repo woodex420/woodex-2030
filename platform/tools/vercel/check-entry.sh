@@ -174,6 +174,16 @@ visit() {
   printf '%s' "$code"
 }
 token() { grep -o 'name="_token" value="[^"]*"' "$1" | head -1 | sed 's/.*value="//;s/"$//'; }
+# not_handed_out [WORDS]   files of the application, asked by name: each is "not found" or "forbidden", and the
+# answer holds nothing of the file. A redirect is a failure too: nothing may be offered in place of such a file.
+not_handed_out() {
+  local file CODE
+  for file in /composer.json /vendor/autoload.php "/$DEMO_DB" "/$DEMO_DB.key" /artisan /api/index.php /config/app.php /storage/logs/laravel.log /.env /tools/vercel/build-demo.php \
+    /public/index.php /index.php /build/../index.php /assets/uploads/.htaccess /.htaccess /public/.htaccess /.git/config /tools/vercel/as-deployed.conf; do
+    CODE="$(get "$file" --path-as-is)"
+    if { [ "$CODE" = 404 ] || [ "$CODE" = 403 ]; } && ! grep -q 'SQLite format\|<?php\|"require"\|APP_KEY\|base64:\|RewriteRule\|FilesMatch\|WOODEX_MODULES' "$OUT/body"; then ok "a file of the application is not handed out${1:+ $1}: $file ($CODE)"; else bad "$file answered $CODE${1:+ $1}"; fi
+  done
+}
 # said NAME   what the last answer said under this header, or nothing.
 said() { tr -d '\r' < "$OUT/head" | grep -i "^$1:" | head -1 | sed 's/^[^:]*: *//'; }
 sign_in() { visit /admin/login -X POST --data-urlencode "_token=$(token "$OUT/body")" --data-urlencode "email=$1" --data-urlencode "password=$2"; }
@@ -254,11 +264,7 @@ check "the list of replaced photographs, for the shop: 200" "$(get /api/v1/media
 has "…as JSON" '^[Cc]ontent-[Tt]ype: application/json' "$OUT/head"
 check "an address under /api that nothing owns: 404" "$(get /api/v1/no-such-address)" 404
 has "…answered as JSON, not with a page" '^[Cc]ontent-[Tt]ype: application/json' "$OUT/head"
-for file in /composer.json /vendor/autoload.php "/$DEMO_DB" "/$DEMO_DB.key" /artisan /api/index.php /config/app.php /storage/logs/laravel.log /.env /tools/vercel/build-demo.php \
-  /public/index.php /index.php /build/../index.php /assets/uploads/.htaccess /.htaccess /public/.htaccess; do
-  CODE="$(get "$file" --path-as-is)"
-  if { [ "$CODE" = 404 ] || [ "$CODE" = 403 ]; } && ! grep -q 'SQLite format\|<?php\|"require"\|APP_KEY\|base64:\|RewriteRule\|FilesMatch' "$OUT/body"; then ok "a file of the application is not handed out: $file ($CODE)"; else bad "$file answered $CODE"; fi
-done
+not_handed_out
 check "sign-in page: 200" "$(visit /admin/login)" 200
 cp "$OUT/body" "$OUT/login.html"
 check "the page starts as a page (no PHP notice printed before it)" "$(head -c 15 "$OUT/login.html")" "<!DOCTYPE html>"
@@ -389,6 +395,30 @@ check "the second request: 200" "${SECOND%% *}" 200
 check "…without the mark" "[$(said x-woodex-cold-start)]" "[]"
 check "a third answer, of another address: without the mark" "$(get /up) [$(said x-woodex-cold-start)]" "200 []"
 echo "        first byte after ${FIRST##* } s when the function is started for the request, ${SECOND##* } s when it is running (on this machine, not on Vercel)"
+
+echo "7. The demo with what the project on Vercel sets (tools/vercel/as-deployed.conf)"
+# The demo's own choice of modules is the enquiry address and the client's pages (api/index.php). A value set for
+# the project takes its place, and since 21 November 2026 the project sets every module on. With the public
+# website on, its router owns every address that nothing else does and sends an address without a slash to the
+# same address with one. It did that to /.env and to the demo's database too (301, then "not found"): the outside
+# check failed on it that day (issue #54). A file's name is not a page's address: it is not found, at once.
+DEPLOYED=()
+while IFS= read -r line; do case "$line" in ''|'#'*) ;; *=*) DEPLOYED+=("$line") ;; esac; done < tools/vercel/as-deployed.conf
+echo "        ${DEPLOYED[*]:-nothing beside the passwords}"
+stop; fresh_instance
+serve WOODEX_DEMO=1 "${DEPLOYED[@]}" "${PASSWORDS[@]}"
+check "the sign-in page opens: 200" "$(get /admin/login)" 200
+has "…and says it is not production" 'NOT PRODUCTION' "$OUT/body"
+check "the address still opens the admin: 302" "$(get /)" 302
+not_handed_out "with these settings"
+if printf '%s\n' "${DEPLOYED[@]}" | grep -q '^WOODEX_MODULES=\(\*\|.*website\)'; then
+  check "the public website is on: an address that could be a page is sent to its form with a slash: 301" "$(get /no-such-page)" 301
+  has "…on https, on the host the visitor used" '^[Ll]ocation: https://demo.woodex.test/no-such-page/' "$OUT/head"
+  check "…which is then not found: 404" "$(get /no-such-page/)" 404
+  check "a file's name with ?preview=1 is not sent anywhere either: 404" "$(get '/.env?preview=1')" 404
+else
+  check "the public website is off: an address nothing owns is not found: 404" "$(get /no-such-page)" 404
+fi
 stop
 [ "$READONLY" = 1 ] && chmod -R u+w .
 

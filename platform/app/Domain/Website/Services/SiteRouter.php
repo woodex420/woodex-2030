@@ -20,6 +20,14 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  * views are gone (owner, 21 Oct 2026); a URL with no file is now a 404, like any other address nothing owns.
  *
  * Canonical URLs end in a slash; a request without one is redirected once, permanently.
+ *
+ * **Only an address that could be a page is given that form.** A page is a folder, so no part of its address has a
+ * dot in it; an address with one names a file: `/.env`, `/composer.json`, `/config/app.php`,
+ * `/database/demo.sqlite`, `/wp-login.php`. A file has no form with a slash, and nothing here owns it: it is not
+ * found, at once. Until 21 November 2026 every such address was first sent to itself with a slash (301) and only
+ * then not found. Nothing was handed out, but a site with the website switched on answered a request for its own
+ * settings file with a redirect, and the check that asks the live site from outside rightly takes anything but
+ * "not found" or "forbidden" there for a fault (decision DL-045; docs/woodex-os/13-VERCEL-DEPLOYMENT.md).
  */
 final class SiteRouter
 {
@@ -54,12 +62,15 @@ final class SiteRouter
         $slug = Page::normalizeSlug($path);
 
         // One canonical form: /about and /about/ are the same page, and only the second is linked to (docs/09 §11.1).
-        if (! str_ends_with((string) $request->getPathInfo(), '/')) {
+        // An address that names a file has no such form (see the class comment).
+        if ($this->couldBeAPage($path) && ! str_ends_with((string) $request->getPathInfo(), '/')) {
             $query = $request->getQueryString();
 
             return $this->redirect($slug.($query !== null ? '?'.$query : ''), $request);
         }
 
+        // An old address may well have been a file (/services.html): a redirect entered for it is honoured, with or
+        // without the slash, in one step.
         $redirect = Redirect::query()->where('from_path', $slug)->first();
 
         if ($redirect !== null) {
@@ -69,6 +80,16 @@ final class SiteRouter
         }
 
         return null;
+    }
+
+    /**
+     * Whether an address could be a page: no part of it has a dot. `/about`, `/insights/small-space-ideas` and
+     * `/خدمات` could; `/.env`, `/composer.json`, `/config/app.php` and `/build/../index.php` could not. A name
+     * without a dot (`/artisan`) cannot be told from a page's and is treated as one.
+     */
+    public function couldBeAPage(string $path): bool
+    {
+        return ! str_contains($path, '.');
     }
 
     /**
