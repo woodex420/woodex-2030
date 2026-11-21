@@ -261,3 +261,8 @@ h2{font-size:15px;margin:0 0 6px}h2 small{color:var(--mut);font-weight:400;font-
 @media(max-width:900px){.p17-ds{grid-template-columns:1fr}}
 #modal-body:has(.p17-tabs),#modal-body:has(.p17-rv),#modal-body:has(.p17-ds){padding:22px 26px!important;box-sizing:border-box}
 .p17-ds{grid-template-columns:340px minmax(0,1fr)}.p17-dsr .row{flex-wrap:wrap}.p17-dsr .row .btn{flex:1;min-width:120px}
+
+/* A desktop tool. Below 760 px the four columns cannot fit: the page says so (the block "TOO NARROW" of the view)
+   instead of drawing itself wider than the window. A session that has ended still says that first. */
+.narrow{display:none}
+@media(max-width:759px){.narrow{display:grid}.app{display:none!important}#session:not([hidden])~.narrow{display:none}}

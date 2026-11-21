@@ -112,6 +112,13 @@ jobs:
         working-directory: platform
         run: |
           export VERCEL_PHP="$RUNNER_TEMP/vercel-php/node_modules"
+          # What the project on Vercel sets beside the passwords is written in one file, and this rehearsal runs
+          # with it. Since 21 November 2026 that is every module on, and the address of the old dashboard: the
+          # screens of the modules the product ships switched off are opened here too, as they are on the live
+          # demo. Until then the rehearsal ran with the demo's own choice while the live demo no longer did, and
+          # a dead link and a screen with a failing request stood there unseen (decision DL-045).
+          set -a; . tools/vercel/as-deployed.conf; set +a
+          echo "::notice title=The demo as it is deployed: what the project sets::WOODEX_MODULES=${WOODEX_MODULES:-not set: the demo keeps its own choice} · LEGACY_DASHBOARD_URL=${LEGACY_DASHBOARD_URL:-not set}"
           WOODEX_INSTALL=1 setsid bash tools/vercel/serve-demo.sh 8191 > "$RUNNER_TEMP/demo.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/demo.pid"
           for attempt in $(seq 1 120); do

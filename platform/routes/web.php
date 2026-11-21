@@ -181,7 +181,8 @@ Route::fallback(function (Request $request) {
     // With the public website switched off there is no CMS to consult: an unknown URL is a plain 404.
     abort_unless(Modules::enabled('website'), 404);
 
-    $response = app(SiteRouter::class)->respond($request);
+    $router = app(SiteRouter::class);
+    $response = $router->respond($request);
 
     if ($response !== null) {
         return $response;
@@ -191,7 +192,8 @@ Route::fallback(function (Request $request) {
     // ?preview=1 request is sent straight to the app so the builder previews the draft, not the frozen
     // file — but a preview link without permission, or to an address the CMS does not own, must land on
     // the page the visitor would see rather than a 404. Dropping the query does exactly that.
-    if ($request->has('preview')) {
+    // Only for an address that could be a page: a file's name is not sent anywhere (SiteRouter::couldBeAPage).
+    if ($request->has('preview') && $router->couldBeAPage('/'.ltrim($request->path(), '/'))) {
         $path = '/'.ltrim($request->path(), '/');
         $path = $path === '/' ? '/' : rtrim($path, '/').'/';
 

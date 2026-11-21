@@ -34,6 +34,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
+      # One file of the repository, and nothing else of it: what the project on Vercel sets for the demo beside
+      # the passwords. The rehearsal in CI runs with it, and this check asks whether the live demo does.
+      - name: What the repository says the project on Vercel sets
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: platform/tools/vercel/as-deployed.conf
+          sparse-checkout-cone-mode: false
       - name: Open the address, try a wrong password, look for leaks
         env:
           SITE: https://woodex-os.vercel.app
@@ -160,10 +167,36 @@ jobs:
           # One request from this runner's network: an impression, not a measurement.
           note "sign-in page first byte after $(curl -s -o /dev/null -w '%{time_starttransfer}' --max-time 40 "$SITE/admin/login") s with the function running"
 
-          for file in /install /composer.json /.env /index.php /api/index.php /vendor/autoload.php /database/woodex-synthetic-vercel-demo.sqlite /database/woodex-synthetic-vercel-demo.sqlite.key; do
+          # Files of the application, asked by name: each is "not found" or "forbidden", and the answer holds
+          # nothing of the file. A redirect is a failure: nothing may be offered in place of such a file. With
+          # the public website switched on, its router sent a file's name to the same name with a slash (301)
+          # before it said "not found": this check failed on that on 21 November 2026 (issue #54), and the router
+          # now leaves a file's name alone. On a branch the live site still runs the code of main, so that one
+          # answer is written down there and not counted.
+          for file in /install /composer.json /.env /index.php /api/index.php /vendor/autoload.php /config/app.php /.git/config /database/woodex-synthetic-vercel-demo.sqlite /database/woodex-synthetic-vercel-demo.sqlite.key; do
             status="$(code "$SITE$file")"
-            if { [ "$status" = 404 ] || [ "$status" = 403 ]; } && ! grep -q 'SQLite format\|<?php\|base64:' "$out/body"; then note "ok closed $file ($status)"; else note "FAIL $file answered $status"; fails=$((fails + 1)); fi
+            if { [ "$status" = 404 ] || [ "$status" = 403 ]; } && ! grep -q 'SQLite format\|<?php\|base64:' "$out/body"; then note "ok closed $file ($status)"
+            elif [ "${GITHUB_REF_NAME:-}" != "main" ] && [ "$status" = 301 ] && [ "$(header location)" = "$SITE$file/" ]; then note "after the merge: closed $file (now 301 to itself with a slash, then 404)"
+            else note "FAIL $file answered $status"; fails=$((fails + 1)); fi
           done
+
+          # Which modules the live demo runs with (decision DL-045). The project on Vercel can set WOODEX_MODULES,
+          # and what it sets is written in platform/tools/vercel/as-deployed.conf: the rehearsal in CI runs with
+          # that file. From outside one module can be told. With the public website on, an address that nothing
+          # owns and that could be a page is sent to the same address with a slash; with it off, it is not found.
+          # When the live site and the file disagree, what is live is not what was rehearsed. That was so on
+          # 21 November 2026: the project was set to every module, the rehearsal ran with the demo's own two, and
+          # this check noticed four hours later, by a side effect.
+          wanted="$(grep -m1 '^WOODEX_MODULES=' platform/tools/vercel/as-deployed.conf 2>/dev/null | cut -d= -f2-)"
+          case ",$wanted," in *,'*',*|*,website,*) website=on ;; *) website=off ;; esac
+          status="$(code "$SITE/no-such-page-live-check")"
+          case "$status $(header location)" in
+            "301 "*/no-such-page-live-check/) met=on ;;
+            "404 ") met=off ;;
+            *) met="neither ($status $(header location))" ;;
+          esac
+          note "the repository says the project sets WOODEX_MODULES=${wanted:-nothing: the demo keeps its own choice}"
+          must "the live demo runs with the modules that were rehearsed: the public website is $website (if the project's setting was changed on purpose, change platform/tools/vercel/as-deployed.conf)" "$met" "$website"
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-os.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-os.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
   shop:

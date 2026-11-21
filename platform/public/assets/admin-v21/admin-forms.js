@@ -16,7 +16,10 @@
 
   var LEADS = "/admin/leads";
   var SETTINGS = "/admin/settings";
-  var AUTOMATIONS = "/admin/automations";
+  /* The screen is /admin/automation. Until 21 Nov 2026 this named it with an "s" at the end, an address that
+     nothing owns: both links below opened "This page does not exist" (found by the crawl with every module on;
+     tests/Feature/Website/StudioSeamTest.php now reads every address these scripts name). */
+  var AUTOMATIONS = "/admin/automation";
 
   function when(value) {
     if (!value) return "—";
