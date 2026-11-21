@@ -86,7 +86,7 @@
     api("load", { path: path }).then(function (r) {
       if (!r.ok) { $("#loading").hidden = true; return toast(r.error, true); }
       S.path = path; S.mtime = r.mtime; S.hash = r.hash || ""; history.replaceState(null, "", "#" + encodeURIComponent(path));
-      var page = S.pages.find(function (p) { return p.path === path; }); $("#view-live").href = page ? (page.preview_url || page.url) : "/"; // OS PORT
+      var page = S.pages.find(function (p) { return p.path === path; }); $("#view-live").href = page ? (page.preview_url || page.url) : "/"; $("#view-live").hidden = !page; // OS PORT: the link exists once a page is open
       mountHTML(r.html);
     });
   }
@@ -1109,7 +1109,7 @@
   // ---- ➕ under every element (F2)
   $("#ov-plus").onclick = function () { if (isSection(S.sel)) pickSectionModal(S.sel); else pickElementModal(S.sel); };
   function pickElementModal(after) {
-    modal("<h2>Add an element below</h2><input type='search' class='lib-q' id='pe-q' placeholder='Search…'><div class='lib lib-sm' style='grid-template-columns:repeat(4,1fr)'>" + (window.WX_ELEMENTS || []).map(function (b) { return "<button data-id='" + b.id + "'><span>" + b.icon + "</span>" + esc(b.name) + "</button>"; }).join("") + "</div>");
+    modal("<h2>Add an element below</h2><input type='search' class='lib-q' id='pe-q' aria-label='Search elements' placeholder='Search…'><div class='lib lib-sm' style='grid-template-columns:repeat(4,1fr)'>" + (window.WX_ELEMENTS || []).map(function (b) { return "<button data-id='" + b.id + "'><span>" + b.icon + "</span>" + esc(b.name) + "</button>"; }).join("") + "</div>");
     $("#pe-q").oninput = function () { var q = this.value.toLowerCase(); $$("#modal-body .lib button").forEach(function (x) { x.hidden = x.textContent.toLowerCase().indexOf(q) < 0; }); };
     $$("#modal-body .lib button").forEach(function (btn) { btn.onclick = function () { var b = WX_ELEMENTS.find(function (x) { return x.id === btn.dataset.id; }); closeModal(); var n = build(b.html); after.after(n); afterInsert(n, "element"); }; });
   }
@@ -1268,7 +1268,7 @@
   new MutationObserver(function () { if ($("#modal").hidden) wide($("#modal-body"), ""); }).observe($("#modal"), { attributes: true, attributeFilter: ["hidden"] });
   function templatesGallery() {
     var T = window.WX_TEMPLATES || [], cats = ["All"].concat(T.map(function (t) { return t.cat; }).filter(function (c, i, a) { return a.indexOf(c) === i; })), cur = "All", q = "";
-    modal("<h2 style='margin-bottom:6px'>Templates · v26 + UI kit <small class='hint'>(" + T.length + ")</small></h2><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px'><input type='search' id='tg-q' placeholder='Search…' style='max-width:200px'>" +
+    modal("<h2 style='margin-bottom:6px'>Templates · v26 + UI kit <small class='hint'>(" + T.length + ")</small></h2><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px'><input type='search' id='tg-q' aria-label='Search templates' placeholder='Search…' style='max-width:200px'>" +
       cats.map(function (c) { return "<button class='btn btn-sm' data-tc='" + esc(c) + "'>" + esc(c) + "</button>"; }).join("") + "</div><div id='tg-grid' style='display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;max-height:68vh;overflow:auto;padding-right:6px'></div>");
     var mb = $("#modal-body"); wide(mb, "min(1100px,94vw)");
     var draw = function () {
@@ -1500,7 +1500,7 @@
   }
   function iconPicker(cb) {
     loadIcons().then(function (j) {
-      modal("<h2>Choose an icon <small style='font-weight:400;color:#6b7385'>(" + Object.keys(j.icons).length + " free Lucide icons)</small></h2><input type='search' class='lib-q' id='ic-q' placeholder='Search, e.g. home, phone, ruler, sofa…' autofocus><div class='ic-grid' id='ic-grid'></div>");
+      modal("<h2>Choose an icon <small style='font-weight:400;color:#6b7385'>(" + Object.keys(j.icons).length + " free Lucide icons)</small></h2><input type='search' class='lib-q' id='ic-q' aria-label='Search icons' placeholder='Search, e.g. home, phone, ruler, sofa…' autofocus><div class='ic-grid' id='ic-grid'></div>");
       var names = Object.keys(j.icons).sort();
       var draw = function () {
         var q = $("#ic-q").value.trim().toLowerCase();
@@ -1639,8 +1639,8 @@
     api("media").then(function (r) {
       if (!r.ok) return toast(r.error, true);
       modal("<h2>Media</h2><div class='mtabs'><button class='is-on' data-mt='lib'>Library (" + r.media.length + ")</button><button data-mt='free'>Free photos</button></div>" +
-        "<div data-mp='lib'><div class='row' style='margin-bottom:10px'><input type='search' class='lib-q' id='mp-q' placeholder='Search by file name…' style='margin:0;flex:3'><button class='btn' id='mp-up' style='flex:1'>⬆ Upload</button></div><div class='media-grid' id='mp-grid'></div></div>" +
-        "<div data-mp='free' hidden><div class='row' style='margin-bottom:10px'><input type='search' class='lib-q' id='fp-q' placeholder='e.g. modern office interior, living room, kitchen' style='margin:0;flex:3'><button class='btn btn-pri' id='fp-go' style='flex:1'>Search</button></div><p class='hint'>Free-to-use photos (CC0 / commercial licences) from Openverse. The chosen photo is copied to your server.</p><div class='media-grid' id='fp-grid'></div></div>");
+        "<div data-mp='lib'><div class='row' style='margin-bottom:10px'><input type='search' class='lib-q' id='mp-q' aria-label='Search by file name' placeholder='Search by file name…' style='margin:0;flex:3'><button class='btn' id='mp-up' style='flex:1'>⬆ Upload</button></div><div class='media-grid' id='mp-grid'></div></div>" +
+        "<div data-mp='free' hidden><div class='row' style='margin-bottom:10px'><input type='search' class='lib-q' id='fp-q' aria-label='Search free photographs' placeholder='e.g. modern office, meeting room, office chair' style='margin:0;flex:3'><button class='btn btn-pri' id='fp-go' style='flex:1'>Search</button></div><p class='hint'>Free-to-use photos (CC0 / commercial licences) from Openverse. The chosen photo is copied to your server.</p><div class='media-grid' id='fp-grid'></div></div>");
       $$(".mtabs button").forEach(function (b) { b.onclick = function () { $$(".mtabs button").forEach(function (x) { x.classList.toggle("is-on", x === b); }); $$("[data-mp]").forEach(function (p) { p.hidden = p.dataset.mp !== b.dataset.mt; }); if (b.dataset.mt === "free") $("#fp-q").focus(); }; });
       var drawLib = function () {
         var q = ($("#mp-q").value || "").toLowerCase();

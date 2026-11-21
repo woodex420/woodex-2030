@@ -5,6 +5,7 @@
             <x-admin.button variant="secondary" icon="refresh" wire:click="rescan">Rescan</x-admin.button>
         </x-slot:actions>
     </x-admin.page-header>
+    <x-admin.website-scope />
 
     <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <x-admin.stat label="Verdict" :value="$unhealthy === 0 ? 'Healthy' : $unhealthy.' finding(s)'" icon="health" :tone="$unhealthy === 0 ? 'success' : 'warning'" />

@@ -119,7 +119,7 @@
                         </x-admin.field>
                     @else
                         <x-admin.field label="Title (optional)" for="title" hint="Defaults to the template name, e.g. “Renovation”.">
-                            <input id="title" type="text" wire:model="title" class="wx-input" placeholder="e.g. Renovation of DHA Phase 6 house">
+                            <input id="title" type="text" wire:model="title" class="wx-input" placeholder="e.g. Workstations for the head office, DHA Phase 6">
                         </x-admin.field>
                     @endif
                 </div>

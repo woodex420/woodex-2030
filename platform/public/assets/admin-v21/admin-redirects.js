@@ -22,7 +22,7 @@
         '<label class="rd-tog"><input type="checkbox" id="rd-spam"><span><b>Hacked-spam cleanup</b><small>Returns “410 Gone” for old casino / toy spam URLs and old WordPress links like ?p=123, so Google drops them.</small></span></label>' +
       '</div></div>' +
       '<div class="tabs us-tabs" id="rd-tabs"><a href="#" data-t="rules" class="on">' + ic("refresh-cw") + 'Rules</a><a href="#" data-t="404">' + ic("search") + '404 monitor <span class="badge" id="rd-n404">0</span></a></div>' +
-      '<div class="card" id="rd-rules"><div class="us-bar"><input type="search" id="rd-q" placeholder="Search address or source…"><div class="seg" id="rd-f">' +
+      '<div class="card" id="rd-rules"><div class="us-bar"><input type="search" id="rd-q" aria-label="Search redirects" placeholder="Search address or source…"><div class="seg" id="rd-f">' +
         [["all", "All"], ["301", "Redirects"], ["410", "Gone"], ["prob", "Problems"], ["off", "Off"]].map(function (x) { return '<button data-f="' + x[0] + '"' + (x[0] === "all" ? ' class="on"' : "") + ">" + x[1] + "</button>"; }).join("") +
       '</div></div><div class="tbl-wrap"><table class="tbl rd-tbl"><thead><tr><th style="width:44px">On</th><th>Old address</th><th style="width:118px">Match</th><th style="width:150px">Type</th><th>New address</th><th>Source</th><th style="width:170px">Check</th><th style="width:44px"></th></tr></thead><tbody id="rd-rows"></tbody></table></div></div>' +
       '<div class="card" id="rd-404" hidden><div class="card-b"><p class="muted" style="margin:0 0 10px">Addresses visitors tried that don’t exist. Fix the top ones with <b>Redirect this</b>. Counted by the 404 page, so bots that don’t run scripts are ignored.</p>' +

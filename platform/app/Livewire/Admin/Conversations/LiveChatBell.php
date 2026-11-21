@@ -13,6 +13,7 @@ use App\Domain\Conversations\Models\Message;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Livewire\Concerns\WithConversationHistory;
 use App\Settings\NotificationSettings;
+use App\Settings\SiteSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -144,7 +145,7 @@ class LiveChatBell extends Component
     {
         if (! $this->user()->can('inbox.view')) {
             return view('livewire.admin.conversations.live-chat-bell', [
-                'canUse' => false, 'live' => new Collection, 'unread' => 0, 'visitorActive' => false,
+                'canUse' => false, 'polls' => false, 'live' => new Collection, 'unread' => 0, 'visitorActive' => false,
                 'activeTotal' => 0, 'unreadOutsideList' => 0,
                 'messages' => new Collection, 'soundOn' => false, 'canManageSound' => false,
             ]);
@@ -162,6 +163,10 @@ class LiveChatBell extends Component
 
         return view('livewire.admin.conversations.live-chat-bell', [
             'canUse' => true,
+            // The bell stands on every screen. It asked the server every ten seconds from each of them, for a chat
+            // no visitor could start: the bubble on the website is a switch of its own (Website settings), off as
+            // shipped. It asks only while that switch is on; a click still opens it (DL-046).
+            'polls' => app(SiteSettings::class)->chat_widget_enabled,
             'live' => $live,
             'unread' => $unread,
             'activeTotal' => $activeTotal,

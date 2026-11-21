@@ -15,7 +15,7 @@
 <div id="session" class="login" hidden>
   <div class="login-card">
     <img src="/assets/brand/woodex-mark.svg" alt="Woodex" width="90">
-    <h1>Session ended</h1>
+    <h2 class="login-h">Session ended</h2>
     <p>Your Woodex OS session ended. Sign in again — this tab keeps your unsaved edits.</p>
     <a class="btn btn-pri" href="/admin/login">Sign in to Woodex OS</a>
   </div>
@@ -28,7 +28,7 @@
 <div class="login narrow" data-builder-narrow>
   <div class="login-card">
     <img src="/assets/brand/woodex-mark.svg" alt="Woodex" width="90">
-    <h1>The page builder needs a wider screen</h1>
+    <h2 class="login-h">The page builder needs a wider screen</h2>
     <p>It edits a page between two panels and needs a window of 760 px or more. Open it on a laptop, or hold a tablet sideways.</p>
     <a class="btn btn-pri" href="{{ route('admin.website.pages', absolute: false) }}">Back to Woodex OS</a>
   </div>
@@ -40,7 +40,8 @@
   <!-- top bar -->
   <header class="top">
     <div class="top-l">
-      <strong class="brand">Woodex <b>Builder</b></strong>
+      {{-- The one heading of this document: the two cards above are shown instead of it, never beside it. --}}
+      <h1 class="brand">Woodex <b>Builder</b></h1>
       <select id="page-select" aria-label="Page"></select>
     </div>
     <div class="top-c">
@@ -62,7 +63,12 @@
     </div>
     <div class="top-r">
       <a class="btn" href="{{ route('admin.website.pages', absolute: false) }}">← Woodex OS</a>
-      <a class="btn" id="view-live">View page</a>
+      @if (\App\Support\SyntheticPreview::enabled())
+        {{-- This screen draws its own document, so the layout's notice never reached it (DL-046). --}}
+        <span data-demo-notice role="note" class="demo-pill" title="This site has no permanent database yet. Do not enter real customer details or passwords.">Demo: nothing is kept</span>
+      @endif
+      {{-- Shown once a page is open: without one it was a link that led nowhere. --}}
+      <a class="btn" id="view-live" hidden>View page</a>
       <button class="btn btn-pri" id="save" disabled>Save</button>
       <button class="ic" id="menu-btn" title="More"><i data-ic="ellipsis"></i></button>
       <div class="menu" id="menu" hidden>
@@ -94,16 +100,16 @@
     <section class="lp" data-lp="pages">
       <h2>Pages <button class="btn btn-sm" id="pages-new" style="float:right">＋ New</button></h2>
       <p class="hint">All website pages by folder. Click to open.</p>
-      <input type="search" class="lib-q" id="pages-q" placeholder="Search pages…">
+      <input type="search" class="lib-q" id="pages-q" aria-label="Search pages" placeholder="Search pages…">
       <div id="pages-tree" class="layers"></div>
     </section>
     <section class="lp is-on" data-lp="sections">
       <h2>Sections</h2>
       <p class="hint">Drag onto the page, or click to add after the selected section.</p>
-      <input type="search" class="lib-q" data-q="lib-sections" placeholder="Search sections…">
+      <input type="search" class="lib-q" data-q="lib-sections" aria-label="Search sections" placeholder="Search sections…">
       <div class="lib" id="lib-sections"></div>
       <h3 class="lib-h">Templates · v26 + UI kit <small class="hint" id="v26-n"></small></h3>
-      <select id="v26-cat" class="lib-q" style="height:34px"><option value="">All categories</option></select>
+      <select id="v26-cat" class="lib-q" aria-label="Template category" style="height:34px"><option value="">All categories</option></select>
       <div class="lib" id="lib-v26"></div>
       <h3 class="lib-h">My sections <button class="btn btn-sm" id="import-sec">⬆ Import</button></h3>
       <div class="lib" id="lib-mine"><p class="hint">Save any section with 💾 in the toolbar.</p></div>
@@ -111,13 +117,13 @@
     <section class="lp" data-lp="elements">
       <h2>Elements</h2>
       <p class="hint">Drag into any section, or click to add after the selected element.</p>
-      <input type="search" class="lib-q" data-q="lib-elements" placeholder="Search elements…">
+      <input type="search" class="lib-q" data-q="lib-elements" placeholder="Search elements…" aria-label="Search elements">
       <div class="lib lib-sm" id="lib-elements"></div>
     </section>
     <section class="lp" data-lp="layers">
       <h2>Layers</h2>
       <p class="hint">Click to select. Drag sections to reorder.</p>
-      <input type="search" class="lib-q" id="layers-q" placeholder="Search layers (text or class)…">
+      <input type="search" class="lib-q" id="layers-q" aria-label="Search layers" placeholder="Search layers (text or class)…">
       <div id="layers" class="layers"></div>
     </section>
     <section class="lp" data-lp="theme">
@@ -224,7 +230,7 @@
   </footer>
   <div class="code" id="code" hidden>
     <div class="code-head"><b id="code-title">HTML of selected element</b><span><button class="btn btn-sm" id="code-cancel">Close</button> <button class="btn btn-sm btn-pri" id="code-apply">Apply</button></span></div>
-    <textarea id="code-ta" spellcheck="false"></textarea>
+    <textarea id="code-ta" aria-label="The code of this page" spellcheck="false"></textarea>
   </div>
 </div>
 

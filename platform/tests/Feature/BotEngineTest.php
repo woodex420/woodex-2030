@@ -188,7 +188,7 @@ it('stays silent during studio hours when it is an evenings-only bot', function 
     expect($conversation->refresh()->messages()->where('meta->bot', true)->count())->toBe($conversation->messages()->where('meta->bot', true)->count())
         ->and($conversation->status)->toBe(ConversationStatus::Pending);
 
-    Notification::assertSentTo($this->owner, BotHandoffNotification::class, fn ($n) => str_contains($n->reason, 'studio hours'));
+    Notification::assertSentTo($this->owner, BotHandoffNotification::class, fn ($n) => str_contains($n->reason, 'working hours'));
 });
 
 it('keeps the visitor message when the model itself fails', function () {

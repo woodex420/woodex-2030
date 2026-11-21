@@ -367,7 +367,7 @@
 
   // ---------------- pages (quick list; full manager in A2)
   VIEWS.pages = function (el) {
-    el.innerHTML = head("Pages", "Pages", '<input type="search" id="pg-q" placeholder="Search pages…"><a class="btn pri" href="#/builder">' + ic("square-pen") + "Open builder</a>") +
+    el.innerHTML = head("Pages", "Pages", '<input type="search" id="pg-q" aria-label="Search pages" placeholder="Search pages…"><a class="btn pri" href="#/builder">' + ic("square-pen") + "Open builder</a>") +
       '<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Page</th><th>Address</th><th>Last changed</th><th></th></tr></thead><tbody id="pg-rows"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table></div>' +
       '<div class="pager"><span id="pg-count"></span><span class="badge gold">Full pages manager (status, SEO, templates, redirects) arrives in Phase A2</span></div></div>';
     var draw = function () {
@@ -426,7 +426,7 @@
 
   // ---------------- activity
   VIEWS.activity = function (el) {
-    el.innerHTML = head("Activity log", "Activity", '<input type="search" id="a-q" placeholder="Search user, action, page…">') +
+    el.innerHTML = head("Activity log", "Activity", '<input type="search" id="a-q" aria-label="Search the activity log" placeholder="Search user, action, page…">') +
       '<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th><th>IP</th></tr></thead><tbody id="a-rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div><div class="pager"><span id="a-info"></span><span><button class="btn sm" id="a-prev">' + ic("chevron-left") + '</button> <button class="btn sm" id="a-next">' + ic("chevron-right") + "</button></span></div></div>";
     var page = 1, t;
     var load = function () {

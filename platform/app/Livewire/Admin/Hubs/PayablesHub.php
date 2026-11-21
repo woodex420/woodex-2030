@@ -17,7 +17,7 @@ final class PayablesHub extends Hub
     {
         return [
             'title' => 'Payables',
-            'description' => 'What the studio owes: vendor bills, the supplier register and the age of every unpaid rupee.',
+            'description' => 'What the business owes: vendor bills, the supplier register and the age of every unpaid rupee.',
             'breadcrumbs' => ['Accounts' => null, 'Payables' => null],
             'tabs' => [
                 ['id' => 'bills', 'label' => 'Received invoices', 'component' => BillsIndex::class, 'permission' => 'accounts.view'],

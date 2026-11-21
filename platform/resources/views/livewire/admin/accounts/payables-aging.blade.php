@@ -1,7 +1,7 @@
 @use('App\Support\Money')
 <div>
     <x-admin.page-header title="Payables aging"
-                         description="Every rupee the studio still owes, bucketed by how late it is against the vendor's due date rather than the bill date."
+                         description="Every rupee Woodex still owes, bucketed by how late it is against the vendor's due date rather than the bill date."
                          :breadcrumbs="['Accounts' => null, 'Payables' => null, 'Aging' => null]" />
 
     <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">

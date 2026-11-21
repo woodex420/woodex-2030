@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Marketing\Social;
 
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Settings\BotSettings;
+use App\Support\Brand;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -31,12 +33,19 @@ final class ProposeCaptions
             return null;
         }
 
-        $system = <<<'TXT'
-            You draft social media captions for an interior design studio in Lahore.
+        // The trade is the one this installation sells first: the built-in words were the Interior studio's, and a
+        // furniture company's captions were drafted "for an interior design studio" (DL-046).
+        [$trade, $subject] = BusinessLine::primaryBrand() === BusinessLine::Furniture
+            ? ['a company that designs and makes office furniture', 'well-made office furniture and honest materials']
+            : ['an interior design studio', 'thoughtful interiors and natural materials'];
+        $name = Brand::name();
+
+        $system = <<<TXT
+            You draft social media captions for {$name}, {$trade} in Lahore.
             Answer with JSON only, no markdown: {"text": string, "text_ur": string}.
             Rules: "text" is English, warm and concrete, at most 300 characters, no hashtag spam;
             "text_ur" is natural Urdu (Nastaliq-friendly script), the same message, not a literal translation.
-            If the studio's notes are empty, write about thoughtful interiors and natural materials.
+            If the notes are empty, write about {$subject}.
             TXT;
 
         $text = match ($this->settings->provider) {
@@ -68,7 +77,7 @@ final class ProposeCaptions
                     'max_tokens' => 400,
                     'messages' => [
                         ['role' => 'system', 'content' => $system],
-                        ['role' => 'user', 'content' => $notes !== '' ? "Studio notes: {$notes}" : 'Draft a caption.'],
+                        ['role' => 'user', 'content' => $notes !== '' ? "Our notes: {$notes}" : 'Draft a caption.'],
                     ],
                 ]);
         } catch (Throwable) {
@@ -87,7 +96,7 @@ final class ProposeCaptions
                     'model' => trim((string) $this->settings->model) !== '' ? trim((string) $this->settings->model) : 'claude-3-5-haiku-latest',
                     'max_tokens' => 400,
                     'system' => $system,
-                    'messages' => [['role' => 'user', 'content' => $notes !== '' ? "Studio notes: {$notes}" : 'Draft a caption.']],
+                    'messages' => [['role' => 'user', 'content' => $notes !== '' ? "Our notes: {$notes}" : 'Draft a caption.']],
                 ]);
         } catch (Throwable) {
             return null;
@@ -103,7 +112,7 @@ final class ProposeCaptions
                 ->withQueryParameters(['key' => (string) $this->settings->api_key])
                 ->post('https://generativelanguage.googleapis.com/v1beta/models/'.(trim((string) $this->settings->model) !== '' ? trim((string) $this->settings->model) : 'gemini-1.5-flash').':generateContent', [
                     'systemInstruction' => ['parts' => [['text' => $system]]],
-                    'contents' => [['parts' => [['text' => $notes !== '' ? "Studio notes: {$notes}" : 'Draft a caption.']]]],
+                    'contents' => [['parts' => [['text' => $notes !== '' ? "Our notes: {$notes}" : 'Draft a caption.']]]],
                 ]);
         } catch (Throwable) {
             return null;

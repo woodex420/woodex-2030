@@ -37,7 +37,7 @@
   }
   function catPane(pane, list, extra, label) {
     var cats = list.map(function (t) { return t.cat; }).filter(function (c, i, a) { return a.indexOf(c) === i; }), cur = "", q = "";
-    pane.innerHTML = '<input type="search" class="lib-q" placeholder="Search ' + label + '…"><div class="fk-chips"><button class="on" data-c="">All ' + (list.length + (extra ? extra.length : 0)) + "</button>" + cats.map(function (c) { return '<button data-c="' + esc(c) + '">' + esc(c.replace(/^UI kit · /, "")) + "</button>"; }).join("") + (extra ? '<button data-c="__basic">Basic</button>' : "") + '</div><div class="fk-list"></div>';
+    pane.innerHTML = '<input type="search" class="lib-q" aria-label="Search ' + label + '" placeholder="Search ' + label + '…"><div class="fk-chips"><button class="on" data-c="">All ' + (list.length + (extra ? extra.length : 0)) + "</button>" + cats.map(function (c) { return '<button data-c="' + esc(c) + '">' + esc(c.replace(/^UI kit · /, "")) + "</button>"; }).join("") + (extra ? '<button data-c="__basic">Basic</button>' : "") + '</div><div class="fk-list"></div>';
     var box = $(".fk-list", pane);
     function draw() {
       var m = function (t) { return !q || (t.name + " " + t.cat).toLowerCase().indexOf(q) >= 0; }, html = "";
@@ -108,7 +108,7 @@
 
   // ---- Images
   var IMGS = null;
-  P.img.innerHTML = '<p class="hint" style="margin-top:0">Click a photo: it <b>replaces the selected image</b>, or is added as a new image if no image is selected.</p><div class="fk-row"><button class="btn" id="fk-more">⬆ Upload / free photos</button></div><input type="search" class="lib-q" id="fk-iq" placeholder="Search images…"><div class="fk-img" id="fk-ig"><p class="hint">Loading…</p></div>';
+  P.img.innerHTML = '<p class="hint" style="margin-top:0">Click a photo: it <b>replaces the selected image</b>, or is added as a new image if no image is selected.</p><div class="fk-row"><button class="btn" id="fk-more">⬆ Upload / free photos</button></div><input type="search" class="lib-q" id="fk-iq" aria-label="Search images" placeholder="Search images…"><div class="fk-img" id="fk-ig"><p class="hint">Loading…</p></div>';
   function useImg(u, w, h) {
     if (!S.doc) return X.toast("Open a page first", true);
     var el = S.sel;

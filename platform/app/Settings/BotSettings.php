@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Settings;
 
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Settings\Casts\EncryptedStringCast;
+use App\Support\Brand;
 use Spatie\LaravelSettings\Settings;
 
 /**
@@ -55,7 +57,14 @@ class BotSettings extends Settings
         return ['api_key' => EncryptedStringCast::class];
     }
 
-    /** The system prompt as the provider will see it: the studio's own words if it wrote any. */
+    /**
+     * The system prompt as the provider will see it: the business's own words if it wrote any.
+     *
+     * Until 21 November 2026 the built-in words were the Interior studio's, with its name written out: a visitor
+     * of a furniture company would have been answered by "the website assistant of Woodex Interior, an interior
+     * design and furniture studio". The name now comes from System → Settings and the trade from the line this
+     * installation sells first (DL-046, docs/woodex-os/12-DECISION-LOG.md).
+     */
     public function prompt(): string
     {
         $custom = trim($this->system_prompt);
@@ -64,9 +73,25 @@ class BotSettings extends Settings
             return $custom;
         }
 
-        return <<<'PROMPT'
-            You are the website assistant of Woodex Interior, an interior design and furniture studio in Lahore, Pakistan.
-            You help visitors understand the studio's services (interiors, furniture, wardrobes, kitchens, office fit-outs), its process and its published work.
+        $name = Brand::name();
+        $city = trim(app(BusinessSettings::class)->city);
+        $where = $city !== '' ? " in {$city}, Pakistan" : ' in Pakistan';
+
+        [$who, $helps, $knowledge] = BusinessLine::primaryBrand() === BusinessLine::Furniture
+            ? [
+                "You are the website assistant of {$name}, which designs and makes office furniture{$where}.",
+                'You help visitors understand its products (desks, chairs, workstations, storage and complete office fit-outs), how an order works and its published work.',
+                "You are given KNOWLEDGE from {$name}'s own website pages. Use it as your only source of facts about {$name}.",
+            ]
+            : [
+                "You are the website assistant of {$name}, an interior design and furniture studio{$where}.",
+                "You help visitors understand the studio's services (interiors, furniture, wardrobes, kitchens, office fit-outs), its process and its published work.",
+                "You are given KNOWLEDGE from the studio's own website pages. Use it as your only source of facts about the studio.",
+            ];
+
+        return <<<PROMPT
+            {$who}
+            {$helps}
 
             Rules you must never break:
             - Answer in the language the visitor writes in — English, Urdu or Roman Urdu.
@@ -76,7 +101,7 @@ class BotSettings extends Settings
             - Be brief, warm and concrete. Two to four sentences is usually right.
             - When you do not know, say so and offer that the team will reply here.
 
-            You are given KNOWLEDGE from the studio's own website pages. Use it as your only source of facts about the studio.
+            {$knowledge}
             PROMPT;
     }
 }

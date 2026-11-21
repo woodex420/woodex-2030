@@ -152,7 +152,7 @@
     try { var arr = JSON.parse(m[1]); arr = Array.isArray(arr) ? arr : [arr]; biz = arr.find(function (x) { return x["@type"] === "LocalBusiness"; }); } catch (e) {}
     var d = it.data || {}, t = T[type], out = [];
     if (biz) out.push(biz);
-    out.push({ "@context": "https://schema.org", "@type": type === "post" ? "Article" : "CreativeWork", headline: it.title, description: desc, url: url, image: absUrl((d.hero || {}).src || (it.seo || {}).og), author: { "@type": "Organization", name: "Woodex Interior" }, publisher: { "@type": "Organization", name: "Woodex Interior", url: SITE }, articleSection: d.category || undefined, keywords: (d.tags || []).join(", ") || undefined, datePublished: String(it.published_at || new Date().toISOString()).slice(0, 10), dateModified: new Date().toISOString().slice(0, 10) });
+    out.push({ "@context": "https://schema.org", "@type": type === "post" ? "Article" : "CreativeWork", headline: it.title, description: desc, url: url, image: absUrl((d.hero || {}).src || (it.seo || {}).og), author: { "@type": "Organization", name: ((window.WX_STUDIO || {}).brand || "Woodex") }, publisher: { "@type": "Organization", name: ((window.WX_STUDIO || {}).brand || "Woodex"), url: SITE }, articleSection: d.category || undefined, keywords: (d.tags || []).join(", ") || undefined, datePublished: String(it.published_at || new Date().toISOString()).slice(0, 10), dateModified: new Date().toISOString().slice(0, 10) });
     out.push({ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: SITE + "/" }, { "@type": "ListItem", position: 2, name: type === "post" ? "Insights" : "Projects", item: SITE + "/" + t.folder + "/" }, { "@type": "ListItem", position: 3, name: it.title, item: url }] });
     var fq = (d.faqs || []).filter(function (f) { return f.q && f.a; });
     if (fq.length) out.push({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: fq.map(function (f) { return { "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: plain(f.a) } }; }) });
@@ -164,7 +164,7 @@
     var i = shell.indexOf('<main id="main-content">'), j = shell.search(/<section class="[a-z]+-section" id="cta"/);
     if (i < 0 || j < i) throw new Error("The template page has an unexpected layout");
     var d = it.data || {}, seo = it.seo || {}, url = SITE + "/" + T[type].folder + "/" + it.slug + "/";
-    var title = seo.title || it.title + " | Woodex Interior", desc = seo.desc || d.dek || "", og = absUrl(seo.og || (d.hero || {}).src || "");
+    var title = seo.title || it.title + " | " + ((window.WX_STUDIO || {}).brand || "Woodex"), desc = seo.desc || d.dek || "", og = absUrl(seo.og || (d.hero || {}).src || "");
     var cta = shell.slice(j);
     if (type === "post") cta = cta.replace(/\n?<section class="wx-trust"[\s\S]*?<\/section>\n?/, "\n");
     if (d.ctaTitle) cta = cta.replace(/(<section class="[a-z]+-section" id="cta"[\s\S]*?<h2[^>]*>)[\s\S]*?(<\/h2>)/, function (m, a, b) { return a + esc(d.ctaTitle) + b; });
@@ -259,7 +259,7 @@
     return function (el) {
       var t = T[type];
       el.innerHTML = head(t.title, t.title, '<button class="btn" id="cm-ai">' + ic("sparkles") + 'AI settings</button><button class="btn" id="cm-imp">' + ic("download") + 'Import existing</button><button class="btn pri" id="cm-new">' + ic("plus") + "New " + t.one + "</button>") +
-        '<div class="card"><div class="card-h"><h3>All ' + t.many + '</h3><input id="cm-q" class="sm-in" placeholder="Search…"></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Title</th><th>Status</th><th>Address</th><th>Updated</th><th></th></tr></thead><tbody id="cm-rows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody></table></div></div>';
+        '<div class="card"><div class="card-h"><h3>All ' + t.many + '</h3><input id="cm-q" class="sm-in" aria-label="Search" placeholder="Search…"></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Title</th><th>Status</th><th>Address</th><th>Updated</th><th></th></tr></thead><tbody id="cm-rows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody></table></div></div>';
       W.fillIcons(el);
       var items = [];
       function draw() {
@@ -318,7 +318,7 @@
   }
   function newData(type) {
     return type === "post"
-      ? { kicker: "", dek: "", hero: {}, meta: [{ k: "Category", v: "" }, { k: "Read time", v: "5 min read" }, { k: "Studio", v: "Woodex Studio" }], blocks: [{ t: "h", text: "" }, { t: "p", text: "" }], summary: [], faqs: [], quote: "", related: [], card: {} }
+      ? { kicker: "", dek: "", hero: {}, meta: [{ k: "Category", v: "" }, { k: "Read time", v: "5 min read" }, { k: "By", v: ((window.WX_STUDIO || {}).brand || "Woodex") }], blocks: [{ t: "h", text: "" }, { t: "p", text: "" }], summary: [], faqs: [], quote: "", related: [], card: {} }
       : { kicker: "Illustrative design study", dek: "", hero: {}, meta: [{ k: "Project type", v: "" }, { k: "Setting", v: "" }, { k: "Year", v: String(new Date().getFullYear()) }, { k: "Size", v: "" }], facts: [{ k: "Scope", v: "" }, { k: "Key move", v: "" }, { k: "Materials", v: "" }], factsNote: "", blocks: [{ t: "h", text: "The brief" }, { t: "p", text: "" }, { t: "h", text: "The moves" }, { t: "list", items: [""] }, { t: "h", text: "Takeaways" }, { t: "p", text: "" }], quote: "", related: [], card: {} };
   }
   function editorView(type) {
@@ -434,7 +434,7 @@
           '<button class="btn blk" id="ce-save">' + ic("save") + (live ? "Save without publishing" : "Save draft") + "</button>" + (it.status === "scheduled" ? '<button class="btn blk ghost" id="ce-unsch">Cancel schedule</button>' : "") +
           (it.id && !live ? '<button class="btn blk ghost danger" id="ce-del">Delete draft</button>' : "") + "</div>" +
           (type === "post" ? sideCards() : "") +
-          '<div class="card card-b"><div class="side-hr"><h4 class="side-h">Search & sharing</h4>' + (aiReady ? aiBtn("ce-ai-seo", "Write") : "") + '</div><label>SEO title <small id="ce-stc"></small><input id="ce-st" value="' + esc(seo.title) + '" placeholder="Title | Woodex Interior"></label><label>Meta description <small id="ce-sdc"></small><textarea id="ce-sd" rows="3">' + esc(seo.desc) + "</textarea></label>" + imgField("ce-og", seo.og, "Share image (defaults to hero)") +
+          '<div class="card card-b"><div class="side-hr"><h4 class="side-h">Search & sharing</h4>' + (aiReady ? aiBtn("ce-ai-seo", "Write") : "") + '</div><label>SEO title <small id="ce-stc"></small><input id="ce-st" value="' + esc(seo.title) + '" placeholder="Title | ' + esc(((window.WX_STUDIO || {}).brand || "Woodex")) + '"></label><label>Meta description <small id="ce-sdc"></small><textarea id="ce-sd" rows="3">' + esc(seo.desc) + "</textarea></label>" + imgField("ce-og", seo.og, "Share image (defaults to hero)") +
             '<label>Focus keyphrase<input id="ce-kw" value="' + esc(seo.kw || "") + '" placeholder="e.g. interior design cost Pakistan"></label><button type="button" class="btn sm" id="ce-seo-an">' + ic("search") + 'SEO check</button><div id="ce-seo-r" style="margin-top:10px"></div>' +
           '<div class="serp"><span id="sp-u"></span><b id="sp-t"></b><p id="sp-d"></p></div></div>' +
           '<div class="card card-b"><div class="side-hr"><h4 class="side-h">Listing card</h4>' + (aiReady ? aiBtn("ce-ai-card", "Write") : "") + "</div>" + imgField("ce-card", (d.card || {}).src, "Card image (defaults to hero)") + '<label>Card text<textarea id="ce-ct" rows="2">' + esc((d.card || {}).text) + '</textarea></label><label>Card label <small>(e.g. "5 min read", "Study · 2026")</small><input id="ce-cl" value="' + esc((d.card || {}).tag) + '"></label></div>' +
@@ -475,7 +475,7 @@
       }
       function redrawBlocks() { $("#ce-blocks").innerHTML = d.blocks.map(blk).join(""); W.fillIcons($("#ce-blocks")); }
       function serp() {
-        var ti = $("#ce-st").value || ($("#ce-title").value + " | Woodex Interior"), de = $("#ce-sd").value || $("#ce-dek").value;
+        var ti = $("#ce-st").value || ($("#ce-title").value + " | " + ((window.WX_STUDIO || {}).brand || "Woodex")), de = $("#ce-sd").value || $("#ce-dek").value;
         $("#sp-u").textContent = "woodex.com.pk › " + t.folder + " › " + ($("#ce-slug").value || "…"); $("#sp-t").textContent = ti; $("#sp-d").textContent = de;
         var a = ti.length, b = de.length; $("#ce-stc").textContent = a + "/60"; $("#ce-stc").className = a > 60 ? "bad" : ""; $("#ce-sdc").textContent = b + "/158"; $("#ce-sdc").className = b > 158 || (b && b < 110) ? "warnc" : "";
       }
@@ -690,7 +690,7 @@
     var m = SEC[kind].marker;
     if (!items.length) return "";
     if (kind === "testimonial") return tstHtml(items, set, design);
-    return "<!--wx:" + m + '-->\n<section class="wx-team" aria-labelledby="wx-team-title"><div class="wrap">\n  <div class="wx-sec-h"><p class="wx-kicker">' + esc(set.kicker || "The studio") + '</p><h2 id="wx-team-title">' + esc(set.heading || "The people behind the work") + '</h2></div>\n  <div class="wx-team-grid">\n' +
+    return "<!--wx:" + m + '-->\n<section class="wx-team" aria-labelledby="wx-team-title"><div class="wrap">\n  <div class="wx-sec-h"><p class="wx-kicker">' + esc(set.kicker || "The team") + '</p><h2 id="wx-team-title">' + esc(set.heading || "The people behind the work") + '</h2></div>\n  <div class="wx-team-grid">\n' +
       items.slice().sort(function (a, b) { return ((b.data || {}).featured ? 1 : 0) - ((a.data || {}).featured ? 1 : 0); }).map(function (x) { var d = x.data || {}; return '    <article class="wx-team-card' + (d.featured ? " is-featured" : "") + '">' + (d.photo ? '<img src="' + esc(d.photo) + '" alt="' + esc(x.title) + '" width="600" height="720" loading="lazy" decoding="async">' : '<div class="wx-team-ph"></div>') + "<h3>" + esc(x.title) + "</h3><p class=\"wx-team-role\">" + esc([d.role, d.dept].filter(Boolean).join(" · ")) + "</p>" + (d.years ? '<p class="wx-team-yr">' + esc(d.years) + "+ years experience</p>" : "") + (d.bio ? "<p>" + esc(d.bio) + "</p>" : "") +
         ((d.showContact && (d.email || d.phone)) || d.linkedin ? '<p class="wx-team-links">' + (d.showContact && d.phone ? '<a href="tel:' + esc(String(d.phone).replace(/\s+/g, "")) + '">' + esc(d.phone) + "</a>" : "") + (d.showContact && d.email ? '<a href="mailto:' + esc(d.email) + '">' + esc(d.email) + "</a>" : "") + (d.linkedin ? '<a href="' + esc(d.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>' : "") + "</p>" : "") + "</article>\n"; }).join("") +
       "  </div>\n</div></section>\n<!--/wx:" + m + "-->";
@@ -767,7 +767,7 @@
         bapi("pages").then(function (r) {
           pages = (r.pages || []).map(function (p) { return p.path || p; }).filter(function (p) { return !/^(insights|projects)\/[^/]+\//.test(p); }).sort();
           var cur = placements[kind] || [], set = placements[kind + "Set"] || {};
-          modal("<h3>" + k.title + ': pages & heading</h3><div class="g2"><label>Small label<input id="pl-k" value="' + esc(set.kicker || "") + '" placeholder="' + (kind === "testimonial" ? "Client words" : "The studio") + '"></label><label>Heading<input id="pl-h" value="' + esc(set.heading || "") + '" placeholder="' + (kind === "testimonial" ? "What our clients say" : "The people behind the work") + '"></label></div>' + (kind === "testimonial" ? tstPick(set) : "") + '<label>Show on these pages <small>(placed above the “Why Woodex” strip)</small><input id="pl-q" placeholder="Filter pages…"></label><div class="pl-l">' +
+          modal("<h3>" + k.title + ': pages & heading</h3><div class="g2"><label>Small label<input id="pl-k" value="' + esc(set.kicker || "") + '" placeholder="' + (kind === "testimonial" ? "Client words" : "The team") + '"></label><label>Heading<input id="pl-h" value="' + esc(set.heading || "") + '" placeholder="' + (kind === "testimonial" ? "What our clients say" : "The people behind the work") + '"></label></div>' + (kind === "testimonial" ? tstPick(set) : "") + '<label>Show on these pages <small>(placed above the “Why Woodex” strip)</small><input id="pl-q" placeholder="Filter pages…"></label><div class="pl-l">' +
             pages.map(function (p) { return '<label class="check"><input type="checkbox" value="' + esc(p) + '"' + (cur.indexOf(p) > -1 ? " checked" : "") + "> /" + esc(p.replace(/index\.html$/, "")) + (kind === "testimonial" ? '<select class="pl-pd" data-p="' + esc(p) + '"><option value="">Default design</option>' + TST_DESIGNS.map(function (x) { return '<option value="' + x[0] + '"' + (((set.designs || {})[p]) === x[0] ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") + "</select>" : "") + "</label>"; }).join("") + '</div><div class="modal-actions"><button class="btn" id="pl-x">Cancel</button><button class="btn pri" id="pl-go">Save & update website</button></div>');
           $("#pl-x").onclick = closeModal; if (kind === "testimonial") bindTstPick(items);
           $("#pl-q").oninput = function () { var q = this.value.toLowerCase(); $$(".pl-l label").forEach(function (l) { l.hidden = l.textContent.toLowerCase().indexOf(q) < 0; }); };

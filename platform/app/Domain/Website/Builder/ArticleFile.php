@@ -743,7 +743,7 @@ final class ArticleFile
             <p class="in-label">Start your project</p>
             <h2>Ready to start your project?</h2>
             <div class="in-cta-meta"><address>M-71, Zainab Tower, Model Town Link Road, Lahore</address><a href="tel:+923224000768">+92 322 4000768</a><a href="mailto:info@woodex.com.pk">info@woodex.com.pk</a><p><strong>Mon–Sat 9:30–6:30</strong> · Sunday closed</p></div>
-            <div class="actions"><a class="btn" href="mailto:info@woodex.com.pk?subject=Start%20a%20Woodex%20project">Email the studio</a><a class="btn btn-light" href="tel:+923224000768">Call +92 322 4000768</a></div>
+            <div class="actions"><a class="btn" href="mailto:info@woodex.com.pk?subject=Start%20a%20Woodex%20project">Email us</a><a class="btn btn-light" href="tel:+923224000768">Call +92 322 4000768</a></div>
           </div>
           {$figure}
         </div></section>

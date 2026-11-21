@@ -75,12 +75,12 @@ enum BlockType: string
     public function description(): string
     {
         return match ($this) {
-            self::Hero => 'The opening: a big heading, a photo and the studio\'s first promise.',
+            self::Hero => 'The opening: a big heading, a photo and the first promise.',
             self::Slider => 'The v26 opening: full-height slides that rotate, each with its own photo, text and buttons.',
             self::Intro => 'A short paragraph plus key figures — what this page is about.',
             self::Text => 'A heading and free text: the workhorse for telling any story.',
             self::Services => 'A grid of services with a line each.',
-            self::Process => 'The studio\'s stages, numbered from first call to handover.',
+            self::Process => 'The stages of an order, numbered from first call to handover.',
             self::Gallery => 'A grid of photographs picked from the media library.',
             self::Faq => 'Questions and answers — they also feed Google\'s rich results.',
             self::Related => 'Cards linking to other pages: services, cities, insights.',
@@ -88,11 +88,11 @@ enum BlockType: string
             self::Reviews => 'Client reviews with names, ratings and dates.',
             self::Specs => 'A specifications table: what is included, area, timeline.',
             self::PriceTable => 'Price bands with what each band includes.',
-            self::Author => 'The person behind the studio: photo, bio, credentials.',
-            self::Map => 'The studio\'s address on a map, with phone and hours.',
+            self::Author => 'The person behind the business: photo, bio, credentials.',
+            self::Map => 'The address on a map, with phone and hours.',
             self::Clients => 'Client logos — the quiet trust signal.',
             self::Columns => 'Two to four side-by-side blocks — text, a photo or a quote. They stack on a phone.',
-            self::Team => 'The studio\'s people, with photos, roles and short bios.',
+            self::Team => 'The people of the team, with photos, roles and short bios.',
             self::Html => 'Your own HTML, for a section the library does not cover. Scripts are removed when it is saved.',
         };
     }
@@ -135,7 +135,7 @@ enum BlockType: string
             self::Specs => ['heading' => 'Materials & finishes', 'rows' => []],
             self::PriceTable => ['heading' => 'Indicative investment', 'rows' => [], 'note' => ''],
             self::Author => ['name' => '', 'role' => '', 'bio' => '', 'image_id' => null],
-            self::Map => ['heading' => 'Studio', 'embed_url' => ''],
+            self::Map => ['heading' => 'Find us', 'embed_url' => ''],
             self::Clients => ['heading' => 'Trusted by', 'logos' => [], 'library_ids' => []],
             self::Columns => Columns::defaults(),
             self::Team => ['heading' => 'Our team', 'items' => [], 'library_ids' => []],
@@ -231,7 +231,7 @@ enum BlockType: string
             self::Form => [
                 ['key' => 'heading', 'label' => 'Heading', 'type' => 'text'],
                 ['key' => 'text', 'label' => 'Intro', 'type' => 'textarea', 'rows' => 3],
-                ['key' => 'show_contact', 'label' => 'Show studio address, phone and hours', 'type' => 'bool'],
+                ['key' => 'show_contact', 'label' => 'Show the address, phone and hours', 'type' => 'bool'],
             ],
             self::Reviews => [
                 ['key' => 'heading', 'label' => 'Heading', 'type' => 'text'],
@@ -277,7 +277,7 @@ enum BlockType: string
             self::Columns => [],
             self::Team => [
                 ['key' => 'heading', 'label' => 'Heading', 'type' => 'text'],
-                ['key' => 'library_ids', 'label' => 'From the studio\'s team (Website → Team)', 'type' => 'library', 'kind' => 'team'],
+                ['key' => 'library_ids', 'label' => 'From the team (Website → Team)', 'type' => 'library', 'kind' => 'team'],
                 ['key' => 'items', 'label' => 'Write someone on this page', 'type' => 'repeater', 'fields' => [
                     ['key' => 'id', 'label' => 'Photo', 'type' => 'image'],
                     ['key' => 'name', 'label' => 'Name', 'type' => 'text'],

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
+use App\Support\Brand;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -43,6 +44,9 @@ final class WebsiteStudioController
         return view('admin.website.studio', [
             'screen' => $definition['view'],
             'title' => $definition['title'],
+            // The name the ported screens write into an article's title and its publisher: the settings' own, where
+            // the scripts had "Woodex Interior" written out (DL-046, docs/woodex-os/12-DECISION-LOG.md).
+            'brand' => Brand::name(),
             'user' => [
                 'name' => $user->name,
                 'email' => $user->email,

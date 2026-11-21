@@ -67,7 +67,7 @@ final class InvoiceReminderLadder
             }
 
             $outcome = match (true) {
-                ! $this->sales->invoice_reminder_send_client => ['sent' => false, 'reason' => 'client reminders are switched off in Settings — the studio was told instead.'],
+                ! $this->sales->invoice_reminder_send_client => ['sent' => false, 'reason' => 'client reminders are switched off in Settings — the team was told instead.'],
                 $this->actorFor($invoice) === null => ['sent' => false, 'reason' => 'no active owner or accountant could send it — call the client.'],
                 default => $this->reminder->handle($invoice, $this->actorFor($invoice)),
             };

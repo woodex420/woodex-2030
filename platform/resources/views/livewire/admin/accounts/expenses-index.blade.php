@@ -16,7 +16,7 @@
             <form wire:submit="save" data-unsaved class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div class="md:col-span-2">
                     <label class="wx-label" for="exp-description">What it is</label>
-                    <input id="exp-description" type="text" wire:model="description" class="wx-input" placeholder="Studio electricity — October" />
+                    <input id="exp-description" type="text" wire:model="description" class="wx-input" placeholder="Showroom electricity — October" />
                     @error('description') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
                 </div>
                 <div>

@@ -29,7 +29,7 @@
   W.VIEWS.library = function (el) {
     var st = S.libState || (S.libState = { q: "", cat: "" });
     el.innerHTML = head("Section library", "Section library", '<button class="btn" id="lb-imp">' + ic("file-plus") + 'Import</button><button class="btn" id="lb-exp">Export all</button><button class="btn pri" id="lb-new">' + ic("plus") + "New section</button>") +
-      '<div class="card" style="margin-bottom:20px"><div class="card-b" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><input type="search" id="lb-q" placeholder="Search name or tag…" value="' + esc(st.q) + '" style="margin:0;max-width:280px"><div class="toolbar" id="lb-cats"></div></div></div>' +
+      '<div class="card" style="margin-bottom:20px"><div class="card-b" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><input type="search" id="lb-q" aria-label="Search the library by name or tag" placeholder="Search name or tag…" value="' + esc(st.q) + '" style="margin:0;max-width:280px"><div class="toolbar" id="lb-cats"></div></div></div>' +
       '<div id="lb-grid" class="lib-grid"><div class="empty">Loading…</div></div><input type="file" id="lb-file" accept=".json" hidden>';
     var blocks = [], usage = {};
     var load = function () {

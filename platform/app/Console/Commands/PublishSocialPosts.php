@@ -17,7 +17,7 @@ class PublishSocialPosts extends Command
 {
     protected $signature = 'woodex:social-publish';
 
-    protected $description = 'Publish due, approved social posts to the studio\'s connected accounts.';
+    protected $description = 'Publish due, approved social posts to the connected accounts.';
 
     public function handle(SocialPublisher $publisher): int
     {

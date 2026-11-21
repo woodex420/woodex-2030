@@ -41,7 +41,7 @@ final class SocialPublisher
         $missing = array_values(array_diff((array) $post->targets, $connected));
 
         if ($missing !== []) {
-            return 'No connected account for: '.implode(', ', $missing).'. Connect the studio\'s pages once the Meta/LinkedIn approvals land.';
+            return 'No connected account for: '.implode(', ', $missing).'. Connect the business\'s pages once the Meta/LinkedIn approvals land.';
         }
 
         return null; // unreachable today; the transport lands with the first connected account

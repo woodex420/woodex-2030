@@ -16,7 +16,7 @@
   // ------------------------------------------------------------------ list
   W.VIEWS.seo = function (el, parts) {
     if (parts && parts.length) return editor(el, decodeURIComponent(parts.join("/")));
-    el.innerHTML = W.head("SEO", "SEO", '<input type="search" id="so-q" placeholder="Search pages…"><button class="btn" id="so-all">' + ic("refresh-cw") + "Analyse all</button>") + '<div class="card" style="padding:18px">Loading…</div>';
+    el.innerHTML = W.head("SEO", "SEO", '<input type="search" id="so-q" aria-label="Search pages" placeholder="Search pages…"><button class="btn" id="so-all">' + ic("refresh-cw") + "Analyse all</button>") + '<div class="card" style="padding:18px">Loading…</div>';
     W.fillIcons(el);
     Promise.all([api("pages_list"), api("seo_list")]).then(function (rs) {
       var P = rs[0], S = rs[1]; if (!P.ok || !S.ok) { el.querySelector(".card").textContent = (P.error || S.error); return; }

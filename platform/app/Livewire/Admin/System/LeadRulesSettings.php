@@ -79,7 +79,7 @@ class LeadRulesSettings extends Component
         $cities = self::textToMap((string) ($this->scoring['cities'] ?? ''));
 
         if ($services === null || $cities === null) {
-            $this->addError($services === null ? 'scoring.services' : 'scoring.cities', 'Write one rule per line as "name = points", e.g. turnkey = 10.');
+            $this->addError($services === null ? 'scoring.services' : 'scoring.cities', 'Write one rule per line as "name = points", e.g. workstations = 10.');
 
             return;
         }

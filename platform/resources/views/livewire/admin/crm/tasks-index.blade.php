@@ -79,7 +79,7 @@
         <x-admin.modal name="showCreate" title="New task" submit="create">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <x-admin.field label="Task" for="title" class="sm:col-span-2">
-                    <input id="title" type="text" wire:model="title" class="wx-input" placeholder="Send revised kitchen layout" autofocus>
+                    <input id="title" type="text" wire:model="title" class="wx-input" placeholder="Send the revised workstation layout" autofocus>
                 </x-admin.field>
                 <x-admin.field label="Type" for="type">
                     <select id="type" wire:model="type" class="wx-input">

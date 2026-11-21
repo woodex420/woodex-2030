@@ -52,10 +52,13 @@ use Livewire\Livewire;
 | WhatsApp greeting on every lead ("…from Woodex Interior"), and as an account of the chart.
 */
 
-/** The installation as it ships: Furniture alone, optional modules off, seeded without the Interior reference rows. */
-function sellFurnitureAlone(): void
+/**
+ * The installation as it ships: Furniture alone, optional modules off, seeded without the Interior reference rows.
+ * The demo runs with every module switched on since 21 November 2026 (DL-045), so the same is asked with '*'.
+ */
+function sellFurnitureAlone(string $modules = 'lead_api'): void
 {
-    config(['woodex.business_lines' => ['furniture'], 'modules.enabled' => 'lead_api']);
+    config(['woodex.business_lines' => ['furniture'], 'modules.enabled' => $modules]);
 
     // The suite's own database was seeded for three lines. Empty what a Furniture installation never receives:
     // the Interior reference rows (ProductionSeeder::INTERIOR_REFERENCE) and the Interior revenue account.
@@ -134,8 +137,8 @@ it('names a line beside a record only where that tells records apart', function 
         ->and((new Lead(['business_line' => 'furniture']))->lineAndService())->toBe('');
 });
 
-it('names nothing of Interior, and no studio, on any screen of the menu, on a lead, a contact, a new quotation or a new invoice', function (string $role) {
-    sellFurnitureAlone();
+it('names nothing of Interior, and no studio, on any screen of the menu, on a lead, a contact, a new quotation or a new invoice', function (string $role, string $modules) {
+    sellFurnitureAlone($modules);
     $user = $this->userWithRole($role);
     $contact = Contact::factory()->create(['name' => 'Hina Qureshi', 'phone' => '+923001234567', 'whatsapp' => '+923001234567']);
     // The factory writes the Interior studio's services and enquiries at random; this lead is a Furniture one.
@@ -175,29 +178,36 @@ it('names nothing of Interior, and no studio, on any screen of the menu, on a le
 
         // Everything the page carries: what is shown, what is folded away, the choices of every list, and the
         // links that leave the admin. Capital letters count; "interior" as a stored value does not appear here.
+        // A furniture company is not "the studio" either. "Website Studio" is the name of a part of the menu,
+        // and {studio_name} was the name of a variable in a saved reply (it is still filled where it stands).
         $words = pageWords($html);
-        if (($at = strpos($words, 'Interior')) !== false) {
-            $named[] = $page.' → …'.trim(preg_replace('/\s+/', ' ', strip_tags(substr($words, max(0, $at - 70), 150)))).'…';
-        }
-
-        // A furniture company is not "the studio" either. "Website Studio" is the name of a part of the menu.
-        $unnamed = str_replace(['Website Studio', 'website-studio'], '', $words);
-        if (($at = stripos($unnamed, 'studio')) !== false) {
-            $named[] = $page.' → …'.trim(preg_replace('/\s+/', ' ', strip_tags(substr($unnamed, max(0, $at - 70), 150)))).'…';
+        // The three that follow are the names by which a script finds that part: no person reads them.
+        $unnamed = str_replace(['Website Studio', 'website-studio', 'WX_STUDIO', '\/website\/studio\/', '/website/studio/'], '', $words);
+        foreach (['/Interior/' => $words, '/studio/i' => $unnamed] as $pattern => $text) {
+            // Every place on the page, not the first: a screen is cured in one pass or it is not cured.
+            preg_match_all($pattern, $text, $found, PREG_OFFSET_CAPTURE);
+            foreach ($found[0] as [, $at]) {
+                $named[] = $page.' → …'.trim(preg_replace('/\s+/', ' ', strip_tags(substr($text, max(0, $at - 70), 150)))).'…';
+            }
         }
 
         // The tabs of this screen (the hubs: Leads, Quotations, Documents, Accounts, System…), one level deep.
+        // A hub writes its tabs as href="?tab=aging", without the screen's address before it: until 21 November
+        // 2026 only an address written in full was followed, so no tab of a hub was ever read (DL-046).
         if (! str_contains($page, '?')) {
-            preg_match_all('/href="([^"]*'.preg_quote($page, '/').'\?tab=[a-z0-9_-]+)"/i', $html, $tabs);
+            preg_match_all('/href="(?:[^"?]*'.preg_quote($page, '/').')?\?tab=([a-z0-9_-]+)"/i', $html, $tabs);
             foreach (array_unique($tabs[1]) as $tab) {
-                $queue[] = (string) parse_url(html_entity_decode($tab), PHP_URL_PATH).'?'.parse_url(html_entity_decode($tab), PHP_URL_QUERY);
+                $queue[] = $page.'?tab='.$tab;
             }
         }
     }
 
     expect($opened)->toBeGreaterThanOrEqual(3)
         ->and($named)->toBe([]);
-})->with(['owner', 'admin', 'sales_manager', 'sales', 'designer_pm', 'accountant', 'editor', 'support']);
+})->with(['owner', 'admin', 'sales_manager', 'sales', 'designer_pm', 'accountant', 'editor', 'support'])
+    // As it ships, and as the demo runs: the twenty screens of the modules that ship switched off came from the
+    // Interior studio's application too, and nobody had read them as a furniture company would (DL-046).
+    ->with(['as it ships' => 'lead_api', 'with every module on' => '*']);
 
 it('starts a lead on Furniture and offers no other line', function () {
     sellFurnitureAlone();

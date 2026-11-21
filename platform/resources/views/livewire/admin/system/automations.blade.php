@@ -4,7 +4,7 @@
                          :breadcrumbs="['Automation' => null, 'Automations' => null]">
     </x-admin.page-header>
 
-    <x-admin.card title="Business automations" description="The studio's flows. Switch one off and the scheduler skips it — no messages are sent, no records change." :padding="false">
+    <x-admin.card title="Business automations" description="What Woodex runs by itself. Switch one off and the scheduler skips it — no messages are sent, no records change." :padding="false">
         <div class="divide-y divide-gray-100 dark:divide-gray-800">
             @foreach ($automations as $automation)
                 @if (! $automation['toggleable'])

@@ -13,13 +13,13 @@
         <x-admin.card class="mb-4" title="Compose" description="Write it once; each network gets the same words. The first comment and hashtags ride along.">
             <form wire:submit="saveDraft" data-unsaved="submitForReview" class="space-y-4">
                 <x-admin.field label="Caption (English)" for="text">
-                    <textarea id="text" rows="3" wire:model="text" class="wx-input" placeholder="A ten-marla home in DHA, handed over on the date we promised."></textarea>
+                    <textarea id="text" rows="3" wire:model="text" class="wx-input" placeholder="Forty workstations in Gulberg, delivered and installed on the date we promised."></textarea>
                 </x-admin.field>
 
                 @if ($aiReady)
                     <button type="button" wire:click="draftCaptions" class="wx-mini-btn">Draft both captions with AI</button>
                 @else
-                    <p class="text-theme-xs text-gray-400">AI caption drafts sleep until the studio's model key exists — set it once on the Settings screen.</p>
+                    <p class="text-theme-xs text-gray-400">AI caption drafts sleep until a model key exists — set it once on the Settings screen.</p>
                 @endif
 
                 <x-admin.field label="Caption (Urdu)" for="textUr" hint="Natural Urdu, the same message — not a word-by-word translation.">
@@ -124,7 +124,7 @@
                     @empty
                         <tr>
                             <td colspan="3">
-                                <x-admin.empty icon="megaphone" title="Nothing composed yet" description="Write the first post — a handover, a finished room, a thought on materials." />
+                                <x-admin.empty icon="megaphone" title="Nothing composed yet" description="Write the first post — a delivery, a finished office, a thought on materials." />
                             </td>
                         </tr>
                     @endforelse

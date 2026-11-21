@@ -1,5 +1,5 @@
 <div>
-    <x-admin.page-header title="Canned replies" description="The words behind the “/” picker in the inbox. Variables: {first_name} {studio_name} {studio_hours} {quote_link} — filled in per client when picked."
+    <x-admin.page-header title="Canned replies" description="The words behind the “/” picker in the inbox. Variables: {first_name} {business_name} {business_hours} {quote_link} — filled in per client when picked."
                          :breadcrumbs="['System' => null, 'Canned replies' => null]">
         <x-slot:actions>
             <x-admin.button icon="plus" wire:click="openEditor">Add reply</x-admin.button>
@@ -44,7 +44,7 @@
                     <label for="canned-body" class="wx-label">Message</label>
                     <textarea id="canned-body" wire:model="body" rows="4" class="wx-input h-auto py-2" placeholder="Assalam-o-alaikum {first_name}, here is your quotation: {quote_link}"></textarea>
                     @error('body')<p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p>@enderror
-                    <p class="mt-1 text-theme-xs text-gray-500">Variables: {first_name} · {studio_name} · {studio_hours} · {quote_link}</p>
+                    <p class="mt-1 text-theme-xs text-gray-500">Variables: {first_name} · {business_name} · {business_hours} · {quote_link}</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
