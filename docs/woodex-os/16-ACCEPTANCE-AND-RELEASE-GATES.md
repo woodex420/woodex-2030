@@ -222,7 +222,7 @@ and on a phone. A flow counts as pressed only when the journey does what a perso
 merely opens.
 
 <!-- generated:flows — written by scripts/verify-acceptance.mjs --write; do not edit by hand -->
-**11 flows: 4 pressed in full, 2 in part, 5 not pressed.** The journey has 39 steps.
+**11 flows: 4 pressed in full, 2 in part, 5 not pressed.** The journey has 40 steps.
 
 | Flow (document 10 §2) | State | Steps of `scripts/os-journeys.mjs` that press it | Note | Closed by |
 |---|---|---|---|---|

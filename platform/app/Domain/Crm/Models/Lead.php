@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Settings\SalesSettings;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\LeadFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -194,6 +195,22 @@ class Lead extends Model implements HasMedia
                 ->whereNull('first_response_at')
                 ->whereNotNull('sla_due_at')
                 ->where('sla_due_at', '<', $now)));
+    }
+
+    /**
+     * Enquiries made in a period: from the first moment of one day to the last moment of another, on the
+     * studio's own clock (Asia/Karachi, the clock the dates are kept and printed in). Either end may be left
+     * open. One definition for the dashboard's figures and the list they open (master list T-044), so a figure
+     * and the rows under it cannot differ at midnight.
+     *
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    public function scopeCreatedBetween(Builder $query, ?CarbonInterface $from, ?CarbonInterface $to): Builder
+    {
+        return $query
+            ->when($from !== null, fn (Builder $q) => $q->where('leads.created_at', '>=', $from))
+            ->when($to !== null, fn (Builder $q) => $q->where('leads.created_at', '<=', $to));
     }
 
     /**

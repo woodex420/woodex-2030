@@ -8,6 +8,7 @@ use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Sales\Enums\QuoteStatus;
 use App\Domain\Sales\Models\Quote;
 use App\Domain\Sales\Policies\QuotePolicy;
+use App\Livewire\Concerns\FiltersByPeriod;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Settings\SalesSettings;
 use Illuminate\Contracts\View\View;
@@ -26,7 +27,7 @@ use Livewire\WithPagination;
 #[Title('Quotations')]
 class QuotesIndex extends Component
 {
-    use InteractsWithAdmin, WithPagination;
+    use FiltersByPeriod, InteractsWithAdmin, WithPagination;
 
     /** Days after sending (or the last view) before a quote appears under "Needs follow-up". */
     public const FOLLOW_UP_DAYS = 2;
@@ -43,6 +44,14 @@ class QuotesIndex extends Component
     #[Url(except: '')]
     public string $owner = '';
 
+    /**
+     * Which date the period (?from=…&to=…, FiltersByPeriod) is about: `sent` or `accepted`. They are the two
+     * figures of the dashboard's funnel, opened (master list T-044), and each is the model's own scope: "sent"
+     * leaves a void quotation out, "accepted" is only what still stands as accepted.
+     */
+    #[Url(except: '')]
+    public string $dated = '';
+
     #[Url(except: 'updated')]
     public string $sort = 'updated';
 
@@ -53,18 +62,31 @@ class QuotesIndex extends Component
 
     public function updating(string $name): void
     {
-        if (in_array($name, ['search', 'status', 'line', 'owner', 'sort'], true)) {
+        if (in_array($name, ['search', 'status', 'line', 'owner', 'sort', 'dated', 'from', 'to'], true)) {
             $this->resetPage();
         }
+    }
+
+    /** "Clear" beside "Filtered: …": takes the dashboard's period off and leaves the other filters alone. */
+    public function clearQuickFilters(): void
+    {
+        $this->reset('dated', 'from', 'to');
+        $this->resetPage();
     }
 
     public function render(): View
     {
         $user = $this->user();
+        abort_unless(in_array($this->dated, ['', 'sent', 'accepted'], true), 422, 'Choose which date the period is about.');
+        // A period without its date would be ignored, and the list would show rows no figure counted.
+        abort_if($this->dated === '' && $this->hasPeriod(), 422, 'Choose which date the period is about.');
+        $period = $this->period();
 
         $base = Quote::query()
             ->visibleTo($user)
             ->search($this->search)
+            ->when($this->dated === 'sent', fn (Builder $q) => $q->sentBetween(...$period))
+            ->when($this->dated === 'accepted', fn (Builder $q) => $q->acceptedBetween(...$period))
             ->when($this->line !== '', fn (Builder $q) => $q->where('business_line', $this->line))
             ->when($this->owner !== '', fn (Builder $q) => $q->where('owner_id', (int) $this->owner));
 
@@ -93,6 +115,11 @@ class QuotesIndex extends Component
             'lines' => BusinessLine::offeredOptions(),
             'staff' => $this->staff(),
             'seesAll' => QuotePolicy::seesAll($user),
+            'filtered' => match ($this->dated) {
+                'sent' => [trim('Sent '.$this->periodWords()).' · void ones left out'],
+                'accepted' => [trim('Accepted '.$this->periodWords())],
+                default => [],
+            },
             'lakh' => app(SalesSettings::class)->lakh_grouping,
         ]);
     }

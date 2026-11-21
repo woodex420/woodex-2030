@@ -664,10 +664,27 @@ short word and a number. So no key of a table that moves today can be too long.
 
 Two tables that do not move today can have one. The old API allows a product's code of up to 80 characters
 (small letters, digits and dashes), which is more than 64, and `stock_levels` has that code and a number for its
-key. In the sample data the longest code has 31 characters, and in the admin's own catalogue file 37. **How long
-the longest code in the live database is was not read**: the connection to it was switched off when this was
-written. `products` stays and `stock_levels` waits for T-109, so nothing is refused today. The line that moves
-either of them reads the longest key first; if it is longer than 64, that line adds one migration that only
+key. In the sample data the longest code has 31 characters, and in the admin's own catalogue file 37.
+
+**In the live database the longest code has 31 characters too.** When this section was written the connection to
+it was switched off, and the section said that the live database had not been read. It was read on 21 November
+2026 at 04:53 UTC, reading only: one question, which returns the number of rows and the length of the longest
+key of each table whose key is a text, and no value.
+
+| Table and key | Rows | The longest key, in characters |
+|---|---|---|
+| `products.id` | 148 | 31 |
+| `stock_levels.product_id` | 0 | no row |
+| `quote_templates.id` | 0 | no row |
+| `materials.id` | 16 | 14 |
+| `meta.key` | 2 | 27 |
+| `services.id` | 7 | 1 |
+| `sessions.token` | 3 | 64 |
+
+So no key that is in the live database today is longer than the column; the one that fills it, a session's, stays
+in the old system. That says nothing of a code that somebody types tomorrow: the old API still allows 80
+characters. `products` stays and `stock_levels` waits for T-109, so nothing is refused today. The line that moves
+either of them reads the longest key again first; if it is longer than 64, that line adds one migration that only
 widens the column. Until then the class refuses such a key by name.
 
 ### Who else writes the table

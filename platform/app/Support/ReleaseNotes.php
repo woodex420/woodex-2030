@@ -21,6 +21,22 @@ final class ReleaseNotes
     {
         return [
             [
+                'date' => '2026-11-21',
+                'title' => 'The dashboard: every number opens the records it counts',
+                'notes' => [
+                    'Dashboard: every number says how many records it counts and opens exactly those records. "Open the 12 enquiries" opens twelve enquiries, for the same dates and the same business line. The list says above its rows what it is cut to ("Filtered: Enquiries made 1 Nov – 20 Nov 2026"), and "Clear" gives the whole list back.',
+                    'Dashboard, new for the roles that may open the lists behind them: the sales funnel with its conversion rate (quotations accepted out of quotations sent), money owed by how late it is, what we owe our vendors and when, the health of the running projects, and the milestones of the next 14 days. The inbox has its box where Conversations is switched on.',
+                    'Dashboard: under each chart stands what it shows: its dates, whether the amounts are in PKR, and what is counted and what is left out. A box with nothing to count says so in a sentence instead of a row of noughts.',
+                    'Dashboard: if one box cannot be worked out, that box says so, with a request number to pass on and "Try again". The rest of the page stays as it is. Before, one failing number took the whole page with it.',
+                    'Dashboard: you see only the boxes of your role. A number whose list you may not open is shown without a link, and says why when you point at it.',
+                    'Quotations, Invoices, Payments, Projects and Payables by age can be cut to a period and to what a dashboard number counts (sent, accepted, issued, received, late by 31 to 60 days, due within 7 days, behind schedule). A list that fits on one page says how many rows it has.',
+                    'Leads: a month now runs from midnight to midnight in Pakistan. An enquiry of the last evening of October was listed under November, and one of the last evening of November under December.',
+                    '"Today" on the dashboard and in the Leads list is today only: an enquiry dated tomorrow is no longer counted in it.',
+                    'The number beside "Approvals" in the menu, and "Approvals waiting" in the morning message on Telegram, count the quotations that are there to be decided, as the Approvals screen lists them. They also counted a request whose quotation had been deleted.',
+                    'The chart of new leads shows its days under it and whole numbers at its side again. Since 18 November it showed 1, 2, 3 … for the days and steps of 0.2 for the leads.',
+                ],
+            ],
+            [
                 'date' => '2026-11-20',
                 'title' => 'Lists: sort by a press on a heading, and cards on a phone',
                 'notes' => [

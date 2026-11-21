@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sales;
 
 use App\Domain\Accounts\Exceptions\JournalPostingFailed;
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Crm\Models\Contact;
 use App\Domain\Sales\Actions\RecordPayment;
 use App\Domain\Sales\Actions\RejectPayment;
@@ -16,6 +17,7 @@ use App\Domain\Sales\Models\BankAccount;
 use App\Domain\Sales\Models\Invoice;
 use App\Domain\Sales\Models\Payment;
 use App\Domain\Sales\Services\ReceiptPdf;
+use App\Livewire\Concerns\FiltersByPeriod;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Settings\SalesSettings;
 use App\Support\Money;
@@ -38,13 +40,24 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 #[Title('Payments')]
 class PaymentsIndex extends Component
 {
-    use InteractsWithAdmin, WithFileUploads, WithPagination;
+    use FiltersByPeriod, InteractsWithAdmin, WithFileUploads, WithPagination;
 
     #[Url(except: '')]
     public string $search = '';
 
     #[Url(except: '')]
     public string $status = '';
+
+    /**
+     * The dashboard's "collected in the period", opened (master list T-044): `dated=received` with the period
+     * ?from=…&to=… (FiltersByPeriod) is Payment::collectedBetween(), the verified payments by the day they were
+     * received; with `line`, those of which a part was set against an invoice of that business line.
+     */
+    #[Url(except: '')]
+    public string $dated = '';
+
+    #[Url(except: '')]
+    public string $line = '';
 
     public bool $showForm = false;
 
@@ -81,7 +94,7 @@ class PaymentsIndex extends Component
 
     public function updating(string $name): void
     {
-        if (in_array($name, ['search', 'status'], true)) {
+        if (in_array($name, ['search', 'status', 'dated', 'line', 'from', 'to'], true)) {
             $this->resetPage();
         }
     }
@@ -175,9 +188,23 @@ class PaymentsIndex extends Component
         return Storage::disk('local')->download($payment->receipt_pdf_path, ReceiptPdf::filename($payment), ['Content-Type' => 'application/pdf']);
     }
 
+    /** "Clear" beside "Filtered: …": takes the dashboard's period off and leaves the search and the status alone. */
+    public function clearQuickFilters(): void
+    {
+        $this->reset('dated', 'line', 'from', 'to');
+        $this->resetPage();
+    }
+
     public function render(): View
     {
+        abort_unless(in_array($this->dated, ['', 'received'], true), 422, 'Choose which date the period is about.');
+        // A period or a line without "received" would be ignored, and the list would show rows no figure counted.
+        abort_if($this->dated === '' && ($this->hasPeriod() || $this->line !== ''), 422, 'Choose which date the period is about.');
+        abort_unless($this->line === '' || BusinessLine::tryFrom($this->line) !== null, 422, 'Choose a business line.');
+        $period = $this->period();
+
         $payments = Payment::query()
+            ->when($this->dated === 'received', fn (Builder $q) => $q->collectedBetween($period[0], $period[1], BusinessLine::tryFrom($this->line)))
             ->with(['contact:id,name', 'invoice:id,number', 'bankAccount:id,title', 'allocations.invoice:id,number', 'verifier:id,name'])
             ->when($this->search !== '', fn (Builder $q) => $q->where(fn (Builder $inner) => $inner
                 ->where('reference', 'like', '%'.$this->search.'%')
@@ -199,6 +226,10 @@ class PaymentsIndex extends Component
             'pending' => (int) ($counts[PaymentStatus::PendingVerification->value] ?? 0),
             'received' => (int) Payment::query()->where('status', PaymentStatus::Verified->value)->sum('amount_minor'),
             'chips' => [PaymentStatus::PendingVerification, PaymentStatus::Verified, PaymentStatus::Rejected],
+            'filtered' => $this->dated === 'received' ? array_values(array_filter([
+                trim('Received '.$this->periodWords()).' · verified only',
+                $this->line !== '' ? 'Set against an invoice of '.BusinessLine::from($this->line)->label() : null,
+            ])) : [],
             'methods' => PaymentMethod::options(),
             'accounts' => BankAccount::query()->where('is_active', true)->orderByDesc('is_default')->get(['id', 'title', 'bank_name']),
             'contacts' => $this->contactSearch !== '' && $this->contactId === null

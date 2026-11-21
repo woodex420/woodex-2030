@@ -9,19 +9,21 @@ use App\Domain\Projects\Enums\ProjectStage;
 use App\Domain\Projects\Enums\ProjectStatus;
 use App\Domain\Projects\Models\Project;
 use App\Domain\Sales\Enums\InvoiceStatus;
+use App\Domain\Sales\Enums\QuoteStatus;
 use App\Domain\Sales\Models\Invoice;
+use App\Domain\Sales\Models\Quote;
 use App\Domain\System\Control\ControlPanel;
 use App\Domain\System\Enums\ApprovalStatus;
 use App\Domain\System\Models\Approval;
 use App\Domain\System\Models\ScheduledTaskRun;
 use App\Livewire\Admin\Crm\LeadsIndex;
+use App\Livewire\Admin\Crm\LeadTrackingBoard;
 use App\Livewire\Admin\Dashboard;
+use App\Livewire\Admin\Reports\SalesFunnel;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
-
-use function Pest\Livewire\livewire;
 
 /*
 | Deep QA slice D (docs/audit/31): the Overview is a control view, not a second report.
@@ -190,10 +192,21 @@ it('puts late money in front of the owner with the one click that chases it', fu
 });
 
 it('holds a quotation for a decision and says so on the dashboard', function () {
-    Approval::create([
-        'approvable_type' => 'quote', 'approvable_id' => 7, 'type' => 'quote',
+    // A quotation that is there to be decided. The request used to name a quotation that did not exist, and was
+    // counted all the same: the tile said 1 over an Approvals screen that listed nothing (cured with T-044).
+    $lead = Lead::factory()->create(['owner_id' => $this->sales->id]);
+    $quote = Quote::query()->create([
+        'number' => 'QT-HELD-1', 'sequence_key' => 'control', 'lead_id' => $lead->id, 'contact_id' => $lead->contact_id,
+        'business_line' => 'interior', 'title' => 'Held for a decision', 'status' => QuoteStatus::PendingApproval,
+        'currency' => 'PKR', 'subtotal_minor' => 0, 'owner_id' => $this->sales->id,
+    ]);
+    $request = fn (int $quotation) => Approval::create([
+        'approvable_type' => 'quote', 'approvable_id' => $quotation, 'type' => 'quote',
         'requested_by' => $this->sales->id, 'status' => ApprovalStatus::Pending,
     ]);
+    $request($quote->id);
+    // And a request left behind by a quotation that is gone: nothing to decide, so not counted.
+    $request($quote->id + 1000);
 
     expect(app(ControlPanel::class)->awaitingApproval())->toBe(1);
 
@@ -246,12 +259,12 @@ it('holds the tracking board column in the URL so a count can link to it', funct
 
     Livewire::actingAs($this->owner)
         ->withQueryParams(['group' => 'uncontacted'])
-        ->test(App\Livewire\Admin\Crm\LeadTrackingBoard::class)
+        ->test(LeadTrackingBoard::class)
         ->assertSet('group', 'uncontacted');
 
     Livewire::actingAs($this->owner)
         ->withQueryParams(['group' => 'invented'])
-        ->test(App\Livewire\Admin\Crm\LeadTrackingBoard::class)
+        ->test(LeadTrackingBoard::class)
         ->assertSet('group', 'overdue');
 });
 
@@ -287,7 +300,7 @@ it('shows the same numbers above the reports, and a report can be pinned to toda
 
     Livewire::actingAs($this->owner)
         ->withQueryParams(['preset' => 'today'])
-        ->test(App\Livewire\Admin\Reports\SalesFunnel::class)
+        ->test(SalesFunnel::class)
         ->assertSet('preset', 'today')
         ->assertSee('Today');
 });

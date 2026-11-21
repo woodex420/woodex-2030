@@ -8,6 +8,7 @@
     'card' => true,                 // false where the screen already draws the card
     'dense' => false,               // tighter rows, for a short table inside a section
     'cards' => false,               // below 640 px each row is drawn as a card (see "On a narrow screen" below)
+    'counted' => true,              // says how many rows the list holds in all (see "How many rows" below)
     'tableClass' => '',
     'emptyIcon' => 'inbox',
     'emptyTitle' => null,
@@ -62,6 +63,13 @@
     Sorting stays with the list's own choice above the table; "Select all on this page" stays, as a line above
     the cards. From 640 px up nothing of this applies and the table is the table it was.
 
+    How many rows (master list T-044; document 05 §7: "Every KPI must link to filtered records"). A figure on
+    the dashboard opens a list of exactly that many rows, so the list says how many it holds in all, on every
+    page of it: in words under the rows ("7 rows", or the page links' "Showing 1–25 of 37"), and as
+    data-list-rows on the table's frame, which the tests and the browser journey read. A screen names one list
+    this way. Where a screen draws several tables that are one list (the payables by age), it says
+    :counted="false" on each and writes the one number itself.
+
     The pages are the shared page links (components.admin.pagination). The words and roles are held by
     tests/Unit/AdminTableTest.php; which screens still write a table by hand is counted there too.
 --}}
@@ -73,6 +81,10 @@
         default => null,
     };
     $state ??= $count === 0 ? 'empty' : 'success';
+    // All the rows of the list, not only those of this page: what a figure that links here has counted.
+    $total = $rows instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator ? $rows->total() : $count;
+    $counted = $counted && $total !== null && in_array($state, ['empty', 'success'], true);
+    $turns = $paged && $rows->hasPages();
 
     if (! in_array($state, ['loading', 'empty', 'error', 'no-permission', 'success'], true)) {
         throw new \InvalidArgumentException("A table has five states: loading, empty, error, no-permission, success. [{$state}] is none of them.");
@@ -83,7 +95,7 @@
     $name = \Illuminate\Support\Str::lcfirst((string) $label);
     $rule = 'px-6 py-12 text-center';
 @endphp
-<div {{ $attributes->class(['wx-table', 'wx-table-cards' => $cards, 'wx-table-choose' => $cards && is_array($selected)]) }} data-table-state="{{ $state }}">
+<div {{ $attributes->class(['wx-table', 'wx-table-cards' => $cards, 'wx-table-choose' => $cards && is_array($selected)]) }} data-table-state="{{ $state }}" @if ($counted) data-list-rows="{{ $total }}" @endif>
     @isset($filters)
         <div role="search" aria-label="Filter {{ $name }}" {{ $filters->attributes->class(['mb-4']) }}>{{ $filters }}</div>
     @endisset
@@ -173,6 +185,12 @@
         </div>
         {{-- Said to a screen reader while Livewire is asking for the rows again: the words change, so they are read. --}}
         <p class="sr-only" role="status"><span wire:loading>Loading {{ $name }}…</span></p>
+        @if ($counted && $state === 'success' && ! $turns)
+            {{-- With page links below, they say it ("Showing 1–25 of 37"); without, this line does. --}}
+            <p class="border-t border-gray-100 px-5 py-2.5 text-theme-xs text-gray-500 dark:border-gray-800" data-list-count>
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ number_format($total) }}</span> {{ $total === 1 ? 'row' : 'rows' }}
+            </p>
+        @endif
         @if ($state === 'success' && $paged)
             {{ $rows instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator ? $rows->links('components.admin.pagination') : $rows->links() }}
         @endif

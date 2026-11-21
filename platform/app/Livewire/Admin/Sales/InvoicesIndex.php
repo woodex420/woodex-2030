@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Sales;
 
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Sales\Enums\InvoiceStatus;
 use App\Domain\Sales\Models\Invoice;
+use App\Livewire\Concerns\FiltersByPeriod;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Settings\SalesSettings;
 use App\Support\Money;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -27,13 +30,30 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 #[Title('Invoices')]
 class InvoicesIndex extends Component
 {
-    use InteractsWithAdmin, WithPagination;
+    use FiltersByPeriod, InteractsWithAdmin, WithPagination;
 
     #[Url(except: '')]
     public string $search = '';
 
     #[Url(except: '')]
     public string $status = '';
+
+    /**
+     * The dashboard's figures, opened (master list T-044). Each is the model's own scope, so the figure and the
+     * rows are one query:
+     *   age    what is still owed, by how long ago it fell due: `open`, `overdue`, or one of Invoice::AGES;
+     *   dated  `issued`, with the period ?from=…&to=… (FiltersByPeriod): the invoices that count as revenue
+     *          in that period, a draft and a void one left out;
+     *   line   one business line, as the dashboard's own choice of line.
+     */
+    #[Url(except: '')]
+    public string $age = '';
+
+    #[Url(except: '')]
+    public string $dated = '';
+
+    #[Url(except: '')]
+    public string $line = '';
 
     public function mount(): void
     {
@@ -42,7 +62,7 @@ class InvoicesIndex extends Component
 
     public function updating(string $name): void
     {
-        if (in_array($name, ['search', 'status'], true)) {
+        if (in_array($name, ['search', 'status', 'age', 'dated', 'line', 'from', 'to'], true)) {
             $this->resetPage();
         }
     }
@@ -83,10 +103,27 @@ class InvoicesIndex extends Component
         }, 'invoices-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
     }
 
+    /** "Clear" beside "Filtered: …": takes the dashboard's filters off and leaves the search and the status alone. */
+    public function clearQuickFilters(): void
+    {
+        $this->reset('age', 'dated', 'line', 'from', 'to');
+        $this->resetPage();
+    }
+
     /** @return Builder<Invoice> */
     private function query(): Builder
     {
+        abort_unless($this->age === '' || in_array($this->age, ['open', 'overdue', ...array_keys(Invoice::AGES)], true), 422, 'Choose a valid age.');
+        abort_unless(in_array($this->dated, ['', 'issued'], true), 422, 'Choose which date the period is about.');
+        // A period without its date would be ignored, and the list would show rows no figure counted.
+        abort_if($this->dated === '' && $this->hasPeriod(), 422, 'Choose which date the period is about.');
+        abort_unless($this->line === '' || BusinessLine::tryFrom($this->line) !== null, 422, 'Choose a business line.');
+        $period = $this->period();
+
         return Invoice::query()
+            ->when($this->age !== '', fn (Builder $q) => $q->aged($this->age))
+            ->when($this->dated === 'issued', fn (Builder $q) => $q->issuedBetween(...$period))
+            ->when($this->line !== '', fn (Builder $q) => $q->where('business_line', $this->line))
             ->when($this->search !== '', fn (Builder $q) => $q->where(fn (Builder $inner) => $inner
                 ->where('number', 'like', '%'.$this->search.'%')
                 ->orWhereHas('contact', fn (Builder $c) => $c->where('name', 'like', '%'.$this->search.'%'))
@@ -105,11 +142,9 @@ class InvoicesIndex extends Component
 
         $counts = Invoice::query()->toBase()->selectRaw('status, count(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
 
-        $overdue = Invoice::query()
-            ->whereNotIn('status', [InvoiceStatus::Paid->value, InvoiceStatus::Void->value])
-            ->whereNotNull('due_date')
-            ->whereDate('due_date', '<', now()->toDateString())
-            ->sum('balance_minor');
+        // What is late, as the dashboard counts it (Invoice::overdue()). This sum had a rule of its own, which
+        // counted a draft with a date in the past as late; the dashboard never did (master list T-044).
+        $overdue = Invoice::query()->overdue()->sum('balance_minor');
 
         return view('livewire.admin.sales.invoices-index', [
             'invoices' => $invoices,
@@ -121,6 +156,16 @@ class InvoicesIndex extends Component
                 InvoiceStatus::Paid, InvoiceStatus::Void,
             ],
             'canCreate' => $this->user()->can('create', Invoice::class),
+            'filtered' => array_values(array_filter([
+                match (true) {
+                    $this->age === 'open' => 'Still owed, at every age',
+                    $this->age === 'overdue' => 'Still owed · past the due date',
+                    $this->age !== '' => 'Still owed · '.Str::lcfirst(Invoice::AGES[$this->age]),
+                    default => null,
+                },
+                $this->dated === 'issued' ? trim('Issued '.$this->periodWords()).' · drafts and void ones left out' : null,
+                $this->line !== '' ? BusinessLine::from($this->line)->label() : null,
+            ])),
             'lakh' => app(SalesSettings::class)->lakh_grouping,
         ]);
     }

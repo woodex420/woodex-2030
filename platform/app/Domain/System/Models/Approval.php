@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\System\Models;
 
+use App\Domain\Sales\Models\Quote;
 use App\Domain\System\Enums\ApprovalStatus;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -27,6 +29,21 @@ class Approval extends Model
             'decided_at' => 'datetime',
             'payload' => 'array',
         ];
+    }
+
+    /**
+     * Quotations held for a decision (QUO-007): the request is still pending and its quotation still exists.
+     * A request whose quotation was deleted waits for nobody, and the Approvals screen cannot show it, so the
+     * dashboard does not count it either (master list T-044: a figure and the list it opens are one query).
+     *
+     * @param  Builder<Approval>  $query
+     * @return Builder<Approval>
+     */
+    public function scopeQuotesWaiting(Builder $query): Builder
+    {
+        return $query->where('approvable_type', 'quote')
+            ->where('status', ApprovalStatus::Pending->value)
+            ->whereHasMorph('approvable', [Quote::class]);
     }
 
     /**

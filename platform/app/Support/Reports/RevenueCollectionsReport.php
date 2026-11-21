@@ -113,15 +113,14 @@ final class RevenueCollectionsReport
      */
     public function totals(ReportRange $range, ?BusinessLine $line = null): array
     {
+        // The model's own scopes: the dashboard's figures and the lists they open ask the same ones (master list
+        // T-044), so a total here, a figure there and the rows under it are one definition.
         $quoted = (int) Quote::query()->when($line !== null, fn ($q) => $q->where('business_line', $line?->value))
-            ->whereNot('status', QuoteStatus::Void->value)
-            ->whereBetween('sent_at', [$range->from, $range->to])->sum('total_minor');
+            ->sentBetween($range->from, $range->to)->sum('total_minor');
         $accepted = (int) Quote::query()->when($line !== null, fn ($q) => $q->where('business_line', $line?->value))
-            ->where('status', QuoteStatus::Accepted->value)
-            ->whereBetween('accepted_at', [$range->from, $range->to])->sum('total_minor');
+            ->acceptedBetween($range->from, $range->to)->sum('total_minor');
         $invoiced = (int) Invoice::query()->when($line !== null, fn ($q) => $q->where('business_line', $line?->value))
-            ->whereIn('status', [InvoiceStatus::Issued->value, InvoiceStatus::PartiallyPaid->value, InvoiceStatus::Paid->value])
-            ->where('issue_date', '>=', $range->from->toDateString())->where('issue_date', '<', $range->to->addDay()->toDateString())->sum('total_minor');
+            ->issuedBetween($range->from, $range->to)->sum('total_minor');
         $collected = (int) $this->collections($range, $line)->sum($line === null ? 'payments.amount_minor' : 'payment_allocations.amount_minor');
 
         return [

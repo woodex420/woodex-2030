@@ -4,38 +4,44 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin;
 
-use App\Console\Commands\Heartbeat;
 use App\Domain\Crm\Enums\BusinessLine;
-use App\Domain\Crm\Models\Activity;
-use App\Domain\Crm\Models\Lead;
-use App\Domain\Crm\Models\PipelineStage;
-use App\Domain\Sales\Models\BankAccount;
 use App\Domain\System\Control\ControlPanel;
-use App\Domain\System\Control\PeriodPerformance;
-use App\Integrations\Telegram\Contracts\TelegramGateway;
-use App\Integrations\Turnstile\TurnstileVerifier;
+use App\Domain\System\Dashboard\Board;
+use App\Domain\System\Dashboard\DashboardContext;
+use App\Domain\System\Dashboard\DrawnWidget;
 use App\Models\User;
+use App\Settings\SalesSettings;
 use App\Support\Reports\ReportRange;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
- * The control view (deep QA slice D). Six numbers, each one query from ControlPanel, each one click
- * from the screen that filters to the same rows; then what needs a person, then the shape of the
- * fortnight and the day's record. No number on this page is typed or estimated.
+ * The control view (deep QA slice D), drawn from widgets (master list T-044; the owner's documents 05 §7 and
+ * 07 §1; DL-044).
+ *
+ * This component knows the page: who looks, which period and business line were chosen, and where each widget
+ * stands. What a widget counts, who may see it and where its figures lead is the widget's own
+ * (App\Domain\System\Dashboard\Widget); which widgets there are, and how one of them is found on a drawing, is
+ * the Board's. No number on this page is typed or estimated, and every figure opens the list of the records it
+ * counted.
+ *
+ * The page is drawn whole in one answer. A widget shows "loading" while Livewire asks again, for another period
+ * or after "Try again"; the minute's own refresh (wire:poll) is silent.
  */
 #[Layout('layouts::admin')]
 #[Title('Dashboard')]
 class Dashboard extends Component
 {
+    /** How much of a row of three a widget takes on a wide screen (Widget::width()). */
+    private const TAKES = ['full' => 3, 'wide' => 2, 'narrow' => 1];
+
     #[Url]
     public string $preset = 'this_month';
 
@@ -48,12 +54,28 @@ class Dashboard extends Component
     #[Url]
     public ?string $to = null;
 
+    /**
+     * The widgets that were on this person's page when it was opened. One of them that the person may no longer
+     * see says "no access" until the page is opened again, instead of vanishing (Board::draw, rule 2). Locked:
+     * the browser cannot name widgets here to learn which exist.
+     *
+     * @var list<string>|null
+     */
+    #[Locked]
+    public ?array $shown = null;
+
     public function mount(): void
     {
         $this->authorize('dashboard.view');
     }
 
-    public function render(): View
+    /** "Try again" on a widget that could not be loaded: the whole page is asked again. */
+    public function refresh(): void
+    {
+        $this->authorize('dashboard.view');
+    }
+
+    public function render(Board $board): View
     {
         $this->authorize('dashboard.view');
         abort_unless(in_array($this->preset, ReportRange::PRESETS, true), 422, 'Choose a valid period.');
@@ -64,43 +86,13 @@ class Dashboard extends Component
         $range = ReportRange::fromPreset($this->preset, $this->from, $this->to);
         /** @var User $user */
         $user = Auth::user();
-        $panel = app(ControlPanel::class);
         $now = CarbonImmutable::now();
 
-        $canLeads = $user->can('leads.view');
-        $ownOnly = ! $user->can('leads.view_all');
-        $leads = fn (): Builder => Lead::query()->visibleTo($user);
-
-        $funnel = $canLeads ? PipelineStage::query()->ordered()
-            ->withCount(['leads' => fn (Builder $q) => $q->when($ownOnly, fn (Builder $inner) => $inner->where('owner_id', $user->id))])
-            ->get() : collect();
-
-        $overdueLeads = $user->can('leads.view')
-            ? Lead::query()->visibleTo($user)->followUpDue()
-                ->with(['contact', 'owner', 'stage'])
-                ->orderByRaw('next_action_at is null')
-                ->orderBy('next_action_at')
-                ->limit(5)
-                ->get()
-            : collect();
-
-        // Leads per day, last 14 days (grouped in PHP so it works on MySQL and SQLite).
-        $start = $now->subDays(13)->startOfDay();
-        $perDay = $canLeads ? $leads()->where('created_at', '>=', $start)->pluck('created_at')
-            ->countBy(fn ($date) => CarbonImmutable::parse($date)->format('Y-m-d')) : collect();
-        $categories = [];
-        $series = [];
-        for ($day = $start; $day->lessThanOrEqualTo($now); $day = $day->addDay()) {
-            $categories[] = $day->format('j M');
-            $series[] = (int) ($perDay[$day->format('Y-m-d')] ?? 0);
-        }
-
-        $recent = $canLeads ? Activity::query()
-            ->with(['contact', 'user'])
-            ->when($ownOnly, fn (Builder $q) => $q->whereHas('lead', fn (Builder $l) => $l->where('owner_id', $user->id)))
-            ->latest('occurred_at')
-            ->limit(8)
-            ->get() : collect();
+        $sections = $board->draw(
+            new DashboardContext($user, $range, BusinessLine::tryFrom($this->line), $now, app(ControlPanel::class), app(SalesSettings::class)->lakh_grouping),
+            $this->shown,
+        );
+        $this->shown ??= $board->keysFor($user);
 
         $hour = (int) $now->timezone('Asia/Karachi')->format('G');
         $greeting = ($hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening'))
@@ -110,39 +102,46 @@ class Dashboard extends Component
             'user' => $user,
             'greeting' => $greeting,
             'range' => $range,
-            'periodCards' => app(PeriodPerformance::class)->cards($user, $range, BusinessLine::tryFrom($this->line)),
-            'control' => $panel->cards($user),
-            'attention' => $panel->attention($user),
-            'overdueLeads' => $overdueLeads,
-            'funnel' => $funnel,
-            'chart' => [
-                'type' => 'area',
-                'height' => 240,
-                'categories' => $categories,
-                'series' => [['name' => 'New leads', 'data' => $series]],
-            ],
-            'recent' => $recent,
-            'checklist' => $user->can('system.health') ? $this->checklist($user) : [],
+            'sections' => array_map(self::inRows(...), $sections),
         ]);
     }
 
     /**
-     * Go-live checklist shown until everything is green (docs/06 §9).
+     * The widgets of one section, each with how many of a row's three columns it takes. A row that would stay
+     * short is filled by its last widget, so a widget that is absent leaves no hole: "Needs attention" takes the
+     * whole row for somebody who has no go-live checklist beside it.
      *
-     * @return list<array{label: string, done: bool, hint: string}>
+     * @param  list<DrawnWidget>  $widgets
+     * @return list<array{widget: DrawnWidget, columns: int}>
      */
-    private function checklist(User $user): array
+    private static function inRows(array $widgets): array
     {
-        $heartbeat = Cache::get(Heartbeat::CACHE_KEY);
-        $cronOk = is_string($heartbeat) && CarbonImmutable::parse($heartbeat)->greaterThan(now()->subMinutes(3));
+        $placed = [];
+        $row = [];
+        $taken = 0;
 
-        return [
-            ['label' => 'Two-factor authentication on your account', 'done' => $user->hasTwoFactorEnabled(), 'hint' => 'Profile → Security'],
-            ['label' => 'Telegram alerts linked to your account', 'done' => $user->routeNotificationForTelegram() !== null, 'hint' => 'Profile → Security → Link Telegram'],
-            ['label' => 'Telegram bot configured', 'done' => app(TelegramGateway::class)->isConfigured(), 'hint' => 'TELEGRAM_BOT_TOKEN in .env'],
-            ['label' => 'Spam protection (Cloudflare Turnstile)', 'done' => app(TurnstileVerifier::class)->enabled(), 'hint' => 'TURNSTILE_* keys in .env'],
-            ['label' => 'Cron heartbeat in the last 3 minutes', 'done' => $cronOk, 'hint' => 'hPanel → Cron Jobs → schedule:run'],
-            ['label' => 'Bank accounts added for invoices', 'done' => BankAccount::query()->where('is_active', true)->exists(), 'hint' => 'Invoices → Bank accounts'],
-        ];
+        $close = function () use (&$placed, &$row, &$taken): void {
+            if ($row !== []) {
+                $row[array_key_last($row)]['columns'] += 3 - $taken;
+                $placed = [...$placed, ...$row];
+            }
+            $row = [];
+            $taken = 0;
+        };
+
+        foreach ($widgets as $widget) {
+            $columns = self::TAKES[$widget->width] ?? 3;
+
+            if ($taken + $columns > 3) {
+                $close();
+            }
+
+            $row[] = ['widget' => $widget, 'columns' => $columns];
+            $taken += $columns;
+        }
+
+        $close();
+
+        return $placed;
     }
 }

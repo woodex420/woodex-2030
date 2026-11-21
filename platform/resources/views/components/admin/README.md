@@ -3,8 +3,9 @@
 What a screen of the admin is built from, and the rules each part follows. The owner's document 05 §6 asks for
 shared standards "for tables with sort, filters, pagination, selection and bulk actions", for "dialogs,
 confirmations, toasts" and for "empty, loading, error, no-permission … states". This page is those standards for
-the table, the dialog, the confirmation, the toast and the page links (master list T-041), and for the table on
-a phone (T-042; document 05 §9: "table-to-card treatment for key workflows").
+the table, the dialog, the confirmation, the toast and the page links (master list T-041), for the table on
+a phone (T-042; document 05 §9: "table-to-card treatment for key workflows"), and for the dashboard's widgets,
+their figures and the lists the figures open (T-044; document 05 §7 and document 07 §1).
 
 A rule that a test holds names its test. A rule the code does not follow yet says so, with the line of the master
 list that closes it.
@@ -155,3 +156,80 @@ shared table gets them from `:rows`.
 
 **Not so yet.** 14 views still use the framework's plain links (`->links()`); each gets the shared ones when its
 list moves to the shared table (T-045).
+
+## 6. The dashboard's widget: `<x-admin.widget>`
+
+One box of the dashboard. A widget is a class under `app/Domain/System/Dashboard/Widgets/` (the contract is
+`Widget`), a view under `resources/views/admin/dashboard/widgets/` named by its key, and a line in
+`Board::WIDGETS`, which says in which section of the page it stands. The decision is DL-044.
+
+```blade
+<x-admin.widget :widget="$widget" :class="$span">
+    …what it shows when it is ready…
+    <x-slot:definition>1 Nov – 20 Nov 2026 · amounts in PKR · what is counted, in a sentence</x-slot:definition>
+</x-admin.widget>
+```
+
+**Its states.** Which one is the `Board`'s decision, never the view's; the frame draws all of them, so a widget's
+view writes only its ready content.
+
+| State | When | What the person reads |
+|---|---|---|
+| ready | there is something to show | the content, and under it the definition |
+| empty | `isEmpty()`: nothing to count | the widget's own sentence (`emptyWords()`), which says what is missing and names the dates where it counts over dates. No row of noughts, no figure, no definition |
+| error | working it out threw | "… could not be loaded", the request number, "Try again". Every other widget is drawn; the failure is in the log under that number |
+| no access | the right was taken away while the page stood open | "You no longer have access to …". On the next opening of the page the widget is absent |
+| loading | Livewire is asking again for the period, the business line or "Try again" | "Loading …" over the widget. The minute's refresh shows nothing |
+| absent | the role may not see it, or its module is switched off | nothing: the widget is not on the page, and the others close the gap |
+
+**The rules.**
+
+| Rule | How it is held |
+|---|---|
+| A widget that fails does not take the page with it | `DashboardWidgetsTest`: "shows the error of a widget that fails in that widget alone", once for each widget |
+| A role sees only its widgets, and the browser cannot ask for another | "shows each role only the widgets that role may see" (seven roles); "cannot be told by the browser which widgets were on the page" |
+| A person with no widget is told so in one box, and is offered no period to choose | "tells a person with none of the widgets so" |
+| Every chart says its dates, its currency (or that it counts no money) and what it counts, under the chart | "draws every widget ready …, and every chart says its dates, its currency and what it counts" |
+| The definition speaks of the figures this person is shown, and of no other | "gives a figure no door where the person may not open the list" |
+| The page asks the database a fixed number of questions, however many records there are (52 for the owner) | "asks the database no more than its limit" |
+| A number two widgets show is read once in a drawing (`DashboardContext::count()`, `ControlPanel`) | the same test: the limit would be passed |
+| Each widget is a region with its heading (`<section aria-labelledby>`, an `<h2>`) | "draws every widget ready …" |
+
+A widget's width is `narrow` (one column of three) or `wide` (two); a widget alone in its row takes the row.
+Below 1280 px every widget takes the whole width, in the page's order.
+
+## 7. A figure and its list: `<x-admin.figure>`
+
+**Every figure of the dashboard says how many records it counts and opens exactly those records** (document 05
+§7: "Every KPI must link to filtered records"). A figure is a `Figure`: its name (`widget.figure`), its count, its
+amount where it is money, and the address of the list.
+
+```blade
+<x-admin.figure :figure="$figure">Open the {{ $figure->counted() }}</x-admin.figure>
+```
+
+- **One definition.** The count and the list ask the same scope of the model: `Lead::createdBetween()` and
+  `followUpDue()`, `Quote::sentBetween()` and `acceptedBetween()`, `Invoice::issuedBetween()`, `owing()`,
+  `overdue()` and `aged()`, `Payment::collectedBetween()`, `Bill::owing()` and `due()`, `Project::health()` and
+  `milestoneSoon()`, `Approval::quotesWaiting()`. The revenue and funnel reports ask the period scopes too. A new
+  figure gets its scope first, then its widget and its filter.
+- **The list says its number.** A list on the shared table prints `data-list-rows` (and "N rows" where it has one
+  page); the figure prints `data-figure-count`. `DashboardWidgetsTest` opens every figure's address and compares
+  the two, for the owner, for a person who sees only their own, and for another period and business line.
+- **Periods are whole days on the studio's clock** (`Asia/Karachi`): from the first second of one day to the last
+  second of another. A list takes them as `?from=2026-11-01&to=2026-11-20` (`FiltersByPeriod`).
+- **No door where the list is not the person's.** A figure the person may see but whose list they may not open,
+  or would see only in part, is drawn as text (`data-figure-access="none"`), not as a link to other rows.
+- **A figure that is not a list of its rows says so**: `rows: false` (the Automation screen lists every task, not
+  the failing ones). It is a link without `data-figure-rows`, and no test compares it.
+
+## 8. "Filtered: …  Clear": `<x-admin.filtered>`
+
+A list that a figure opened arrives cut to the figure's rows. The line above it says to what, in words ("Issued
+1 Nov – 20 Nov 2026"), and "Clear" gives the whole list back and leaves the search and the other filters. A
+short list without a reason looks like missing records.
+
+```blade
+<x-admin.filtered :chips="$filtered" />
+```
+

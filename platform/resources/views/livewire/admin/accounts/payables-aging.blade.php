@@ -15,23 +15,32 @@
         </div>
     </div>
 
+    <x-admin.filtered :chips="$filtered" />
+
+    {{-- data-list-rows: the bills drawn below, over all the ages. One list in several tables, so the number is
+         written once here and each table is told not to count (master list T-044). --}}
     @if ($outstanding === 0)
-        <x-admin.card>
+        <x-admin.card data-list-rows="{{ $rows }}">
             <p class="text-theme-sm text-gray-500">
                 Nothing is owed: every received invoice is paid or none has been entered yet.
                 <a href="{{ route('admin.accounts.payables', ['tab' => 'bills']) }}" class="font-medium text-brand-600 hover:underline">Open received invoices</a>.
             </p>
         </x-admin.card>
     @else
-        <div class="space-y-5">
+        <div class="space-y-5" data-list-rows="{{ $rows }}">
+            @if ($rows === 0)
+                <x-admin.card>
+                    <p class="text-theme-sm text-gray-500" role="status">No bill that is owed on matches this filter.</p>
+                </x-admin.card>
+            @endif
             @foreach ($buckets as $key => $bucket)
                 @continue ($bucket['bills'] === [])
                 <x-admin.card :padding="false">
                     <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
                         <p class="text-theme-sm font-medium text-gray-800 dark:text-white/90">{{ $bucket['label'] }}</p>
-                        <p class="text-theme-sm tabular-nums {{ $key !== 'current' ? 'text-error-600' : 'text-gray-600 dark:text-gray-400' }}">{{ Money::ofMinor((int) $bucket['total'])->format($lakh) }}</p>
+                        <p class="text-theme-sm tabular-nums {{ $key !== 'current' ? 'text-error-600' : 'text-gray-600 dark:text-gray-400' }}">{{ Money::ofMinor((int) ($bucket['shown'] ?? 0))->format($lakh) }}</p>
                     </div>
-                    <x-admin.table :label="'Received invoices: '.\Illuminate\Support\Str::lcfirst($bucket['label'])" :rows="$bucket['bills']" :card="false" dense>
+                    <x-admin.table :label="'Received invoices: '.\Illuminate\Support\Str::lcfirst($bucket['label'])" :rows="$bucket['bills']" :card="false" :counted="false" dense>
                         <x-slot:head>
                             <x-admin.table.heading>Vendor</x-admin.table.heading>
                             <x-admin.table.heading>Bill</x-admin.table.heading>
