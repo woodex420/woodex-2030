@@ -81,7 +81,11 @@
                     @empty
                         <tr>
                             <td colspan="3">
-                                <x-admin.empty title="Nothing found" description="Every page passes the rules this filter covers." />
+                                @if ($counts['files'] === 0)
+                                    <x-admin.empty title="No page yet" description="There is nothing to check until a page is made in the Page builder." />
+                                @else
+                                    <x-admin.empty title="Nothing found" description="Every page passes the rules this filter covers." />
+                                @endif
                             </td>
                         </tr>
                     @endforelse

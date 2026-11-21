@@ -52,7 +52,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="3" class="p-5">No pages match these review filters. Clear the filters or choose All pages.</td></tr>
+                            <tr><td colspan="3" class="p-5">{{ ($metadata['entries'] ?? []) === [] ? 'No page yet: there is nothing to review until a page is made in the Page builder.' : 'No pages match these review filters. Clear the filters or choose All pages.' }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -130,7 +130,11 @@
                     @empty
                         <tr>
                             <td colspan="3">
-                                <x-admin.empty title="Nothing to show" description="No page matches this filter — try All." />
+                                @if ($counts['files'] === 0)
+                                    <x-admin.empty title="No page yet" description="There is nothing to check until a page is made in the Page builder." />
+                                @else
+                                    <x-admin.empty title="Nothing to show" description="No page matches this filter — try All." />
+                                @endif
                             </td>
                         </tr>
                     @endforelse

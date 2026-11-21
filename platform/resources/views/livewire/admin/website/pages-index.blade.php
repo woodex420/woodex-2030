@@ -67,7 +67,12 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <x-admin.empty title="No page matches" description="Clear the search or pick another section." />
+                                {{-- An empty list has two reasons, and each gets its own words: nothing was found, or there is nothing. --}}
+                                @if ($counts['pages'] === 0)
+                                    <x-admin.empty title="No page yet" description="This admin serves no page of its own yet. A page is made in the Page builder." />
+                                @else
+                                    <x-admin.empty title="No page matches" description="Clear the search or pick another section." />
+                                @endif
                             </td>
                         </tr>
                     @endforelse

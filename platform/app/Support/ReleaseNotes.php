@@ -33,6 +33,7 @@ final class ReleaseNotes
                     'Saved replies: the two variables for the name and the opening hours are now called {business_name} and {business_hours}. A reply saved under the old names is filled as before.',
                     'Website: each Website screen says in one line what these screens manage: pages that the admin serves itself, not the shop. Blog, Portfolio, Forms and the Page builder show the demo notice like every other screen, and a new article is published under the name from System → Settings.',
                     'Website, Redirects: choosing a page from the list "…or pick a published page" now fills the form. The form kept what had been typed before.',
+                    'Website: where this admin serves no page yet, Pages, SEO and SEO agent say so. They said that no page matched a search nobody had typed. The search fields the Page builder, Blog and Portfolio draw have a name a screen reader can say.',
                     'Words: the business is called Woodex, or "we", everywhere. Several screens, the statement of account a client receives and the chat window on the website used a word that belongs to another trade: Payables by age, Due payments, Automations, Sequences and Speed among them.',
                 ],
             ],

@@ -9,6 +9,7 @@ use App\Domain\Conversations\Models\Conversation;
 use App\Domain\Crm\Models\Contact;
 use App\Domain\Marketing\Social\ProposeCaptions;
 use App\Domain\Projects\Enums\ProjectStage;
+use App\Domain\Website\Builder\BuilderFile;
 use App\Domain\Website\Studio\RateBook;
 use App\Integrations\WhatsApp\Fakes\FakeWhatsAppGateway;
 use App\Integrations\WhatsApp\WhatsAppGateway;
@@ -258,6 +259,26 @@ it('opens the page builder with one heading, a name on every field, and no link 
     }
 });
 
+it('names every search field the Website Studio and the page builder draw by script', function () {
+    // The crawl reads a page as it is drawn; a field a script writes later is seen only when someone opens that
+    // pane. So the scripts themselves are read: a search field with a placeholder alone has no name for a
+    // screen reader once a letter is typed.
+    $unnamed = [];
+    $scripts = array_merge(glob(public_path('builder/*.js')) ?: [], glob(public_path('assets/admin-v21/*.js')) ?: []);
+    expect(count($scripts))->toBeGreaterThan(20);
+
+    foreach ($scripts as $script) {
+        preg_match_all('/<input[^>]*type=[\'"]search[\'"][^>]*>/', (string) file_get_contents($script), $fields);
+        foreach ($fields[0] as $field) {
+            if (! str_contains($field, 'aria-label=')) {
+                $unnamed[] = basename($script).': '.$field;
+            }
+        }
+    }
+
+    expect($unnamed)->toBe([]);
+});
+
 it('says on each Website screen what the Website screens manage', function (string $route) {
     $this->actingAs($this->userWithRole('owner'));
 
@@ -269,6 +290,25 @@ it('says on each Website screen what the Website screens manage', function (stri
     'admin.website.pages', 'admin.website.theme', 'admin.website.seo.overview', 'admin.website.seo', 'admin.website.speed',
     'admin.website.health', 'admin.website.settings', 'admin.website.redirects', 'admin.website.find-replace',
 ]);
+
+it('says that there is no page yet where a list of pages is empty, and not that a search found none', function () {
+    // An empty list has two reasons. With no page at all, "clear the search" sends a person looking for a
+    // search they never typed, and "every page passes" praises pages that are not there.
+    $this->actingAs($this->userWithRole('owner'));
+    // What the product ships with, and what the demo has: this admin serves no page of its own.
+    expect(BuilderFile::pages())->toBe([]);
+
+    foreach (['admin.website.pages', 'admin.website.seo.overview', 'admin.website.seo'] as $route) {
+        $this->get(route($route, [], false))->assertOk()
+            ->assertSee('No page yet')
+            ->assertDontSee('No page matches')
+            ->assertDontSee('Every page passes');
+    }
+
+    $this->get(route('admin.website.seo.overview', ['tab' => 'metadata'], false))->assertOk()
+        ->assertSee('No page yet')
+        ->assertDontSee('No pages match these review filters');
+});
 
 it('names the fields of the redirects screen and tells the form when a page is picked', function () {
     $this->actingAs($this->userWithRole('owner'));
