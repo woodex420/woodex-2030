@@ -96,6 +96,29 @@
   font-weight: 600;
 }
 
+/* The demo's notice, on the screens that draw their own document (DL-046). It takes the free space, so that the
+   way out stays at the right edge. */
+.wx21-demo {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fef0c7;
+  color: #93370d;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wx21-demo + .wx21-exit {
+  margin-left: 10px;
+}
+
+/* The sign-in shell of the ported admin is never shown here; its headings are no longer the page's first. */
+.auth-card .auth-h {
+  font-size: 26px;
+  margin: 22px 0 4px;
+}
+
 .wx21-exit {
   margin-left: auto;
   padding: 6px 12px;

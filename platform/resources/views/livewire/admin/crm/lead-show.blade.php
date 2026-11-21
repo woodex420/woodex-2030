@@ -494,7 +494,7 @@
                     <input id="details.service" type="text" wire:model="details.service" class="wx-input" placeholder="e.g. {{ $lead->business_line->serviceExamples() }}">
                 </x-admin.field>
                 <x-admin.field label="Property type" for="details.property_type">
-                    <input id="details.property_type" type="text" wire:model="details.property_type" class="wx-input" placeholder="house, apartment, office…">
+                    <input id="details.property_type" type="text" wire:model="details.property_type" class="wx-input" placeholder="office, showroom, school…">
                 </x-admin.field>
                 <x-admin.field label="Area / society" for="details.area">
                     <input id="details.area" type="text" wire:model="details.area" class="wx-input" placeholder="DHA Phase 6">

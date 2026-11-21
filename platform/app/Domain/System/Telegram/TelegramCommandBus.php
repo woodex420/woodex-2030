@@ -115,7 +115,7 @@ final class TelegramCommandBus
      */
     public function help(): string
     {
-        $lines = ['Woodex OS bot — run the studio from here:', ''];
+        $lines = ['Woodex OS bot — run the business from here:', ''];
 
         foreach ($this->commands as $command) {
             $lines[] = $command->usage().': '.$command->description();

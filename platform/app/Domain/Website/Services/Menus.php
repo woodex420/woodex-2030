@@ -121,7 +121,7 @@ final class Menus
                 $link('Cost estimator', '/estimator/'),
                 $link('Projects', '/projects/'),
                 $link('Book a visit', '/book-a-visit/'),
-                $link('About the studio', '/about/'),
+                $link('About us', '/about/'),
                 $link('Contact', '/contact/'),
                 $link('Privacy', '/privacy/'),
             ],

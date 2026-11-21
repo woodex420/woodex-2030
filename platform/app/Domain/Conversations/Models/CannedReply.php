@@ -16,11 +16,13 @@ use Illuminate\Support\Str;
  * A saved reply (CNV-004). Typed with "/" in the inbox composer, picked from a list, filled in for the
  * client on the other end. English and Urdu both live here; the team picks what the client picked.
  *
- * Variables in the body, filled by renderFor(): {first_name} {studio_name} {studio_hours} {quote_link}.
+ * Variables in the body, filled by renderFor(): {first_name} {business_name} {business_hours} {quote_link}.
+ * The two in the middle were {studio_name} and {studio_hours} in the application this one came from; a reply
+ * saved with the old names is filled as before, and no screen offers them (DL-046).
  */
 class CannedReply extends Model
 {
-    public const VARIABLES = ['{first_name}', '{studio_name}', '{studio_hours}', '{quote_link}'];
+    public const VARIABLES = ['{first_name}', '{business_name}', '{business_hours}', '{quote_link}'];
 
     protected $guarded = ['id', 'usage_count'];
 
@@ -86,6 +88,8 @@ class CannedReply extends Model
 
         $values = [
             '{first_name}' => $contact !== null ? Str::before($contact->name ?? '', ' ') : '',
+            '{business_name}' => $business->brand_name,
+            '{business_hours}' => self::hoursSummary($hours->opensAt, $hours->closesAt, $hours->workingDays),
             '{studio_name}' => $business->brand_name,
             '{studio_hours}' => self::hoursSummary($hours->opensAt, $hours->closesAt, $hours->workingDays),
             // Empty while the client pages are switched off: a link that answers 404 is worse than none.

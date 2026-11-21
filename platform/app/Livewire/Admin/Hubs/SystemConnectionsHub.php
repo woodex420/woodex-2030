@@ -18,7 +18,7 @@ final class SystemConnectionsHub extends Hub
     {
         return [
             'title' => 'Connections',
-            'description' => 'Every outside service the studio connects to — GitHub, Google, WhatsApp, custom APIs, the MCP server — and the import that brings old records in.',
+            'description' => 'Every outside service the business connects to — GitHub, Google, WhatsApp, custom APIs, the MCP server — and the import that brings old records in.',
             'breadcrumbs' => ['System' => null, 'Connections' => null],
             'tabs' => [
                 ['id' => 'integrations', 'label' => 'Integrations', 'component' => Integrations::class, 'permission' => 'integrations.manage'],

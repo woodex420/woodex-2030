@@ -12,6 +12,7 @@ use App\Domain\Sales\Models\EstimatorRate;
 use App\Domain\Sales\Services\EstimateAccess;
 use App\Domain\Sales\Services\EstimatorLeadDetails;
 use App\Domain\Sales\Services\EstimatorRateBooks;
+use App\Domain\Website\Studio\RateBook;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -102,6 +103,9 @@ class EstimationsIndex extends Component
     public function reloadRates(): void
     {
         abort_unless($this->user()->can('website.edit'), 403);
+        if (! RateBook::exists()) {
+            return; // nothing to reload: the screen says there is no rate list yet
+        }
         try {
             $read = app(EstimatorRateBooks::class)->read($this->user());
             $this->book = $read['book'];
@@ -196,6 +200,11 @@ class EstimationsIndex extends Component
             foreach ($enquiries as $lead) {
                 $enquiryDetails[$lead->id] = app(EstimatorLeadDetails::class)->read($lead);
             }
+        } elseif (! RateBook::exists()) {
+            // Woodex Furniture has no rate list: the editor below would be the Interior studio's, in square feet
+            // and 3D views, and publishing writes a file this installation does not serve. The tab says so and
+            // offers nothing that cannot work (list line T-085; DL-046, docs/woodex-os/12-DECISION-LOG.md).
+            $rates = ['templates' => [], 'consistent' => false, 'missing' => true];
         } else {
             try {
                 $rates = app(EstimatorRateBooks::class)->read($this->user());

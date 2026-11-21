@@ -54,11 +54,11 @@ enum ProjectStage: string
     {
         return match ($this) {
             self::Planning => 'Your project is with our planning team: drawings, measurements and the schedule are being put together.',
-            self::Design => 'Our designers are working on the drawings and the 3D views of your space.',
+            self::Design => 'Our designers are working on the drawings and the layout.',
             self::Procurement => 'We are ordering the materials and the fittings your project needs.',
             self::Execution => 'Work on site is under way.',
-            self::Finishing => 'The work is in its finishing stage: polishing, fixtures, paint and the final details.',
-            self::Handover => 'Your space is ready. We are preparing the handover.',
+            self::Finishing => 'The work is in its finishing stage: polishing, fittings and the final details.',
+            self::Handover => 'Everything is ready. We are preparing the handover.',
             self::Completed => 'Your project is complete. Thank you for trusting Woodex with it.',
         };
     }

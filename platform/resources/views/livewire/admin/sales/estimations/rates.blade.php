@@ -1,4 +1,11 @@
 <div data-unsaved="publishRates namedBook reloadRates" class="space-y-5">
+    @if ($rates['missing'] ?? false)
+        {{-- No rate list in this installation: say so, and offer nothing that cannot work (T-085, DL-046). --}}
+        <x-admin.card title="No rate list yet" data-no-rate-list>
+            <p class="text-theme-sm text-gray-600 dark:text-gray-300">An estimate is priced from a list of services and their rates. Woodex Furniture's rates have not been entered yet: they come with the price list.</p>
+            <p class="mt-2 text-theme-sm text-gray-600 dark:text-gray-300">Until then no estimate can be saved, because each one needs a service with a rate. A quotation does not need this screen: it is priced from the products and the rate book under Quotations.</p>
+        </x-admin.card>
+    @else
     <x-admin.card title="Public estimator service rates" description="Draft edits do not change prices. Publish explicitly to update the existing public-v1 file and staff/bot service rates. Public catalogue add-ons are preserved; they are not the staff quotation catalogue.">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <span class="text-theme-sm {{ ($rates['consistent'] ?? false) ? 'text-success-700' : 'text-warning-700' }}">{{ ($rates['consistent'] ?? false) ? 'Public file and database are in sync' : 'Needs attention: public file and database differ, or the rate book cannot be read' }}</span>
@@ -52,4 +59,5 @@
         </div>
         <ul class="mt-4 space-y-1 text-theme-sm text-gray-500">@foreach (($rates['templates'] ?? []) as $snapshot)<li>{{ $snapshot['name'] }} · {{ $snapshot['services'] }} services · {{ $snapshot['at'] }}</li>@endforeach</ul>
     </x-admin.card>
+    @endif
 </div>

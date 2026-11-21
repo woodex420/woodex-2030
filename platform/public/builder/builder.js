@@ -86,7 +86,7 @@
     api("load", { path: path }).then(function (r) {
       if (!r.ok) { $("#loading").hidden = true; return toast(r.error, true); }
       S.path = path; S.mtime = r.mtime; S.hash = r.hash || ""; history.replaceState(null, "", "#" + encodeURIComponent(path));
-      var page = S.pages.find(function (p) { return p.path === path; }); $("#view-live").href = page ? (page.preview_url || page.url) : "/"; // OS PORT
+      var page = S.pages.find(function (p) { return p.path === path; }); $("#view-live").href = page ? (page.preview_url || page.url) : "/"; $("#view-live").hidden = !page; // OS PORT: the link exists once a page is open
       mountHTML(r.html);
     });
   }

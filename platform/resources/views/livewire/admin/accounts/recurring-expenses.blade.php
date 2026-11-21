@@ -28,7 +28,7 @@
             <form wire:submit="save" data-unsaved class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div class="md:col-span-2">
                     <label class="wx-label" for="rec-description">What it is</label>
-                    <input id="rec-description" type="text" wire:model="description" class="wx-input" placeholder="Studio rent — DHA Phase 5" />
+                    <input id="rec-description" type="text" wire:model="description" class="wx-input" placeholder="Showroom rent" />
                     @error('description') <p class="mt-1 text-theme-xs text-error-600">{{ $message }}</p> @enderror
                 </div>
                 <div>

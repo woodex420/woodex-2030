@@ -102,7 +102,7 @@
                 </div>
                 <div class="space-y-4">
                     <x-admin.field label="What happened?" for="notes">
-                        <textarea id="notes" wire:model="notes" rows="3" class="wx-input h-auto py-2.5" placeholder="Client wants a modern kitchen with island, budget around 25 lakh, decision with spouse…"></textarea>
+                        <textarea id="notes" wire:model="notes" rows="3" class="wx-input h-auto py-2.5" placeholder="Client wants 24 workstations and a boardroom table, budget around 25 lakh, decision with the director…"></textarea>
                     </x-admin.field>
                     <div>
                         <div class="mb-2 flex items-center justify-between">

@@ -48,7 +48,7 @@ const WX_CHAT = @json($wxChatConfig);
         })
             .then(function (response) { if (!response.ok) { throw new Error('Poll unavailable'); } return response.json(); })
             .then(function (data) {
-                if (data && data.ok) { draw(data.messages); connection('Private studio conversation'); }
+                if (data && data.ok) { draw(data.messages); connection('Private conversation with Woodex'); }
             })
             .catch(function () { connection('Connection interrupted — your draft is safe', true); });
     }
@@ -89,7 +89,7 @@ const WX_CHAT = @json($wxChatConfig);
     function startThread() {
         if (state.connecting) { return; }
         state.connecting = true;
-        connection('Connecting to the studio…');
+        connection('Connecting to Woodex…');
         var stored = null;
         try { stored = window.localStorage.getItem(KEY); } catch (e) {}
 
@@ -97,7 +97,7 @@ const WX_CHAT = @json($wxChatConfig);
             .then(function (data) {
                 if (!data.ok || !data.token) { throw new Error('Chat unavailable'); }
                 state.token = data.token;
-                connection('Private studio conversation');
+                connection('Private conversation with Woodex');
                 try { window.localStorage.setItem(KEY, data.token); } catch (e) {}
                 draw(data.messages);
             })
@@ -147,7 +147,7 @@ const WX_CHAT = @json($wxChatConfig);
                 draw(data.messages);
                 var input = panel.querySelector('input');
                 if (input.value.trim() === text) { input.value = ''; }
-                connection('Private studio conversation');
+                connection('Private conversation with Woodex');
             })
             .catch(function () { connection('Send not confirmed — draft retained. Check the thread before retrying.', true); })
             .finally(function () { state.busy = false; submit.disabled = false; submit.textContent = 'Send'; });
@@ -171,12 +171,12 @@ const WX_CHAT = @json($wxChatConfig);
             + 'display:none;flex-direction:column;background:#f5f7fa;border:1px solid #e6eaf0;border-radius:20px;overflow:hidden;box-shadow:0 16px 50px rgba(15,30,54,.32);'
             + 'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;');
 
-        panel.id = 'wx-chat-panel'; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Chat with the Woodex studio');
+        panel.id = 'wx-chat-panel'; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Chat with Woodex');
         panel.addEventListener('keydown', function (event) { if (event.key === 'Escape') { close(); } });
         var head = el('div', 'background:#fff;color:' + navy + ';padding:18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6eaf0;');
         var title = el('div');
         title.appendChild(el('div', 'font-size:15px;font-weight:600;', WX_CHAT.brand));
-        var status = el('div', 'font-size:11px;color:#667085;margin-top:5px;', 'Private studio conversation'); status.className = 'wx-chat-status'; status.setAttribute('role', 'status'); title.appendChild(status);
+        var status = el('div', 'font-size:11px;color:#667085;margin-top:5px;', 'Private conversation with Woodex'); status.className = 'wx-chat-status'; status.setAttribute('role', 'status'); title.appendChild(status);
         var closeBtn = el('button', 'background:none;border:none;color:#667085;font-size:22px;line-height:1;cursor:pointer;padding:2px 4px;', '×');
         closeBtn.setAttribute('aria-label', 'Close chat');
         closeBtn.addEventListener('click', close);

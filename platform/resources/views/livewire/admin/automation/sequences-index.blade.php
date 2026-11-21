@@ -1,9 +1,9 @@
 <div class="grid grid-cols-1 gap-6">
-    <x-admin.page-header title="Sequences" description="Follow-up on autopilot: every sequence the studio runs, who is enrolled, and exactly what the engine did — each wait, send, skip and hold is logged. Automated sends respect quiet hours and the daily per-client cap (AUT-006); a client's reply stops a sequence."></x-admin.page-header>
+    <x-admin.page-header title="Sequences" description="Follow-up on autopilot: every sequence that runs here, who is enrolled, and exactly what the engine did — each wait, send, skip and hold is logged. Automated sends respect quiet hours and the daily per-client cap (AUT-006); a client's reply stops a sequence."></x-admin.page-header>
 
     @if (auth()->user()->hasRole('owner'))
-        <x-admin.card title="Studio defaults" description="Restore only missing built-in definitions, paused. Existing edits and enrolments are preserved; no clients are enrolled and no messages are sent.">
-            <x-admin.button variant="secondary" wire:click="restoreMissingDefaults" wire:loading.attr="disabled" wire:target="restoreMissingDefaults" wire:confirm="Add missing studio defaults in the paused state? Existing definitions, steps and enrolments will not change.">Restore missing defaults (paused)</x-admin.button>
+        <x-admin.card title="Built-in sequences" description="Restore only missing built-in definitions, paused. Existing edits and enrolments are preserved; no clients are enrolled and no messages are sent.">
+            <x-admin.button variant="secondary" wire:click="restoreMissingDefaults" wire:loading.attr="disabled" wire:target="restoreMissingDefaults" wire:confirm="Add the missing built-in sequences in the paused state? Existing definitions, steps and enrolments will not change.">Restore missing defaults (paused)</x-admin.button>
         </x-admin.card>
     @endif
 
@@ -25,7 +25,7 @@
                     <p class="mt-2 text-theme-xs text-gray-400">{{ $sequence->active_count }} running · {{ $sequence->finished_count }} finished</p>
                 </button>
             @empty
-                <x-admin.card><p class="py-6 text-center text-theme-sm text-gray-500">No sequences are configured. The owner can restore missing studio defaults above; they start paused for review.</p></x-admin.card>
+                <x-admin.card><p class="py-6 text-center text-theme-sm text-gray-500">No sequences are configured. The owner can restore the missing built-in sequences above; they start paused for review.</p></x-admin.card>
             @endforelse
         </div>
 

@@ -5,6 +5,7 @@
             <x-admin.button variant="secondary" icon="target" href="{{ route('admin.website.seo.overview') }}">All listings</x-admin.button>
         </x-slot:actions>
     </x-admin.page-header>
+    <x-admin.website-scope />
 
     <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <x-admin.stat label="Pages checked" :value="$counts['files']" icon="globe" />

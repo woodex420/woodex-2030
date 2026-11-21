@@ -6,6 +6,7 @@
             <x-admin.button icon="panel" :href="route('admin.website.builder')">Page builder</x-admin.button>
         </x-slot:actions>
     </x-admin.page-header>
+    <x-admin.website-scope />
 
     <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <x-admin.stat label="Pages" :value="$counts['pages']" />

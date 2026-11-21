@@ -5,6 +5,7 @@
             <x-admin.button variant="secondary" icon="sparkles" href="{{ route('admin.website.seo') }}">SEO agent</x-admin.button>
         </x-slot:actions>
     </x-admin.page-header>
+    <x-admin.website-scope />
 
     <div class="mb-5 flex flex-wrap gap-2 border-b border-gray-200 pb-3 dark:border-gray-700" aria-label="SEO audit view">
         <x-admin.button variant="{{ $tab === 'listings' ? 'primary' : 'secondary' }}" wire:click="setTab('listings')" aria-pressed="{{ $tab === 'listings' ? 'true' : 'false' }}">Search listings</x-admin.button>

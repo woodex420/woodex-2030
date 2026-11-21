@@ -29,6 +29,12 @@ final class RateBook
 
     private const string HEADER = "/* Woodex estimator rate book (PKR). Edited in Woodex OS → Website → Estimator;\n   the estimator and quotation builder both read from here. */\n";
 
+    /** Whether this installation has a rate book at all: Woodex Furniture ships without the Interior studio's. */
+    public static function exists(): bool
+    {
+        return is_file(self::path());
+    }
+
     public static function path(): string
     {
         $configured = config('website.rate_book_path');
@@ -48,7 +54,9 @@ final class RateBook
         $path = self::path();
 
         if (! is_file($path)) {
-            throw new UnexpectedValueException('The estimator rate book is missing: '.$path);
+            // The message reaches a screen (Estimations → Rates wrote it out twice, with the folder of the server
+            // in it); where the file is looked for is the reader's business, not the person's (DL-046).
+            throw new UnexpectedValueException('The estimator rate book is missing.');
         }
 
         $js = (string) file_get_contents($path);

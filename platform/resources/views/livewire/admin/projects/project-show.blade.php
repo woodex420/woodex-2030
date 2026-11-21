@@ -131,7 +131,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
                     <p class="text-theme-sm text-gray-600 dark:text-gray-300">
                         @if ($project->handoverItems->isEmpty())
-                            Not started. The studio list is in Settings &rarr; Sales.
+                            Not started. The standard list is in Settings &rarr; Sales.
                         @else
                             <strong class="text-gray-800 dark:text-white/90">{{ $progress[0] }} of {{ $progress[1] }}</strong> done
                             @if ($project->client_ok_at) · signed by {{ $project->client_ok_name }} on {{ $project->client_ok_at->format('j M Y') }} @endif
@@ -140,7 +140,7 @@
                     @can('update', $project)
                         <div class="flex items-center gap-2">
                             @if ($project->handoverItems->isNotEmpty())
-                                <x-admin.button variant="ghost" size="sm" wire:click="startHandover(true)" wire:confirm="Reset the checklist to the studio list? Ticks are lost.">Reset</x-admin.button>
+                                <x-admin.button variant="ghost" size="sm" wire:click="startHandover(true)" wire:confirm="Reset the checklist to the standard list? Ticks are lost.">Reset</x-admin.button>
                             @endif
                             <x-admin.button variant="secondary" size="sm" icon="check" wire:click="startHandover(false)">
                                 {{ $project->handoverItems->isEmpty() ? 'Start checklist' : 'Add missing lines' }}

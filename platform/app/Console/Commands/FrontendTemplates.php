@@ -153,7 +153,7 @@ class FrontendTemplates extends Command
             'source' => $slug,
             'type' => $type->value,
             'signature' => implode('>', $signature),
-            'description' => 'The '.$slug.' page as the studio built it — '.count($blocks).' sections.',
+            'description' => 'The '.$slug.' page as it was built — '.count($blocks).' sections.',
             'sections' => $blocks,
         ];
     }

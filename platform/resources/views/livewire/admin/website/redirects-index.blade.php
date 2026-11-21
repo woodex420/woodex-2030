@@ -5,6 +5,7 @@
             <x-admin.button variant="secondary" icon="download" wire:click="exportCsv">Export CSV</x-admin.button>
         </x-slot:actions>
     </x-admin.page-header>
+    <x-admin.website-scope />
 
     <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <x-admin.stat label="Redirects" :value="$total" icon="globe" />
@@ -29,12 +30,15 @@
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <x-admin.card title="Add a redirect" class="xl:col-span-1">
             <form wire:submit="add" data-unsaved class="space-y-3">
-                <x-admin.field label="Old URL" for="fromPath" hint="The address from the previous website, for example /apartment-interior-design/. An address that is still a page cannot be redirected — delete the page first.">
-                    <input id="fromPath" type="text" wire:model="fromPath" class="wx-input" placeholder="/apartment-interior-design/">
+                <x-admin.field label="Old URL" for="fromPath" hint="The address from the previous website, for example /office-chairs-lahore/. An address that is still a page cannot be redirected — delete the page first.">
+                    <input id="fromPath" type="text" wire:model="fromPath" class="wx-input" placeholder="/office-chairs-lahore/">
                 </x-admin.field>
                 <x-admin.field label="New URL or page" for="toPath">
-                    <input id="toPath" type="text" wire:model="toPath" class="wx-input" placeholder="/interior-design/">
-                    <select class="wx-input mt-2" x-data @change="$el.previousElementSibling.value = $el.value">
+                    <input id="toPath" type="text" wire:model="toPath" class="wx-input" placeholder="/office-chairs/">
+                    {{-- The choice is written into the field above and the field is told so: without the event the form kept
+                         what had been typed, and sent that (found on 21 November 2026, DL-046). --}}
+                    <select class="wx-input mt-2" aria-label="Or pick a published page" x-data
+                            @change="$el.previousElementSibling.value = $el.value; $el.previousElementSibling.dispatchEvent(new Event('input', { bubbles: true }))">
                         <option value="">…or pick a published page</option>
                         @foreach ($pages as $page)
                             <option value="{{ $page->slug }}">{{ $page->slug }} · {{ $page->title }}</option>
@@ -56,7 +60,7 @@
 
         <x-admin.card title="Import a CSV" description="One redirect per line: old URL, new URL, optional 301/302, optional note. A spreadsheet copy (tab-separated) works too. Re-running an import updates the rows it already knows." class="xl:col-span-2">
             <div class="space-y-3" data-unsaved="importCsv">
-                <textarea rows="6" wire:model="csv" class="wx-input font-mono text-theme-xs" placeholder="/apartment-interior-design/,/interior-design/,301,was a separate service page"></textarea>
+                <textarea rows="6" wire:model="csv" aria-label="Redirects to import, one per line" class="wx-input font-mono text-theme-xs" placeholder="/office-chairs-lahore/,/office-chairs/,301,was a separate category page"></textarea>
                 <div class="flex items-center gap-3">
                     <x-admin.button variant="secondary" icon="upload" wire:click="importCsv" :disabled="trim($csv) === ''">Import</x-admin.button>
                     <p class="text-theme-xs text-gray-500 dark:text-gray-400">Old URLs that are still pages are skipped and listed — a file always answers before a redirect does.</p>

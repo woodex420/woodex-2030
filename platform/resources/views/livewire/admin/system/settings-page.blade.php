@@ -88,7 +88,7 @@
     {{-- WhatsApp --}}
     @if ($tab === 'whatsapp' && isset($sections['whatsapp']))
         <form wire:submit="saveWhatsApp" data-unsaved data-unsaved-tab class="space-y-6">
-            <x-admin.card title="WhatsApp Cloud API" description="The number the studio writes from. Saved here, it is encrypted in the database; left empty, the server .env is used instead. Nothing saved here is ever shown back.">
+            <x-admin.card title="WhatsApp Cloud API" description="The number Woodex writes from. Saved here, it is encrypted in the database; left empty, the server .env is used instead. Nothing saved here is ever shown back.">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <x-admin.field label="Phone number id" for="whatsapp.phone_number_id" hint="Meta → WhatsApp → API Setup. A long number.">
                         <input id="whatsapp.phone_number_id" type="text" wire:model="whatsapp.phone_number_id" class="wx-input" autocomplete="off" inputmode="numeric">
@@ -320,7 +320,7 @@
                     <x-admin.field label="Assistant" for="bot.enabled" hint="Off: the widget stays the rule-based intake and the team answers live threads. On: the bot answers live threads too.">
                         <label class="flex items-center gap-2 pt-2"><input id="bot.enabled" type="checkbox" wire:model="bot.enabled" class="size-4 rounded border-gray-300"> <span class="text-theme-sm">Answer live chats</span></label>
                     </x-admin.field>
-                    <x-admin.field label="Only outside studio hours" for="bot.outside_hours_only" hint="BOT-010: during working hours the team answers; the bot covers the evening.">
+                    <x-admin.field label="Only outside working hours" for="bot.outside_hours_only" hint="BOT-010: during working hours the team answers; the bot covers the evening.">
                         <label class="flex items-center gap-2 pt-2"><input id="bot.outside_hours_only" type="checkbox" wire:model="bot.outside_hours_only" class="size-4 rounded border-gray-300"> <span class="text-theme-sm">Evenings only</span></label>
                     </x-admin.field>
                     <x-admin.field label="Provider" for="bot.provider" hint="'none' is the keyless a-human-will-reply mode.">
@@ -344,7 +344,7 @@
                         <input id="bot.conversation_turn_limit" type="number" min="0" max="200" wire:model="bot.conversation_turn_limit" class="wx-input" inputmode="numeric">
                     </x-admin.field>
                     <div class="sm:col-span-2">
-                        <x-admin.field label="System prompt" for="bot.system_prompt" hint="Empty = the built-in studio persona with its guardrails (shown under the box). Your own words replace it entirely — keep the rules in them.">
+                        <x-admin.field label="System prompt" for="bot.system_prompt" hint="Empty = the built-in persona with its guardrails (shown under the box). Your own words replace it entirely — keep the rules in them.">
                             <textarea id="bot.system_prompt" wire:model="bot.system_prompt" rows="5" class="wx-input" placeholder="{{ $botSettings->prompt() }}"></textarea>
                         </x-admin.field>
                     </div>
@@ -360,7 +360,7 @@
             </x-admin.card>
         </form>
 
-        <x-admin.card class="mt-4" title="Knowledge" description="BOT-003: what the bot may state as fact. Pages are mirrored from the CMS with one click; the studio's own answers live beside them.">
+        <x-admin.card class="mt-4" title="Knowledge" description="BOT-003: what the bot may state as fact. Pages are mirrored from the CMS with one click; Woodex's own answers live beside them.">
             <div class="flex flex-wrap items-center gap-2">
                 <x-admin.button variant="secondary" icon="refresh" wire:click="syncBotKnowledge" wire:confirm.lazy="Re-read every published page into the bot's knowledge?">Sync from published pages</x-admin.button>
                 <span class="text-theme-xs text-gray-500">{{ $botKnowledge->where('source', 'cms')->count() }} page entries · {{ $botKnowledge->where('source', 'manual')->count() }} manual</span>
@@ -368,10 +368,10 @@
             <div data-unsaved="addBotKnowledge">
             <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <x-admin.field label="Add your own answer" for="botKnowledgeTitle">
-                    <input id="botKnowledgeTitle" type="text" wire:model="botKnowledgeTitle" class="wx-input" placeholder="Question or topic, e.g. 'Do you work in DHA Lahore?'">
+                    <input id="botKnowledgeTitle" type="text" wire:model="botKnowledgeTitle" class="wx-input" placeholder="Question or topic, e.g. 'Do you deliver outside Lahore?'">
                 </x-admin.field>
                 <x-admin.field label="The answer" for="botKnowledgeBody">
-                    <textarea id="botKnowledgeBody" wire:model="botKnowledgeBody" rows="3" class="wx-input" placeholder="Yes — Woodex Interior designs and installs across DHA Lahore…"></textarea>
+                    <textarea id="botKnowledgeBody" wire:model="botKnowledgeBody" rows="3" class="wx-input" placeholder="Yes — Woodex delivers and installs across Pakistan…"></textarea>
                 </x-admin.field>
             </div>
             <div class="mt-2"><x-admin.button variant="secondary" icon="plus" wire:click="addBotKnowledge">Add entry</x-admin.button></div>

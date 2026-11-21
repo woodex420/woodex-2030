@@ -52,6 +52,6 @@ class AutomationStep extends Model
 
     private function render(string $text, string $name): string
     {
-        return str_replace(['{first_name}', '{studio_name}'], [$name, Brand::name()], $text);
+        return str_replace(['{first_name}', '{business_name}', '{studio_name}'], [$name, Brand::name(), Brand::name()], $text);
     }
 }

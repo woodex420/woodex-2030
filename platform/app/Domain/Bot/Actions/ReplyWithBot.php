@@ -60,7 +60,7 @@ final class ReplyWithBot
         // BOT-010: during studio hours the team is at the desks — the bot stays for the evening.
         if ($this->settings->outside_hours_only && $this->business->hours()->isOpen(CarbonImmutable::now())) {
             $usage->increment('handoffs');
-            $this->handOff($conversation, 'studio hours — the team answers');
+            $this->handOff($conversation, 'working hours — the team answers');
 
             return null;
         }
