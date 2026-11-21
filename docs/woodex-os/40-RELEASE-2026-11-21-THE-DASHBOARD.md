@@ -16,7 +16,7 @@ built: three lines to be read from the live site. They were read first. This was
 
 | Line | What is so now | State |
 |---|---|---|
-| T-044 | The dashboard is thirteen widgets under one contract. Every number opens a list of exactly the records it counts. Seven widgets are new, among them the sales funnel, money owed by age, payables due and the health of the projects. One widget that fails says so itself and the rest of the page is drawn | Done |
+| T-044 | The dashboard is thirteen widgets under one contract. Every number opens a list of exactly the records it counts. Six widgets are new, among them the sales funnel, money owed by age, payables due and the health of the projects. One widget that fails says so itself and the rest of the page is drawn | Done |
 | T-152 | The built stylesheets and scripts are sent with a life of one year. Read from the live site twice | Done; defect D-013 closed |
 | T-154 | The first cold start with the mark was read from the live site: 3.89 s to the first byte | **Open**: one reading of three |
 | T-142 | The timer at its new minute brought one run for three times due | **Open** |
@@ -62,14 +62,14 @@ every widget. The parts are described in `platform/resources/views/components/ad
 | **Sales funnel** (new) | The chosen period | Enquiries made, quotations sent, quotations accepted; the conversion rate; the value accepted | Leads and Quotations, cut to the period |
 | Live operating queues | Now | Enquiries today, follow-ups overdue, quotations awaiting approval, money due, jobs running, automations failing | The list of each |
 | Needs attention | Now | Only what waits, with the five follow-ups to touch first | The list of each |
-| Go-live checklist (its own widget now) | Now | The six things to set up before going live | The screen of each |
+| Go-live checklist (its own widget now) | Now | The six things to set up before going live | No number and no link: each says where it is set up |
 | **Money owed, by age** (new) | Now | The balance of issued invoices: not due yet, 1 to 30 days late, 31 to 60, 61 to 90, more than 90; all that is owed; what is past its due date | Invoices, cut to that age |
 | **Payables due** (new) | Now | What we owe our vendors: past the due date, due within 7 days, all | Payables by age, cut to that group |
 | **Project health** (new) | Now | Every active project in exactly one of four: past its target date, a milestone behind, on schedule, no target date | Projects, cut to that state |
 | **Coming milestones** (new) | The next 14 days | The milestones of active projects that fall due, the nearest first | The project of each; Projects with a milestone coming |
 | New leads | The last 14 days | Enquiries by day, as a chart | Leads of those 14 days |
 | Pipeline | Now | Leads by stage | Leads in that stage |
-| Recent activity | Now | The last things that happened, with who did them and when | The record of each |
+| Recent activity | Now | The last things that happened, with who did them and when | No number and no link, as before |
 | **Inbox** (new) | Now | Conversations unread, conversations open | The inbox. Only where Conversations is switched on; it is off on the demo |
 
 Who sees which, as the seeded roles stand:
@@ -103,7 +103,7 @@ Six lists were given the filters this needs:
 | Invoices | `dated=issued` with `from` and `to`; `age=…`; `line` | Issued in those days; owed, by how late |
 | Payments | `dated=received` with `from` and `to`; `line` | Verified payments received in those days |
 | Projects | `health=…`, `milestone=soon` | Active projects in that state; with a milestone in the next 14 days |
-| Payables by age | `due=overdue`, `soon` or `open` | Bills past their date, due within 7 days, all that are owed |
+| Payables by age | `due=overdue` or `soon` | Bills past their date; bills due within 7 days. Without it the list holds all that are owed, as before |
 
 A list that is cut in this way says so above its rows: "Filtered: Enquiries made 1 Nov – 21 Nov 2026", and "Clear"
 gives the whole list back. A list that fits on one page now says how many rows it has. A day that is not a day is
@@ -156,7 +156,8 @@ counts, and what is left out. Two examples, as they stand on the screen:
 
 - **The dashboard has more on it**, in six groups: the period, what is live now, money, projects, enquiries, the
   record. A role sees its own widgets only.
-- **Every number is a link**, and the link says how many: "Open the 12 enquiries". It opens twelve enquiries.
+- **Every number that counts records is a link**, and the link says how many: "Open the 12 enquiries". It opens
+  twelve enquiries.
 - **Above a list that was opened from a number** stands what the list is cut to, with "Clear".
 - **Under each widget** stands what it counts.
 - **An empty widget says so in a sentence**: "Nothing is owed to a vendor: every received bill is paid, or none
@@ -187,7 +188,7 @@ Branch `arena/816527f9-woodex-2030`, from `main` at `5e2aa26`. Pull request #53.
 | Commit | What |
 |---|---|
 | `a2445c9` | T-044: the contract, the thirteen widgets, the filters of six lists, the test, the journey step, the built files; what was found on `main` and cured; DL-044; the reading of document 36 |
-| the last commit | This report and the records of the round: the master list, the plan, the defect register, documents 13, 15, 16, 21 and 25, the index of documents, five pictures |
+| `61b1f35` and the commit after it | This report and the records of the round: the master list, the plan, the defect register, documents 13, 15, 16, 21 and 25, the index of documents, five pictures. They change no code of the application: one sentence is added to the description of the shared parts |
 
 88 files in `a2445c9`: 43 of the application (20 new), 29 views and parts of views (16 new), the admin's script,
 the description of the shared parts, 3 test files, 6 built files, the journeys, 4 documents. No migration, no

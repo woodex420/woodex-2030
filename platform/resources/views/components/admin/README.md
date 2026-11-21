@@ -233,3 +233,7 @@ short list without a reason looks like missing records.
 <x-admin.filtered :chips="$filtered" />
 ```
 
+The list's component needs a method `clearQuickFilters()`: "Clear" calls it by that name. The name is written in
+the part and is not handed in, because what stands in `wire:click` is run as script, and only a fixed word may
+stand there (`tests/Feature/Security/StoredScriptTest.php`).
+
