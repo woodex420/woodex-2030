@@ -1,5 +1,5 @@
 <div>
-    <x-admin.page-header title="Due payments" description="What the studio is owed, oldest first. Reminders go one invoice at a time and only where the client consented to WhatsApp — a client without consent shows a reason instead of a send."
+    <x-admin.page-header title="Due payments" description="What Woodex is owed, oldest first. Reminders go one invoice at a time and only where the client consented to WhatsApp — a client without consent shows a reason instead of a send."
                          :breadcrumbs="['Sales' => null, 'Due payments' => null]">
     </x-admin.page-header>
 

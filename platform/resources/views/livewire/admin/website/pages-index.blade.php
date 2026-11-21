@@ -6,6 +6,7 @@
             <x-admin.button icon="panel" :href="route('admin.website.builder')">Page builder</x-admin.button>
         </x-slot:actions>
     </x-admin.page-header>
+    <x-admin.website-scope />
 
     <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <x-admin.stat label="Pages" :value="$counts['pages']" />
@@ -66,7 +67,12 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <x-admin.empty title="No page matches" description="Clear the search or pick another section." />
+                                {{-- An empty list has two reasons, and each gets its own words: nothing was found, or there is nothing. --}}
+                                @if ($counts['pages'] === 0)
+                                    <x-admin.empty title="No page yet" description="This admin serves no page of its own yet. A page is made in the Page builder." />
+                                @else
+                                    <x-admin.empty title="No page matches" description="Clear the search or pick another section." />
+                                @endif
                             </td>
                         </tr>
                     @endforelse

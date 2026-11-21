@@ -38,7 +38,7 @@ final class WhatsAppQualityNotification extends Notification
     {
         return new TelegramMessage(
             '📉 <b>WhatsApp number quality downgraded</b>'."\n"
-            .'Meta moved the studio number from '.TelegramMessage::escape((string) ($this->from ?? 'unknown')).' to '.TelegramMessage::escape((string) ($this->to ?? 'unknown')).".\n"
+            .'Meta moved the WhatsApp number from '.TelegramMessage::escape((string) ($this->from ?? 'unknown')).' to '.TelegramMessage::escape((string) ($this->to ?? 'unknown')).".\n"
             .'Check Meta Business Manager for the reason — a low rating throttles messaging.',
             $this->openButton('Integrations', route('admin.integrations')),
         );

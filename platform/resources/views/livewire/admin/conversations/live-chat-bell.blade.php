@@ -1,4 +1,4 @@
-<div x-data="{ drawer: $wire.entangle('drawer') }" x-on:focus.window="$wire.poll()" x-on:visibilitychange.document="if (!document.hidden) $wire.poll()" x-on:keydown.escape.window="if ($wire.drawer) $wire.closeDrawer()" @if ($canUse) wire:poll.10s.visible="poll" @endif>
+<div x-data="{ drawer: $wire.entangle('drawer') }" x-on:focus.window="$wire.poll()" x-on:visibilitychange.document="if (!document.hidden) $wire.poll()" x-on:keydown.escape.window="if ($wire.drawer) $wire.closeDrawer()" @if ($canUse && $polls) wire:poll.10s.visible="poll" @endif>
     @if ($canUse)
         <div class="relative">
             <button type="button" x-ref="trigger" wire:click="openDrawer" class="wx-topbar-button" aria-haspopup="dialog" aria-expanded="{{ $drawer ? 'true' : 'false' }}" aria-label="Website chat{{ $unread > 0 ? " ({$unread} unread)" : '' }}">

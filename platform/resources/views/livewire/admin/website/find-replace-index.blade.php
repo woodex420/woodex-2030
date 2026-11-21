@@ -2,6 +2,7 @@
     <x-admin.page-header title="Find & replace"
                          description="Change one piece of text on every page at once — the phone number, the email, the address. Preview lists every page it matches and how many times, before anything is written. Each page is kept as a version, so the whole run can be undone."
                          :breadcrumbs="['Website' => null, 'Find & replace' => null]" />
+    <x-admin.website-scope />
 
     @if ($result !== '')
         <div class="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-3 text-theme-sm text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-300">

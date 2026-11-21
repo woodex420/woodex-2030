@@ -62,7 +62,7 @@
                     @empty
                         <tr>
                             <td colspan="7" class="px-3 py-10 text-center">
-                                <p class="text-gray-500 dark:text-gray-400">No estimates yet — every enquiry carries the service and the size, so an estimate starts from the lead.</p>
+                                <p class="text-gray-500 dark:text-gray-400">No estimates yet. An estimate starts from an enquiry, so that the two stay linked.</p>
                                 <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
                                     <a href="{{ route('admin.leads.index') }}"><x-admin.button variant="secondary" icon="users">Start from an enquiry</x-admin.button></a>
                                     @can('estimates.manage')

@@ -22,6 +22,10 @@
     <span class="wx21-sec">Website</span>
     <span class="wx21-sep">/</span>
     <span class="wx21-now">{{ $title }}</span>
+    @if (\App\Support\SyntheticPreview::enabled())
+        {{-- These screens draw their own document, so the layout's notice never reached them (DL-046). --}}
+        <span data-demo-notice role="note" class="wx21-demo" title="This site has no permanent database yet. Do not enter real customer details or passwords.">Demo: nothing typed here is kept</span>
+    @endif
     <a href="{{ route('admin.website.pages') }}" class="wx21-exit">Leave</a>
 </div>
 
@@ -29,16 +33,16 @@
 <!-- ============ AUTH (setup / login) ============ -->
 <div class="auth" id="auth" hidden>
   <aside class="auth-side" aria-hidden="true">
-    <div class="as-brand"><span class="logo">W</span><b>Woodex Interior</b></div>
-    <div class="as-copy"><span class="as-kicker">Admin v2</span><h2>Run the whole studio<br>from one place.</h2>
+    <div class="as-brand"><span class="logo">W</span><b>{{ $brand }}</b></div>
+    <div class="as-copy"><span class="as-kicker">Admin v2</span><h2>Run the website<br>from one place.</h2>
       <ul><li>Enquiries, pipeline &amp; follow-ups</li><li>Quotations, invoices &amp; payments</li><li>Live chat, WhatsApp &amp; AI replies</li><li>Pages, blog, SEO &amp; speed</li></ul></div>
-    <small class="as-foot">© Woodex Interior · woodex.com.pk</small>
+    <small class="as-foot">© {{ $brand }}</small>
   </aside>
   <div class="auth-card">
     <div class="brand"><span class="logo">W</span><div><b>Woodex</b><small>Admin</small></div></div>
 
     <form id="login-form" hidden>
-      <h1>Sign in</h1><p class="muted">Welcome back. Sign in to manage the website.</p>
+      <h2 class="auth-h">Sign in</h2><p class="muted">Welcome back. Sign in to manage the website.</p>
       <label>Email<input type="text" inputmode="email" id="l-email" autocomplete="username" autocapitalize="none" required></label>
       <label>Password<span class="pw-wrap"><input type="password" id="l-pass" autocomplete="current-password" required><button type="button" class="pw-eye" aria-label="Show password" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.classList.toggle('on')">Show</button></span></label>
       <p class="err" id="l-err"></p>
@@ -48,14 +52,14 @@
     </form>
 
     <form id="fp-form" hidden>
-      <h1>Forgot password</h1><p class="muted">Enter your Admin email. We will email you a link to choose a new password.</p>
+      <h2 class="auth-h">Forgot password</h2><p class="muted">Enter your Admin email. We will email you a link to choose a new password.</p>
       <label>Email<input type="email" id="fp-email" autocomplete="username" required></label>
       <p class="err" id="fp-err"></p><p class="muted" id="fp-ok" style="font-size:13px"></p>
       <button class="btn pri block" id="fp-btn">Send reset link</button>
       <p style="text-align:center;margin:10px 0 0;font-size:13px"><a href="#" class="fp-back">Back to sign in</a></p>
     </form>
     <form id="rp-form" hidden>
-      <h1>Choose a new password</h1><p class="muted">At least 8 characters. You will be signed out of other devices.</p>
+      <h2 class="auth-h">Choose a new password</h2><p class="muted">At least 8 characters. You will be signed out of other devices.</p>
       <label>New password<input type="password" id="rp-pass" autocomplete="new-password" minlength="8" required></label>
       <label>Repeat new password<input type="password" id="rp-pass2" autocomplete="new-password" minlength="8" required></label>
       <p class="err" id="rp-err"></p>
@@ -64,7 +68,7 @@
     </form>
 
     <form id="tfa-form" hidden>
-      <h1>Two-step sign in</h1><p class="muted">Open your authenticator app and enter the 6-digit code for Woodex Admin. Lost your phone? Enter one of your recovery codes.</p>
+      <h2 class="auth-h">Two-step sign in</h2><p class="muted">Open your authenticator app and enter the 6-digit code for Woodex Admin. Lost your phone? Enter one of your recovery codes.</p>
       <label>Code<input id="t-code" inputmode="numeric" autocomplete="one-time-code" maxlength="9" required placeholder="123456"></label>
       <p class="err" id="t-err"></p>
       <button class="btn pri block" id="t-btn">Verify</button>
@@ -72,7 +76,7 @@
     </form>
 
     <form id="setup-form" hidden>
-      <h1>Set up Woodex Admin</h1><p class="muted">One-time setup. Creates the database tables and your owner account.</p>
+      <h2 class="auth-h">Set up Woodex Admin</h2><p class="muted">One-time setup. Creates the database tables and your owner account.</p>
       <fieldset id="s-db"><legend>Database <small>(hPanel → Databases → MySQL)</small></legend>
         <div class="g2"><label>Host<input id="s-host" value="localhost"></label><label>Database name<input id="s-name"></label></div>
         <div class="g2"><label>Database user<input id="s-user"></label><label>Database password<input type="password" id="s-dpass"></label></div>
@@ -90,7 +94,7 @@
       <button class="btn pri block" id="s-btn">Install &amp; create owner</button>
     </form>
     <form id="db-form" hidden>
-      <h1>Reconnect the database</h1><p class="muted">The admin can’t reach its database (for example after a new Hostinger database or password). Enter the details from <b>hPanel → Websites → Dashboard → Databases Management</b>. Existing data is kept.</p>
+      <h2 class="auth-h">Reconnect the database</h2><p class="muted">The admin can’t reach its database (for example after a new Hostinger database or password). Enter the details from <b>hPanel → Websites → Dashboard → Databases Management</b>. Existing data is kept.</p>
       <fieldset><legend>Database</legend>
         <div class="g2"><label>Host<input id="d-host" value="localhost"></label><label>Database name<input id="d-name" placeholder="u128159657_woodex" required></label></div>
         <div class="g2"><label>Database user<input id="d-user" placeholder="u128159657_woodex" required></label><label>Database password<input type="password" id="d-dpass"></label></div>
@@ -147,7 +151,7 @@
 
 <script src="/assets/admin-v21/vendor/icons.js"></script>
 <script src="/assets/admin-v21/vendor/chart.umd.js"></script>
-<script nonce="{{ Vite::cspNonce() }}">window.WX_STUDIO = {screen: @json($screen), user: @json($user), csrf: @json(csrf_token()), api: @json(route('admin.website.studio.api', absolute: false)), builderApi: @json(route('admin.website.studio.builder-api', absolute: false))};</script>
+<script nonce="{{ Vite::cspNonce() }}">window.WX_STUDIO = {screen: @json($screen), brand: @json($brand), user: @json($user), csrf: @json(csrf_token()), api: @json(route('admin.website.studio.api', absolute: false)), builderApi: @json(route('admin.website.studio.builder-api', absolute: false))};</script>
 <script src="/assets/admin-v21/wx-embed.js"></script>
 <script src="/assets/admin-v21/admin.js"></script>
 <script src="/assets/admin-v21/admin-pages.js"></script>

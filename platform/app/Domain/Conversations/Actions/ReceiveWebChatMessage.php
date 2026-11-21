@@ -16,6 +16,7 @@ use App\Domain\Crm\Actions\LogLeadActivity;
 use App\Domain\Crm\Actions\ManageTask;
 use App\Domain\Crm\Data\LeadInput;
 use App\Domain\Crm\Enums\ActivityType;
+use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Crm\Enums\LeadSource;
 use App\Domain\Crm\Jobs\AskForPhoneNumber;
 use App\Settings\BusinessSettings;
@@ -127,6 +128,18 @@ final class ReceiveWebChatMessage
         $this->startWebChat->bot($conversation, "Nice to meet you, {$name}! What's the best WhatsApp number to reach you on?");
     }
 
+    /**
+     * The question after the number, in the words of what this installation sells. Until 21 November 2026 a visitor
+     * of a furniture company was asked whether they needed "a wardrobe, a full home interior, an office fit-out, or
+     * a kitchen": the Interior studio's question, written out (DL-046, docs/woodex-os/12-DECISION-LOG.md).
+     */
+    public static function askWhatIsNeeded(): string
+    {
+        return BusinessLine::primaryBrand() === BusinessLine::Furniture
+            ? 'What are you looking for — for example office chairs, desks, workstations, or a complete office fit-out?'
+            : 'What do you need done — for example a wardrobe, a full home interior, an office fit-out, or a kitchen?';
+    }
+
     /** A phone number (preferred) or an email address, both validated before we move on. */
     private function handleNumber(Conversation $conversation, string $body): void
     {
@@ -136,7 +149,7 @@ final class ReceiveWebChatMessage
             $contact = (string) Phone::normalize($candidate);
             $this->captureContact($conversation, $contact);
             $conversation->update(['widget_state' => 'asked_service']);
-            $this->startWebChat->bot($conversation, 'Your enquiry is saved. And what do you need done — for example a wardrobe, a full home interior, an office fit-out, or a kitchen?');
+            $this->startWebChat->bot($conversation, 'Your enquiry is saved. '.self::askWhatIsNeeded());
 
             return;
         }
@@ -146,7 +159,7 @@ final class ReceiveWebChatMessage
             $contact = 'email:'.mb_strtolower($email);
             $this->captureContact($conversation, $contact);
             $conversation->update(['widget_state' => 'asked_service']);
-            $this->startWebChat->bot($conversation, "Your enquiry is saved — we'll use {$email}. What do you need done — a wardrobe, a full home interior, an office fit-out, a kitchen?");
+            $this->startWebChat->bot($conversation, "Your enquiry is saved — we'll use {$email}. ".self::askWhatIsNeeded());
 
             return;
         }

@@ -155,7 +155,7 @@
         {{-- Main column: scope, sections and lines, totals --}}
         <div class="min-w-0 space-y-5">
             <x-admin.card title="Scope of work" description="Printed before the price list. Blank line = new paragraph; start lines with “-” for bullets.">
-                <textarea id="details-scope" wire:model.live.blur="details.scope" rows="3" @disabled($ro)
+                <textarea id="details-scope" aria-label="Scope of work" wire:model.live.blur="details.scope" rows="3" @disabled($ro)
                           x-data x-init="$nextTick(() => { $el.style.height = Math.max($el.scrollHeight, 76) + 'px' })"
                           x-on:input="$el.style.height = 'auto'; $el.style.height = Math.max($el.scrollHeight, 76) + 'px'"
                           class="wx-input h-auto min-h-[76px] py-2.5" placeholder="- Site measurement and drawings&#10;- Supply and installation as per BOQ"></textarea>

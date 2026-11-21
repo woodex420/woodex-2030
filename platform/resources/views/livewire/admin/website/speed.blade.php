@@ -1,6 +1,7 @@
 <div>
-    <x-admin.page-header title="Speed" description="What the site weighs and how it loads — measured at home, no key required: every published page's image weight, image formats and cached page size. Google's PageSpeed scores join when the studio's API key is saved."
+    <x-admin.page-header title="Speed" description="What the site weighs and how it loads — measured at home, no key required: every published page's image weight, image formats and cached page size. Google's PageSpeed scores join when an API key is saved."
                          :breadcrumbs="['Website' => null, 'Speed' => null]" />
+    <x-admin.website-scope />
 
     <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <x-admin.card><p class="text-theme-xs text-gray-500">Pages</p><p class="mt-1 text-2xl font-medium text-gray-800 dark:text-white/90">{{ $audit['totals']['pages'] }}</p></x-admin.card>
@@ -16,7 +17,7 @@
 
     @if (! $pageSpeedReady)
         <x-admin.card class="mb-4" title="PageSpeed is asleep">
-            <p class="text-theme-sm text-gray-600 dark:text-gray-300">The checks above are the studio's own — they always run. A Google PageSpeed API key wakes the score buttons below and adds mobile and desktop runs to each page's history. Save it right here; it is stored encrypted and never shown back.</p>
+            <p class="text-theme-sm text-gray-600 dark:text-gray-300">The checks above are the admin's own — they always run. A Google PageSpeed API key wakes the score buttons below and adds mobile and desktop runs to each page's history. Save it right here; it is stored encrypted and never shown back.</p>
             <form wire:submit="saveKey" data-unsaved class="mt-3 flex flex-wrap items-end gap-3">
                 <x-admin.field label="Google PageSpeed API key" for="apiKey">
                     <input id="apiKey" type="password" wire:model="apiKey" class="wx-input" placeholder="AIza…" autocomplete="off">
@@ -83,7 +84,7 @@
     <x-admin.card :padding="false" title="Recent PageSpeed runs">
         @if ($runs->isEmpty())
             <div class="px-5 py-6">
-                <x-admin.empty icon="zap" title="No runs yet" description="Save an API key above and run a page — every score lands here, building the studio's speed history." />
+                <x-admin.empty icon="zap" title="No runs yet" description="Save an API key above and run a page — every score lands here, building the site's speed history." />
             </div>
         @else
             <table class="min-w-full text-left text-theme-sm">

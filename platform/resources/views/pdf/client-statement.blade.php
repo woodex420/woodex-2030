@@ -125,7 +125,7 @@
     @endforeach
 </table>
 
-<p class="note">This statement reflects the studio's records as of {{ $s['generated_on'] }}. Receipts shown are verified payments; kindly email {{ $b['email'] }} about any discrepancy within 7 days.</p>
+<p class="note">This statement reflects our records as of {{ $s['generated_on'] }}. Receipts shown are verified payments; kindly email {{ $b['email'] }} about any discrepancy within 7 days.</p>
 
 </body>
 </html>

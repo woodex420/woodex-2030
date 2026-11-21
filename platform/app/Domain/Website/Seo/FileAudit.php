@@ -107,7 +107,7 @@ final class FileAudit
             } elseif (mb_strlen($title) > 65) {
                 $issues[] = ['code' => 'long_title', 'message' => sprintf('Title is %d characters — search engines cut around 65.', mb_strlen($title))];
             } elseif (mb_strlen($title) < 20) {
-                $issues[] = ['code' => 'short_title', 'message' => sprintf('Title is only %d characters — room for the studio and the subject.', mb_strlen($title))];
+                $issues[] = ['code' => 'short_title', 'message' => sprintf('Title is only %d characters — room for the brand and the subject.', mb_strlen($title))];
             }
 
             if ($title !== '' && isset($titles[$title])) {

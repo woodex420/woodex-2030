@@ -1,5 +1,5 @@
 <div data-unsaved="save">
-    <x-admin.page-header :title="$estimateId !== null ? 'Estimate '.$number : 'New estimate'" description="Shared rates with the website estimator: pick the service, give the size and finish, and the range is honest — essential to premium. Add known rate book items and an explicit contingency. Converting creates a quotation draft; nothing reaches a client from here."
+    <x-admin.page-header :title="$estimateId !== null ? 'Estimate '.$number : 'New estimate'" description="Pick the service, give the size and the finish, and the estimate gives a range from essential to premium. Add known rate book items and an explicit contingency. Converting creates a quotation draft; nothing reaches a client from here."
                          :breadcrumbs="['Sales' => null, 'Estimations' => route('admin.estimations.index'), $estimateId !== null ? $number : 'New' => null]">
         <x-slot:actions>
             @if ($estimateId !== null && $estimate?->quote !== null)
@@ -27,8 +27,8 @@
             <x-admin.card title="The job">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label class="wx-label">Service</label>
-                        <select wire:model.live="serviceKey" class="wx-input">
+                        <label class="wx-label" for="est-service">Service</label>
+                        <select id="est-service" wire:model.live="serviceKey" class="wx-input">
                             <option value="">— choose the service —</option>
                             @if ($serviceKey !== '' && ! $services->contains('key', $serviceKey))<option value="{{ $serviceKey }}">{{ $estimate?->computed['service_label'] ?? $serviceKey }} (saved / retired)</option>@endif
                             @foreach ($services as $service)
@@ -36,15 +36,17 @@
                             @endforeach
                         </select>
                         @error('serviceKey')<p class="mt-1 text-theme-sm text-red-600">{{ $message }}</p>@enderror
+                        {{-- Said on the field itself: an empty list with no reason reads as a fault (DL-046). --}}
+                        <p class="mt-1 text-theme-xs text-gray-500 dark:text-gray-400" data-no-services>{{ $services->isEmpty() ? 'No service has a rate yet, so an estimate cannot be saved here. The rates come with the price list.' : '' }}</p>
                     </div>
                     <div>
-                        <label class="wx-label">Title</label>
-                        <input wire:model="title" class="wx-input" placeholder="e.g. 10 marla lounge — DHA Phase 5" maxlength="120" />
+                        <label class="wx-label" for="est-title">Title</label>
+                        <input id="est-title" wire:model="title" class="wx-input" placeholder="e.g. 24 workstations — head office, Gulberg" maxlength="120" />
                         @error('title')<p class="mt-1 text-theme-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
                     <div>
-                        <label class="wx-label">Client</label>
-                        <select wire:model="contactId" class="wx-input">
+                        <label class="wx-label" for="est-client">Client</label>
+                        <select id="est-client" wire:model="contactId" class="wx-input">
                             <option value="">— choose the client (needed to convert) —</option>
                             @foreach ($contacts as $contact)
                                 <option value="{{ $contact->id }}">{{ $contact->name }}</option>
@@ -53,13 +55,13 @@
                         @error('contactId')<p class="mt-1 text-theme-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
                     <div>
-                        <label class="wx-label">Size / quantity</label>
-                        <input wire:model.live="quantity" class="wx-input" placeholder="e.g. 2400" inputmode="decimal" />
+                        <label class="wx-label" for="est-quantity">Size / quantity</label>
+                        <input id="est-quantity" wire:model.live="quantity" class="wx-input" placeholder="e.g. 2400" inputmode="decimal" />
                         @error('quantity')<p class="mt-1 text-theme-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
                     <div class="sm:col-span-2">
-                        <label class="wx-label">Finish level</label>
-                        <div class="flex flex-wrap gap-3">
+                        <span class="wx-label" id="est-finish-label">Finish level</span>
+                        <div class="flex flex-wrap gap-3" role="radiogroup" aria-labelledby="est-finish-label">
                             @foreach (['essential' => 'Essential', 'standard' => 'Standard', 'premium' => 'Premium'] as $value => $label)
                                 <label class="flex items-center gap-2 rounded-lg border px-3 py-2 text-theme-sm {{ $finish === $value ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30' : 'border-gray-200 dark:border-gray-800' }}">
                                     <input type="radio" wire:model.live="finish" value="{{ $value }}" />
@@ -69,8 +71,8 @@
                         </div>
                     </div>
                     <div>
-                        <label class="wx-label">Contingency (basis points)</label>
-                        <input wire:model.live="contingencyBp" class="wx-input" inputmode="numeric" placeholder="0 – 10000 (e.g. 500 = 5%)" />
+                        <label class="wx-label" for="est-contingency">Contingency (basis points)</label>
+                        <input id="est-contingency" wire:model.live="contingencyBp" class="wx-input" inputmode="numeric" placeholder="0 – 10000 (e.g. 500 = 5%)" />
                         @error('contingencyBp')<p class="mt-1 text-theme-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
                 </div>
@@ -82,8 +84,8 @@
                     @foreach ($catalogLines as $index => $line)
                         <div class="grid grid-cols-12 gap-2 items-end" wire:key="line-{{ $index }}">
                             <div class="col-span-12 min-w-0 sm:col-span-7">
-                                <label class="wx-label">Item</label>
-                                <select wire:model.live="catalogLines.{{ $index }}.catalog_item_id" class="wx-input">
+                                <label class="wx-label" for="est-line-{{ $index }}-item">Item</label>
+                                <select id="est-line-{{ $index }}-item" wire:model.live="catalogLines.{{ $index }}.catalog_item_id" class="wx-input">
                                     <option value="">— item —</option>
                                     @foreach ($catalogItems as $item)
                                         <option value="{{ $item->id }}">{{ $item->category }} — {{ Str::limit($item->description, 60) }} · {{ \App\Support\Money::ofMinor($item->rate_minor)->format() }}/{{ $item->unit }}</option>
@@ -91,8 +93,8 @@
                                 </select>
                             </div>
                             <div class="col-span-7 min-w-0 sm:col-span-3">
-                                <label class="wx-label">Qty</label>
-                                <input wire:model.live="catalogLines.{{ $index }}.qty" class="wx-input" inputmode="decimal" />
+                                <label class="wx-label" for="est-line-{{ $index }}-qty">Qty</label>
+                                <input id="est-line-{{ $index }}-qty" wire:model.live="catalogLines.{{ $index }}.qty" class="wx-input" inputmode="decimal" />
                             </div>
                             <div class="col-span-5 sm:col-span-2">
                                 <x-admin.button variant="secondary" type="button" wire:click="removeLine({{ $index }})">Remove</x-admin.button>
@@ -109,12 +111,12 @@
             <x-admin.card title="Assumptions & exclusions">
                 <div class="grid gap-4">
                     <div>
-                        <label class="wx-label">Assumptions (internal + carried to the quote's notes)</label>
-                        <textarea wire:model="assumptions" class="wx-input" rows="3" maxlength="4000" placeholder="e.g. rates per sq ft of covered area; site access during working hours; 3D views excluded"></textarea>
+                        <label class="wx-label" for="est-assumptions">Assumptions (internal + carried to the quote's notes)</label>
+                        <textarea id="est-assumptions" wire:model="assumptions" class="wx-input" rows="3" maxlength="4000" placeholder="e.g. rates per piece, delivered in Lahore; site access during working hours; installation included"></textarea>
                     </div>
                     <div>
-                        <label class="wx-label">Exclusions</label>
-                        <textarea wire:model="exclusions" class="wx-input" rows="3" maxlength="4000" placeholder="e.g. civil structure work, MEP by others, approvals"></textarea>
+                        <label class="wx-label" for="est-exclusions">Exclusions</label>
+                        <textarea id="est-exclusions" wire:model="exclusions" class="wx-input" rows="3" maxlength="4000" placeholder="e.g. electrical work, flooring and partitions by others"></textarea>
                     </div>
                 </div>
             </x-admin.card>

@@ -15,7 +15,7 @@
     var st = S.pgState || (S.pgState = { q: "", type: "", status: "" });
     el.innerHTML = head("Pages", "Pages", '<button class="btn pri" id="pg-new">' + ic("file-plus") + "New page</button>") +
       '<div class="grid kpis" id="pg-kpis" style="margin-bottom:24px"></div>' +
-      '<div class="card"><div class="card-h" style="padding-bottom:16px;flex-wrap:wrap"><div class="toolbar"><input type="search" id="pg-q" placeholder="Search title or address…" value="' + esc(st.q) + '">' +
+      '<div class="card"><div class="card-h" style="padding-bottom:16px;flex-wrap:wrap"><div class="toolbar"><input type="search" id="pg-q" aria-label="Search pages by title or address" placeholder="Search title or address…" value="' + esc(st.q) + '">' +
       '<select id="pg-type" style="margin:0;height:40px;width:auto"><option value="">All types</option>' + ["Home", "Services", "Locations", "Projects", "Insights / blog", "Company"].map(function (t) { return "<option" + (st.type === t ? " selected" : "") + ">" + t + "</option>"; }).join("") + "</select>" +
       '<select id="pg-status" style="margin:0;height:40px;width:auto"><option value="">Any status</option><option value="published">Published</option><option value="hidden">Hidden</option><option value="draft">Draft</option><option value="issues">Needs SEO work</option></select></div><span class="muted" id="pg-count"></span></div>' +
       '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Page</th><th>Type</th><th>Status</th><th title="SEO score">SEO</th><th>Words</th><th>Last changed</th><th></th></tr></thead><tbody id="pg-rows"><tr><td colspan="7" class="empty">Loading pages…</td></tr></tbody></table></div></div>';

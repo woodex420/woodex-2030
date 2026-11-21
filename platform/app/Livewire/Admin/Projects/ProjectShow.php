@@ -364,7 +364,7 @@ class ProjectShow extends Component
         $this->project->refresh();
         $this->newItem = '';
 
-        $this->toast($reset ? 'Checklist reset to the studio list.' : 'Handover checklist started.');
+        $this->toast($reset ? 'Checklist reset to the standard list.' : 'Handover checklist started.');
     }
 
     public function addHandoverItem(): void

@@ -5,6 +5,7 @@
             <x-admin.button variant="secondary" icon="target" href="{{ route('admin.website.seo.overview') }}">All listings</x-admin.button>
         </x-slot:actions>
     </x-admin.page-header>
+    <x-admin.website-scope />
 
     <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <x-admin.stat label="Pages checked" :value="$counts['files']" icon="globe" />
@@ -80,7 +81,11 @@
                     @empty
                         <tr>
                             <td colspan="3">
-                                <x-admin.empty title="Nothing found" description="Every page passes the rules this filter covers." />
+                                @if ($counts['files'] === 0)
+                                    <x-admin.empty title="No page yet" description="There is nothing to check until a page is made in the Page builder." />
+                                @else
+                                    <x-admin.empty title="Nothing found" description="Every page passes the rules this filter covers." />
+                                @endif
                             </td>
                         </tr>
                     @endforelse

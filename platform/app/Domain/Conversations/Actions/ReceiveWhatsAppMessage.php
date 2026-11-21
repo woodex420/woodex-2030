@@ -66,7 +66,13 @@ final class ReceiveWhatsAppMessage
             }
             $timestamp = filter_var($inbound['timestamp'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
             // Queued or replayed messages never grant a fresh 24 hours from the retry time.
-            $receivedAt = $timestamp === false ? CarbonImmutable::now() : CarbonImmutable::createFromTimestampUTC($timestamp)->min(now());
+            // The moment is put on the workspace's clock before it is handed on: a record writes the clock of the
+            // time it is given, so a time made in UTC was kept five hours early. The 24 hours in which a customer
+            // may be answered freely ended after 19, and "last message" stood five hours off (found by report
+            // docs/woodex-os/38-RELEASE-2026-11-20-VALUES-AND-RECORD-NUMBERS.md; cured by DL-046).
+            $receivedAt = $timestamp === false
+                ? CarbonImmutable::now()
+                : CarbonImmutable::createFromTimestampUTC($timestamp)->setTimezone((string) config('app.timezone'))->min(now());
             $contact = $this->contact($from, $value);
             $conversation = $this->conversation($contact, $from, $receivedAt);
 

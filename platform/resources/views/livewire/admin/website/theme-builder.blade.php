@@ -9,6 +9,7 @@
             </div>
         </x-slot:actions>
     </x-admin.page-header>
+    <x-admin.website-scope />
 
     <x-admin.card class="mb-6" title="Presets" :padding="false">
         <div class="grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-3">

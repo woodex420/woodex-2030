@@ -11,7 +11,7 @@ h2{font-size:15px;margin:0 0 6px}h2 small{color:var(--mut);font-weight:400;font-
 /* login */
 .login{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;background:radial-gradient(circle at 30% 20%,#1a2547,#0b1020 60%)}
 .login-card{width:min(380px,92vw);background:#fff;border-radius:16px;padding:32px;display:grid;gap:10px;box-shadow:0 30px 80px rgba(0,0,0,.4)}
-.login-card h1{margin:0;font-size:22px}.login-card p{margin:0;color:var(--mut)}
+.login-card h1,.login-card .login-h{margin:0;font-size:22px}.login-card p{margin:0;color:var(--mut)}
 .login-card input{height:42px;border:1px solid var(--line2);border-radius:8px;padding:0 12px;width:100%}
 .login-card .btn{height:42px;margin-top:6px}
 .login-err{color:var(--danger)!important;min-height:1.2em}
@@ -34,7 +34,8 @@ h2{font-size:15px;margin:0 0 6px}h2 small{color:var(--mut);font-weight:400;font-
 .top{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:var(--pan);border-bottom:1px solid var(--line);position:relative;z-index:20;gap:10px}
 .top-l,.top-c,.top-r,.devs{display:flex;align-items:center;gap:4px}
 .top-l{gap:10px}
-.brand{font-size:14px}.brand b{color:var(--acc)}
+.brand{font-size:14px;margin:0;font-weight:700;white-space:nowrap}.brand b{color:var(--acc)}
+.demo-pill{font-size:11.5px;font-weight:600;color:#93370d;background:#fef0c7;border:1px solid #fedf89;border-radius:999px;padding:3px 9px;white-space:nowrap}
 #page-select{max-width:300px;height:32px;border:1px solid var(--line2);border-radius:7px;padding:0 8px;background:#fff}
 .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
 .dev-note{font-size:11px;color:var(--mut);margin-left:4px;min-width:96px}

@@ -22,6 +22,23 @@ final class ReleaseNotes
         return [
             [
                 'date' => '2026-11-21',
+                'title' => 'The screens that ship switched off speak for a furniture company',
+                'notes' => [
+                    'Chat Bot: the built-in instructions of the assistant name the business as System → Settings names it, and say that it designs and makes office furniture. They named another company and described another trade. Your own instructions, where you wrote any, are used as before.',
+                    'Website chat: after the number, a visitor is asked what furniture they are looking for (office chairs, desks, workstations, a complete office fit-out). They were asked about a wardrobe, a home interior or a kitchen.',
+                    'Marketing: a caption is drafted for a company that makes office furniture. The examples in the fields are furniture ones.',
+                    'Conversations: the time of a WhatsApp message is kept as the moment it was sent. It would have been kept five hours early, and the 24 hours in which a customer may be answered freely would have ended after 19.',
+                    'With Conversations switched on, the chat button at the top asks the server for new messages only while the chat bubble on the website is switched on (Website settings). It asked every ten seconds from every screen.',
+                    'Estimations, Rates: where no rate list exists the tab says so in two sentences. It showed a red error twice, with the name of a folder on the server. New estimate: every field has its name, and the field "Service" says why it is empty and that no estimate can be saved until a service has a rate.',
+                    'Saved replies: the two variables for the name and the opening hours are now called {business_name} and {business_hours}. A reply saved under the old names is filled as before.',
+                    'Website: each Website screen says in one line what these screens manage: pages that the admin serves itself, not the shop. Blog, Portfolio, Forms and the Page builder show the demo notice like every other screen, and a new article is published under the name from System → Settings.',
+                    'Website, Redirects: choosing a page from the list "…or pick a published page" now fills the form. The form kept what had been typed before.',
+                    'Website: where this admin serves no page yet, Pages, SEO and SEO agent say so. They said that no page matched a search nobody had typed. The search fields the Page builder, Blog and Portfolio draw have a name a screen reader can say.',
+                    'Words: the business is called Woodex, or "we", everywhere. Several screens, the statement of account a client receives and the chat window on the website used a word that belongs to another trade: Payables by age, Due payments, Automations, Sequences and Speed among them.',
+                ],
+            ],
+            [
+                'date' => '2026-11-21',
                 'title' => 'Website Studio, where it is switched on: two links and the page builder',
                 'notes' => [
                     'Website, Forms: the two links to "Automations" open Automations. They opened "This page does not exist".',

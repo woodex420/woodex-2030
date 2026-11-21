@@ -65,7 +65,7 @@ final class ThemePresets
             ],
             [
                 'name' => 'Warm walnut',
-                'description' => "The studio's material itself: walnut browns, brass, room-warm surfaces.",
+                'description' => 'The material itself: walnut browns, brass, room-warm surfaces.',
                 'swatches' => ['#3E2B1F', '#F6EEE3', '#C08552', '#4E382A'],
                 'tokens' => [
                     '--navy' => '#3E2B1F',
