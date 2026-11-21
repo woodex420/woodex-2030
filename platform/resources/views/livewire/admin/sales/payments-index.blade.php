@@ -117,7 +117,11 @@
         @endif
     </div>
 
-    <x-admin.card :padding="false">
+    <x-admin.filtered :chips="$filtered" />
+
+    {{-- data-list-rows: how many payments the list holds in all, which a figure that links here has counted
+         (master list T-044). The shared table says it by itself; this table is still written by hand (T-045). --}}
+    <x-admin.card :padding="false" data-list-rows="{{ $payments->total() }}">
         <div class="overflow-x-auto" wire:loading.class="opacity-60">
             <table class="min-w-full text-left text-theme-sm">
                 <thead class="border-b border-gray-100 text-theme-xs tracking-wide text-gray-500 uppercase dark:border-gray-800">
@@ -181,6 +185,11 @@
                 </tbody>
             </table>
         </div>
+        @if ($payments->total() > 0 && ! $payments->hasPages())
+            <p class="border-t border-gray-100 px-5 py-2.5 text-theme-xs text-gray-500 dark:border-gray-800" data-list-count>
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ number_format($payments->total()) }}</span> {{ $payments->total() === 1 ? 'row' : 'rows' }}
+            </p>
+        @endif
         {{ $payments->links('components.admin.pagination') }}
     </x-admin.card>
 

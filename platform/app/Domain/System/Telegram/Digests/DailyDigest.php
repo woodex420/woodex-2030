@@ -9,7 +9,6 @@ use App\Domain\Crm\Models\SiteVisit;
 use App\Domain\Crm\Models\Task;
 use App\Domain\Sales\Models\Payment;
 use App\Domain\Sales\Models\Quote;
-use App\Domain\System\Enums\ApprovalStatus;
 use App\Domain\System\Models\Approval;
 use App\Models\User;
 use App\Support\Money;
@@ -116,7 +115,8 @@ final class DailyDigest
         }
 
         if ($user->can('quotes.approve')) {
-            $approvals = Approval::query()->where('status', ApprovalStatus::Pending->value)->count();
+            // What /approvals lists (Approval::quotesWaiting): a request whose quotation was deleted is not counted.
+            $approvals = Approval::query()->quotesWaiting()->count();
             $lines[] = sprintf('Approvals waiting: %d — /approvals to decide.', $approvals);
         }
 

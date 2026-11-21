@@ -82,11 +82,19 @@ class Approvals extends Component
         abort_unless(OperationsSummary::canReview($user), 403);
         abort_unless($this->line === '' || BusinessLine::tryFrom($this->line) !== null, 422, 'Choose a business line.');
         $withQuote = fn (MorphTo $morph) => $morph->morphWith([Quote::class => ['contact:id,name', 'owner:id,name']]);
-        $base = Approval::query()->with(['approvable' => $withQuote, 'requester:id,name', 'decider:id,name'])
+        $with = ['approvable' => $withQuote, 'requester:id,name', 'decider:id,name'];
+        $matching = fn ($q) => $q->search(mb_substr($this->search, 0, 120))->when($this->line !== '', fn ($q) => $q->where('business_line', $this->line));
+        $base = Approval::query()->with($with)
             ->where('approvable_type', 'quote')
-            ->whereHasMorph('approvable', [Quote::class], fn ($q) => $q->search(mb_substr($this->search, 0, 120))->when($this->line !== '', fn ($q) => $q->where('business_line', $this->line)));
+            ->whereHasMorph('approvable', [Quote::class], $matching);
         // Other reviewers can use their existing queues without reading quote approval details.
-        $pending = $user->can('quotes.approve') ? (clone $base)->where('status', ApprovalStatus::Pending)->oldest()->paginate(25) : null;
+        // What waits is Approval::quotesWaiting(), the scope the dashboard's "Awaiting approval" counts: with no
+        // search and no line, this list is that figure's rows (master list T-044).
+        $pending = $user->can('quotes.approve')
+            ? Approval::query()->quotesWaiting()->with($with)
+                ->when($this->search !== '' || $this->line !== '', fn ($q) => $q->whereHasMorph('approvable', [Quote::class], $matching))
+                ->oldest()->paginate(25)
+            : null;
         $recent = $user->can('quotes.approve') ? (clone $base)->whereIn('status', [ApprovalStatus::Approved, ApprovalStatus::Rejected])
             ->where('decided_at', '>=', now()->subDays(30))->latest('decided_at')->limit(15)->get() : collect();
 

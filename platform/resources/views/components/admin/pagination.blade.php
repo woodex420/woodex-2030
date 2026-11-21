@@ -1,6 +1,6 @@
 @if ($paginator->hasPages())
     <nav class="flex items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 dark:border-gray-800" aria-label="Pagination">
-        <p class="text-theme-xs text-gray-500">
+        <p class="text-theme-xs text-gray-500" data-list-count>
             Showing <span class="font-medium text-gray-700 dark:text-gray-300">{{ $paginator->firstItem() }}–{{ $paginator->lastItem() }}</span>
             of <span class="font-medium text-gray-700 dark:text-gray-300">{{ $paginator->total() }}</span>
         </p>

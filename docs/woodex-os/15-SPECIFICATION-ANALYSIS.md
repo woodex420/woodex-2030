@@ -158,7 +158,7 @@ Document 08 §2 forbids settling such a difference silently. Each is listed with
 | §6 Shared components: buttons, fields, cards, tabs, badges, dialogs, toasts, page headers, upload, media picker, document preview | Exist as `x-admin.*` components, restyled to the theme | T-050 (a reference screen) |
 | §6 **Tables with sort, filters, pagination, selection and bulk actions** as one standard | **The standard exists** since 20 November (T-041, done): one table component with all five, and six lists draw it (Leads, Quotations, Projects, Payables by age, Users, Receivables). 45 views still write a table by hand; a test holds the number, which may only fall | T-045 |
 | §6 States: empty, loading, error, no permission, **offline** | The shared table draws loading, empty, error, no-permission and success, each with its words and role (20 November, T-041, done). No screen says "loading", "error" or "no-permission" yet; no offline notice | T-051, T-050 |
-| §7 Dashboard: business snapshot, **sales funnel, finance, commerce and operations, projects**, activity | Present: period figures, six live queues, needs-attention, pipeline, new leads chart, recent activity. Missing: funnel with conversion rate, overdue ageing and payables due, project health and milestones; charts do not state currency and definition | T-044 |
+| §7 Dashboard: business snapshot, **sales funnel, finance, commerce and operations, projects**, activity | **Thirteen widgets in six sections since 21 November (T-044, done):** the figures of a period, the sales funnel with its conversion rate, six live queues, needs-attention, money owed by age and payables due, project health and milestones, pipeline, new leads chart, recent activity. Every number opens a list of exactly the records it counts; every chart states its dates, its currency and what it counts. Missing: the widgets of commerce and operations (orders, production, deliveries, stock, purchase receipts), whose modules are not built; budget variance, because a project carries no budget | T-106, T-107, T-109 to T-111 (each brings its widget) |
 | §8 List, detail, create/edit and approval patterns | Followed unevenly | T-045 |
 | §8 **Unsaved-change warning** | No warning on leaving a form anywhere. Six editors (page builder, series, category, product, estimate, rates) say on the screen that edits are unsaved | T-043 |
 | §8 An approver cannot approve their own request | Met for quotations (the owner excepted), tested | T-081 (other approval types) |
@@ -194,7 +194,7 @@ there a browser journey, has the owner accepted it. "Journey" means a step of `s
 
 | Module (§) | Built | On | Furniture-clean | Tests | Journey | Accepted | Main gaps | Task |
 |---|---|---|---|---|---|---|---|---|
-| Dashboard (1) | Yes | Yes | Line filter offers Interior | Yes | Opens | No | Sections of document 05 §7; widget states | T-044 |
+| Dashboard (1) | Yes | Yes | Line filter offers Interior | Yes | Opens; two numbers are followed to their lists | No | The widgets of commerce and operations, which come with their modules (the widgets and their states: T-044, done) | T-106, T-107, T-109 to T-111 |
 | Approvals (2) | Quotations only | Yes | Yes | Yes | No | No | One queue across domains; filters by age and amount; requester notified | T-081 |
 | Reports (3) | Yes | Yes | Line filter | Yes | No | No | Role-filtered catalogue, definitions, export audit, queued export | T-082 |
 | Leads (4) | Yes | Yes | **No**: greeting says "Woodex Interior"; Interior fields | Yes | Create, search, export, import | No | Shop forms still write to Node | T-030, T-031, T-100 |
@@ -305,7 +305,7 @@ backup status, performance, owner approval) — T-169, T-170.
 |---|---|---|---|---|
 | 0 Discovery and baseline | Wave 0 and the audits | Done, except two items | Hostinger capability checklist **verified on the plan**; the feature register exists (Feature status) | T-006 |
 | 1 Product and design foundation | Wave 1 | Mostly done | **Branding cleanup from Interior labels**; **the owner approves sidebar, tokens and shell** | T-030 to T-035, T-005 |
-| 2 Dashboard shell | Wave 1 | Sidebar, top bar, palette, drawer, role-aware menu done | **Favourites and recent screens; dashboard widget framework**; keyboard tests | T-046, T-044, T-054 |
+| 2 Dashboard shell | Wave 1 | Sidebar, top bar, palette, drawer, role-aware menu done; the dashboard is a widget framework since 21 November (T-044, done) | **Favourites and recent screens**; keyboard tests | T-046, T-054 |
 | 3 Core sales vertical slice: lead → contact → estimate → quotation → approval → invoice or order | Waves 3 and 4 | Every step but the estimate (off) and the order (missing) exists and is tested in isolation | **The slice proven end to end on staging; one writer** | T-080, T-100 to T-103 |
 | 4 Commerce and operations | Waves 5 to 8 | Catalogue screens built; the rest missing | Everything from orders to production | T-104 to T-111 |
 | 5 Finance and projects | Wave 9 | Built, not reviewed | The finance owner validates; client isolation tests | T-013, T-112 to T-114 |

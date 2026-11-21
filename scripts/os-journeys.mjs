@@ -267,6 +267,47 @@ if (signedIn) {
     return title;
   });
 
+  // List line T-044: every figure of the dashboard opens the records it counted. The tests compare every figure
+  // with its list on records made at the edges of each period (tests/Feature/Overview/DashboardWidgetsTest.php);
+  // here two of them are followed as a person follows them, and the numbers are read off the screen. The step
+  // leaves the lead's page, so it stands after the task, which is added on the page the step before it left open.
+  await step('two figures of the dashboard are followed to their lists, and each list holds the rows the figure counted', async () => {
+    const followed = [];
+    // One figure of the period above, which the lead of this journey is in, and one of the queues as they stand now.
+    for (const name of ['performance.enquiries', 'live_queues.overdue_followups']) {
+      await page.goto(`${base}/admin`, { waitUntil: 'domcontentloaded' });
+      await quiet();
+      const figure = page.locator(`a[data-figure="${name}"][data-figure-rows]`).first();
+      must(await figure.count() > 0, `the dashboard shows no figure "${name}" with a list behind it`);
+      const counted = Number(await figure.getAttribute('data-figure-count'));
+      const whole = (number) => new RegExp(`(?<![\\d,.])${number}(?![\\d,.])`);
+      // What the person reads in the figure is the number it counted.
+      const said = (await figure.innerText()).replace(/\s+/g, ' ').trim();
+      must(whole(counted).test(said), `"${name}" counted ${counted} and says "${said}"`);
+      await Promise.all([page.waitForURL((url) => !/\/admin\/?$/.test(url.pathname), { timeout: 20000 }), figure.click()]);
+      await quiet();
+      const list = page.locator('[data-list-rows]').first();
+      await shown(list, 10000, `the list behind "${name}"`);
+      const address = `${new URL(page.url()).pathname}${new URL(page.url()).search}`;
+      const listed = Number(await list.getAttribute('data-list-rows'));
+      must(listed === counted, `"${name}" says ${counted}; the list it opens (${address}) holds ${listed}`);
+      if (counted > 0) {
+        // The list says the number in words too ("12 rows", or "Showing 1–25 of 37"), and says what it is cut to.
+        const line = (await page.locator('[data-list-count]').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+        must(whole(counted).test(line.replace(/^Showing [\d,]+–[\d,]+ of /, '')), `the list at ${address} says "${line}"; the figure said ${counted}`);
+        // Where the rows are all on one page, they are counted on the screen.
+        if (!line.startsWith('Showing')) {
+          const drawn = await list.locator('tbody tr:not([aria-hidden])').count();
+          must(drawn === counted, `the list at ${address} draws ${drawn} rows; the figure said ${counted}`);
+        }
+      }
+      must(await page.locator('[data-list-filtered]').count() > 0, `the list at ${address} does not say what it is cut to`);
+      followed.push(`${name}: ${counted} → ${address} holds ${listed}`);
+    }
+    must(followed.some((line) => !/: 0 →/.test(line)), `every figure followed was nought: ${followed.join(' · ')}`);
+    return followed.join(' · ');
+  });
+
   // ---- What is typed is not left behind without a question (list line T-043) ----
   const half = `Half a thought ${stamp}`;
   await step('typed text is not left behind without a question: "Stay" keeps it, "Leave without saving" goes', async () => {

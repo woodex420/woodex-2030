@@ -9,9 +9,12 @@ use App\Domain\Projects\Models\Project;
 use App\Models\User;
 use App\Support\Concerns\HasPublicId;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use InvalidArgumentException;
 
 /**
  * A received invoice — the vendor's bill to the studio (slice I). Posting it books the cost and the payable;
@@ -73,6 +76,43 @@ class Bill extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** How many days ahead "due soon" looks: a bill that falls due within a week is paid this week. */
+    public const DUE_SOON_DAYS = 7;
+
+    /**
+     * Bills the studio still owes on: received or part-paid (BillStatus::isOpen). A draft has not arrived yet
+     * and a void one is taken back.
+     *
+     * @param  Builder<Bill>  $query
+     * @return Builder<Bill>
+     */
+    public function scopeOwing(Builder $query): Builder
+    {
+        return $query->whereIn('bills.status', [BillStatus::Received->value, BillStatus::PartiallyPaid->value]);
+    }
+
+    /**
+     * Bills that are owed on, by when they fall due: `overdue` is past the due date (isOverdue()), `soon` is due
+     * today or within the next seven days, `open` is all of them. The dashboard's figures and the aging screen
+     * they open ask this one scope (master list T-044).
+     *
+     * @param  Builder<Bill>  $query
+     * @return Builder<Bill>
+     */
+    public function scopeDue(Builder $query, string $when): Builder
+    {
+        $today = CarbonImmutable::today();
+        $query->owing();
+
+        return match ($when) {
+            'open' => $query,
+            'overdue' => $query->whereDate('bills.due_date', '<', $today->toDateString()),
+            'soon' => $query->whereDate('bills.due_date', '>=', $today->toDateString())
+                ->whereDate('bills.due_date', '<=', $today->addDays(self::DUE_SOON_DAYS)->toDateString()),
+            default => throw new InvalidArgumentException("A bill is not due [{$when}]."),
+        };
     }
 
     public function balanceMinor(): int

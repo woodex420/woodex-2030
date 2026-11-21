@@ -16,6 +16,52 @@
         @endforeach
     </div>
 
+    {{-- The two lists the dashboard links to (master list T-044). "Automations failing" counts the first: each
+         scheduled task whose latest run ended in error, and each job in the failed queue. "Has stopped
+         reporting" names the second. Each says how many rows it holds in data-list-rows, also when it holds
+         none, so that a figure of 0 opens a list that says 0. --}}
+    <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <x-admin.card id="failing" title="Failing now" description="The latest run of a scheduled task ended in error, or a job is in the failed queue"
+                      :padding="false" data-list-rows="{{ $failures['total'] }}">
+            @foreach ($failures['tasks'] as $failed)
+                <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3 text-theme-sm last:border-0 dark:border-gray-800" data-failing="task">
+                    <span class="font-medium text-gray-800 dark:text-white/90">{{ $failed['task'] }}</span>
+                    <x-admin.badge color="error">Last run failed</x-admin.badge>
+                    <span class="ml-auto text-theme-xs text-gray-500">{{ $failed['ran_at']?->diffForHumans() }}</span>
+                </div>
+            @endforeach
+            @foreach ($failures['jobs'] as $job)
+                <div class="border-b border-gray-100 px-5 py-3 text-theme-sm last:border-0 dark:border-gray-800" data-failing="job">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-medium text-gray-800 dark:text-white/90">Queued job · {{ $job['queue'] }}</span>
+                        <x-admin.badge color="error">Failed</x-admin.badge>
+                        <span class="ml-auto text-theme-xs text-gray-500">{{ \Carbon\CarbonImmutable::parse($job['failed_at'])->diffForHumans() }}</span>
+                    </div>
+                    <p class="mt-1 break-words text-theme-xs text-gray-500">{{ $job['exception'] }}</p>
+                </div>
+            @endforeach
+            @if ($failures['more_jobs'] > 0)
+                <p class="px-5 py-3 text-theme-xs text-gray-500">and {{ number_format($failures['more_jobs']) }} older {{ $failures['more_jobs'] === 1 ? 'job' : 'jobs' }} in the failed queue.</p>
+            @endif
+            @if ($failures['total'] === 0)
+                <p class="px-5 py-4 text-theme-sm text-gray-500" role="status">Nothing is failing: the latest run of every scheduled task was clean and the failed queue is empty.</p>
+            @endif
+        </x-admin.card>
+
+        <x-admin.card id="stale" title="Stopped reporting" description="A scheduled task with no run in the last {{ \App\Domain\System\Control\ControlPanel::STALE_HOURS }} hours"
+                      :padding="false" data-list-rows="{{ count($failures['stale']) }}">
+            @forelse ($failures['stale'] as $silent)
+                <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3 text-theme-sm last:border-0 dark:border-gray-800" data-failing="stale">
+                    <span class="font-medium text-gray-800 dark:text-white/90">{{ $silent['task'] }}</span>
+                    <x-admin.badge color="warning">Silent</x-admin.badge>
+                    <span class="ml-auto text-theme-xs text-gray-500">last run {{ $silent['ran_at']?->diffForHumans() }}</span>
+                </div>
+            @empty
+                <p class="px-5 py-4 text-theme-sm text-gray-500" role="status">Every scheduled task has reported within the last {{ \App\Domain\System\Control\ControlPanel::STALE_HOURS }} hours.</p>
+            @endforelse
+        </x-admin.card>
+    </div>
+
     <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <x-admin.card title="Scheduled tasks" :padding="false">
             @forelse ($taskRuns as $task => $run)

@@ -24,6 +24,8 @@
         @endforeach
     </div>
 
+    <x-admin.filtered :chips="$filtered" />
+
     {{-- On a phone each invoice is a card (cards): its number, then who owes it, its status, its amount, what is
          still owed and when it is due: the cells that carry a data-label. --}}
     <x-admin.table label="Invoices" :rows="$invoices" cards>
@@ -33,10 +35,12 @@
                 <input type="search" wire:model.live.debounce.300ms="search" placeholder="Invoice number, client or quotation" class="wx-input pl-10" aria-label="Search invoices">
             </div>
             @if ($overdue > 0)
-                <div class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2 text-theme-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                {{-- The sum is a door too: it opens the invoices it adds up (the list's own filter, ?age=overdue). --}}
+                <button type="button" wire:click="$set('age', 'overdue')" aria-pressed="{{ $age === 'overdue' ? 'true' : 'false' }}"
+                        class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2 text-left text-theme-sm text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
                     <x-icon name="clock" class="size-4" />
                     <span>Overdue: <strong>{{ Money::ofMinor($overdue)->format($lakh) }}</strong></span>
-                </div>
+                </button>
             @endif
         </x-slot:filters>
 

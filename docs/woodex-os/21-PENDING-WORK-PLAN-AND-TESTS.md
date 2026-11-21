@@ -21,7 +21,7 @@ four of them. A large line can take more than one.
 ## The short version
 
 <!-- generated:short — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-1. **105 lines of the list are not done.** 13 can start now and need nobody: they are planned in 8 rounds (§2). 29 wait for you (§3). 63 wait for an earlier line (§4), and 50 of those stand behind an answer of yours.
+1. **103 lines of the list are not done.** 11 can start now and need nobody: they are planned in 7 rounds (§2). 29 wait for you (§3). 63 wait for an earlier line (§4), and 50 of those stand behind an answer of yours.
 2. **The next round** is round 1: T-105, The shop reads products, categories and series from `/api/v1`.
 3. **The answers of yours that the most lines stand behind:** T-006, Install the trial site on Hostinger (document 24) and send its address (20 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (4 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
 4. **1 critical defect is open:** D-002, The owner password of the old dashboard was printed in a public document — T-021, which waits for you.
@@ -36,11 +36,11 @@ four of them. A large line can take more than one.
 |  |  |
 |---|---|
 | Lines on the list | 153 |
-| Done | 48 |
-| **Can start now, needing nobody** | **13**, in 8 rounds (§2) |
+| Done | 50 |
+| **Can start now, needing nobody** | **11**, in 7 rounds (§2) |
 | **Wait for you** | **29** (§3) |
 | Wait for an earlier line | 63 (§4): 50 stand behind an answer of yours · 5 stand behind lines that need nobody · 8 go with a wave, a date or an event |
-| Not done, by priority | 24 P0, 48 P1, 25 P2, 8 P3 |
+| Not done, by priority | 24 P0, 47 P1, 25 P2, 7 P3 |
 <!-- /generated:numbers -->
 
 ---
@@ -70,7 +70,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-105 · P1 · large — The shop reads products, categories and series from `/api/v1`
 
 - **Done when** (the list): The shop shows only what Laravel has published
-- **Found on 20 November 2026:** Read in the code on 19 November; nothing of it is built. The shop reads its products from its own Node API (`/api/products`, and `/api/products/overrides` for changed prices and stock), which reads the shop's database: the 148 sample products (D-007). Categories, series and pictures it can already read from `/api/v1`, through two bridges of the Node API, behind a switch that is off. `/api/v1` has no address for products. Laravel keeps each of the 170 real products as a draft and a published copy; all 170 are drafts, and publishing one asks for a review, a category, a price, a description, the shipping and warranty texts, a picture with its description, and a preview seen by the person who publishes (D-009, T-090). The basket prices its lines from the sales catalogue by the shop's own product number, not from these products.
+- **Found on 21 November 2026:** Read in the code on 19 November; nothing of it is built. The shop reads its products from its own Node API (`/api/products`, and `/api/products/overrides` for changed prices and stock), which reads the shop's database: the 148 sample products (D-007). Categories, series and pictures it can already read from `/api/v1`, through two bridges of the Node API, behind a switch that is off. `/api/v1` has no address for products. Laravel keeps each of the 170 real products as a draft and a published copy; all 170 are drafts, and publishing one asks for a review, a category, a price, a description, the shipping and warranty texts, a picture with its description, and a preview seen by the person who publishes (D-009, T-090). The basket prices its lines from the sales catalogue by the shop's own product number, not from these products.
 - **What is built:**
   1. `GET /api/v1/catalogue/products`, in pages, and one product by its address: only the published copy of a product that is not archived, never the draft. Prices as whole paisa with the currency, times in UTC, the filters the contract names (category, series, changed since) and no other. Written into `platform/resources/api/v1.openapi.json` and document 29 first.
   2. The pictures of a published product at an address of their own, as the categories' pictures are.
@@ -88,27 +88,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the draft handed out in place of the published copy, the test of the unpublished product names it; with the shop's reader left reading rupees where paisa arrive, its script names the price.
 - **The way back:** The shop's switch stays off: the live shop reads what it reads today, and the round changes no setting of either Vercel project. The new addresses hand out only published products, and none is published on the demo. The Node catalogue is not closed in this round.
 
-### Round 2 — What the merge of pull request #52 left to read from the live site
+### Round 2 — What is still to read from the live site
 
-**Lines:** T-152, T-154, T-142 · **Why here:** Three small lines whose building is merged and whose proof can only come from the live site: Vercel's own network cannot be rehearsed, a cold start cannot be ordered, and GitHub starts a timer when it will. Nothing is built here; each line is closed by reading, and the readings are written down at the start of the next round. · **When it is merged, these can start:** no waiting line.
-
-#### T-152 · P3 · small — Long caching for the built files: merged, to be read from the live site
-
-- **Done when** (the list): One year, immutable
-- **Found on 20 November 2026:** Built and merged with pull request #52: the eight built files with a marked name are sent with one year and `immutable` by a rule in the part of `vercel.json` that Vercel applies to a file it has found. The root test reads the rule against the build's manifest, and the rehearsal asks for each file through it. The live site was read before the merge, on 20 November at 13:55 UTC, when it still ran the old build: `max-age=0`. Vercel's own network cannot be rehearsed, so that it applies the rule is not proved until it is read from outside.
-- **What is built:**
-  1. Nothing more is built. The outside check from `main` requires one year on the stylesheet that the sign-in page names, and 404 without a long life for a built file with a marked name that does not exist.
-- **Tests written:**
-  1. The outside check's run after the merge of pull request #52, and the next timed run, are read: both must say one year for the stylesheet.
-  2. If Vercel's network does not apply the rule, the check fails by itself and opens an issue. The first thing to try then is the flag `important: true` on the same rule: Vercel's own builder for Next.js sets it on its one-year rule in the same place (`@vercel/next` 31.0.1), and the routing schema calls it deprecated. The second is the rule as a route before the file is looked up, the older documented way, which may also reach a marked name that is no file. Vercel's `headers` setting is no way out while `vercel.json` uses `routes`: the two were not allowed together in the last version of Vercel's tool whose code can be read. Whatever is tried is rehearsed first.
-- **In a browser:** nothing; this line has no screen.
-- **Tried against:** Done before the merge: with the rule taken out, the root test and the rehearsal fail; with the rule widened to every built file, both fail on `site.css`. On the branch the outside check read `max-age=0` and only noted it, because the live site was the old one.
-- **The way back:** A file with a marked name never changes under that name, so a long life cannot serve an old file. One entry of `vercel.json` to take out.
+**Lines:** T-154, T-142 · **Why here:** Two small lines whose building is merged and whose proof can only come from the live site: a cold start cannot be ordered, and GitHub starts a timer when it will. Nothing is built here; each line is closed by reading, and the readings are written down at the start of the next round. The third line that stood here, the long life of the built files (T-152), was read from the live site on 20 November and is done. · **When it is merged, these can start:** no waiting line.
 
 #### T-154 · P3 · small — A cold start on Vercel: the mark is merged, three readings to take
 
 - **Done when** (the list): Written into `13-VERCEL-DEPLOYMENT.md`
-- **Found on 20 November 2026:** Built and merged with pull request #52: an answer for which the function had to be started carries the header `X-Woodex-Cold-Start: 1`, and the outside check times its first request and says whether it carried the mark. Read once before the merge, on the old build, which says nothing: 2.29 s to the first byte on 20 November at 13:55 UTC from a GitHub runner; warm it is 0.08 to 0.17 s. No cold reading with the mark exists yet.
+- **Found on 21 November 2026:** Built and merged with pull request #52: an answer for which the function had to be started carries the header `X-Woodex-Cold-Start: 1`, and the outside check times its first request and says whether it carried the mark. One cold reading of three, read on 21 November at 05:28 UTC. The check after the merge of pull request #52 (20 November, 15:10 UTC) met a copy that was running already: 0.34 s, no mark. The timed run of 20 November at 22:22 UTC met a new copy: 3.89 s to the first byte, with the mark; its second request took 0.15 s. Warm, the page answers in 0.08 to 0.17 s. Before the mark existed, 2.29 s was read once (20 November, 13:55 UTC).
 - **What is built:**
   1. Nothing more is built. Each run of the outside check prints the time of its first request and whether that answer carried the mark.
 - **Tests written:**
@@ -116,12 +103,12 @@ protection is taken away once, by hand, and the test must go red.
 - **In a browser:** nothing; this line has no screen.
 - **Tried against:** Done before the merge: with the mark taken out of the entry file the rehearsal fails once; with the mark sent on every answer it fails twice.
 - **The way back:** One header on an answer, and a line of output.
-- **Not known yet:** How often the check meets a copy that has just started. After a merge it very likely does; a timed run may find the function warm. If three cold readings do not come by themselves within a week, the line says so and stays open.
+- **Not known yet:** How often the check meets a copy that has just started. The check after a merge did not, on 20 November; a run of the timer did. If two more cold readings do not come by themselves by 27 November, the line says so and stays open.
 
 #### T-142 · P2 · small — The outside check on a timer: moved to another minute, to be counted again
 
 - **Done when** (the list): It runs every six hours from `main`; a forced failure opens an issue
-- **Found on 20 November 2026:** Read on 20 November at 14:24 UTC: six timed runs since the timer came to `main` on 17 November, for thirteen times due. The times due at 06:23 and 18:23 UTC brought a run every time, 1 h 08 min to 2 h 43 min late; the times due at 00:23 and 12:23 UTC never. Four runs are green; the two of 18 and 19 November failed on a point of the check itself (a preview that Vercel had removed answered 410, where the check accepted only the sign-in: issue #46, cured with pull request #47). Of the last four times due, two brought a run, so the timer was written again with pull request #52: 03:47, 09:47, 15:47 and 21:47 UTC. Starting the check by hand is refused to this session (HTTP 403). The check after a merge has run every time.
+- **Found on 21 November 2026:** The timer was written again with pull request #52: 03:47, 09:47, 15:47 and 21:47 UTC, from 20 November at 15:02 UTC. Before that, six timed runs came for thirteen times due: the times due at 06:23 and 18:23 UTC brought a run every time, 1 h 08 min to 2 h 43 min late, and the times due at 00:23 and 12:23 UTC never. Read on 21 November at 05:28 UTC: one run for three times due at the new minute. 15:47 UTC on 20 November brought none; 21:47 UTC brought a run at 22:22 UTC, green; 03:47 UTC on 21 November had brought none 1 h 41 min later. Seven timed runs in all, five of them green; the two of 18 and 19 November failed on a point of the check itself (issue #46, cured with pull request #47). Starting the check by hand is refused to this session (HTTP 403). The check after a merge has run every time.
 - **What is built:**
   1. Nothing more is built. GitHub's list of timed runs is read at the start of every round, and how many of the times due brought a run is written into the list.
   2. If the new minute does no better after eight times due, the line says that GitHub does not keep a six-hourly timer for this repository, and the owner is asked whether twice a day is enough or another service should start the check.
@@ -131,37 +118,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** Done on 17 November: a forced failure opened issue #38, and the next proof closed it.
 - **The way back:** Nothing changes on any site.
 
-### Round 3 — The dashboard
-
-**Lines:** T-044 · **Why here:** P1. The first screen every person sees. In the order you set for the design work it comes before the areas (DL-008). · **When it is merged, these can start:** no waiting line.
-
-#### T-044 · P1 · large — The dashboard as a widget framework, with the missing widgets
-
-- **Done when** (the list): Each figure's link opens the same number of rows; a widget whose module is not here is absent
-- **Found on 20 November 2026:** The dashboard is one component with one view: figures for a period, six live queues, what needs attention, the pipeline, new leads, recent activity.
-- **What is built:**
-  1. Each block becomes a widget under one contract: who may see it and with which module, its figure, its link, and its states: loading, empty, error, no access.
-  2. The missing widgets: the sales funnel with its conversion rate; overdue amounts by age and payables due; the health and milestones of projects. Every chart states its dates, its currency and its definition.
-  3. A widget whose module is switched off is absent, not empty.
-- **Tests written:**
-  1. For every widget with a figure: its link opens a list of exactly that many rows. The records are made in the test, some of them at the edges of the period in Pakistan time.
-  2. Every widget in every state. A widget that fails shows its own error, and the rest of the dashboard is still drawn.
-  3. As each role: only the widgets that role may see. With a module off, its widget is not in the page.
-  4. The number of database queries the dashboard makes is written down as a limit.
-- **In a browser:**
-  1. The crawl as four roles at both widths.
-  2. A journey step follows two figures to their lists and compares the numbers on the screen.
-- **Tried against:** With one widget's count changed to include one more state, the first test fails.
-- **The way back:** Views and queries that only read. No record changes.
-
-### Round 4 — Without a mouse; help, pinned and recent screens
+### Round 3 — Without a mouse; help, pinned and recent screens
 
 **Lines:** T-054, T-046 · **Why here:** T-054 is P1, and the accessibility review of gate A waits for it. The new entries of the top bar get their keyboard tests from the first day. · **When it is merged, these can start:** T-047 (Search finds a screen by keyword and by its old name).
 
 #### T-054 · P1 · medium — Keyboard and screen-reader tests in a browser
 
 - **Done when** (the list): The tests run with the journeys; sign-in, a lead and a quotation done by keyboard only
-- **Found on 20 November 2026:** The search opens with Ctrl+K and answers to the arrow keys and Escape. The journeys press Ctrl+K once and Escape three times. No task is done by keyboard alone: the sidebar, the focus inside a dialog and the announcing of a refused field are untested.
+- **Found on 21 November 2026:** The search opens with Ctrl+K and answers to the arrow keys and Escape. The journeys press Ctrl+K once and Escape three times. No task is done by keyboard alone: the sidebar, the focus inside a dialog and the announcing of a refused field are untested.
 - **What is built:**
   1. A third journey, done by keyboard only: sign in; the sidebar, a group opened and a link followed; the search opened, a screen found, chosen, and Escape giving the focus back; a dialog and a drawer that keep the focus inside and return it; a lead and a quotation made; a refused field announced where it stands.
   2. What the journey finds is corrected in the same round.
@@ -177,7 +141,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-046 · P2 · medium — Help, pinned screens and recently opened screens in the top bar
 
 - **Done when** (the list): Present, usable by keyboard, remembered per person, tested
-- **Found on 20 November 2026:** The top bar has the search, "Create new", the colour theme, the notifications and the account. It has no help entry, and no pinned or recent screens. A person's record has no place for such preferences yet.
+- **Found on 21 November 2026:** The top bar has the search, "Create new", the colour theme, the notifications and the account. It has no help entry, and no pinned or recent screens. A person's record has no place for such preferences yet.
 - **What is built:**
   1. A Help entry in the top bar: what this screen is for, the keyboard shortcuts, and the request number to give when asking for help.
   2. A screen can be pinned from its heading; pinned screens stand at the head of the menu. The screens opened last are listed, for each person.
@@ -191,14 +155,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the check of the person's rights taken out, "is not offered" fails.
 - **The way back:** One migration that only adds; its way back removes the table.
 
-### Round 5 — Every shared part on one screen; a slow list and a lost connection
+### Round 4 — Every shared part on one screen; a slow list and a lost connection
 
 **Lines:** T-050, T-051 · **Why here:** Both waited for the shared table (T-041), and both are P2. The first is a criterion of gate A ("shared component examples"). The second finishes the five states: the table can say "loading" since 20 November and no screen says it. · **When it is merged, these can start:** no waiting line.
 
 #### T-050 · P2 · medium — A reference screen showing every shared component and state
 
 - **Done when** (the list): One screen under System, for owner and admin
-- **Found on 20 November 2026:** No screen shows the shared parts side by side. The parts are 25 files in `platform/resources/views/components/admin` and the three parts of the table beside them; their rules are written there since 20 November (`README.md`). A new screen is a 69th destination: the registry of destinations, Feature status and the tests that count destinations change with it.
+- **Found on 21 November 2026:** No screen shows the shared parts side by side. The parts are 25 files in `platform/resources/views/components/admin` and the three parts of the table beside them; their rules are written there since 20 November (`README.md`). A new screen is a 69th destination: the registry of destinations, Feature status and the tests that count destinations change with it.
 - **What is built:**
   1. One screen under System, for owner and admin: every shared part in each of its states, drawn by the part itself with sample values, never by a copy of its markup. Buttons, badges, cards, fields with and without an error, the empty state, the dialog, the toast, the page links, and the table in its five states.
   2. The destination is added to the registry with its permission, so that the menu, Feature status and the route agree.
@@ -214,7 +178,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-051 · P2 · medium — Placeholders while a list loads; a notice when the connection is lost
 
 - **Done when** (the list): Seen in a browser with the network slowed and cut
-- **Found on 20 November 2026:** No screen says "loading": a Livewire screen arrives with its rows, and no component is loaded late. `wire:loading` is written 117 times in 64 views, to dim rows or to stop a button being pressed twice. Nothing tells a person that the connection is lost: `wire:offline` is written nowhere and no script listens for it, so a press then does nothing and says nothing. The shared table has had a loading state since 20 November (T-041).
+- **Found on 21 November 2026:** No screen says "loading": a Livewire screen arrives with its rows, and no component is loaded late. `wire:loading` is written 117 times in 64 views, to dim rows or to stop a button being pressed twice. Nothing tells a person that the connection is lost: `wire:offline` is written nowhere and no script listens for it, so a press then does nothing and says nothing. The shared table has had a loading state since 20 November (T-041).
 - **What is built:**
   1. A notice in the top bar while the browser is offline or the server does not answer, and that it is back when it is: said to a screen reader, and never laid over the form a person is typing in.
   2. A press that could not be sent says so, and what was typed stays.
@@ -228,14 +192,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the notice taken out, the journey step fails where it reads it.
 - **The way back:** Views and one small script; the built files change. The notice can be taken out alone, and a late list made an early one again by one word.
 
-### Round 6 — Lighter pages; nothing smaller than 12 px
+### Round 5 — Lighter pages; nothing smaller than 12 px
 
 **Lines:** T-052, T-049 · **Why here:** Both change the same shared parts: the menu, the top bar, the search. · **When it is merged, these can start:** no waiting line.
 
 #### T-052 · P2 · medium — Page weight: a near-empty page under 60 KB of HTML
 
 - **Done when** (the list): A near-empty page is under 60 KB of HTML
-- **Found on 20 November 2026:** By the crawl's figures in the list (§17): a near-empty page is 144 KB of HTML, 15.6 KB compressed. About 110 KB of it is the menu, the search's templates and the icons, sent again with every page. The median page is 161 KB.
+- **Found on 21 November 2026:** By the crawl's figures in the list (§17): a near-empty page is 144 KB of HTML, 15.6 KB compressed. About 110 KB of it is the menu, the search's templates and the icons, sent again with every page. The median page is 161 KB.
 - **What is built:**
   1. First a measurement, part by part.
   2. Then, as far as the measurement says: each icon drawn once and referred to; the search's list of screens fetched when the search is first opened; the phone's menu made of the same markup as the sidebar.
@@ -251,7 +215,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-049 · P2 · small — No text smaller than 12 px
 
 - **Done when** (the list): Nothing in the admin is set below 12 px, or the owner accepts named exceptions
-- **Found on 20 November 2026:** 19 places in 14 views, and 7 rules of the stylesheets, set text below 12 px: from 8 px (the line under the logo) to 11 px.
+- **Found on 21 November 2026:** 19 places in 14 views, and 7 rules of the stylesheets, set text below 12 px: from 8 px (the line under the logo) to 11 px.
 - **What is built:**
   1. Each is raised to 12 px. Where a label then no longer fits, the layout gives way, not the size.
 - **Tests written:**
@@ -263,14 +227,14 @@ protection is taken away once, by hand, and the test must go red.
 - **The way back:** Views and the stylesheets; the bundle is rebuilt and committed.
 - **Yours:** If a place cannot take 12 px, it is shown to you as a named exception to accept or refuse.
 
-### Round 7 — The content policy without `eval`
+### Round 6 — The content policy without `eval`
 
 **Lines:** T-072 · **Why here:** After the rounds that replace whole parts of the views (the table, the dashboard, the top bar, the menu), so that nothing is converted twice; and before the screen pass, which its test then holds to the strict form from the first view. · **When it is merged, these can start:** no waiting line.
 
 #### T-072 · P2 · large — The content policy without `eval`
 
 - **Done when** (the list): The policy has no `'unsafe-eval'`; the journeys and the crawl pass with nothing refused
-- **Found on 20 November 2026:** About 200 Alpine expressions in the views: 21 `x-data`, 19 of them written out in the markup; 121 handlers of events; 30 `x-show`.
+- **Found on 21 November 2026:** About 200 Alpine expressions in the views: 21 `x-data`, 19 of them written out in the markup; 121 handlers of events; 30 `x-show`.
 - **What is built:**
   1. Livewire's build for a strict policy is switched on, and every expression in the views is read against what it accepts.
   2. The longer ones become named components in the admin's own script; the bundle is rebuilt and committed.
@@ -285,14 +249,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one arrow function left in a view, the crawl reports the refusal and fails.
 - **The way back:** `SECURITY_CSP=report` or `off` on the site; or the strict build off and the word back in the policy, in one commit.
 
-### Round 8 — The screen pass, area by area
+### Round 7 — The screen pass, area by area
 
 **Lines:** T-045 · **Why here:** P1, and last all the same: it is the largest line, several rounds of its own, one for each area in the order you set (DL-008): E-commerce, CRM, Sales, then the others. Every round before it changes a part it builds on. · **When it is merged, these can start:** no waiting line.
 
 #### T-045 · P1 · large — Screen pass, area by area: theme colours, page patterns, dark theme
 
 - **Done when** (the list): Before-and-after screenshots of one screen per area at 1366 px and 390 px, light and dark
-- **Found on 20 November 2026:** 3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.
+- **Found on 21 November 2026:** 3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.
 - **What is built:**
   1. In each area: greys move to the theme's roles; what is selected takes the theme's green; each page follows the patterns of document 05 §8; its lists use the table of T-041, and are drawn as cards on a phone (T-042) where people work the list from a phone.
   2. The dark theme is looked at on every screen of the area.
@@ -426,7 +390,7 @@ answer is added here.
 
 | # | Pri | Task | Waits for | Stands behind | Done when |
 |---|---|---|---|---|---|
-| T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 4) | "stock" finds Stock Ledger; "clients" finds Contacts |
+| T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 3) | "stock" finds Stock Ledger; "clients" finds Contacts |
 | T-115 | P2 | The page-builder prototype (gate C) | T-105 — Building the prototype needs nobody. Accepting it is yours: gate C. | T-105 (round 1) | The owner accepts the prototype before any broad build |
 | T-116 | P2 | Website Studio on Puck | T-115 | T-105 (round 1) | A page is edited, approved, published and rolled back |
 | T-117 | P2 | Today's pages moved into the page builder | T-116 | T-105 (round 1) | Selected pages are approved; the old content is kept |
@@ -454,26 +418,26 @@ The tests of §2 are written for one line each. These stand for every round, and
 of them pass on its last commit.
 
 <!-- generated:standing — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-| Check | Where it runs | On 20 November 2026 | What it stops |
+| Check | Where it runs | On 21 November 2026 | What it stops |
 |---|---|---|---|
-| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,772 pass, 36 skipped, none fails: run in the sandbox on 20 November, 14:28 to 14:36 UTC, on the code of pull request #52. In CI on `cc9b695`, on each of the three servers (MySQL 8.4.13, MariaDB 10.11.19, MariaDB 11.4.13): 2,773 pass, 35 skipped. Both on the packages as brought up to date on 20 November (Laravel 13.43.0) | A rule, a screen or a permission that no longer does what its test says |
+| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,810 pass, 36 skipped, none fails: run in the sandbox on 21 November, 05:10 to 05:18 UTC, on the code of pull request #53. In CI on `a2445c9`, on each of the three servers (MySQL 8.4.13, MariaDB 10.11.19, MariaDB 11.4.13): 2,810 pass, 36 skipped. The 38 tests of the dashboard are new; one of them takes a table away, which only SQLite lets a test do, and is left out on the three servers with its reason | A rule, a screen or a permission that no longer does what its test says |
 | Two writers at the same moment: in the accounts, and two enquiries or baskets of the shop (`platform/tools/ci/two-writers.php`) | CI, job `two-writers` of `os-ci.yml`, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, on every push that touches `platform/`. In the sandbox on the server that `platform/tools/preview/sandbox/database.sh` builds (MariaDB 10.2) | 33 steps of 50 runs hold on each of the three servers; with a lock taken out, each of six checks reports the fault it is for (CI, `d93b112`). The four new steps send an enquiry and a basket as the shop sends them: one sent twice with its key, and two of two visitors at once | What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, an enquiry written twice, or one of two people stopped by the database with an error page |
 | The contract of `/api/v1` (`platform/resources/api/v1.openapi.json`, held by `tests/Feature/Api/V1ContractTest.php`) | Part of the Laravel suite, so in the sandbox and in CI on the three servers. The file itself is read as OpenAPI 3.1 by a validator, by hand, when it changes | every route under `/api/v1` is in the contract, and each of the seven addresses answers key by key as the contract says, for every status it documents (CI, `d93b112`) | An address that answers in a shape its callers were not told; a route added without its contract; a key, a code or a header that is in the answer and not in the contract, or the other way round |
 | The shared table: its five states, its headings, its cards on a phone, and the count of views that still write a table by hand (`platform/tests/Unit/AdminTableTest.php`, `platform/tests/Feature/SharedTableListsTest.php`) | Part of the Laravel suite, so in the sandbox and in CI on the three servers | 32 tests pass. 44 views write a table by hand; it was 51 before 20 November. Leads, Quotations and Invoices are cards below 640 px | A list that writes its own table again; a state without its words or its role; a heading that does not say how it sorts; a word printed into a script; a fact on a card without the word of its column; a rule for cards that reaches a wide screen, or that was written and not built |
 | A release installed and deployed again by a browser (`scripts/os-install.mjs`) | CI, job `hostinger` of `os-ci.yml`: Apache with the website folder's own rules, PHP 8.4 as a hosting account, MariaDB 10.11. In the sandbox on PHP's own server and SQLite | the installation 9 of 9 steps, the next deployment 5 of 5; 60 addresses asked from outside, nothing of the application handed out (CI, `d93b112`) | A release that does not start on a host; an installer its owner cannot get through; a file of the application handed out by the web server; a deployment that loses the settings, the sign-in or a database change |
-| Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 39 of 39 steps hold, with the demo's settings and as the product ships (CI, `cc9b695`, 20 November, on the packages as brought up to date). The last step is on a phone: no key list scrolls sideways at 390 px, and a lead is chosen, opened and moved from its card. CI runs them both ways on every push; its result for a merge is on the pull request | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
-| Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 253 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (CI, `cc9b695`, 20 November) | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
-| The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes, 103 checks (CI, `cc9b695`). Since 20 November it also measures the function (188.4 MB; it fails above 240 and proves on each run that it can fail), asks for each built file through the one-year rule, and reads the cold-start mark on the first answer of a new copy | A site that starts without its settings, hands out a file, or loses the session |
-| The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `cc9b695`, 20 November), for the first time on `react-router-dom` 7 | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files, this plan, the map of the old tables or what the admin is told about the old system out of step with the repository |
+| Two journeys in a browser (`scripts/os-journeys.mjs`) | On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's | 40 of 40 steps hold, with the demo's settings and as the product ships (CI, `a2445c9`, 21 November). The fifth step is new: it follows two numbers of the dashboard to their lists and counts the rows. The last step is on a phone: no key list scrolls sideways at 390 px, and a lead is chosen, opened and moved from its card. CI runs them both ways on every push; its result for a merge is on the pull request | A step of a working day or of a sale that a person can no longer do; anything the content policy refuses |
+| Every screen as four roles (`scripts/os-screens.mjs`) | The same rehearsal, at 1366 px and at 390 px | 335 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (CI, `a2445c9`, 21 November). It was 253 pages: the 82 more are the lists that the dashboard's numbers open, each with its filter | A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch |
+| The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`) | CI, job "Vercel's PHP runtime: build the demo, sign in, open every screen" | passes (CI, `a2445c9`, 21 November); the check was not changed in this round and counted 103 points on `cc9b695`. It measures the function (188.6 MB in 11,257 files; it fails above 240 and proves on each run that it can fail), asks for each built file through the one-year rule, and reads the cold-start mark on the first answer of a new copy | A site that starts without its settings, hands out a file, or loses the session |
+| The React shop's gate (`ci.yml`) | CI, on every push | passes (CI, `a2445c9`, 21 November). Pull request #53 changes no file of the shop | A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files, this plan, the map of the old tables or what the admin is told about the old system out of step with the repository |
 | Every function of the old system's PostgreSQL schema has a fixed search path (`scripts/test-search-path.mjs`) | CI, in `build-and-test` on every push (a step of `scripts/ci-test.mjs`); in the sandbox with `npm run test:search-path`, in seven seconds. On the embedded PostgreSQL, which is 18.3; the live database is 17 | 59 checks pass (sandbox, 20 November; 57 of them in CI on `da09370`, before the two about a temporary table were added). On the live database, read on 20 November at 06:57 UTC: nine of nine functions have the path | A function that a later migration adds without a path, or rewrites with `CREATE OR REPLACE` and so loses it; a base schema file that takes the path off again when it is run a second time; a path that lets a temporary table stand in for a table of the books; a rollback that does not bring back what was there |
 | The map of the old system's tables (`scripts/verify-table-map.mjs`, itself tried by `scripts/test-verify-table-map.mjs`) | CI, in `build-and-test` on every push. The live database is read by hand, reading only, when the map is brought up to date | 73 rows: 29 move, 35 wait, 9 stay; the map agrees with the old schema files, the admin's migrations, its menu, the master list and document 36. The check fails in each of the 29 mistakes made for it (CI, `da09370`). The live database was last read on 20 November at 06:58 UTC | A table of the old system without a place in the admin; a target table that no migration creates; a line or a wave that is not the list's; a screen that is not in the menu; a document that says something else than the file |
 | What the admin is told about the old system: its shape, and the rules an importer follows (`scripts/verify-old-shape.mjs`, itself tried by `scripts/test-verify-old-shape.mjs`) | CI, in `build-and-test` on every push. In the sandbox the check takes four seconds and its test about 35 | 73 tables: the key is one number in 65, one text in 6, two columns in 2. 42 columns list their words (185 words); 13 of them are in tables that move, and of their 64 words 50 have a place in the admin and 14 a written reason for none. 32 unique columns have a rule. 35 names for the old numbers. Both files agree with the old schema, the old API's code and the map, and document 36 §8 and §9 show them. The test of the check holds 64 of 64 (sandbox, 20 November; in CI on the commit that carries report 38) | A migration of the old system that adds a table, a key or a word without the admin being told; a word of a table that moves with neither a place nor a reason; a word sent to a value the admin's list does not have; a rule about a column the old system does not have; document 36 saying something else than the two files |
 | A value of the old system on each database server, and the old number of a record (`platform/tests/Feature/OldSystem`) | Part of the Laravel suite, so in the sandbox on SQLite and in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 | 66 tests pass on each of the three servers (CI, `fc9c5bc`) and in the sandbox. Each kind of value is written to a table of the admin and read back; where the servers differ, what each does is pinned. Tried against 38 mistakes, each noticed (report 38) | A server that treats a time, a long text, a JSON block or two spellings of one value otherwise than pinned; money rounded instead of refused; a time handed over on the wrong clock; a word of the old system without a place; a unique column of a table an importer writes to without a written rule; a file that writes `legacy_refs` beside the one class; an importer's name that could meet another's |
 | Known weaknesses in the packages (`audit.yml`) | CI, when a lock file changes and every Monday | green on `cc9b695` (20 November, the run of pull request #52). Composer: no advisory, every package named in `composer.json` at its newest version. npm: one advisory, accepted with its reason on the list; 64 packages named in a `package.json` have a newer version. Before the update the same audit failed on the branch and named Laravel's advisory, as it must | An advisory of any severity that is not on the written list (`docs/woodex-os/acceptance/advisories.json`), an entry of the list without a reason, an entry that nothing reports any more, an advisory whose severity has risen |
 | What the admin's code names can be looked up (`scripts/verify-code-references.mjs`, itself tried by `scripts/test-verify-code-references.mjs`) | CI, job `build-and-test` of `ci.yml`, on every push | 1,065 names in 624 files: 47 decisions, 119 requirements and the studio's three documents are looked up; 22 other documents of the studio, five decisions the studio never wrote down and four names that only look like a requirement code are listed by hand, each with its reason. The three documents have the checksums of the studio's files. The test changes one thing at a time in a copy, 24 times, and each is noticed; three more checks must pass, and do (CI, `cc9b695`) | A comment that explains the code by a decision, a document or a requirement nobody can read here; one of the studio's documents edited |
-| The live sites from outside (`live-check-after-merge.yml`) | GitHub, eight minutes after every merge into `main` | after the merge of pull request #45 one point of the shop's fifteen failed: a preview that Vercel had removed answered 410, where the check accepted the sign-in or 404 (run 44343060920, issue #46); cured in `6b3789d`, and the shop's 16 points hold on the branch (run 44455587053, 19 November, 04:02 UTC). The admin's points held in every run. Since 19 November the admin is also asked six points of `/api/v1`, which can only hold once pull request #47 is on `main` | A live site that does not answer as it should after a merge. A failure opens an issue |
-| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30), for the shared table and its count (report 34), for the cards on a phone, in the tests and in the journey (report 35), for the search-path suite and the check of the table map (report 37), and for the conversions, the old numbers of records (38 mistakes, each noticed) and the check of the two files they read (report 38); for the one-year rule, the size of the function, the cold-start mark, the list of accepted advisories and the check of what the code names (report 39) | A test that would pass whatever the code does |
-| Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39, #40, #47, #49, #50, #51 and #52 (the shop's changed files are named in report 30 and, for #52, in report 39; #49, #50 and #51 change none) | A change to the React shop that the report does not name; a merge with a check still red |
+| The live sites from outside (`live-check-after-merge.yml`) | GitHub, eight minutes after every merge into `main` | after the merge of pull request #52 (run 44759289547, 20 November, 15:10 UTC, on `5e2aa26`) every point held: the admin's, with the six of `/api/v1` and the one-year life of the stylesheet, and the shop's. The next timed run (run 44828383242, 22:22 UTC) held too and met a copy that had just started: 3.89 s to the first byte. After the merge of pull request #45 one point of the shop's had failed, on a preview that Vercel had removed (issue #46); it was cured with pull request #47 and has held since | A live site that does not answer as it should after a merge. A failure opens an issue |
+| Each new test, tried once against its protection taken away | By hand, when the test is written; recorded in the round's report | done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30), for the shared table and its count (report 34), for the cards on a phone, in the tests and in the journey (report 35), for the search-path suite and the check of the table map (report 37), and for the conversions, the old numbers of records (38 mistakes, each noticed) and the check of the two files they read (report 38); for the one-year rule, the size of the function, the cold-start mark, the list of accepted advisories and the check of what the code names (report 39); for the dashboard's numbers, in the test and in the journey (report 40) | A test that would pass whatever the code does |
+| Before the merge: the files changed against `main` are read, and every check is green | By hand; the release report is written first | done for pull requests #37, #39, #40, #47, #49, #50, #51, #52 and #53 (the shop's changed files are named in report 30 and, for #52, in report 39; #49, #50, #51 and #53 change none) | A change to the React shop that the report does not name; a merge with a check still red |
 <!-- /generated:standing -->
 
 **Not covered by any of them today**, each a line of the list: a signed-in visit to the live demo (T-151) ·

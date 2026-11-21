@@ -37,14 +37,11 @@ final class SalesFunnelReport
      */
     public function headline(ReportRange $range): array
     {
-        $leads = Lead::query()->whereBetween('created_at', [$range->from, $range->to])->count();
-        $quotesSent = Quote::query()
-            ->whereNot('status', QuoteStatus::Void->value)
-            ->whereBetween('sent_at', [$range->from, $range->to])
-            ->count();
-        $accepted = Quote::query()
-            ->where('status', QuoteStatus::Accepted->value)
-            ->whereBetween('accepted_at', [$range->from, $range->to]);
+        // The three counts are the model's own scopes: the dashboard's funnel and the lists its figures open ask
+        // the same ones (master list T-044), so this report and the dashboard cannot count differently.
+        $leads = Lead::query()->createdBetween($range->from, $range->to)->count();
+        $quotesSent = Quote::query()->sentBetween($range->from, $range->to)->count();
+        $accepted = Quote::query()->acceptedBetween($range->from, $range->to);
         $acceptedCount = (clone $accepted)->count();
         $acceptedValue = (int) (clone $accepted)->sum('total_minor');
         $won = Lead::query()->whereBetween('won_at', [$range->from, $range->to])->count();

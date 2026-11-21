@@ -8,6 +8,8 @@ use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Crm\Enums\LeadSource;
 use App\Domain\Crm\Models\Activity;
 use App\Domain\Crm\Models\Lead;
+use App\Domain\Sales\Enums\QuoteStatus;
+use App\Domain\Sales\Models\Quote;
 use App\Domain\System\Enums\ApprovalStatus;
 use App\Domain\System\Models\Approval;
 use App\Livewire\Admin\Crm\LeadTrackingBoard;
@@ -147,16 +149,27 @@ it('hides tabs the user cannot open and refuses a directly requested one', funct
 });
 
 it('shows live sidebar badges for unread conversations and pending approvals', function () {
-    $contact = captureLead(6)->contact;
+    $lead = captureLead(6);
+    $contact = $lead->contact;
     Conversation::factory()->create(['contact_id' => $contact->id, 'unread_count' => 3]);
     Conversation::factory()->create(['contact_id' => $contact->id, 'unread_count' => 1]);
-    Approval::create([
-        'approvable_type' => 'quote',
-        'approvable_id' => 999999,
-        'type' => 'quote',
-        'requested_by' => $this->owner->id,
-        'status' => ApprovalStatus::Pending,
+    // A quotation that is there to be decided, and a request left behind by one that is gone. The badge is
+    // Approval::quotesWaiting(), the number the dashboard's tile says and the Approvals screen lists: it used
+    // to count a request for a quotation that did not exist (cured with T-044).
+    $quote = Quote::query()->create([
+        'number' => 'QT-BADGE-1', 'sequence_key' => 'badge', 'lead_id' => $lead->id, 'contact_id' => $contact->id,
+        'business_line' => 'interior', 'title' => 'Held for a decision', 'status' => QuoteStatus::PendingApproval,
+        'currency' => 'PKR', 'subtotal_minor' => 0, 'owner_id' => $this->owner->id,
     ]);
+    foreach ([$quote->id, 999999] as $quotation) {
+        Approval::create([
+            'approvable_type' => 'quote',
+            'approvable_id' => $quotation,
+            'type' => 'quote',
+            'requested_by' => $this->owner->id,
+            'status' => ApprovalStatus::Pending,
+        ]);
+    }
 
     $body = $this->actingAs($this->owner)->get('/admin/settings')->assertOk()->getContent();
 

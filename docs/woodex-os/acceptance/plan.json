@@ -1,7 +1,7 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
-  "written": "2026-11-20",
-  "commit": "cc9b695",
+  "written": "2026-11-21",
+  "commit": "a2445c9",
   "sizes": {
     "S": "small",
     "M": "medium",
@@ -32,7 +32,6 @@
     "T-026": "Look at the React shop as it was rebuilt, and say whether it stays",
     "T-027": "Say whether Google sign-in, the AI bridge and the old site bridge are wanted",
     "T-033": "Interior lists and fields in open screens replaced by Furniture's wording",
-    "T-044": "The dashboard as a widget framework, with the missing widgets",
     "T-045": "Screen pass, area by area: theme colours, page patterns, dark theme",
     "T-046": "Help, pinned screens and recently opened screens in the top bar",
     "T-047": "Search finds a screen by keyword and by its old name",
@@ -96,7 +95,6 @@
     "T-141": "The shop's build served from the same Hostinger account",
     "T-142": "The outside check on a timer: moved to another minute, to be counted again",
     "T-151": "Add the demo owner's password as a GitHub secret, for a signed-in check",
-    "T-152": "Long caching for the built files: merged, to be read from the live site",
     "T-154": "A cold start on Vercel: the mark is merged, three readings to take",
     "T-155": "Richer sample data, Furniture's own",
     "T-156": "The demo removed or moved once the real admin exists",
@@ -153,28 +151,13 @@
       ]
     },
     {
-      "name": "What the merge of pull request #52 left to read from the live site",
-      "why": "Three small lines whose building is merged and whose proof can only come from the live site: Vercel's own network cannot be rehearsed, a cold start cannot be ordered, and GitHub starts a timer when it will. Nothing is built here; each line is closed by reading, and the readings are written down at the start of the next round.",
+      "name": "What is still to read from the live site",
+      "why": "Two small lines whose building is merged and whose proof can only come from the live site: a cold start cannot be ordered, and GitHub starts a timer when it will. Nothing is built here; each line is closed by reading, and the readings are written down at the start of the next round. The third line that stood here, the long life of the built files (T-152), was read from the live site on 20 November and is done.",
       "lines": [
-        {
-          "id": "T-152",
-          "size": "S",
-          "found": "Built and merged with pull request #52: the eight built files with a marked name are sent with one year and `immutable` by a rule in the part of `vercel.json` that Vercel applies to a file it has found. The root test reads the rule against the build's manifest, and the rehearsal asks for each file through it. The live site was read before the merge, on 20 November at 13:55 UTC, when it still ran the old build: `max-age=0`. Vercel's own network cannot be rehearsed, so that it applies the rule is not proved until it is read from outside.",
-          "build": [
-            "Nothing more is built. The outside check from `main` requires one year on the stylesheet that the sign-in page names, and 404 without a long life for a built file with a marked name that does not exist."
-          ],
-          "tests": [
-            "The outside check's run after the merge of pull request #52, and the next timed run, are read: both must say one year for the stylesheet.",
-            "If Vercel's network does not apply the rule, the check fails by itself and opens an issue. The first thing to try then is the flag `important: true` on the same rule: Vercel's own builder for Next.js sets it on its one-year rule in the same place (`@vercel/next` 31.0.1), and the routing schema calls it deprecated. The second is the rule as a route before the file is looked up, the older documented way, which may also reach a marked name that is no file. Vercel's `headers` setting is no way out while `vercel.json` uses `routes`: the two were not allowed together in the last version of Vercel's tool whose code can be read. Whatever is tried is rehearsed first."
-          ],
-          "browser": [],
-          "against": "Done before the merge: with the rule taken out, the root test and the rehearsal fail; with the rule widened to every built file, both fail on `site.css`. On the branch the outside check read `max-age=0` and only noted it, because the live site was the old one.",
-          "back": "A file with a marked name never changes under that name, so a long life cannot serve an old file. One entry of `vercel.json` to take out."
-        },
         {
           "id": "T-154",
           "size": "S",
-          "found": "Built and merged with pull request #52: an answer for which the function had to be started carries the header `X-Woodex-Cold-Start: 1`, and the outside check times its first request and says whether it carried the mark. Read once before the merge, on the old build, which says nothing: 2.29 s to the first byte on 20 November at 13:55 UTC from a GitHub runner; warm it is 0.08 to 0.17 s. No cold reading with the mark exists yet.",
+          "found": "Built and merged with pull request #52: an answer for which the function had to be started carries the header `X-Woodex-Cold-Start: 1`, and the outside check times its first request and says whether it carried the mark. One cold reading of three, read on 21 November at 05:28 UTC. The check after the merge of pull request #52 (20 November, 15:10 UTC) met a copy that was running already: 0.34 s, no mark. The timed run of 20 November at 22:22 UTC met a new copy: 3.89 s to the first byte, with the mark; its second request took 0.15 s. Warm, the page answers in 0.08 to 0.17 s. Before the mark existed, 2.29 s was read once (20 November, 13:55 UTC).",
           "build": [
             "Nothing more is built. Each run of the outside check prints the time of its first request and whether that answer carried the mark."
           ],
@@ -184,12 +167,12 @@
           "browser": [],
           "against": "Done before the merge: with the mark taken out of the entry file the rehearsal fails once; with the mark sent on every answer it fails twice.",
           "back": "One header on an answer, and a line of output.",
-          "unknown": "How often the check meets a copy that has just started. After a merge it very likely does; a timed run may find the function warm. If three cold readings do not come by themselves within a week, the line says so and stays open."
+          "unknown": "How often the check meets a copy that has just started. The check after a merge did not, on 20 November; a run of the timer did. If two more cold readings do not come by themselves by 27 November, the line says so and stays open."
         },
         {
           "id": "T-142",
           "size": "S",
-          "found": "Read on 20 November at 14:24 UTC: six timed runs since the timer came to `main` on 17 November, for thirteen times due. The times due at 06:23 and 18:23 UTC brought a run every time, 1 h 08 min to 2 h 43 min late; the times due at 00:23 and 12:23 UTC never. Four runs are green; the two of 18 and 19 November failed on a point of the check itself (a preview that Vercel had removed answered 410, where the check accepted only the sign-in: issue #46, cured with pull request #47). Of the last four times due, two brought a run, so the timer was written again with pull request #52: 03:47, 09:47, 15:47 and 21:47 UTC. Starting the check by hand is refused to this session (HTTP 403). The check after a merge has run every time.",
+          "found": "The timer was written again with pull request #52: 03:47, 09:47, 15:47 and 21:47 UTC, from 20 November at 15:02 UTC. Before that, six timed runs came for thirteen times due: the times due at 06:23 and 18:23 UTC brought a run every time, 1 h 08 min to 2 h 43 min late, and the times due at 00:23 and 12:23 UTC never. Read on 21 November at 05:28 UTC: one run for three times due at the new minute. 15:47 UTC on 20 November brought none; 21:47 UTC brought a run at 22:22 UTC, green; 03:47 UTC on 21 November had brought none 1 h 41 min later. Seven timed runs in all, five of them green; the two of 18 and 19 November failed on a point of the check itself (issue #46, cured with pull request #47). Starting the check by hand is refused to this session (HTTP 403). The check after a merge has run every time.",
           "build": [
             "Nothing more is built. GitHub's list of timed runs is read at the start of every round, and how many of the times due brought a run is written into the list.",
             "If the new minute does no better after eight times due, the line says that GitHub does not keep a six-hourly timer for this repository, and the owner is asked whether twice a day is enough or another service should start the check."
@@ -200,34 +183,6 @@
           "browser": [],
           "against": "Done on 17 November: a forced failure opened issue #38, and the next proof closed it.",
           "back": "Nothing changes on any site."
-        }
-      ]
-    },
-    {
-      "name": "The dashboard",
-      "why": "P1. The first screen every person sees. In the order you set for the design work it comes before the areas (DL-008).",
-      "lines": [
-        {
-          "id": "T-044",
-          "size": "L",
-          "found": "The dashboard is one component with one view: figures for a period, six live queues, what needs attention, the pipeline, new leads, recent activity.",
-          "build": [
-            "Each block becomes a widget under one contract: who may see it and with which module, its figure, its link, and its states: loading, empty, error, no access.",
-            "The missing widgets: the sales funnel with its conversion rate; overdue amounts by age and payables due; the health and milestones of projects. Every chart states its dates, its currency and its definition.",
-            "A widget whose module is switched off is absent, not empty."
-          ],
-          "tests": [
-            "For every widget with a figure: its link opens a list of exactly that many rows. The records are made in the test, some of them at the edges of the period in Pakistan time.",
-            "Every widget in every state. A widget that fails shows its own error, and the rest of the dashboard is still drawn.",
-            "As each role: only the widgets that role may see. With a module off, its widget is not in the page.",
-            "The number of database queries the dashboard makes is written down as a limit."
-          ],
-          "browser": [
-            "The crawl as four roles at both widths.",
-            "A journey step follows two figures to their lists and compares the numbers on the screen."
-          ],
-          "against": "With one widget's count changed to include one more state, the first test fails.",
-          "back": "Views and queries that only read. No record changes."
         }
       ]
     },
@@ -422,7 +377,7 @@
     {
       "check": "The Laravel test suite",
       "where": "In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/`",
-      "today": "2,772 pass, 36 skipped, none fails: run in the sandbox on 20 November, 14:28 to 14:36 UTC, on the code of pull request #52. In CI on `cc9b695`, on each of the three servers (MySQL 8.4.13, MariaDB 10.11.19, MariaDB 11.4.13): 2,773 pass, 35 skipped. Both on the packages as brought up to date on 20 November (Laravel 13.43.0)",
+      "today": "2,810 pass, 36 skipped, none fails: run in the sandbox on 21 November, 05:10 to 05:18 UTC, on the code of pull request #53. In CI on `a2445c9`, on each of the three servers (MySQL 8.4.13, MariaDB 10.11.19, MariaDB 11.4.13): 2,810 pass, 36 skipped. The 38 tests of the dashboard are new; one of them takes a table away, which only SQLite lets a test do, and is left out on the three servers with its reason",
       "catches": "A rule, a screen or a permission that no longer does what its test says"
     },
     {
@@ -452,25 +407,25 @@
     {
       "check": "Two journeys in a browser (`scripts/os-journeys.mjs`)",
       "where": "On the rehearsal of Vercel's runtime, in the sandbox and in CI: once with the demo's settings, once with the product's",
-      "today": "39 of 39 steps hold, with the demo's settings and as the product ships (CI, `cc9b695`, 20 November, on the packages as brought up to date). The last step is on a phone: no key list scrolls sideways at 390 px, and a lead is chosen, opened and moved from its card. CI runs them both ways on every push; its result for a merge is on the pull request",
+      "today": "40 of 40 steps hold, with the demo's settings and as the product ships (CI, `a2445c9`, 21 November). The fifth step is new: it follows two numbers of the dashboard to their lists and counts the rows. The last step is on a phone: no key list scrolls sideways at 390 px, and a lead is chosen, opened and moved from its card. CI runs them both ways on every push; its result for a merge is on the pull request",
       "catches": "A step of a working day or of a sale that a person can no longer do; anything the content policy refuses"
     },
     {
       "check": "Every screen as four roles (`scripts/os-screens.mjs`)",
       "where": "The same rehearsal, at 1366 px and at 390 px",
-      "today": "253 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (CI, `cc9b695`, 20 November)",
+      "today": "335 pages at each of the two widths, none fails: no console error, no failed request, nothing wider than the window (CI, `a2445c9`, 21 November). It was 253 pages: the 82 more are the lists that the dashboard's numbers open, each with its filter",
       "catches": "A screen that does not open, a console error, a link that leads nowhere, sideways scrolling, a field without a label, a control too small to touch"
     },
     {
       "check": "The deployment as Vercel builds it (`platform/tools/vercel/check-entry.sh`)",
       "where": "CI, job \"Vercel's PHP runtime: build the demo, sign in, open every screen\"",
-      "today": "passes, 103 checks (CI, `cc9b695`). Since 20 November it also measures the function (188.4 MB; it fails above 240 and proves on each run that it can fail), asks for each built file through the one-year rule, and reads the cold-start mark on the first answer of a new copy",
+      "today": "passes (CI, `a2445c9`, 21 November); the check was not changed in this round and counted 103 points on `cc9b695`. It measures the function (188.6 MB in 11,257 files; it fails above 240 and proves on each run that it can fail), asks for each built file through the one-year rule, and reads the cold-start mark on the first answer of a new copy",
       "catches": "A site that starts without its settings, hands out a file, or loses the session"
     },
     {
       "check": "The React shop's gate (`ci.yml`)",
       "where": "CI, on every push",
-      "today": "passes (CI, `cc9b695`, 20 November), for the first time on `react-router-dom` 7",
+      "today": "passes (CI, `a2445c9`, 21 November). Pull request #53 changes no file of the shop",
       "catches": "A broken build or type; a failing API or row-level-security test on PostgreSQL; a secret in the tree; the acceptance files, this plan, the map of the old tables or what the admin is told about the old system out of step with the repository"
     },
     {
@@ -512,19 +467,19 @@
     {
       "check": "The live sites from outside (`live-check-after-merge.yml`)",
       "where": "GitHub, eight minutes after every merge into `main`",
-      "today": "after the merge of pull request #45 one point of the shop's fifteen failed: a preview that Vercel had removed answered 410, where the check accepted the sign-in or 404 (run 44343060920, issue #46); cured in `6b3789d`, and the shop's 16 points hold on the branch (run 44455587053, 19 November, 04:02 UTC). The admin's points held in every run. Since 19 November the admin is also asked six points of `/api/v1`, which can only hold once pull request #47 is on `main`",
+      "today": "after the merge of pull request #52 (run 44759289547, 20 November, 15:10 UTC, on `5e2aa26`) every point held: the admin's, with the six of `/api/v1` and the one-year life of the stylesheet, and the shop's. The next timed run (run 44828383242, 22:22 UTC) held too and met a copy that had just started: 3.89 s to the first byte. After the merge of pull request #45 one point of the shop's had failed, on a preview that Vercel had removed (issue #46); it was cured with pull request #47 and has held since",
       "catches": "A live site that does not answer as it should after a merge. A failure opens an issue"
     },
     {
       "check": "Each new test, tried once against its protection taken away",
       "where": "By hand, when the test is written; recorded in the round's report",
-      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30), for the shared table and its count (report 34), for the cards on a phone, in the tests and in the journey (report 35), for the search-path suite and the check of the table map (report 37), and for the conversions, the old numbers of records (38 mistakes, each noticed) and the check of the two files they read (report 38); for the one-year rule, the size of the function, the cold-start mark, the list of accepted advisories and the check of what the code names (report 39)",
+      "today": "done for the security, policy and request-number tests of 17 November, for the journey steps of 18 November (report 27), for the two-writers command and its tests (report 28), for the contract test, the idempotency key and the enquiry's turn (report 30), for the shared table and its count (report 34), for the cards on a phone, in the tests and in the journey (report 35), for the search-path suite and the check of the table map (report 37), and for the conversions, the old numbers of records (38 mistakes, each noticed) and the check of the two files they read (report 38); for the one-year rule, the size of the function, the cold-start mark, the list of accepted advisories and the check of what the code names (report 39); for the dashboard's numbers, in the test and in the journey (report 40)",
       "catches": "A test that would pass whatever the code does"
     },
     {
       "check": "Before the merge: the files changed against `main` are read, and every check is green",
       "where": "By hand; the release report is written first",
-      "today": "done for pull requests #37, #39, #40, #47, #49, #50, #51 and #52 (the shop's changed files are named in report 30 and, for #52, in report 39; #49, #50 and #51 change none)",
+      "today": "done for pull requests #37, #39, #40, #47, #49, #50, #51, #52 and #53 (the shop's changed files are named in report 30 and, for #52, in report 39; #49, #50, #51 and #53 change none)",
       "catches": "A change to the React shop that the report does not name; a merge with a check still red"
     }
   ]

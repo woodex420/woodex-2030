@@ -9,10 +9,9 @@
         $badges['admin.inbox'] = \App\Domain\Conversations\Models\Conversation::query()->where('unread_count', '>', 0)->count();
     }
     if ($navUser?->can('quotes.approve')) {
-        $badges['admin.approvals'] = \App\Domain\System\Models\Approval::query()
-            ->where('approvable_type', 'quote')
-            ->where('status', \App\Domain\System\Enums\ApprovalStatus::Pending)
-            ->count();
+        // Approval::quotesWaiting(): what the Approvals screen lists and the dashboard's tile counts. The badge
+        // also counted a request whose quotation was deleted, and said 2 beside a tile that said 1 (T-044).
+        $badges['admin.approvals'] = \App\Domain\System\Models\Approval::query()->quotesWaiting()->count();
     }
 @endphp
 {{--
@@ -77,7 +76,7 @@
                                 <x-icon :name="$item['icon']" class="size-5 shrink-0" />
                                 <span x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen" class="truncate">{{ $item['label'] }}</span>
                                 @if ($badge > 0)
-                                    <span class="wx-sidebar-badge ml-auto rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold"
+                                    <span class="wx-sidebar-badge ml-auto rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold" data-nav-badge
                                           x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen">{{ $badge > 99 ? '99+' : $badge }}</span>
                                     <span class="wx-sidebar-badge absolute top-1.5 right-2 size-2 rounded-full"
                                           x-cloak x-show="! ($store.sidebar.expanded || $store.sidebar.mobileOpen)"></span>

@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Support\Concerns\HasPublicId;
 use App\Support\Money;
 use App\Support\Phone;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -197,6 +198,36 @@ class Quote extends Model
     public function project(): HasOne
     {
         return $this->hasOne(Project::class);
+    }
+
+    /**
+     * Quotations sent in a period. A void quotation is left out: it was taken back, and the sales funnel and the
+     * revenue report never counted it (RPT-002, RPT-005). The report, the dashboard's figure and the list that
+     * figure opens all ask this one scope (master list T-044). Either end may be left open.
+     *
+     * @param  Builder<Quote>  $query
+     * @return Builder<Quote>
+     */
+    public function scopeSentBetween(Builder $query, ?CarbonInterface $from, ?CarbonInterface $to): Builder
+    {
+        return $query->whereNot('quotes.status', QuoteStatus::Void->value)
+            ->whereNotNull('quotes.sent_at')
+            ->when($from !== null, fn (Builder $q) => $q->where('quotes.sent_at', '>=', $from))
+            ->when($to !== null, fn (Builder $q) => $q->where('quotes.sent_at', '<=', $to));
+    }
+
+    /**
+     * Quotations the client accepted in a period, and that still stand as accepted.
+     *
+     * @param  Builder<Quote>  $query
+     * @return Builder<Quote>
+     */
+    public function scopeAcceptedBetween(Builder $query, ?CarbonInterface $from, ?CarbonInterface $to): Builder
+    {
+        return $query->where('quotes.status', QuoteStatus::Accepted->value)
+            ->whereNotNull('quotes.accepted_at')
+            ->when($from !== null, fn (Builder $q) => $q->where('quotes.accepted_at', '>=', $from))
+            ->when($to !== null, fn (Builder $q) => $q->where('quotes.accepted_at', '<=', $to));
     }
 
     /**

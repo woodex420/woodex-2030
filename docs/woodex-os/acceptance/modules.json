@@ -305,9 +305,8 @@
         },
         {
           "state": "partly",
-          "evidence": "Dashboard: figures for a period, six live queues, what needs attention, pipeline, new leads, recent activity. Approvals: quotations only. Reports: a list of reports with exports. Missing: the dashboard sections of document 05 §7, one approval queue for every kind, a definition on each report.",
+          "evidence": "Dashboard: thirteen widgets in six sections since 21 November: the figures of a period, the sales funnel with its conversion rate, six live queues, what needs attention, money owed by age, payables due, project health and milestones, pipeline, new leads, recent activity. Every number opens a list of exactly the records it counts, and every widget has its states (`Feature/Overview/DashboardWidgetsTest.php`). Approvals: quotations only. Reports: a list of reports with exports. Missing: the dashboard's widgets for commerce and operations, whose modules are not built; one approval queue for every kind; a definition on each report.",
           "lines": [
-            "T-044",
             "T-081",
             "T-082"
           ]
