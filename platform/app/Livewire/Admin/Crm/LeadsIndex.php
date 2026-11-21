@@ -20,6 +20,7 @@ use App\Domain\Crm\Models\Activity;
 use App\Domain\Crm\Models\Contact;
 use App\Domain\Crm\Models\Lead;
 use App\Domain\Crm\Models\PipelineStage;
+use App\Livewire\Concerns\FiltersByPeriod;
 use App\Livewire\Concerns\HasSavedViews;
 use App\Livewire\Concerns\InteractsWithAdmin;
 use App\Models\User;
@@ -48,7 +49,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 #[Title('Leads')]
 class LeadsIndex extends Component
 {
-    use HasSavedViews, InteractsWithAdmin, WithPagination;
+    use FiltersByPeriod, HasSavedViews, InteractsWithAdmin, WithPagination;
 
     /** @var array<string, string> optional columns */
     public const COLUMNS = ['contact' => 'Contact', 'line' => 'Line · Service', 'source' => 'Source', 'stage' => 'Stage', 'owner' => 'Owner', 'score' => 'Score', 'next' => 'Next action'];
@@ -82,7 +83,11 @@ class LeadsIndex extends Component
     #[Url(except: '')]
     public string $due = '';
 
-    /** Slice V: the v2.1 header month — `Y-m`, read in Asia/Karachi like the dates the list prints. */
+    /**
+     * Slice V: the v2.1 header month — `Y-m`, read in Asia/Karachi like the dates the list prints. A period by
+     * its days, `?from=…&to=…`, comes with FiltersByPeriod: the dashboard's figures for a period open the list
+     * with it (master list T-044). Both are about the day the enquiry was made.
+     */
     #[Url(except: '')]
     public string $month = '';
 
@@ -129,7 +134,7 @@ class LeadsIndex extends Component
 
     public function updating(string $name): void
     {
-        if (in_array($name, ['search', 'stage', 'line', 'source', 'owner', 'created', 'due', 'month', 'sort', 'perPage'], true)) {
+        if (in_array($name, ['search', 'stage', 'line', 'source', 'owner', 'created', 'due', 'month', 'from', 'to', 'sort', 'perPage'], true)) {
             $this->resetPage();
             $this->selected = [];
         }
@@ -142,14 +147,14 @@ class LeadsIndex extends Component
 
     public function clearFilters(): void
     {
-        $this->reset('search', 'stage', 'line', 'source', 'owner', 'created', 'due', 'month', 'sort', 'selected');
+        $this->reset('search', 'stage', 'line', 'source', 'owner', 'created', 'due', 'month', 'from', 'to', 'sort', 'selected');
         $this->resetPage();
     }
 
     /** The chip's ✕ — clears the control-view filters and leaves the rest of the list alone. */
     public function clearQuickFilters(): void
     {
-        $this->reset('created', 'due');
+        $this->reset('created', 'due', 'from', 'to');
         $this->resetPage();
     }
 
@@ -465,13 +470,18 @@ class LeadsIndex extends Component
             ->when($this->source !== '', fn (Builder $q) => $q->where('source', $this->source))
             ->when($this->owner === 'me', fn (Builder $q) => $q->where('owner_id', $user->id))
             ->when($this->owner === 'unassigned', fn (Builder $q) => $q->whereNull('owner_id'))
-            ->when($this->created === 'today', fn (Builder $q) => $q->where('created_at', '>=', now()->startOfDay()))
+            ->when($this->created === 'today', fn (Builder $q) => $q->createdBetween(CarbonImmutable::now()->startOfDay(), CarbonImmutable::now()->endOfDay()))
             ->when($this->created === 'week', fn (Builder $q) => $q->where('created_at', '>=', now()->startOfWeek()))
             ->when($this->due === 'overdue', fn (Builder $q) => $q->followUpDue())
+            // The month is read on the studio's clock, which is the clock the dates are kept in. It was turned to
+            // UTC first, so "November" ran from 31 October 19:00 to 30 November 19:00: an enquiry of the last
+            // evening of October stood in November, and one of the last evening of November in December (found
+            // with T-176, cured with T-044, where a period first had to match a figure to the second).
             ->when(preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D', $this->month) === 1, function (Builder $q): void {
-                $start = CarbonImmutable::createFromFormat('!Y-m', $this->month, 'Asia/Karachi')->utc();
-                $q->where('created_at', '>=', $start)->where('created_at', '<', $start->addMonth());
+                $start = CarbonImmutable::createFromFormat('!Y-m', $this->month);
+                $q->createdBetween($start, $start->endOfMonth());
             })
+            ->createdBetween(...$this->period())
             // "Newest" and "oldest" go by the day the enquiry was made, which is the date the list shows. They went by
             // the order of entry: leads brought in from a sheet keep their own dates (CaptureLead, historicalAt), so
             // last year's leads, entered today, stood on top as the newest (found with T-041, when the heading began
@@ -560,7 +570,8 @@ class LeadsIndex extends Component
             // With one line on sale the column holds the service alone, and says so.
             'columnLabels' => BusinessLine::severalOffered() ? self::COLUMNS : array_replace(self::COLUMNS, ['line' => 'Service']),
             'sources' => LeadSource::options(),
-            'hasFilters' => trim($this->search) !== '' || $this->stage !== '' || $this->line !== '' || $this->source !== '' || $this->owner !== '' || $this->created !== '' || $this->due !== '' || $this->month !== '',
+            'hasFilters' => trim($this->search) !== '' || $this->stage !== '' || $this->line !== '' || $this->source !== '' || $this->owner !== '' || $this->created !== '' || $this->due !== '' || $this->month !== '' || $this->hasPeriod(),
+            'periodWords' => $this->periodWords(),
             'views' => $this->savedViews(),
             'staff' => $user->can('leads.assign') ? $this->staff() : collect(),
             'canExport' => $user->can('leads.export'),

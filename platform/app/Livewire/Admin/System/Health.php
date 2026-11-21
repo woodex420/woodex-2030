@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\System;
 
+use App\Domain\System\Control\ControlPanel;
 use App\Domain\System\Health\SystemHealthReport;
 use App\Domain\System\Models\IntegrationLog;
 use Illuminate\Contracts\View\View;
@@ -28,6 +29,8 @@ class Health extends Component
             'checks' => $health->checks(),
             'environment' => $health->environment(),
             'taskRuns' => $health->taskRuns(),
+            // What the dashboard's "Automations failing" counted, as rows (master list T-044).
+            'failures' => app(ControlPanel::class)->failures(),
             'integrationErrors' => IntegrationLog::query()->where('ok', false)->latest('id')->limit(10)->get(),
         ]);
     }

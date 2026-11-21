@@ -16,7 +16,9 @@
             <select wire:model.live="line" aria-label="Approval business line" class="wx-input w-auto"><option value="">All business lines</option>@foreach (\App\Domain\Crm\Enums\BusinessLine::offered() as $businessLine)<option value="{{ $businessLine->value }}">{{ $businessLine->label() }}</option>@endforeach</select>
         @endif
     </div>
-    <x-admin.card :title="'Waiting ('.$pending->total().')'" :padding="false">
+    {{-- data-list-rows: the quotations that wait, on every page of the list: what the dashboard's "Awaiting
+         approval" counted (master list T-044). The card's title says the same number to a person. --}}
+    <x-admin.card :title="'Waiting ('.$pending->total().')'" :padding="false" data-list-rows="{{ $pending->total() }}">
         @forelse ($pending as $approval)
             @php $quote = $approval->approvable; @endphp
             <div wire:key="approval-{{ $approval->id }}" class="flex flex-col gap-4 border-b border-gray-100 px-5 py-4 last:border-0 lg:flex-row lg:items-center lg:justify-between dark:border-gray-800">

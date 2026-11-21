@@ -18,12 +18,15 @@ use App\Domain\Website\Models\Page;
 use App\Models\User;
 use App\Support\Concerns\HasPublicId;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -249,6 +252,61 @@ class Project extends Model implements HasMedia
         return (int) $this->invoices
             ->reject(fn (Invoice $invoice): bool => $invoice->status === InvoiceStatus::Void)
             ->sum('balance_minor');
+    }
+
+    /** How far ahead "a milestone is coming" looks. */
+    public const MILESTONE_SOON_DAYS = 14;
+
+    /**
+     * How an active job stands against its dates, in the order a person should look at them. Every active job
+     * is in exactly one:
+     *   late       its target date has passed;
+     *   milestone  not late, but a milestone that is not reached is past its own date;
+     *   on_time    it has a target date that has not passed, and no milestone is behind;
+     *   undated    it has no target date, and no milestone is behind: it cannot be judged.
+     *
+     * @var array<string, string>
+     */
+    public const HEALTH = [
+        'late' => 'Past the target date',
+        'milestone' => 'A milestone is behind',
+        'on_time' => 'On schedule',
+        'undated' => 'No target date',
+    ];
+
+    /**
+     * Active jobs in one state of health (see HEALTH). The dashboard's figures and the Projects list they open
+     * ask this one scope (master list T-044).
+     *
+     * @param  Builder<Project>  $query
+     * @return Builder<Project>
+     */
+    public function scopeHealth(Builder $query, string $health): Builder
+    {
+        $today = CarbonImmutable::today()->toDateString();
+        $behind = fn (Builder $milestone) => $milestone->whereNull('reached_at')->whereDate('due_date', '<', $today);
+        $query->where('projects.status', ProjectStatus::Active->value);
+
+        return match ($health) {
+            'late' => $query->whereDate('projects.target_date', '<', $today),
+            'milestone' => $query->where(fn (Builder $q) => $q->whereNull('projects.target_date')->orWhereDate('projects.target_date', '>=', $today))
+                ->whereHas('milestones', $behind),
+            'on_time' => $query->whereDate('projects.target_date', '>=', $today)->whereDoesntHave('milestones', $behind),
+            'undated' => $query->whereNull('projects.target_date')->whereDoesntHave('milestones', $behind),
+            default => throw new InvalidArgumentException("A project has no state of health [{$health}]."),
+        };
+    }
+
+    /**
+     * Active jobs with a milestone that is not reached and falls due today or within the next fourteen days.
+     *
+     * @param  Builder<Project>  $query
+     * @return Builder<Project>
+     */
+    public function scopeMilestoneSoon(Builder $query): Builder
+    {
+        return $query->where('projects.status', ProjectStatus::Active->value)
+            ->whereHas('milestones', ProjectMilestone::comingSoon(...));
     }
 
     /** The next milestone still ahead of us: the one the team is working towards. */

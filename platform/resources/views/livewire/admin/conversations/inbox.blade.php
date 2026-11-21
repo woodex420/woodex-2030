@@ -41,11 +41,16 @@
     <div class="wx-inbox-grid">
         {{-- The list --}}
         <div @class(['wx-conversation-list overflow-hidden bg-white dark:bg-gray-900', 'hidden lg:block' => $selected !== null && ! $showList])>
-            <div class="border-b border-gray-200 p-3 dark:border-gray-800">
+            {{-- data-list-rows: how many conversations the list holds in all, which a figure of the dashboard that
+                 links here has counted (master list T-044). The words beside it say the same to a person. --}}
+            <div class="border-b border-gray-200 p-3 dark:border-gray-800" data-list-rows="{{ $conversations->total() }}">
                 <div class="relative">
                     <x-icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gray-400" />
                     <input type="search" wire:model.live.debounce.300ms="search" placeholder="Name, number or message" class="wx-input pl-10" aria-label="Search conversations">
                 </div>
+                <p class="mt-2 text-theme-xs text-gray-500 dark:text-gray-400" data-list-count>
+                    <span class="font-medium text-gray-700 dark:text-gray-300">{{ number_format($conversations->total()) }}</span> {{ $conversations->total() === 1 ? 'conversation' : 'conversations' }}
+                </p>
             </div>
 
             @if ($conversations->isEmpty())

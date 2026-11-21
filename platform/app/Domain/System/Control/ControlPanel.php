@@ -7,9 +7,7 @@ namespace App\Domain\System\Control;
 use App\Domain\Crm\Models\Lead;
 use App\Domain\Projects\Enums\ProjectStatus;
 use App\Domain\Projects\Models\Project;
-use App\Domain\Sales\Enums\InvoiceStatus;
 use App\Domain\Sales\Models\Invoice;
-use App\Domain\System\Enums\ApprovalStatus;
 use App\Domain\System\Models\Approval;
 use App\Domain\System\Models\ScheduledTaskRun;
 use App\Models\User;
@@ -17,7 +15,10 @@ use App\Settings\SalesSettings;
 use App\Support\Modules;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * The six numbers the studio runs on (deep QA slice D).
@@ -32,30 +33,61 @@ use Illuminate\Support\Facades\DB;
 final class ControlPanel
 {
     /** A scheduled task that has not reported in this long has stopped, whether or not it errored. */
-    private const STALE_HOURS = 25;
+    public const STALE_HOURS = 25;
+
+    /**
+     * What this panel has already asked the database. The dashboard shows a number twice (a tile, and its line
+     * under "Needs attention"), and both must be one reading. A panel is made anew for every drawing
+     * (app(ControlPanel::class)), so nothing here outlives the page it was asked for.
+     *
+     * @var array<string, mixed>
+     */
+    private array $asked = [];
 
     public function __construct(
         private readonly SalesSettings $sales,
     ) {}
 
     /**
-     * Enquiries captured since midnight — every channel, scoped to the leads the person may see.
+     * Which of the six tiles a person may see: each one's right is the right to open the screen behind it.
+     * Asks no record, so a widget can decide whether it is this person's without a query.
+     *
+     * @return array{leads: bool, approvals: bool, money: bool, projects: bool, automations: bool}
+     */
+    public function sees(User $user): array
+    {
+        return [
+            'leads' => $user->can('leads.view'),
+            'approvals' => $user->can('quotes.approve'),
+            'money' => $user->can('invoices.view'),
+            'projects' => $user->can('projects.view'),
+            'automations' => $this->automationHref($user) !== null,
+        ];
+    }
+
+    /**
+     * Enquiries captured today, from midnight to midnight on the studio's clock: every channel, scoped to the
+     * leads the person may see. Lead::createdBetween() is the definition, and the Leads list's `?created=today`
+     * asks it with the same two moments, as does the period "Today" above the dashboard.
      */
     public function enquiriesToday(User $user): int
     {
-        return Lead::query()
+        $now = CarbonImmutable::now();
+
+        return $this->asked['today:'.$user->id] ??= Lead::query()
             ->visibleTo($user)
-            ->where('created_at', '>=', CarbonImmutable::now()->startOfDay())
+            ->createdBetween($now->startOfDay(), $now->endOfDay())
             ->count();
     }
 
-    /** Quotations waiting for a discount or margin decision (QUO-007). */
+    /**
+     * Quotations waiting for a discount or margin decision (QUO-007): Approval::quotesWaiting(), which is what
+     * the Approvals screen lists. A request whose quotation was deleted is not counted: it was counted here and
+     * not listed there, so the tile said 1 over an empty list (found and cured with T-044).
+     */
     public function awaitingApproval(): int
     {
-        return Approval::query()
-            ->where('approvable_type', 'quote')
-            ->where('status', ApprovalStatus::Pending->value)
-            ->count();
+        return $this->asked['approvals'] ??= Approval::query()->quotesWaiting()->count();
     }
 
     /**
@@ -65,7 +97,7 @@ final class ControlPanel
      */
     public function overdueFollowUps(User $user): int
     {
-        return Lead::query()->visibleTo($user)->followUpDue()->count();
+        return $this->asked['followups:'.$user->id] ??= Lead::query()->visibleTo($user)->followUpDue()->count();
     }
 
     /**
@@ -76,24 +108,28 @@ final class ControlPanel
      */
     public function moneyDue(): array
     {
-        $open = fn () => Invoice::query()
-            ->whereIn('status', [InvoiceStatus::Issued->value, InvoiceStatus::PartiallyPaid->value])
-            ->where('balance_minor', '>', 0);
+        if (isset($this->asked['money'])) {
+            return $this->asked['money'];
+        }
 
-        $overdue = fn () => Invoice::query()->overdue();
+        // Invoice::owing() and ::overdue(): the Invoices list's ?age=open and ?age=overdue are the same scopes.
+        // The count and the sum of each are one reading, so an invoice issued in between cannot be in one of them only.
+        $read = fn (Builder $invoices): object => $invoices->toBase()->selectRaw('count(*) as invoices, coalesce(sum(balance_minor), 0) as owed')->first() ?? (object) ['invoices' => 0, 'owed' => 0];
+        $open = $read(Invoice::query()->owing());
+        $overdue = $read(Invoice::query()->overdue());
 
-        return [
-            'total_minor' => (int) $open()->sum('balance_minor'),
-            'overdue_minor' => (int) $overdue()->sum('balance_minor'),
-            'invoices' => $open()->count(),
-            'overdue_invoices' => $overdue()->count(),
+        return $this->asked['money'] = [
+            'total_minor' => (int) $open->owed,
+            'overdue_minor' => (int) $overdue->owed,
+            'invoices' => (int) $open->invoices,
+            'overdue_invoices' => (int) $overdue->invoices,
         ];
     }
 
     /** Jobs the studio is running right now. */
     public function jobsRunning(): int
     {
-        return Project::query()->where('status', ProjectStatus::Active->value)->count();
+        return $this->asked['jobs'] ??= Project::query()->where('status', ProjectStatus::Active->value)->count();
     }
 
     /**
@@ -108,6 +144,10 @@ final class ControlPanel
      */
     public function automationsFailing(): array
     {
+        if (isset($this->asked['automations'])) {
+            return $this->asked['automations'];
+        }
+
         $tasks = [];
         $stale = [];
         $staleBefore = CarbonImmutable::now()->subHours(self::STALE_HOURS);
@@ -122,7 +162,7 @@ final class ControlPanel
 
         $failedJobs = DB::table('failed_jobs')->count();
 
-        return [
+        return $this->asked['automations'] = [
             'failed_runs' => count($tasks),
             'failed_jobs' => $failedJobs,
             'tasks' => $tasks,
@@ -132,10 +172,48 @@ final class ControlPanel
     }
 
     /**
+     * The rows behind "Automations failing": each scheduled task whose latest run ended in error, and the newest
+     * of the jobs that failed in the queue. System health draws them under "Failing now", so the tile's link
+     * opens what it counted (master list T-044); before, it opened a list of every task with no word on which.
+     *
+     * `stale` is the second list of that screen: the tasks that have not reported for STALE_HOURS, which the
+     * tile does not count and "Needs attention" names on a line of its own.
+     *
+     * @return array{total: int, tasks: list<array{task: string, ran_at: CarbonInterface|null}>, jobs: list<array{queue: string, failed_at: string, exception: string}>, more_jobs: int, stale: list<array{task: string, ran_at: CarbonInterface|null}>}
+     */
+    public function failures(int $jobs = 50): array
+    {
+        $failing = $this->automationsFailing();
+        $runs = ScheduledTaskRun::latestPerTask();
+        $withRun = fn (string $task): array => ['task' => $task, 'ran_at' => $runs[$task]->ran_at ?? null];
+
+        $shown = DB::table('failed_jobs')->orderByDesc('id')->limit($jobs)->get(['queue', 'failed_at', 'exception'])
+            ->map(fn (object $job): array => [
+                'queue' => (string) $job->queue,
+                'failed_at' => (string) $job->failed_at,
+                // The first line of the trace is the error itself; the rest is where it happened.
+                'exception' => Str::limit(trim((string) strtok((string) $job->exception, "\n")), 160),
+            ])->all();
+
+        return [
+            'total' => $failing['total'],
+            'tasks' => array_map($withRun, $failing['tasks']),
+            'jobs' => $shown,
+            'more_jobs' => max(0, $failing['failed_jobs'] - count($shown)),
+            'stale' => array_map($withRun, $failing['stale']),
+        ];
+    }
+
+    /**
      * The six tiles, in the order the day happens: enquiries, decisions, follow-ups, money, work, system.
      * Cards the person cannot open are left out rather than shown as a dead end.
      *
-     * @return list<array{key: string, label: string, display: string, hint: string, href: string, icon: string, tone: string, count: int}>
+     * `count` is the number of records behind the tile and `href` the list of exactly those records: the list
+     * says the same number in its data-list-rows (master list T-044; tests/Feature/Overview/DashboardWidgetsTest).
+     * `rows` is false for the one tile whose link is not such a list: "Automations failing" for a person who may
+     * open the Automation screen but not System health. That screen lists every task, failed or not.
+     *
+     * @return list<array{key: string, label: string, display: string, hint: string, href: string, icon: string, tone: string, count: int, rows: bool}>
      */
     public function cards(User $user): array
     {
@@ -158,6 +236,7 @@ final class ControlPanel
                 'icon' => 'user-plus',
                 'tone' => 'navy',
                 'count' => $today,
+                'rows' => true,
             ];
 
             $overdue = $this->overdueFollowUps($user);
@@ -171,6 +250,7 @@ final class ControlPanel
                 'icon' => 'clock',
                 'tone' => $overdue > 0 ? 'error' : 'success',
                 'count' => $overdue,
+                'rows' => true,
             ];
         }
 
@@ -186,6 +266,7 @@ final class ControlPanel
                 'icon' => 'quote',
                 'tone' => $pending > 0 ? 'warning' : 'success',
                 'count' => $pending,
+                'rows' => true,
             ];
         }
 
@@ -199,10 +280,13 @@ final class ControlPanel
                 'hint' => $due['total_minor'] === 0
                     ? 'nothing outstanding'
                     : Money::ofMinor($due['overdue_minor'])->format($lakh).' of it late · '.$due['invoices'].' invoice'.($due['invoices'] === 1 ? '' : 's'),
-                'href' => route('admin.payments.index', ['tab' => 'receivables']),
+                // The invoices that are owed on, one row an invoice. It opened the receivables by client, where
+                // three invoices of one client are one row: a figure of 3 over a list of 1.
+                'href' => route('admin.invoices.index', ['age' => 'open']),
                 'icon' => 'banknote',
                 'tone' => $due['total_minor'] > 0 ? 'wood' : 'success',
                 'count' => $due['invoices'],
+                'rows' => true,
             ];
         }
 
@@ -218,6 +302,7 @@ final class ControlPanel
                 'icon' => 'hammer',
                 'tone' => 'navy',
                 'count' => $running,
+                'rows' => true,
             ];
         }
 
@@ -237,6 +322,7 @@ final class ControlPanel
                 'icon' => 'bot',
                 'tone' => $failing['total'] > 0 ? 'error' : 'success',
                 'count' => $failing['total'],
+                'rows' => $user->can('system.health'),
             ];
         }
 
@@ -247,7 +333,11 @@ final class ControlPanel
      * What needs a person right now, with the one click that starts the work. Only non-zero lines
      * are returned — an empty list is the honest "nothing is waiting".
      *
-     * @return list<array{key: string, title: string, detail: string, count: int, href: string, action: string, icon: string, tone: string}>
+     * `href` is where the work is done, and `list` is the list of exactly the `count` records the line speaks
+     * of (master list T-044). They are the same address but for late money: it is chased from the receivables
+     * book, client by client, and counted in invoices. `list` is null where the person may not open such a list.
+     *
+     * @return list<array{key: string, title: string, detail: string, count: int, href: string, list: string|null, action: string, icon: string, tone: string}>
      */
     public function attention(User $user): array
     {
@@ -264,6 +354,7 @@ final class ControlPanel
                     'detail' => 'A next action fell due, or the first reply went past its SLA.',
                     'count' => $overdue,
                     'href' => route('admin.leads.index', ['due' => 'overdue']),
+                    'list' => route('admin.leads.index', ['due' => 'overdue']),
                     'action' => 'Open the list',
                     'icon' => 'clock',
                     'tone' => 'error',
@@ -281,6 +372,7 @@ final class ControlPanel
                     'detail' => 'A discount or a margin needs an owner-level decision before it can go out.',
                     'count' => $pending,
                     'href' => route('admin.approvals'),
+                    'list' => route('admin.approvals'),
                     'action' => 'Decide now',
                     'icon' => 'quote',
                     'tone' => 'warning',
@@ -298,6 +390,7 @@ final class ControlPanel
                     'detail' => $due['overdue_invoices'].' invoice'.($due['overdue_invoices'] === 1 ? '' : 's').' past the due date — the receivables book has the WhatsApp nudge.',
                     'count' => $due['overdue_invoices'],
                     'href' => route('admin.payments.index', ['tab' => 'receivables']),
+                    'list' => route('admin.invoices.index', ['age' => 'overdue']),
                     'action' => 'Chase it',
                     'icon' => 'banknote',
                     'tone' => 'error',
@@ -318,6 +411,7 @@ final class ControlPanel
                     'detail' => $failing['failed_runs'].' scheduled run'.($failing['failed_runs'] === 1 ? '' : 's').' ended in error · '.$failing['failed_jobs'].' job'.($failing['failed_jobs'] === 1 ? '' : 's').' in the failed queue.',
                     'count' => $failing['total'],
                     'href' => $automationHref,
+                    'list' => $user->can('system.health') ? $automationHref : null,
                     'action' => 'See what failed',
                     'icon' => 'bot',
                     'tone' => 'error',
@@ -332,7 +426,8 @@ final class ControlPanel
                     'title' => $stopped === 1 ? 'One scheduled task has stopped reporting' : $stopped.' scheduled tasks have stopped reporting',
                     'detail' => 'No run in the last '.self::STALE_HOURS.' hours: '.implode(', ', array_slice($failing['stale'], 0, 3)).($stopped > 3 ? '…' : '').'. Check the cron entry and the queue worker.',
                     'count' => $stopped,
-                    'href' => $automationHref,
+                    'href' => $this->automationHref($user, 'stale'),
+                    'list' => $user->can('system.health') ? $this->automationHref($user, 'stale') : null,
                     'action' => 'Check the schedule',
                     'icon' => 'refresh',
                     'tone' => 'warning',
@@ -346,11 +441,14 @@ final class ControlPanel
     /**
      * Health is the screen that shows why; without it, the Automation page is the next best door. Null when
      * this person can open neither (no permission, or the Automation module is switched off and answers 404).
+     *
+     * On Health the address ends in the list it speaks of: `#failing` for what the tile counts, `#stale` for the
+     * tasks that stopped reporting. Each is a list of that screen with its own count (data-list-rows).
      */
-    private function automationHref(User $user): ?string
+    private function automationHref(User $user, string $list = 'failing'): ?string
     {
         if ($user->can('system.health')) {
-            return route('admin.system.platform', ['tab' => 'health']);
+            return route('admin.system.platform', ['tab' => 'health']).'#'.$list;
         }
 
         return $user->can('automation.manage') ? Modules::url('admin.automation.index') : null;

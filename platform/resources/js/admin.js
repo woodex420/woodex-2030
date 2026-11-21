@@ -205,16 +205,32 @@ window.addEventListener('quote-focus', (event) => {
 });
 
 const activeCharts = new Map();
+// The axis of counts. Small counts (0 to 3 leads a day) get whole-number ticks instead of 0, 0.5, 1 … rounded to
+// duplicates.
+const chartCountAxis = (config) => {
+    const values = (config.series ?? [])
+        .flatMap((serie) => serie.data ?? [])
+        .map((point) => Number(point !== null && typeof point === 'object' ? point.y : point))
+        .filter(Number.isFinite);
+    const max = Math.max(0, ...values);
+    const yaxis = { min: 0, forceNiceScale: true, decimalsInFloat: 0, labels: { formatter: (value) => Math.round(value).toLocaleString() } };
+    if (max <= 5) Object.assign(yaxis, { max: Math.max(1, max), tickAmount: Math.max(1, max) });
+    return yaxis;
+};
 const chartTheme = (element) => {
     const dark = document.documentElement.classList.contains('dark');
     const css = getComputedStyle(document.documentElement);
     const muted = css.getPropertyValue('--wx-muted').trim();
     const config = JSON.parse(element.dataset.chart || '{}');
+    const yaxis = chartCountAxis(config);
     return {
         chart: { foreColor: muted, background: 'transparent' },
         colors: config.colors ?? (dark ? ['#82b3f4', '#e7b687', '#6ce9a6'] : ['#344d75', '#a87442', '#027a48']),
-        xaxis: { labels: { style: { colors: muted } } },
-        yaxis: { labels: { style: { colors: muted } } },
+        // Each axis is handed over whole. ApexCharts takes the "xaxis" and the "yaxis" of an update as the new axis:
+        // handed the colour alone, the days under the chart became 1, 2, 3 … and the counts 0.2, 0.4 … (found with
+        // T-044, where a chart had to state its dates; scripts/os-journeys.mjs reads the days off the axis).
+        xaxis: { categories: config.categories ?? [], labels: { style: { colors: muted } } },
+        yaxis: { ...yaxis, labels: { ...yaxis.labels, style: { colors: muted } } },
         legend: { labels: { colors: muted } },
         grid: { borderColor: css.getPropertyValue('--wx-border').trim(), strokeDashArray: 4 },
         tooltip: { theme: dark ? 'dark' : 'light' },
@@ -254,14 +270,7 @@ async function initCharts() {
         if (!element.isConnected) return;
         const config = JSON.parse(element.dataset.chart || '{}');
 
-        // Small counts (e.g. 0-3 leads a day) get whole-number ticks instead of 0, 0.5, 1 ... rounded to duplicates.
-        const values = (config.series ?? [])
-            .flatMap((serie) => serie.data ?? [])
-            .map((point) => Number(point !== null && typeof point === 'object' ? point.y : point))
-            .filter(Number.isFinite);
-        const max = Math.max(0, ...values);
-        const yaxis = { min: 0, forceNiceScale: true, decimalsInFloat: 0, labels: { formatter: (value) => Math.round(value).toLocaleString() } };
-        if (max <= 5) Object.assign(yaxis, { max: Math.max(1, max), tickAmount: Math.max(1, max) });
+        const yaxis = chartCountAxis(config);
 
         const chart = new ApexCharts(element, {
             chart: {

@@ -28,6 +28,8 @@
         @endforeach
     </div>
 
+    <x-admin.filtered :chips="$filtered" />
+
     {{-- On a phone each quotation is a card (cards): its number, title and client, then its status, its value and
          when it was last touched: the cells that carry a data-label. The owner is left off a card on purpose, as
          it is left off the table below 1024 px. --}}

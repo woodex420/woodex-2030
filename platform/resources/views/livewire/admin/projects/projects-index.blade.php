@@ -23,6 +23,8 @@
         @endforeach
     </div>
 
+    <x-admin.filtered :chips="$filtered" />
+
     <x-admin.table label="Projects" :rows="$projects">
         <x-slot:filters class="grid grid-cols-1 gap-3 md:grid-cols-4">
             <div class="relative md:col-span-2">

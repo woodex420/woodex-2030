@@ -65,12 +65,15 @@
         </div>
     @endif
 
-    {{-- Control-view filters (?created=today, ?due=overdue): the dashboard's numbers, opened. --}}
-    @if ($created !== '' || $due !== '')
-        <div class="mb-4 flex flex-wrap items-center gap-2">
+    {{-- Control-view filters (?created=today, ?due=overdue, ?from=…&to=…): the dashboard's numbers, opened. --}}
+    @if ($created !== '' || $due !== '' || $periodWords !== '')
+        <div class="mb-4 flex flex-wrap items-center gap-2" data-list-filtered>
             <span class="text-theme-xs text-gray-500 dark:text-gray-400">Filtered:</span>
             @if ($created !== '')
                 <x-admin.badge color="navy" :dot="false">{{ $created === 'today' ? 'Enquiries today' : 'Enquiries this week' }}</x-admin.badge>
+            @endif
+            @if ($periodWords !== '')
+                <x-admin.badge color="navy" :dot="false">Enquiries made {{ $periodWords }}</x-admin.badge>
             @endif
             @if ($due === 'overdue')
                 <x-admin.badge color="error" :dot="false">Follow-ups overdue</x-admin.badge>
