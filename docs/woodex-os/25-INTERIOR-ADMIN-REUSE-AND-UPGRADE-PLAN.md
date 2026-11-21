@@ -57,9 +57,9 @@ Counted from the master list ([`14-PRODUCTION-TODO.md`](14-PRODUCTION-TODO.md)) 
 | 2 | T-093 | The ledger with two people writing at once (new, §8). **Done on 18 November (pull request #45)** |
 | 3 | T-063 | The rules of `/api/v1`, which the shop will read. **Done on 19 November (pull request #47).** The round after it is the shop's reading of its products (T-105), on the owner's word (DL-037); the order as it stands now is document 21 |
 | 4 | T-041, T-042 | One table for every list, and on a phone the key lists as cards. **Done on 20 November (pull request #49).** They were done before the shop's reading of its products (T-105), which was being built on another branch at the time (DL-039, DL-040) |
-| 5 | T-172, T-175 | The shop's database: its functions, and every table mapped to its new owner |
-| 6 | T-071, T-152, T-153, T-154, T-142, T-189, T-174 | Packages, the demo's housekeeping, the documents the code points at (new, §6) |
-| 7 | T-044 | The dashboard |
+| 5 | T-172, T-175 | The shop's database: its functions, and every table mapped to its new owner. **Done on 20 November (pull request #50)** |
+| 6 | T-071, T-152, T-153, T-154, T-142, T-189, T-174 | Packages, the demo's housekeeping, the documents the code points at (new, §6). **Built on 20 November (pull request #52).** T-152 was read from the live site and closed on 21 November; T-154 and T-142 stay open until the live site has been read often enough |
+| 7 | T-044 | The dashboard. **Done on 21 November (pull request #53)** |
 | 8 | T-054, T-046 | Keyboard and screen-reader tests; help, pinned and recent screens |
 | 9 | T-052, T-049 | Lighter pages; no text below 12 px |
 | 10 | T-072 | The content policy without `eval` |
@@ -156,7 +156,7 @@ The open 23 can be used on the demo, and none is accepted yet: the eight module 
 
 | Part | From the Interior admin | Still to do before it is Furniture's | Lines |
 |---|---|---|---|
-| Workspace | Dashboard, approvals, reports | The dashboard as widgets; approvals as one queue; report definitions | T-044, T-081, T-082 |
+| Workspace | Dashboard, approvals, reports | Approvals as one queue; report definitions. The dashboard as widgets is done (T-044, 21 November) | T-081, T-082 |
 | Customers | Leads with pipeline and import, contacts, tasks and visits | Furniture's wording in lists and fields; several numbers per contact | T-033, T-083, T-101 |
 | Sales | Quotations with versions, approval and PDF, invoices, payments, document designs | **An installation starts with no quotation template and no price book: the studio's are loaded only in tests, and nothing was invented in their place.** Furniture's terms and signers; a line from the catalogue; tax | T-003, T-084, T-086, T-087 |
 | Operations | Projects, board, vendors and costs, handovers | Made for the studio's fit-out jobs. Whether delivery and installation are jobs of their own is yours to say | T-010, T-107, T-112 |

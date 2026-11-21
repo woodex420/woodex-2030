@@ -231,7 +231,7 @@ packages). Before the packages were brought up to date the same day it was 187.8
 ## 8. How long a browser keeps a file
 
 Vite gives the stylesheets and scripts it builds a name that changes when their content changes:
-`build/assets/admin-Ct8n60mi.css`. A file with such a name never changes, so a browser may keep it.
+`build/assets/admin-Bic4CXJA.css`. A file with such a name never changes, so a browser may keep it.
 
 | What | `Cache-Control` | Why |
 |---|---|---|
@@ -258,6 +258,12 @@ and the scripts on each page.
   does. That Vercel's network does the same is read from outside after each deployment: the outside check asks
   for the stylesheet the sign-in page names and must read one year, and asks for a marked name that does not
   exist and must read 404 without it.
+- **Read from the live site, twice, on 20 November.** The check after the merge that brought the rule (run
+  44759289547, 15:10 UTC) and the next timed run (run 44828383242, 22:22 UTC) both read: the stylesheet the
+  sign-in page names may be kept for a year; the client pages' stylesheet, whose name is fixed, is asked for
+  again; a built file's name that is not there is not found, and is sent with
+  `public, max-age=0, must-revalidate`. Vercel's network applies the rule as it is written here, without the
+  flag.
 
 ## 9. A cold start
 
@@ -276,6 +282,12 @@ here as they are taken:
 | When (UTC) | Asked from | Cold start | First byte |
 |---|---|---|---|
 | 20 Nov 2026, 13:55 | a GitHub runner, live build `b16fd49` (before the mark existed) | not said by that build | 2.29 s |
+| 20 Nov 2026, 15:10 | a GitHub runner, eight minutes after the merge of pull request #52 (run 44759289547), live build `5e2aa26` | no: the copy was running already | 0.34 s |
+| 20 Nov 2026, 22:22 | a GitHub runner, started by the timer (run 44828383242), live build `5e2aa26` | **yes** | **3.89 s** |
+
+One cold reading of the three that list line T-154 asks for. The check after a merge was expected to meet a
+copy that had not started yet; on 20 November it did not. The one cold reading so far came from a run that the
+timer started. In that run a second request for the same page took 0.15 s.
 
 Warm, the same page answers in 0.08 to 0.17 s from a GitHub runner. In the rehearsal on a development machine a
 cold start took 0.53 to 0.55 s to the first byte and a warm answer 0.02 to 0.03 s; that says how much of the
