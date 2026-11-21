@@ -42,6 +42,10 @@
       S.pages = r.pages;
       $("#page-select").innerHTML = r.pages.map(function (p) { return '<option value="' + esc(p.path) + '">' + esc(p.url + "  ·  " + p.title) + "</option>"; }).join("");
       S.pageLinks = r.pages.map(function (p) { return '<option value="' + esc(p.url) + '">' + esc(p.title) + "</option>"; }).join("");
+      /* OS PORT: a site without a single page (the Furniture copy ships none). There is nothing to open, so
+         nothing is asked for and the canvas says so. Until 21 Nov 2026 the builder asked for index.html here
+         and showed the server's refusal (422) as an error. */
+      if (!r.pages.length) { $("#loading").hidden = false; $("#loading").textContent = "This site has no pages yet, so there is nothing to edit here."; return; }
       var want = decodeURIComponent(location.hash.slice(1)) || BOOT.page || "index.html"; // OS PORT
       if (!r.pages.some(function (p) { return p.path === want; })) want = (r.pages[0] && r.pages[0].path) || "index.html";
       $("#page-select").value = want; loadPage(want);

@@ -21,6 +21,19 @@
   </div>
 </div>
 
+<!-- ================= TOO NARROW ================= -->
+{{-- A desktop tool: a page between two panels, in four columns. Below 760 px they cannot fit, and the page was
+     419 px wider than a phone's window (found by the crawl with every module on, 21 November 2026). It says so
+     instead; the rule is at the end of public/builder/builder.css. --}}
+<div class="login narrow" data-builder-narrow>
+  <div class="login-card">
+    <img src="/assets/brand/woodex-mark.svg" alt="Woodex" width="90">
+    <h1>The page builder needs a wider screen</h1>
+    <p>It edits a page between two panels and needs a window of 760 px or more. Open it on a laptop, or hold a tablet sideways.</p>
+    <a class="btn btn-pri" href="{{ route('admin.website.pages', absolute: false) }}">Back to Woodex OS</a>
+  </div>
+</div>
+
 <!-- ================= APP ================= -->
 <div id="app" class="app" hidden data-boot-page="{{ $bootPage }}">
 
