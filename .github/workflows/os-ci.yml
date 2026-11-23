@@ -461,7 +461,14 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: The scripts' packages and a browser
+        # A limit of its own: when this step stands still, the job says so after ten minutes and not after thirty.
+        timeout-minutes: 10
         run: |
+          # The packages a browser needs come by apt, and apt asks every source the runner knows, also the one PHP
+          # came from two steps above. A source that does not answer is waited for without end. On 23 November this
+          # step stood still twice, for half an hour each time (document 43, finding AU-28). Now: twenty seconds,
+          # three tries, and apt goes on without that source. The browser needs none of its packages.
+          echo 'Acquire::Retries "3"; Acquire::http::Timeout "20"; Acquire::https::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-woodex-timeouts > /dev/null
           npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts
           npx playwright install --with-deps chromium
 
