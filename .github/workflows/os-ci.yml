@@ -464,13 +464,15 @@ jobs:
         # A limit of its own: when this step stands still, the job says so after ten minutes and not after thirty.
         timeout-minutes: 10
         run: |
-          # The packages a browser needs come by apt, and apt asks every source the runner knows, also the one PHP
-          # came from two steps above. A source that does not answer is waited for without end. On 23 November this
-          # step stood still twice, for half an hour each time (document 43, finding AU-28). Now: twenty seconds,
-          # three tries, and apt goes on without that source. The browser needs none of its packages.
-          echo 'Acquire::Retries "3"; Acquire::http::Timeout "20"; Acquire::https::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-woodex-timeouts > /dev/null
           npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts
-          npx playwright install --with-deps chromium
+          # "--with-deps" asks apt for the packages a browser needs, and apt asks the Ubuntu mirror of the cloud the
+          # runner stands in. On 23 November that mirror fell silent in the middle of "apt-get update" twice, and apt
+          # waited to the limit of the job, thirty minutes; a third time it answered at 75 kB a second, and this
+          # step took 7 minutes and 47 seconds (document 43, finding AU-28). The log of that third run shows what
+          # apt had to bring: fonts, and a newer graphics library. Every library the browser needs to start is in
+          # the image of the runner already. So apt is given two and a half minutes, and where it does not finish,
+          # the browser alone is fetched.
+          timeout -k 10 150 npx playwright install --with-deps chromium || npx playwright install chromium
 
       - name: Put the release together — packages and built files inside, no settings, no data
         env:

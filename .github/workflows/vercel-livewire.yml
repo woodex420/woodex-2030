@@ -93,7 +93,9 @@ jobs:
       - name: The scripts' packages and a browser
         run: |
           npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts
-          npx playwright install --with-deps chromium
+          # Two and a half minutes for apt, then the browser alone: os-ci.yml says why, at the same line
+          # (document 43, finding AU-28).
+          timeout -k 10 150 npx playwright install --with-deps chromium || npx playwright install chromium
       - name: Fetch the builder that vercel.json names (PHP runtime and launcher)
         run: |
           builder="$(node -p "require('./platform/vercel.json').builds.find((build) => build.src === 'api/index.php').use")"
