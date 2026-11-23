@@ -9,9 +9,13 @@
 #   composer/          Composer, run from its source
 #   work/platform      a copy of platform/ with vendor/ installed and no .env: the tests run here, as in CI
 #   work/vercel-emu    the same, for the rehearsal of the Vercel deployment
+#   work/preview       the same with a .env, for bin/wxpreview (made by its first run)
 #   bin/wxsync [dest]  copy the repository's platform/ tree into a work tree (after every edit)
 #   bin/wxtest <args>  Pest in work/platform with the settings CI uses
 #   bin/wxrehearse [port]  serve the demo as Vercel does, on 127.0.0.1:<port> (log: /tmp/rehearsal-<port>.log)
+#   bin/wxpreview [port]   serve the preview a person looks at in a hosted frame, on 0.0.0.0:<port> (default 8080):
+#                          the demo's records and catalogue, the modules the Vercel project sets, front.php in front.
+#                          WXPREVIEW_SHOW_PASSWORD=1 prints the owner's password on its sign-in page.
 #   bin/wxenv          source it: the rehearsal's passwords (made here, for this machine only) and the browser
 #
 # The whole suite:  cd <dir>/work/platform && WOODEX_PHP=<dir>/php85 sh tools/preview/sandbox/run-suite.sh <out>
@@ -70,7 +74,47 @@ export VERCEL_PHP="$W/vercel-php/node_modules"
 echo "rehearsal starting on \$PORT (log: /tmp/rehearsal-\$PORT.log)"
 exec bash tools/vercel/serve-demo.sh "\$PORT" > "/tmp/rehearsal-\$PORT.log" 2>&1
 SH
-chmod +x "$W/php85" "$W/bin/wxsync" "$W/bin/wxtest" "$W/bin/wxrehearse"
+cat > "$W/bin/wxpreview" <<SH
+#!/bin/bash
+# The preview a person looks at through a hosted frame (tools/preview/README.md, "Run one"), from the repository's
+# current tree, with what the Vercel demo has: its records, Woodex's catalogue as drafts, and the modules the
+# project sets (tools/vercel/as-deployed.conf). A new database on every start: nothing typed into it is kept.
+PORT="\${1:-8080}"
+T="$W/work/preview"
+"$W/bin/wxsync" "\$T"
+[ -d "\$T/vendor" ] || cp -al "$W/work/platform/vendor" "\$T/vendor"
+cd "\$T" || exit 2
+. "$W/bin/wxenv"
+unset LD_LIBRARY_PATH
+set -a; . tools/vercel/as-deployed.conf; set +a
+DB="\$T/database/woodex-synthetic-hosted-preview.sqlite"
+rm -f "\$DB" "\$DB"-* storage/framework/cache/preview-viewer.*.jar.json bootstrap/cache/*.php
+touch "\$DB"
+SHOW=false; [ "\${WXPREVIEW_SHOW_PASSWORD:-}" = 1 ] && SHOW=true
+{
+  grep -v -e '^APP_KEY=' -e '^DB_DATABASE=' -e '^WOODEX_SYNTHETIC_PREVIEW=' -e '^WOODEX_PREVIEW_SHOW_CREDENTIALS=' tools/preview/preview.env.example
+  echo "APP_KEY=base64:\$(openssl rand -base64 32)"
+  echo "DB_DATABASE=\$DB"
+  echo "WOODEX_SYNTHETIC_PREVIEW=true"
+  echo "WOODEX_PREVIEW_LOGIN_EMAIL=owner@woodex.test"
+  echo "WOODEX_PREVIEW_SHOW_CREDENTIALS=\$SHOW"
+  [ "\$SHOW" = true ] && echo "WOODEX_PREVIEW_LOGIN_PASSWORD=\$WX_PW_OWNER"
+  echo "WOODEX_MODULES=\"\${WOODEX_MODULES:-lead_api,client_portal}\""
+  echo "LEGACY_DASHBOARD_URL=\${LEGACY_DASHBOARD_URL:-}"
+  echo "DOCUMENTS_OWNER_CONFIRMED=true"
+} > .env
+LOG="/tmp/preview-\$PORT.log"; : > "\$LOG"
+step() { local what="\$1"; shift; "$W/php85" "\$@" >> "\$LOG" 2>&1 || { echo "the preview could not be built at: \$what (see \$LOG)"; tail -12 "\$LOG"; exit 1; }; }
+step "tables" artisan migrate --force --no-interaction
+step "reference data" artisan db:seed --class=ProductionSeeder --force --no-interaction
+step "staff accounts" tools/preview/synthetic_fixtures.php staff
+step "sample records" tools/preview/synthetic_fixtures.php data
+step "Woodex catalogue" artisan commerce:import-catalogue --as=owner@woodex.test --no-interaction
+echo "the preview answers on 0.0.0.0:\$PORT (log: \$LOG); sign in as owner@woodex.test with WX_PW_OWNER of bin/wxenv"
+# The built-in server answers one request at a time unless it is given workers: a page asks for several things at once.
+exec env PHP_CLI_SERVER_WORKERS=4 "$W/php85" -S "0.0.0.0:\$PORT" -t public tools/preview/front.php >> "\$LOG" 2>&1
+SH
+chmod +x "$W/php85" "$W/bin/wxsync" "$W/bin/wxtest" "$W/bin/wxrehearse" "$W/bin/wxpreview"
 say "php: $("$W/php85" -v 2>&1 | head -1)"
 
 python3 "$R/platform/tools/preview/sandbox/bootstrap_composer.py" "$W/composer" 2.11.2 > "$W/composer.log" 2>&1; say "Composer from source: exit $?"

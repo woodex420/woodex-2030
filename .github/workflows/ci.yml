@@ -111,7 +111,9 @@ jobs:
       - name: Single-process shape serves both apps and their bundles
         run: npm run smoke:hostinger
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        # Two and a half minutes for apt, then the browser alone: .github/workflows/os-ci.yml says why, at the
+        # same line (document 43 of docs/woodex-os, finding AU-28).
+        run: timeout -k 10 150 npx playwright install --with-deps chromium || npx playwright install chromium
       - name: PostgreSQL rehearsal, API security QA, and browser acceptance
         run: node scripts/ci-test.mjs
       # Drift audit against the HOSTED database. Every other DB check here runs
