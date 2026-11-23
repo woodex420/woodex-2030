@@ -43,10 +43,13 @@ Both are acceptable only because the database is synthetic and disposable.
 
 **The short way, about one minute:** `bash platform/tools/preview/sandbox/setup.sh`. It builds everything described
 below outside the repository (default `~/.cache/woodex-os`): the complete PHP from npm, Composer, two work trees
-with the locked packages, and four small commands — `bin/wxsync` (copy the tree after an edit), `bin/wxtest` (Pest
-with the settings CI uses), `bin/wxrehearse` (serve the demo as Vercel does) and `bin/wxenv` (the rehearsal's
-passwords, made on that machine, and the browser for `scripts/os-journeys.mjs` and `scripts/os-screens.mjs`). Its
-first lines say what it leaves and how to run the suite and the code style. The rest of this section is what it
+with the locked packages, and five small commands — `bin/wxsync` (copy the tree after an edit), `bin/wxtest` (Pest
+with the settings CI uses), `bin/wxrehearse` (serve the demo as Vercel does), `bin/wxpreview` (serve the preview a
+person looks at in a hosted frame: "Run one" above, with the demo's records, Woodex's catalogue as drafts and the
+modules the Vercel project sets; `WXPREVIEW_SHOW_PASSWORD=1` prints the owner's password on its sign-in page) and
+`bin/wxenv` (the rehearsal's passwords, made on that machine, and the browser for `scripts/os-journeys.mjs`,
+`scripts/os-screens.mjs` and `scripts/os-signin.mjs`). Its first lines say what it leaves and how to run the suite
+and the code style. The rest of this section is what it
 does, step by step, and why.
 
 Measured in the agent sandbox used for this work: Packagist, getcomposer.org, php.net, Debian mirrors, container registries and GitHub release downloads are all blocked. PHP and Composer still arrive through the GitHub API. Keep everything outside the git tree.
@@ -143,6 +146,7 @@ written to a file.
 |---|---|
 | `tools/vercel/serve-demo.sh [port]` | Builds the sample-data workspace and serves it exactly as Vercel does (its PHP runtime, its launcher, `vercel.json`), on `127.0.0.1:8191` by default, until stopped |
 | `scripts/os-screens.mjs` (repository root) | Signs in as each demo role and opens every screen it can reach, on a desktop and on a 390 px phone. Reports per role: pages not fine, links that lead nowhere, fields without a label, controls under 24 px, pages wider than the window, the height of the top bar, sizes and times. Exit code 1 if a page or a download is not fine. `OS_BASE`, `OS_ROLES`, `OS_MAX_PAGES`, `--out`, `--shots` |
+| `scripts/os-signin.mjs` (repository root) | The sign-in from the address to the sign-out, for each of the four demo accounts: a wrong password refused, the right one opening the dashboard under that person's name, a screen of their own, a screen they may not open (403), signing out. Writes no record and never prints a password. `OS_BASE` names the site: the rehearsal, a preview, or the deployed demo once its passwords are GitHub secrets (master list T-151) |
 | `scripts/os-journeys.mjs` (repository root) | Fourteen steps that **write** records (a lead, a task, a draft quotation…). Refuses a page without the sample-data notice unless `OS_ALLOW_REAL=1`. `OS_TRACE=1` prints every request with its time |
 
 A crawl of the four roles takes about five and a half minutes; the journeys about twenty seconds.
