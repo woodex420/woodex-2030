@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { img } from "@/assets/img";
+import { brand } from "@/config/brand";
 
 const warrantyTiers = [
   {
@@ -49,14 +50,14 @@ const warrantyTiers = [
 ];
 
 const claimSteps = [
-  { step: "01", title: "Contact Us", description: "Call +92 300 1234567 or email warranty@woodex.pk with your order number and issue description." },
+  { step: "01", title: "Contact Us", description: `Call ${brand.phone} or email ${brand.email} with your order number and issue description.` },
   { step: "02", title: "Assessment", description: "Our team will assess your claim within 24 hours and may request photos or a site visit." },
   { step: "03", title: "Resolution", description: "Approved claims are resolved within 7 business days — repair, replacement, or part dispatch." },
   { step: "04", title: "Follow Up", description: "We follow up after resolution to ensure you're completely satisfied with the outcome." },
 ];
 
 const faqs = [
-  { q: "How do I register my WOODEX warranty?", a: "Your warranty is automatically registered upon delivery. Keep your invoice as proof of purchase. You can also email invoice details to warranty@woodex.pk for confirmation." },
+  { q: "How do I register my WOODEX warranty?", a: `Your warranty is automatically registered upon delivery. Keep your invoice as proof of purchase. You can also email invoice details to ${brand.email} for confirmation.` },
   { q: "Is the warranty transferable?", a: "Woodex Series (10-year) warranties are transferable to new occupants of the same premises. Ek and Infinity Series warranties are non-transferable." },
   { q: "What proof do I need for a warranty claim?", a: "Original invoice, photos of the defect, and product serial number (found on a label under or behind the furniture)." },
   { q: "Do you offer on-site repair?", a: "Yes. For Woodex Series customers, on-site repair is the primary resolution method. For other series, we may require items to be returned to our facility." },
@@ -171,8 +172,8 @@ const Warranty = () => {
           <div className="container mx-auto px-4">
             <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
               {[
-                { icon: Phone, title: "Call Warranty Support", lines: ["+92 300 1234567", "Mon–Sat: 9am–6pm"] },
-                { icon: Mail, title: "Email Warranty Team", lines: ["warranty@woodex.pk", "24hr response time"] },
+                { icon: Phone, title: "Call Warranty Support", lines: [brand.phone, brand.hours] },
+                { icon: Mail, title: "Email Warranty Team", lines: [brand.email, "24hr response time"] },
                 { icon: Clock, title: "Resolution Timeline", lines: ["Assessment: 24 hours", "Resolution: 7 business days"] },
               ].map((item) => (
                 <div key={item.title} className="p-6 border border-border rounded-sm hover:border-accent transition-colors text-center">

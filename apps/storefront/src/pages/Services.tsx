@@ -7,7 +7,9 @@ import Footer from "@/components/Footer";
 import { services } from "@/data/services";
 import { img } from "@/assets/img";
 
-const WA_PHONE = "923001234567";
+import { brand } from "@/config/brand";
+
+const WA_PHONE = brand.whatsapp;
 
 // "Make Your Space Work" — curated 6-item showcase mapped to underlying service pages
 const spaceWorkItems = [

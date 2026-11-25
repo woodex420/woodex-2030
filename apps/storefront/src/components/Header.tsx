@@ -31,7 +31,7 @@ function ModeToggle() {
     <button
       onClick={() => setModeOverride(resolved === "dark" ? "light" : "dark")}
       title={resolved === "dark" ? "Switch to light" : "Switch to dark"}
-      className="inline-flex h-5 w-5 items-center justify-center rounded text-utility-text transition-colors hover:text-white"
+      className="inline-flex h-6 w-6 items-center justify-center rounded text-utility-text transition-colors hover:text-white"
       aria-label="Toggle dark mode"
     >
       {resolved === "dark" ? <Sun size={13} /> : <Moon size={13} />}
@@ -97,18 +97,20 @@ const Header = () => {
         <div className="bg-utility-bar">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-between h-9 text-xs">
-              <div className="flex items-center gap-5 text-utility-text">
-                <Link to="/showrooms" className="hover:text-white transition-colors">Showrooms</Link>
+              {/* On a phone this line was 44 px wider than the screen, and the whole page slid sideways with it.
+                  The language and the currency are words, not controls: they give way first. */}
+              <div className="flex items-center gap-3 whitespace-nowrap text-utility-text sm:gap-5">
+                <Link to="/showrooms" className="hover:text-white transition-colors">Showroom</Link>
                 <span className="text-utility-text/30">|</span>
                 <Link to="/materials" className="hover:text-white transition-colors">Material and Colors</Link>
                 <span className="text-utility-text/30">|</span>
                 <Link to="/warranty" className="hover:text-white transition-colors">Warranty</Link>
               </div>
               <div className="flex items-center gap-4 text-utility-text">
-                <span className="hover:text-white cursor-pointer transition-colors">English</span>
-                <span className="text-utility-text/30">|</span>
-                <span className="hover:text-white cursor-pointer transition-colors">PKR</span>
-                <span className="text-utility-text/30">|</span>
+                <span className="hidden sm:inline">English</span>
+                <span className="hidden text-utility-text/30 sm:inline">|</span>
+                <span className="hidden sm:inline">PKR</span>
+                <span className="hidden text-utility-text/30 sm:inline">|</span>
                 <ModeToggle />
               </div>
             </div>
@@ -200,8 +202,8 @@ const Header = () => {
 
               {/* Actions */}
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="text-foreground hover:text-accent">
-                  <Search className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="text-foreground hover:text-accent" asChild>
+                  <Link to="/shop" aria-label="Search the products"><Search className="h-4 w-4" /></Link>
                 </Button>
 
                 {/* Quote Basket Button */}
@@ -210,6 +212,7 @@ const Header = () => {
                   size="icon"
                   className="relative text-foreground hover:text-accent"
                   onClick={() => setIsOpen(!isOpen)}
+                  aria-label={totalItems > 0 ? `Quote basket, ${totalItems} ${totalItems === 1 ? "item" : "items"}` : "Quote basket"}
                 >
                   <ShoppingBag className="h-4 w-4" />
                   {totalItems > 0 && (
@@ -239,6 +242,8 @@ const Header = () => {
                   size="icon"
                   className="xl:hidden"
                   onClick={() => setMobileOpen(!mobileOpen)}
+                  aria-label={mobileOpen ? "Close the menu" : "Open the menu"}
+                  aria-expanded={mobileOpen}
                 >
                   {mobileOpen ? (
                     <X className="h-5 w-5" />

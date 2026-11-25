@@ -7,62 +7,23 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { img } from "@/assets/img";
 
+/* One showroom: the address in config/brand.ts. Four more stood here (Karachi, Islamabad, Rawalpindi,
+   Faisalabad), each with a sample street and a number nobody can dial. A visitor could have set out for one of
+   them. They are gone until the owner gives a real address for each (decision DL-048;
+   scripts/test-storefront-facts.mjs names the samples and keeps them out). */
 const showrooms = [
   {
-    city: "Lahore (HQ)",
+    city: brand.address.city,
     address: `${brand.address.street}, ${brand.address.city}`,
     phone: brand.phone,
-    whatsapp: `+${brand.whatsapp}`,
     hours: brand.hours,
-    lat: 31.5204,
-    lng: 74.3587,
     isHQ: true,
-  },
-  {
-    city: "Karachi",
-    address: "456 Clifton Block 5, Karachi",
-    phone: "+92 21 111 WOODEX",
-    whatsapp: "+923001234567",
-    hours: "Mon–Sat: 9am–7pm",
-    lat: 24.8607,
-    lng: 67.0011,
-    isHQ: false,
-  },
-  {
-    city: "Islamabad",
-    address: "789 Blue Area, F-7 Markaz, Islamabad",
-    phone: "+92 51 111 WOODEX",
-    whatsapp: "+923001234567",
-    hours: "Mon–Sat: 10am–6pm",
-    lat: 33.7294,
-    lng: 73.0931,
-    isHQ: false,
-  },
-  {
-    city: "Rawalpindi",
-    address: "44 Saddar Road, Committee Chowk, Rawalpindi",
-    phone: "+92 51 222 WOODEX",
-    whatsapp: "+923001234567",
-    hours: "Mon–Sat: 9am–7pm",
-    lat: 33.6007,
-    lng: 73.0679,
-    isHQ: false,
-  },
-  {
-    city: "Faisalabad",
-    address: "12 D-Ground, Faisalabad",
-    phone: "+92 41 333 WOODEX",
-    whatsapp: "+923001234567",
-    hours: "Mon–Sat: 9am–6pm",
-    lat: 31.4504,
-    lng: 73.135,
-    isHQ: false,
   },
 ];
 
 const Showrooms = () => {
   useEffect(() => {
-    document.title = "Showroom Locations — WOODEX Pakistan";
+    document.title = "Showroom — WOODEX Pakistan";
   }, []);
 
   return (
@@ -71,13 +32,13 @@ const Showrooms = () => {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative h-64 overflow-hidden bg-primary">
-          <img src={img("virtual-showroom-hero.jpg")} alt="WOODEX Showrooms" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+          <img src={img("virtual-showroom-hero.jpg")} alt="WOODEX showroom" className="absolute inset-0 w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 flex items-center">
             <div className="container mx-auto px-4">
               <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Experience In Person</p>
-              <h1 className="text-4xl lg:text-5xl font-black text-primary-foreground">Visit Our Showrooms</h1>
+              <h1 className="text-4xl lg:text-5xl font-black text-primary-foreground">Visit Our Showroom</h1>
               <p className="text-primary-foreground/70 mt-3 max-w-xl">
-                Explore our complete furniture collection in person at 5 locations across Pakistan.
+                See and try our furniture in person at our showroom in {brand.address.city}.
               </p>
             </div>
           </div>
@@ -86,14 +47,14 @@ const Showrooms = () => {
         {/* Showrooms Grid */}
         <section className="py-16">
           <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="mx-auto grid max-w-md gap-6">
               {showrooms.map((s) => (
                 <div
                   key={s.city}
                   className={`p-6 border rounded-sm hover:border-accent transition-all hover:shadow-lg ${s.isHQ ? "border-accent bg-hon-green-pale" : "border-border bg-background"}`}
                 >
                   {s.isHQ && (
-                    <span className="text-xs font-bold uppercase tracking-widest text-accent mb-3 block">Headquarters</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-accent mb-3 block">Showroom</span>
                   )}
                   <div className="w-10 h-1 bg-accent mb-4" />
                   <h2 className="font-bold text-xl mb-4">{s.city}</h2>
@@ -104,7 +65,7 @@ const Showrooms = () => {
                     </div>
                     <div className="flex items-center gap-2.5">
                       <Phone className="h-4 w-4 text-accent flex-shrink-0" />
-                      <span>{s.phone}</span>
+                      <a href={brand.phoneLink} className="hover:text-accent">{s.phone}</a>
                     </div>
                     <div className="flex items-center gap-2.5">
                       <Clock className="h-4 w-4 text-accent flex-shrink-0" />
@@ -115,7 +76,7 @@ const Showrooms = () => {
                     <Button
                       size="sm"
                       className="flex-1 bg-accent hover:bg-hon-green-dark text-accent-foreground"
-                      onClick={() => window.open(`https://wa.me/${s.whatsapp}`, "_blank")}
+                      onClick={() => window.open(brand.whatsappLink, "_blank")}
                     >
                       WhatsApp
                     </Button>
@@ -123,7 +84,7 @@ const Showrooms = () => {
                       size="sm"
                       variant="outline"
                       className="flex-1 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-                      onClick={() => window.open(`https://maps.google.com/?q=${s.address}`, "_blank")}
+                      onClick={() => window.open(`https://maps.google.com/?q=${brand.geo.lat},${brand.geo.lng}`, "_blank")}
                     >
                       <Navigation className="h-3.5 w-3.5 mr-1.5" />
                       Directions
@@ -140,8 +101,8 @@ const Showrooms = () => {
           <div className="bg-section-light h-72 flex items-center justify-center border-y border-border">
             <div className="text-center">
               <MapPin className="h-12 w-12 text-accent mx-auto mb-3" />
-              <p className="font-bold text-lg mb-1">Pakistan-Wide Coverage</p>
-              <p className="text-muted-foreground text-sm">Showrooms in Lahore, Karachi, Islamabad, Rawalpindi & Faisalabad</p>
+              <p className="font-bold text-lg mb-1">{brand.address.street}</p>
+              <p className="text-muted-foreground text-sm">{brand.address.city}, Pakistan · {brand.hours}</p>
               <Button variant="outline" className="mt-4 border-accent text-accent hover:bg-accent hover:text-accent-foreground" asChild>
                 <Link to="/virtual-showroom">Explore Virtual Showroom</Link>
               </Button>

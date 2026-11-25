@@ -70,3 +70,14 @@ await api.syncNativeCategories(); await api.syncNativeCategories();
 assert.equal(askedAfterRefusal, 1, 'After a refusal the next poll is not sent');
 assert.equal(api.categorySegments()[0].name, 'Home renamed', 'A refusal keeps the last categories');
 console.log('Native category sync: dynamic names/order/descendants, Series, last-good outage, explicit rollback, schema rejection and read-only bridge safety passed.');
+
+/* Built as Vercel builds a shop that is connected to no admin (scripts/build-vercel.mjs), the shop does not ask. */
+{
+  const off = await build({ stdin: { contents: `export * from './apps/storefront/src/lib/nativeCategories';`, resolveDir: process.cwd() }, bundle: true, platform: 'node', format: 'esm', write: false, define: { 'import.meta.env': '{"VITE_NATIVE_CATEGORIES":"off"}' } });
+  const silent = await import('data:text/javascript;base64,' + Buffer.from(off.outputFiles[0].text + '\n// off').toString('base64'));
+  let questions = 0;
+  globalThis.fetch = async () => { questions++; return switchedOff(); };
+  await silent.syncNativeCategories(); await silent.syncNativeCategories();
+  assert.equal(questions, 0, 'a shop built as not connected must not ask for the categories');
+}
+

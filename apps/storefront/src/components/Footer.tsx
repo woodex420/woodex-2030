@@ -1,23 +1,8 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Phone, Mail, MapPin, Clock, Facebook, Twitter, Linkedin, Instagram, Youtube, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import { brand } from "@/config/brand";
 
 const Footer = () => {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email.trim()) {
-      setSubscribed(true);
-      setEmail("");
-      setTimeout(() => setSubscribed(false), 3000);
-    }
-  };
-
   return (
     <footer className="bg-primary text-primary-foreground mt-auto">
       {/* Main Footer */}
@@ -35,26 +20,16 @@ const Footer = () => {
             <div className="space-y-2.5 text-sm text-primary-foreground/70">
               <div className="flex items-center gap-2.5">
                 <Phone className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <a href={`tel:${brand.phone.replace(/\s/g, "")}`} className="hover:text-accent transition-colors">{brand.phone}</a>
+                <a href={brand.phoneLink} className="hover:text-accent transition-colors">{brand.phone}</a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <a href={`mailto:${brand.email}`} className="hover:text-accent transition-colors">{brand.email}</a>
+                <a href={brand.emailLink} className="break-all hover:text-accent transition-colors">{brand.email}</a>
               </div>
               <div className="flex items-center gap-2.5">
                 <MapPin className="h-3.5 w-3.5 text-accent flex-shrink-0" />
                 <span>{brand.address.city}, Pakistan</span>
               </div>
-            </div>
-            <div className="flex items-center gap-3 mt-6">
-              {[Facebook, Twitter, Linkedin, Instagram, Youtube].map((Icon, i) => (
-                <button
-                  key={i}
-                  className="w-8 h-8 rounded-full border border-primary-foreground/20 flex items-center justify-center hover:border-accent hover:text-accent transition-colors"
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </button>
-              ))}
             </div>
           </div>
 
@@ -69,7 +44,7 @@ const Footer = () => {
                 { label: "Careers", href: "/contact" },
                 { label: "Contact", href: "/contact" },
                 { label: "Track My Order", href: "/order-status" },
-                { label: "Showrooms", href: "/showrooms" },
+                { label: "Showroom", href: "/showrooms" },
                 { label: "Series", href: "/series" },
                 { label: "B2B / Markets", href: "/b2b" },
               ].map((link) => (
@@ -129,48 +104,26 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Col 5: Contact & Newsletter */}
+          {/* Col 5: Contact */}
           <div>
             <h4 className="font-semibold text-sm mb-4 text-primary-foreground uppercase tracking-wider">Contact</h4>
-            <div className="space-y-3 text-sm text-primary-foreground/70 mb-6">
+            <div className="space-y-3 text-sm text-primary-foreground/70">
               <div className="flex items-start gap-2.5">
                 <MapPin className="h-3.5 w-3.5 text-accent flex-shrink-0 mt-0.5" />
                 <span>{brand.address.street},<br />{brand.address.city}, Pakistan</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <a href={`tel:${brand.phone.replace(/\s/g, "")}`} className="hover:text-accent transition-colors">{brand.phone}</a>
+                <a href={brand.phoneLink} className="hover:text-accent transition-colors">{brand.phone}</a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <span>sales@woodex.pk</span>
+                <a href={brand.emailLink} className="break-all hover:text-accent transition-colors">{brand.email}</a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Clock className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                <span>Mon–Sat: 9am–7pm</span>
+                <span>{brand.hours}</span>
               </div>
-            </div>
-
-            {/* Newsletter */}
-            <div>
-              <p className="text-xs font-semibold text-primary-foreground uppercase tracking-wider mb-3">Newsletter</p>
-              {subscribed ? (
-                <p className="text-sm text-accent font-semibold">✓ Subscribed! Thank you.</p>
-              ) : (
-                <form onSubmit={handleSubscribe} className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="Your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/40 text-sm h-9"
-                  />
-                  <Button type="submit" size="sm" className="bg-accent hover:bg-accent/80 text-accent-foreground px-3 h-9 flex-shrink-0">
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </form>
-              )}
             </div>
           </div>
         </div>

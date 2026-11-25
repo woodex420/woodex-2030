@@ -263,10 +263,10 @@ const Shop = () => {
                       </SelectContent>
                     </Select>
                     <div className="flex border rounded-sm">
-                      <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" className="rounded-r-none h-9 w-9" onClick={() => setViewMode("grid")}>
+                      <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" className="rounded-r-none h-9 w-9" onClick={() => setViewMode("grid")} aria-label="Show the products as a grid" aria-pressed={viewMode === "grid"}>
                         <Grid3X3 className="h-4 w-4" />
                       </Button>
-                      <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="icon" className="rounded-l-none h-9 w-9" onClick={() => setViewMode("list")}>
+                      <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="icon" className="rounded-l-none h-9 w-9" onClick={() => setViewMode("list")} aria-label="Show the products as a list" aria-pressed={viewMode === "list"}>
                         <LayoutList className="h-4 w-4" />
                       </Button>
                     </div>

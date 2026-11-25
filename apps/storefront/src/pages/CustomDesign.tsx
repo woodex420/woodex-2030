@@ -6,7 +6,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { img } from "@/assets/img";
 
-const WA_PHONE = "923001234567";
+import { brand } from "@/config/brand";
+
+const WA_PHONE = brand.whatsapp;
 
 const spaceWorkItems = [
   {

@@ -3,7 +3,7 @@ import { brand } from "@/config/brand";
 import { QuoteItem, estimateOf } from "@/contexts/QuoteContext";
 import { formatPKR, categoryLabel } from "@/data/products";
 import { keyOf } from "@/contexts/lineKey";
-import woodexLogo from "@/assets/woodex-logo.png";
+import { img } from "@/assets/img";
 
 export interface ClientInfo {
   name: string;
@@ -39,7 +39,7 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
         {/* Letterhead with Logo */}
         <div className="invoice-header">
           <div className="invoice-brand">
-            <img src={woodexLogo} alt="WoodEx Furniture" className="invoice-logo-img" />
+            <img src={img("woodex-logo.jpg")} alt={brand.legalName} className="invoice-logo-img" />
           </div>
           <div className="invoice-title-block">
             <h2 className="invoice-title">E-Quotation</h2>
@@ -49,10 +49,10 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
 
         {/* Company Info Bar */}
         <div className="invoice-info-bar">
-          <span>📍 LG 89 Zainab Tower, Model Town, Link Road, Lahore</span>
+          <span>📍 {brand.address.street}, {brand.address.city}</span>
           <span>📞 {brand.phone}</span>
-          <span>✉ info@woodex.pk</span>
-          <span>🌐 www.woodex.pk</span>
+          <span>✉ {brand.email}</span>
+          <span>🌐 {brand.website}</span>
         </div>
 
         {/* Client & Quote Meta */}
@@ -150,13 +150,13 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
         <div className="invoice-footer">
           <div className="invoice-footer-thanks">THANK YOU FOR CHOOSING {brand.name.toUpperCase()}!</div>
           <div className="invoice-footer-contact">
-            <span>🌐 www.woodex.pk</span>
+            <span>🌐 {brand.website}</span>
             <span>•</span>
             <span>📞 {brand.phone}</span>
             <span>•</span>
             <span>💬 WhatsApp: {brand.phone}</span>
             <span>•</span>
-            <span>✉ info@woodex.pk</span>
+            <span>✉ {brand.email}</span>
           </div>
           <div className="invoice-footer-terms">
             This is an enquiry estimate, not a formal quotation. Final payment terms will be included in formal quotation; final pricing, validity, delivery and warranty terms will also be provided there.

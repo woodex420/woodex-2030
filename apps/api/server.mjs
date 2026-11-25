@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { loadShopData, ROOT } from "./shop-data.mjs";
 import { loadCatalogData, planImport } from "./catalog-import.mjs";
-import { PUBLIC_ROUTES, absoluteUrl } from "./public-routes.mjs";
+import { PUBLIC_ROUTES, absoluteUrl, isShopAddress } from "./public-routes.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const IS_SERVERLESS = process.env.VERCEL === "1";
@@ -1970,7 +1970,11 @@ if (STATIC_ROOT && fs.existsSync(STATIC_ROOT)) {
     if (flat && flat.startsWith(STATIC_ROOT) && fs.existsSync(flat) && fs.statSync(flat).isFile()) return res.sendFile(flat);
     // Deep link that was never prerendered: hand the SPA shell to the router.
     if (path.extname(clean)) return next();
-    return fs.existsSync(indexHtml) ? sendHtml(indexHtml, res) : next();
+    if (!fs.existsSync(indexHtml)) return next();
+    /* An address the shop's router has no page for gets the same shell, which then shows "page not found", and
+       the answer says 404. It said 200 for every address there is (public-routes.mjs tells the story). */
+    if (!isShopAddress(clean)) res.status(404);
+    return sendHtml(indexHtml, res);
   });
   console.log(`[woodex-api] serving static build from ${STATIC_ROOT}`);
 } else if (STATIC_ROOT) {

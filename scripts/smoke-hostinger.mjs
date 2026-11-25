@@ -26,7 +26,7 @@
  * page. A shell is only half a page; this test now follows what it references.
  */
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -104,7 +104,9 @@ try {
 
   /* ---- 2: dashboard shell ---- */
   const dash = await get("/dashboard");
-  check("/dashboard serves the dashboard shell", dash.status === 200 && /<div id="root">/.test(dash.body) && !/Gulberg III/.test(dash.body));
+  // "FurnitureStore" is what the shop's own shell tells a search engine about the business: the dashboard's must not carry it.
+  check("the shop's shell is told apart from the dashboard's", /"@type":\s*"FurnitureStore"/.test((await get("/")).body));
+  check("/dashboard serves the dashboard shell", dash.status === 200 && /<div id="root">/.test(dash.body) && !/"@type":\s*"FurnitureStore"/.test(dash.body));
   const dashDeep = await get("/dashboard/orders");
   check("/dashboard/orders falls through to the SPA", dashDeep.status === 200 && /<div id="root">/.test(dashDeep.body));
 
@@ -149,9 +151,27 @@ try {
   const img = await get("/img/hero-office.jpg");
   check("shared imagery is served from the API copy", img.status === 200 && img.type.startsWith("image/"));
 
-  /* ---- deep link that was never prerendered ---- */
-  const deep = await get("/this-route-does-not-exist");
-  check("unknown page returns the SPA shell (200, not a crash)", deep.status === 200 && deep.type.includes("text/html"));
+  /* ---- an address that was never prerendered ---- */
+  /* A page of one thing (a product, a series, a published page) is made by the shop in the browser: the server
+     hands it the shell with 200. An address the shop's router has no page for gets the same shell, so that the
+     visitor sees the shop's "page not found", and 404, so that a machine is told the truth. Until 25 November
+     2026 every address there is answered 200 (audit finding AU-11). */
+  for (const known of ["/shop/a-product-nobody-prerendered", "/series/some-series", "/p/a-published-page", "/order-status", "/checkout"]) {
+    const page = await get(known);
+    check(`${known} gets the shop's shell with 200`, page.status === 200 && page.type.includes("text/html") && /<div id="root">/.test(page.body), `${page.status} ${page.type}`);
+  }
+  for (const unknown of ["/this-route-does-not-exist", "/shop/a/b", "/wp-login", "/series/x/y/z"]) {
+    const page = await get(unknown);
+    check(`${unknown} answers 404 with the shop's shell`, page.status === 404 && page.type.includes("text/html") && /<div id="root">/.test(page.body), `${page.status} ${page.type}`);
+  }
+  /* The list the server answers from (apps/api/public-routes.mjs) and the shop's own router are one list. */
+  {
+    const { SHOP_ADDRESSES } = await import("../apps/api/public-routes.mjs");
+    const router = [...readFileSync(path.join(ROOT, "apps/storefront/src/App.tsx"), "utf8").matchAll(/<Route\s+path="([^"]+)"/g)].map((match) => match[1]).filter((address) => address !== "*");
+    const missing = router.filter((address) => !SHOP_ADDRESSES.includes(address));
+    const extra = SHOP_ADDRESSES.filter((address) => !router.includes(address));
+    check("every page of the shop's router is an address the server knows, and no other", router.length > 20 && missing.length === 0 && extra.length === 0, `router ${router.length}; not in the server's list: ${missing.join(", ") || "none"}; only in the server's list: ${extra.join(", ") || "none"}`);
+  }
 } finally {
   await stop();
   rmSync(dataDir, { recursive: true, force: true });

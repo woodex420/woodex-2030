@@ -1,4 +1,5 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { brand } from "@/config/brand";
 
 const faqs = [
   { q: "What types of furniture does WOODEX manufacture?", a: "WOODEX manufactures a comprehensive range of office and home furniture including executive desks, workstations, ergonomic chairs, meeting tables, reception counters, office sofas, storage solutions, and complete home furniture collections for bedrooms, living rooms, and dining rooms." },
@@ -6,7 +7,7 @@ const faqs = [
   { q: "What is the typical delivery timeline?", a: "Standard orders are delivered within 2–4 weeks. Custom furniture projects typically take 4–6 weeks depending on complexity. We also offer QuickShip options for select products with delivery within 7 business days." },
   { q: "Do you provide installation services?", a: "Absolutely. All WOODEX furniture comes with complimentary professional installation within Lahore. For other cities, our trained installation teams ensure your furniture is set up correctly and ready to use." },
   { q: "What warranty do you offer?", a: "We offer a comprehensive 5-year structural warranty on all WOODEX furniture, covering manufacturing defects in materials and workmanship. Extended warranty options are also available." },
-  { q: "Can I visit your showroom?", a: "Yes, our showroom is located at 123 Gulberg III, Main Boulevard, Lahore. We're open Monday to Saturday, 9am to 7pm. You can also explore our Virtual Showroom online for an immersive experience." },
+  { q: "Can I visit your showroom?", a: `Yes, our showroom is at ${brand.address.street}, ${brand.address.city}. We're open ${brand.hours}. You can also explore our Virtual Showroom online for an immersive experience.` },
 ];
 
 const FAQSection = () => (

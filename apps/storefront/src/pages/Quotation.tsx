@@ -271,7 +271,7 @@ const Quotation = () => {
       const body = encodeURIComponent(
         `Quotation Request\n\nClient: ${clientInfo.name}\nLocation: ${clientInfo.location}\nContact: ${clientInfo.contactNumber}\nWhatsApp: ${clientInfo.whatsapp}\n\nProducts:\n${itemsList}\n\nEstimated Total: ${estimateText}\nFinal payment terms will be included in formal quotation.`
       );
-      window.open(`mailto:info@woodex.pk?subject=${subject}&body=${body}`, "_blank");
+      window.open(`${brand.emailLink}?subject=${subject}&body=${body}`, "_blank");
       toast.success("Email draft opened. Review and send it yourself; Woodex did not send it automatically.");
     } else if (action === "whatsapp") {
       void createAndOpenBuilderHandoff();
@@ -339,6 +339,7 @@ const Quotation = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
+                  aria-label="Search products by name"
                   placeholder="Search products by name... (e.g. BALLMER, ergonomic chair)"
                   value={productSearch}
                   onChange={(e) => { setProductSearch(e.target.value); setShowProductSearch(true); }}
@@ -598,7 +599,7 @@ const Quotation = () => {
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="phone">Phone Number *</Label>
-                          <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+92 300 1234567" required />
+                          <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+92 3XX XXXXXXX" required />
                         </div>
                       </div>
                       <div className="grid md:grid-cols-2 gap-5">
@@ -667,7 +668,7 @@ const Quotation = () => {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="client-contact">Contact Number *</Label>
-              <Input id="client-contact" type="tel" placeholder="+92 300 1234567" value={clientInfo.contactNumber} onChange={(e) => setClientInfo(prev => ({ ...prev, contactNumber: e.target.value }))} />
+              <Input id="client-contact" type="tel" placeholder="+92 3XX XXXXXXX" value={clientInfo.contactNumber} onChange={(e) => setClientInfo(prev => ({ ...prev, contactNumber: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="client-whatsapp">WhatsApp Number *</Label>

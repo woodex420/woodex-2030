@@ -14,7 +14,7 @@ const CartDrawer = () => {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <button className="relative p-2 hover:bg-muted rounded-sm transition-colors">
+        <button className="relative p-2 hover:bg-muted rounded-sm transition-colors" aria-label={totalItems > 0 ? `Shopping cart, ${totalItems} ${totalItems === 1 ? "item" : "items"}` : "Shopping cart"}>
           <ShoppingCart className="h-5 w-5" />
           {totalItems > 0 && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent text-accent-foreground text-[10px] font-bold rounded-full flex items-center justify-center">

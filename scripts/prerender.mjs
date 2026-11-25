@@ -58,7 +58,7 @@ async function loadBrand() {
 }
 const BRAND = await loadBrand();
 /* Canonical origin baked into every prerendered page's canonical, OG and
-   JSON-LD tags. It defaults to the brand's production URL (woodex.pk), which is
+   JSON-LD tags. It defaults to the brand's own site (config/brand.ts), which is
    correct for the real site — but that domain is not attached to the Vercel
    deployment, and only woodex-2030.vercel.app is. SITE_URL lets the deployed
    origin be stated instead of assumed, so the tags describe the site actually
@@ -135,7 +135,11 @@ async function bundle() {
   const result = await build({
     entryPoints: [path.join(SRC, "main.tsx")],
     bundle: true, write: false, format: "iife", platform: "browser", jsx: "automatic",
-    loader: { ".jpg": "text", ".png": "text", ".svg": "text", ".css": "empty" },
+    /* No loader for pictures, on purpose. One stood here that read a picture as text, and the estimate on the
+       quotation page was written with its logo's bytes in the place of the picture's address: 36 KB of noise in
+       the page, and a request that failed at every visit. A picture is served from /img (src/assets/img.ts), not
+       imported; an import of one now stops this build and says which. */
+    loader: { ".css": "empty" },
     alias: { "@": SRC },
     define: {
       "process.env.NODE_ENV": '"production"',
@@ -179,9 +183,11 @@ function siteSchema() {
   return [
     {
       "@context": "https://schema.org", "@type": "Organization",
-      name: BRAND.legalName, url: ORIGIN + "/", logo: ORIGIN + "/img/woodex-logo.png",
+      name: BRAND.legalName, url: ORIGIN + "/", logo: ORIGIN + "/img/woodex-logo.jpg",
       contactPoint: [{ "@type": "ContactPoint", telephone: BRAND.phone, contactType: "sales", areaServed: BRAND.address.country, availableLanguage: ["en", "ur"] }],
-      sameAs: [`https://instagram.com/${BRAND.social.instagram}`, `https://facebook.com/${BRAND.social.facebook}`],
+      // Only the accounts the owner has named (config/brand.ts): a guessed handle tells a search engine that a stranger's account is this business's.
+      ...([BRAND.social.instagram && `https://instagram.com/${BRAND.social.instagram}`, BRAND.social.facebook && `https://facebook.com/${BRAND.social.facebook}`].filter(Boolean).length
+        ? { sameAs: [BRAND.social.instagram && `https://instagram.com/${BRAND.social.instagram}`, BRAND.social.facebook && `https://facebook.com/${BRAND.social.facebook}`].filter(Boolean) } : {}),
     },
     {
       "@context": "https://schema.org", "@type": "WebSite",
@@ -191,7 +197,7 @@ function siteSchema() {
     {
       "@context": "https://schema.org", "@type": "FurnitureStore",
       name: BRAND.name, url: ORIGIN + "/", telephone: BRAND.phone, email: BRAND.email,
-      priceRange: BRAND.currency, currenciesAccepted: BRAND.currency, paymentAccepted: "Cash, Bank Transfer, Card",
+      priceRange: BRAND.currency, currenciesAccepted: BRAND.currency, paymentAccepted: "Cash, Bank Transfer",
       address: { "@type": "PostalAddress", streetAddress: BRAND.address.street, addressLocality: BRAND.address.city, addressRegion: BRAND.address.region, postalCode: BRAND.address.postalCode, addressCountry: BRAND.address.country },
       openingHoursSpecification: [{ "@type": "OpeningHoursSpecification", dayOfWeek: BRAND.hoursRange.days, opens: BRAND.hoursRange.opens, closes: BRAND.hoursRange.closes }],
     },

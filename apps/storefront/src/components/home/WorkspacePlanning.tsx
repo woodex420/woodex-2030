@@ -76,10 +76,10 @@ const WorkspacePlanning = () => {
                 <Link to="/services">Explore Services <ArrowRight className="h-4 w-4 ml-2" /></Link>
               </Button>
               <div className="flex gap-2">
-                <button onClick={() => setCurrent((c) => (c - 1 + slides.length) % slides.length)} className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors">
+                <button onClick={() => setCurrent((c) => (c - 1 + slides.length) % slides.length)} aria-label="Previous planning service" className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors">
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <button onClick={() => setCurrent((c) => (c + 1) % slides.length)} className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors">
+                <button onClick={() => setCurrent((c) => (c + 1) % slides.length)} aria-label="Next planning service" className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors">
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
@@ -87,9 +87,11 @@ const WorkspacePlanning = () => {
           </div>
           <div className="relative">
             <img src={slide.image} alt={slide.title} className="w-full rounded-sm shadow-lg transition-opacity duration-500" />
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {slides.map((_, i) => (
-                <button key={i} onClick={() => setCurrent(i)} className={`h-1.5 rounded-full transition-all ${i === current ? "w-6 bg-accent" : "w-1.5 bg-foreground/30"}`} />
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex">
+              {slides.map((item, i) => (
+                <button key={i} onClick={() => setCurrent(i)} aria-label={`${i + 1}: ${item.title}`} aria-current={i === current ? "true" : undefined} className="flex h-6 min-w-6 items-center justify-center">
+                  <span className={`block h-1.5 rounded-full transition-all ${i === current ? "w-6 bg-accent" : "w-1.5 bg-foreground/30"}`} />
+                </button>
               ))}
             </div>
           </div>
