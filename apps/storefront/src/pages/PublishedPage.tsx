@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { NotFoundMeta } from "@/components/NotFoundMeta";
 import { ArrowRight, CheckCircle2, Star, Send, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { ProductImage } from "@/components/shop/ProductImage";
@@ -348,7 +349,8 @@ export default function PublishedPage() {
       <main className="wx-themed mx-auto max-w-5xl px-4 py-10 sm:px-6">
         {err && (
           <div className="mx-auto max-w-md rounded-2xl border bg-card p-10 text-center">
-            <p className="text-lg font-black">Nothing published here</p>
+            <NotFoundMeta />
+            <h1 className="text-lg font-black">Nothing published here</h1>
             <p className="mt-2 text-sm text-muted-foreground">{err}{!draft && doc === null && " — this page may still be a draft."}</p>
             <Button asChild className="mt-5 bg-primary text-primary-foreground hover:bg-primary/90"><Link to="/shop">Browse the catalog</Link></Button>
           </div>

@@ -63,3 +63,14 @@ globalThis.fetch = async () => { throw new Error('offline'); };
 res = reply(); await nativeMediaBridge(on)(req, res); shaped(res, 503, 'UNAVAILABLE');
 dom.window.close();
 console.log('PASS media mapping, repeat render, switched-off rollback, unsafe and old-shape manifests, image-error fallback, bridge origin/path/auth boundaries and its error shape');
+
+/* Built as Vercel builds a shop that is connected to no admin (scripts/build-vercel.mjs), the shop does not ask. */
+{
+  const off = await build({ entryPoints: ['apps/storefront/src/lib/mediaSync.ts'], bundle: true, format: 'esm', platform: 'node', write: false, define: { 'import.meta.env': '{"VITE_NATIVE_MEDIA":"off"}' } });
+  const silent = await import('data:text/javascript;base64,' + Buffer.from(off.outputFiles[0].text + '\n// off').toString('base64'));
+  let asked = 0;
+  globalThis.fetch = async () => { asked++; return switchedOff(); };
+  await silent.syncMediaMappings(); await silent.syncMediaMappings();
+  assert.equal(asked, 0, 'a shop built as not connected must not ask for the list of pictures');
+}
+

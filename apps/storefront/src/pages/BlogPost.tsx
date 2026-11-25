@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Link, useParams, Navigate } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import NotFound from "./NotFound";
 import { Calendar, Clock, User, ArrowLeft, ArrowRight, Share2, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,9 @@ const BlogPost = () => {
     }
   }, [post]);
 
-  if (!post) return <Navigate to="/blog" replace />;
+  /* An address of no article is "page not found", said in the title and with "noindex". It used to show the list
+     of articles under the wrong address. */
+  if (!post) return <NotFound />;
 
   const related = blogPosts.filter((p) => p.id !== post.id && p.category === post.category).slice(0, 3);
   const fallback = blogPosts.filter((p) => p.id !== post.id).slice(0, 3);

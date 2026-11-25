@@ -32,8 +32,11 @@ const QuoteBasket = () => {
       {/* Drawer */}
       <div
         ref={ref}
-        className={`fixed right-0 top-0 h-full w-full max-w-md bg-background shadow-2xl z-50 flex flex-col transition-transform duration-300 ${
-          isOpen ? "translate-x-0" : "translate-x-full"
+        /* Closed, the panel waits beside the window. Its shadow is drawn only while it is open: it used to fall
+           into the window as a pale band down the right edge of every page. And it is "invisible" while closed,
+           so that its buttons are not reached by the Tab key or read out. */
+        className={`fixed right-0 top-0 h-full w-full max-w-md bg-background z-50 flex flex-col transition-[transform,visibility] duration-300 ${
+          isOpen ? "translate-x-0 visible shadow-2xl" : "translate-x-full invisible"
         }`}
       >
         {/* Header */}
@@ -81,6 +84,7 @@ const QuoteBasket = () => {
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => updateQuantity(keyOf(item), item.quantity - 1)}
+                      aria-label={`One fewer ${item.name}`}
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
@@ -90,6 +94,7 @@ const QuoteBasket = () => {
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => updateQuantity(keyOf(item), item.quantity + 1)}
+                      aria-label={`One more ${item.name}`}
                     >
                       <Plus className="h-3 w-3" />
                     </Button>

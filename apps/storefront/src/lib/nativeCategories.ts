@@ -22,8 +22,14 @@ export const nativeCatalogue = () => current;
 export function nativeCategory(id: string) {
   return current?.categories.find(c => c.slug === id || (id === 'office' && c.slug === 'office-furniture') || (id === 'home' && c.slug === 'home-furniture'));
 }
+/* On Vercel the build knows whether this deployment is connected to an admin (scripts/build-vercel.mjs), and
+   where it is not, the shop does not ask at all. It asked at every visit and was told no: a refused request in
+   the visitor's browser and a call of the server function, for each page opened. Nothing is lost by knowing it
+   at build time there: a setting of the project reaches a new deployment only, and a new deployment builds the
+   shop again. Everywhere else the shop asks, as before. */
+const OFF_AT_BUILD = import.meta.env?.VITE_NATIVE_CATEGORIES === 'off';
 export async function syncNativeCategories() {
-  if (pending || Date.now() < pausedUntil) return;
+  if (OFF_AT_BUILD || pending || Date.now() < pausedUntil) return;
   pending = true;
   try {
     const response = await fetch('/api/v1/catalogue/categories', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(7000) });

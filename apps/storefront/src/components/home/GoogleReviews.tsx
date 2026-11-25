@@ -70,10 +70,10 @@ const GoogleReviews = () => {
               ))}
             </div>
             <div className="flex justify-center gap-2 mt-6">
-              <button onClick={() => setStartIdx((i) => (i - 1 + reviews.length) % reviews.length)} className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors">
+              <button onClick={() => setStartIdx((i) => (i - 1 + reviews.length) % reviews.length)} aria-label="Previous reviews" className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors">
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <button onClick={() => setStartIdx((i) => (i + 1) % reviews.length)} className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors">
+              <button onClick={() => setStartIdx((i) => (i + 1) % reviews.length)} aria-label="Next reviews" className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>

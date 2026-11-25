@@ -404,6 +404,7 @@ const ProductDetail = () => {
                       size="icon"
                       onClick={() => handleQuantityChange(-1)}
                       disabled={quantity <= 1}
+                      aria-label="One fewer"
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
@@ -412,6 +413,7 @@ const ProductDetail = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleQuantityChange(1)}
+                      aria-label="One more"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -433,7 +435,9 @@ const ProductDetail = () => {
                 {(unitPrice !== null || needsChoice) && (
                   <Button
                     size="lg"
-                    className={`flex-1 ${addedToCart ? "bg-hon-green-dark" : "bg-accent hover:bg-hon-green-dark"} text-accent-foreground`}
+                    /* "sm:flex-1", not "flex-1": on a phone the buttons stand one above the other, and there
+                       "flex-1" takes the button's own height away. It was 20 px high where it should be 44. */
+                    className={`sm:flex-1 ${addedToCart ? "bg-hon-green-dark" : "bg-accent hover:bg-hon-green-dark"} text-accent-foreground`}
                     disabled={!product.inStock || needsChoice}
                     onClick={handleAddToCart}
                   >
@@ -447,7 +451,7 @@ const ProductDetail = () => {
                 <Button
                   size="lg"
                   variant={unitPrice === null && !needsChoice ? "default" : "outline"}
-                  className={unitPrice === null && !needsChoice ? "flex-1 bg-accent hover:bg-hon-green-dark text-accent-foreground" : "border-accent text-accent hover:bg-accent hover:text-accent-foreground"}
+                  className={unitPrice === null && !needsChoice ? "sm:flex-1 bg-accent hover:bg-hon-green-dark text-accent-foreground" : "border-accent text-accent hover:bg-accent hover:text-accent-foreground"}
                   disabled={!product.inStock || needsChoice}
                   onClick={handleAddToQuote}
                 >

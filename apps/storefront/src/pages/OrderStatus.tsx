@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useSearchParams, Link } from "react-router-dom";
 import { Search, PackageCheck, Truck, Wrench, Factory, ClipboardCheck, Store, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { title } from "@/config/brand";
 
 type Lookup = {
   ref: string;
@@ -29,6 +30,7 @@ const STAGE_META: Record<string, { label: string; icon: typeof Factory }> = {
 export default function OrderStatus() {
   const [params] = useSearchParams();
   const location = useLocation();
+  useEffect(() => { document.title = title("Order status"); }, []);
   const passedToken = (location.state as CheckoutNavigationState | null)?.trackingToken ?? "";
   const [ref, setRef] = useState(params.get("ref") ?? "");
   const [token, setToken] = useState(passedToken);
@@ -78,7 +80,7 @@ export default function OrderStatus() {
         <form className="mt-8 grid max-w-lg gap-3 sm:grid-cols-[1fr_auto]" onSubmit={(event) => { event.preventDefault(); void lookup(); }}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={ref} onChange={(event) => setRef(event.target.value)} placeholder="Order reference, e.g. WX-4308" className="pl-9 font-semibold uppercase tracking-wide" autoComplete="off" />
+            <Input value={ref} onChange={(event) => setRef(event.target.value)} aria-label="Order reference" placeholder="Order reference, e.g. WX-4308" className="pl-9 font-semibold uppercase tracking-wide" autoComplete="off" />
           </div>
           <Button type="submit" disabled={busy || !ref.trim() || !token.trim()} className="bg-primary text-primary-foreground hover:bg-primary/90">
             {busy ? "Checking…" : "Track"}

@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { SeoBlock } from "@/data/seoContent";
 import { buildFaqJsonLd, buildCollectionJsonLd } from "@/data/seoContent";
+import { brand } from "@/config/brand";
 
 interface Props {
   seo: SeoBlock;
@@ -24,7 +25,7 @@ interface Props {
 const SeoContentBlock = ({ seo, path, hideIntro, hideFaqs }: Props) => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   // Canonical origin follows the deployment (preview hosts and production alike).
-  const origin = typeof window === "undefined" ? "https://woodex.pk" : window.location.origin;
+  const origin = typeof window === "undefined" ? brand.url : window.location.origin;
   const url = `${origin}${path}`;
 
   useEffect(() => {

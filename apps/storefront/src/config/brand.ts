@@ -24,36 +24,54 @@ export const brand = {
   description:
     "WOODEX designs and manufactures premium office furniture in Lahore — desks, ergonomic chairs, workstations and complete fit-outs, with 48-hour quotations and nationwide delivery.",
 
-  /** Canonical public origin. No trailing slash. */
-  url: "https://woodex.pk",
+  /** Canonical public origin. No trailing slash. It is the business's own site;
+      a deployment elsewhere states its own address in SITE_URL at build time. */
+  url: "https://woodexfurniture.pk",
+  /** The website as it is printed on an estimate. */
+  website: "www.woodexfurniture.pk",
 
-  /** Contact details used in LocalBusiness structured data. */
-  phone: "+92 300 1234567",
-  /** WhatsApp used by the quotation flow (`wa.me`); digits only. */
+  /* THE CONTACT FACTS. One place holds them, and every page, the printed
+     estimate and the structured data read them from here. `npm run test:facts`
+     fails on a telephone number, an e-mail address, a WhatsApp link or a street
+     written anywhere else in the storefront.
+
+     Where each comes from (decision DL-048):
+     - phone, WhatsApp and e-mail: given by the owner on 25 November 2026.
+     - the address and the point on the map: the business's own Google listing,
+       as woodexfurniture.pk/contact embeds it (read the same day). The owner
+       has not confirmed it in writing yet.
+     Until that day the storefront showed a sample telephone number, three sample
+     addresses and mailboxes on a domain that is not the business's. */
+  phone: "+92 322 4000768",
+  /** The same number as a link dials it. */
+  phoneLink: "tel:+923224000768",
+  /** WhatsApp (`wa.me`); digits only. */
   whatsapp: "923224000768",
-  email: "info@woodex.pk",
+  whatsappLink: "https://wa.me/923224000768",
+  email: "woodexofficefurniture@gmail.com",
+  emailLink: "mailto:woodexofficefurniture@gmail.com",
 
-  /** Registered address for structured data. */
-  /* NOTE: these were previously duplicated across ~8 components with two
-     different values (Gulberg III on the storefront, Johar Town on dashboard
-     invoices). Gulberg III is the value the public site uses consistently, so
-     it wins here — but confirm with the business before launch. */
+  /** The showroom, and the address in structured data. */
   address: {
-    street: "123 Gulberg III, Main Boulevard",
+    street: "LG 89, Zainab Tower, Model Town Link Road",
     city: "Lahore",
     region: "Punjab",
     country: "PK",
-    postalCode: "54660",
+    postalCode: "54700",
   },
+  /** Where the map opens. */
+  geo: { lat: 31.4663355, lng: 74.3164285 },
 
   /** Showroom opening hours, as one string and as a range. */
   hours: "Mon–Sat: 9am–7pm",
   hoursRange: { opens: "09:00", closes: "19:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] },
 
-  /** Social handles (without @). */
+  /** Social handles (without @). Empty until the owner names the accounts: the
+      two that stood here were never confirmed as the business's, and structured
+      data told search engines that they were. */
   social: {
-    instagram: "woodex.pk",
-    facebook: "woodex.pk",
+    instagram: "",
+    facebook: "",
   },
 
   /** Default social-share image, served from the API's single /img copy. */

@@ -30,7 +30,7 @@ const ClientLogos = () => {
           <p className="text-muted-foreground text-sm">Join 1,200+ satisfied clients across Pakistan who trust WOODEX for their furniture needs.</p>
         </div>
         <div className="relative flex items-center">
-          <button onClick={() => setOffset((o) => (o - 1 + clients.length) % clients.length)} className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors flex-shrink-0">
+          <button onClick={() => setOffset((o) => (o - 1 + clients.length) % clients.length)} aria-label="Previous clients" className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors flex-shrink-0">
             <ChevronLeft className="h-4 w-4" />
           </button>
           <div className="flex-1 grid grid-cols-3 md:grid-cols-5 gap-6 px-4">
@@ -40,7 +40,7 @@ const ClientLogos = () => {
               </div>
             ))}
           </div>
-          <button onClick={() => setOffset((o) => (o + 1) % clients.length)} className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors flex-shrink-0">
+          <button onClick={() => setOffset((o) => (o + 1) % clients.length)} aria-label="Next clients" className="w-8 h-8 rounded-full border border-border hover:border-accent flex items-center justify-center transition-colors flex-shrink-0">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

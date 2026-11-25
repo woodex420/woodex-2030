@@ -14,7 +14,16 @@ function run(args, env = process.env) {
 }
 
 run(["-w", "@woodex/dashboard", "run", "build"], { ...process.env, VITE_BASE_PATH: "/dashboard/" });
-run(["-w", "@woodex/storefront", "run", "build"]);
+/* What this deployment is connected to, told to the shop at build time (apps/storefront/src/lib/nativeCategories.ts
+   and mediaSync.ts say why). Only on Vercel: there a setting reaches the server function and this build together.
+   The two conditions are the two bridges' own (apps/api/native-category-bridge.mjs, native-media-bridge.mjs). */
+const links = {};
+if (process.env.VERCEL === "1") {
+  const admin = String(process.env.NATIVE_CATALOGUE_ORIGIN ?? "").trim();
+  if (!admin || process.env.NATIVE_CATEGORY_SYNC === "0") links.VITE_NATIVE_CATEGORIES = "off";
+  if (!admin || process.env.NATIVE_MEDIA_SYNC !== "1") links.VITE_NATIVE_MEDIA = "off";
+}
+run(["-w", "@woodex/storefront", "run", "build"], { ...process.env, ...links });
 
 /* Fail the build, not production. Two defects shipped as a READY deployment and
    left every /api request answering 405 while the database stayed empty:
@@ -87,5 +96,9 @@ for (const required of ["index.html", "dashboard/index.html", "robots.txt", "img
   if (pr.error) throw pr.error;
   if (pr.status !== 0) process.exit(pr.status ?? 1);
 }
+/* What the pages tell a visitor who wants to reach the business: one telephone number, one e-mail address, one
+   showroom, the business's own, on every page that was just written, and the bytes of no picture inside a page.
+   For weeks the shop showed a sample number in nineteen places and every check passed (decision DL-048). */
+run(["run", "test:facts", "--", "--built"]);
 
 console.log("[vercel-build] Storefront at /, Dashboard at /dashboard, shared API imagery at /img. Public routes prerendered.");

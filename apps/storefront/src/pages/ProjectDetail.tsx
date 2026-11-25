@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { img } from "@/assets/img";
+import { NotFoundMeta } from "@/components/NotFoundMeta";
 
 const projectsData = [
   {
@@ -170,6 +171,7 @@ const ProjectDetail = () => {
   if (!project) {
     return (
       <div className="min-h-screen flex flex-col">
+        <NotFoundMeta what="Project not found" />
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">

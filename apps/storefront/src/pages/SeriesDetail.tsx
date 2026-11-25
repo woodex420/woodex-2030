@@ -10,6 +10,7 @@ import { seriesList, getProductsBySeries } from "@/data/products";
 import { useCatalogStatus } from "@/lib/runtime";
 import { CatalogLoading, CatalogUnavailable } from "@/components/shop/CatalogNotice";
 import { useEffect } from "react";
+import { NotFoundMeta } from "@/components/NotFoundMeta";
 import SeoContentBlock from "@/components/SeoContentBlock";
 import { getSeriesSeo } from "@/data/seoContent";
 import { img } from "@/assets/img";
@@ -39,6 +40,7 @@ const SeriesDetail = () => {
   if (!series) {
     return (
       <div className="min-h-screen flex flex-col">
+        <NotFoundMeta what="Series not found" />
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">

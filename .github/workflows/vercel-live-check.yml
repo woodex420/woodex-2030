@@ -228,9 +228,21 @@ jobs:
           out="$(mktemp -d)"; fails=0; report=""
           note() { report="$report | $1"; }
           must() { if [ "$2" = "$3" ]; then note "ok $1"; else note "FAIL $1 (expected $3, got $2)"; fails=$((fails + 1)); fi; }
-          code() { curl -s -o "$out/body" -w '%{http_code}' --max-time 40 "$@"; }
+          code() { curl -s -o "$out/body" -D "$out/head" -w '%{http_code}' --max-time 40 "$@"; }
+          header() { tr -d '\r' < "$out/head" | grep -i "^$1:" | head -1 | sed 's/^[^:]*: *//'; }
+          has() { if grep -qF -- "$1" "$out/body"; then echo yes; else echo no; fi; }
+          # A check for something a branch adds can hold on the live site only once that branch is merged and
+          # built: on main it must hold, on a branch it is only written down.
+          expect() { if [ "${GITHUB_REF_NAME:-}" = "main" ]; then must "$@"; else note "after the merge: $1 (now $2, then $3)"; fi; }
 
           must "shop home page" "$(code "$SHOP/")" 200
+          # This address is the demo: it shows sample products at sample prices. Since 25 November 2026 it also
+          # shows the business's real telephone number, so it tells every search engine to stay out (vercel.json,
+          # decision DL-048). The day the shop opens under the business's own domain, that domain is not this one
+          # and carries no such header.
+          expect "the demo shop tells search engines to stay out" "$(header x-robots-tag | grep -c 'noindex')" 1
+          expect "the home page gives the business's own telephone number" "$(has '+92 322 4000768')" yes
+          expect "the home page gives no sample telephone number" "$(has '300 1234567')" no
           must "API health" "$(code "$SHOP/api/health")" 200
           must "…says ok" "$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('ok'))" "$out/body" 2>/dev/null)" True
           must "published catalogue" "$(code "$SHOP/api/products?limit=3")" 200

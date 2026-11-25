@@ -54,8 +54,11 @@ export function applyMediaMappings() {
 const DISABLED_PAUSE_MS = 10 * 60_000;
 let pausedUntil = 0;
 
+/* On Vercel the build knows whether this deployment is connected to an admin, and where it is not the shop does
+   not ask at all: see nativeCategories.ts, which says why. */
+const OFF_AT_BUILD = import.meta.env?.VITE_NATIVE_MEDIA === 'off';
 export async function syncMediaMappings() {
-  if (pending || Date.now() < pausedUntil) return;
+  if (OFF_AT_BUILD || pending || Date.now() < pausedUntil) return;
   pending = true;
   try {
     const response = await fetch('/api/v1/media', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(7000) });

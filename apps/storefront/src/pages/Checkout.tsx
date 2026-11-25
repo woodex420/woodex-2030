@@ -166,7 +166,7 @@ const Checkout = () => {
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="phone">Phone Number *</Label>
-                          <Input id="phone" type="tel" placeholder="+92 300 1234567" required value={formData.phone} onChange={(e) => handleChange("phone", e.target.value)} />
+                          <Input id="phone" type="tel" placeholder="+92 3XX XXXXXXX" required value={formData.phone} onChange={(e) => handleChange("phone", e.target.value)} />
                         </div>
                       </div>
                       <div className="space-y-1.5">

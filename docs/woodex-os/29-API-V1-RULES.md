@@ -105,7 +105,9 @@ A status the list does not know is answered as its family: a refusal as 400 `BAD
 The React shop's own server stands between the browser and two of these addresses (categories, photographs). It
 answers in the same error shape and adds two codes of its own, which this application never gives:
 `SWITCHED_OFF` (503: the shop's switch for that part is off) and `BAD_GATEWAY` (502: the admin did not answer, or
-not in the shape of this page).
+not in the shape of this page). A shop that Vercel builds while it is connected to no admin does not ask at all
+(`scripts/build-vercel.mjs`, decision DL-048): there the answer was known before the first visitor came, and
+every visit was two refused requests. Asked all the same, its server answers as above.
 
 The statuses of a good answer: **200** read, or a create that joined something that was there; **201** created;
 **202** taken and not processed (a request this application took for a robot's is answered 202 with `null` values,

@@ -6,7 +6,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { getService, getRelated, services } from "@/data/services";
 
-const WA_PHONE = "923001234567";
+import { brand } from "@/config/brand";
+
+const WA_PHONE = brand.whatsapp;
 
 const ServiceDetail = () => {
   const { slug } = useParams<{ slug: string }>();

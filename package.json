@@ -46,6 +46,7 @@
     "test:audit": "node scripts/test-audit-schema.mjs",
     "test:blocks": "node scripts/test-block-coverage.mjs",
     "test:public": "node scripts/test-public-surface.mjs",
+    "test:facts": "node scripts/test-storefront-facts.mjs",
     "test:stock": "node scripts/test-stock-ledger.mjs",
     "db:migrate:status": "node scripts/migrate.mjs --status",
     "test:restore": "node scripts/test-restore-drill.mjs",

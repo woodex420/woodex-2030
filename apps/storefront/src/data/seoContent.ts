@@ -3,6 +3,8 @@
 // Used by Shop.tsx, Series.tsx, SeriesDetail.tsx to render structured
 // long-form copy + FAQs + JSON-LD schema for Google & AI assistants.
 
+import { brand } from "@/config/brand";
+
 export interface SeoSection {
   h2: string;
   body: string;
@@ -42,7 +44,7 @@ export const buildCollectionJsonLd = (name: string, description: string, url: st
   name,
   description,
   url,
-  isPartOf: { "@type": "WebSite", name: "WOODEX", url: "https://woodex.pk" },
+  isPartOf: { "@type": "WebSite", name: brand.name, url: brand.url },
 });
 
 // Shared FAQs reused across furniture categories

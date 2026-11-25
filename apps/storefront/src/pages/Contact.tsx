@@ -12,10 +12,11 @@ import Footer from "@/components/Footer";
 import { img } from "@/assets/img";
 import { brand } from "@/config/brand";
 
+/* One showroom, and it is the address in config/brand.ts. Two more stood here, in Karachi and Islamabad, each
+   with a sample street and a number nobody can dial: they are gone until the owner gives a real address for
+   each (decision DL-048; scripts/test-storefront-facts.mjs names the samples and keeps them out). */
 const showrooms = [
-  { city: "Lahore (HQ)", address: `${brand.address.street}, ${brand.address.city}`, phone: brand.phone, hours: brand.hours },
-  { city: "Karachi", address: "456 Clifton Block 5, Karachi", phone: "+92 21 111 WOODEX", hours: "Mon–Sat: 9am–7pm" },
-  { city: "Islamabad", address: "789 Blue Area, F-7, Islamabad", phone: "+92 51 111 WOODEX", hours: "Mon–Sat: 10am–6pm" },
+  { city: brand.address.city, address: `${brand.address.street}, ${brand.address.city}`, phone: brand.phone, hours: brand.hours },
 ];
 
 const faqs = [
@@ -33,7 +34,7 @@ const Contact = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
-    document.title = "Contact Us — WOODEX Pakistan | Showrooms in Lahore, Karachi, Islamabad";
+    document.title = "Contact Us — WOODEX Pakistan | Showroom in Lahore";
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -78,7 +79,7 @@ const Contact = () => {
       <main className="flex-1">
         {/* Page Header with Hero Image */}
         <section className="relative h-72 overflow-hidden bg-primary">
-          <img src={img("contact-hero.jpg")} alt="WOODEX Office Showroom" className="w-full h-full object-cover opacity-30" />
+          <img src={img("hero-office.jpg")} alt="An open-plan office with rows of workstations" className="w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 flex items-center">
             <div className="container mx-auto px-4">
               <p className="text-accent text-xs font-bold uppercase tracking-widest mb-2">Contact Us</p>
@@ -98,9 +99,9 @@ const Contact = () => {
               <div className="space-y-4">
                 <h2 className="text-xl font-bold mb-6">Contact Information</h2>
                 {[
-                  { icon: Phone, title: "Call Us", lines: [brand.phone, "sales@woodex.pk"] },
+                  { icon: Phone, title: "Call or WhatsApp", lines: [brand.phone] },
                   { icon: Mail, title: "Email Us", lines: [brand.email] },
-                  { icon: MapPin, title: "Head Office", lines: [brand.address.street, `${brand.address.city}, Pakistan`] },
+                  { icon: MapPin, title: "Showroom", lines: [brand.address.street, `${brand.address.city}, Pakistan`] },
                   { icon: Clock, title: "Business Hours", lines: [brand.hours, "Sun: Closed"] },
                 ].map((item) => (
                   <div key={item.title} className="flex gap-4 p-4 border border-border rounded-sm hover:border-accent transition-colors">
@@ -149,7 +150,7 @@ const Contact = () => {
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="phone">Phone / WhatsApp</Label>
-                            <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+92 300 1234567" required={preferredChannel !== "email"} />
+                            <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+92 3XX XXXXXXX" required={preferredChannel !== "email"} />
                           </div>
                         </div>
                         <div className="grid md:grid-cols-2 gap-5">
@@ -198,8 +199,8 @@ const Contact = () => {
         <section className="border-t">
           <div className="w-full h-80 bg-section-mid">
             <iframe
-              title="WOODEX Head Office Location — Gulberg III, Lahore"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3401.456!2d74.3507!3d31.5204!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzHCsDMxJzEzLjQiTiA3NMKwMjEnMDIuNSJF!5e0!3m2!1sen!2spk!4v1234567890"
+              title={`${brand.name} showroom on the map: ${brand.address.street}, ${brand.address.city}`}
+              src={`https://www.google.com/maps?q=${brand.geo.lat},${brand.geo.lng}&z=16&output=embed`}
               className="w-full h-full border-0"
               allowFullScreen
               loading="lazy"
@@ -213,10 +214,10 @@ const Contact = () => {
           <div className="container mx-auto px-4">
             <div className="text-center mb-10">
               <div className="w-12 h-1 bg-accent mx-auto mb-4" />
-              <h2 className="text-3xl font-bold mb-3">Visit Our Showrooms</h2>
+              <h2 className="text-3xl font-bold mb-3">Visit Our Showroom</h2>
               <p className="text-muted-foreground">Experience our furniture in person</p>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="mx-auto grid max-w-md gap-6">
               {showrooms.map((s) => (
                 <div key={s.city} className="p-6 bg-background border rounded-sm hover:border-accent transition-colors">
                   <div className="w-8 h-1 bg-accent mb-4" />
@@ -263,7 +264,7 @@ const Contact = () => {
 
       {/* WhatsApp Floating Button */}
       <a
-        href="https://wa.me/923001234567?text=Hi%20WOODEX%2C%20I%27m%20interested%20in%20your%20furniture"
+        href={`${brand.whatsappLink}?text=Hi%20WOODEX%2C%20I%27m%20interested%20in%20your%20furniture`}
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[hsl(142,70%,45%)] hover:bg-[hsl(142,70%,38%)] text-white rounded-full flex items-center justify-center shadow-lg transition-colors"

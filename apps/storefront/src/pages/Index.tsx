@@ -78,12 +78,14 @@ const Index = () => {
             </div>
           </div>
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3">
-            <button onClick={prev} className="w-8 h-8 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/40 flex items-center justify-center text-primary-foreground transition-colors"><ChevronLeft className="h-4 w-4" /></button>
-            <button onClick={() => setPlaying(!playing)} className="w-8 h-8 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/40 flex items-center justify-center text-primary-foreground transition-colors">{playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}</button>
-            <button onClick={next} className="w-8 h-8 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/40 flex items-center justify-center text-primary-foreground transition-colors"><ChevronRight className="h-4 w-4" /></button>
-            <div className="flex gap-1.5 ml-2">
-              {slides.map((_, i) => (
-                <button key={i} onClick={() => setCurrent(i)} className={`h-1.5 rounded-full transition-all ${i === current ? "w-6 bg-accent" : "w-1.5 bg-primary-foreground/40"}`} />
+            <button onClick={prev} aria-label="Previous slide" className="w-8 h-8 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/40 flex items-center justify-center text-primary-foreground transition-colors"><ChevronLeft className="h-4 w-4" /></button>
+            <button onClick={() => setPlaying(!playing)} aria-label={playing ? "Pause the slides" : "Play the slides"} className="w-8 h-8 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/40 flex items-center justify-center text-primary-foreground transition-colors">{playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}</button>
+            <button onClick={next} aria-label="Next slide" className="w-8 h-8 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/40 flex items-center justify-center text-primary-foreground transition-colors"><ChevronRight className="h-4 w-4" /></button>
+            <div className="flex ml-2">
+              {slides.map((slide, i) => (
+                <button key={i} onClick={() => setCurrent(i)} aria-label={`Slide ${i + 1}: ${slide.title}`} aria-current={i === current ? "true" : undefined} className="flex h-6 min-w-6 items-center justify-center">
+                  <span className={`block h-1.5 rounded-full transition-all ${i === current ? "w-6 bg-accent" : "w-1.5 bg-primary-foreground/40"}`} />
+                </button>
               ))}
             </div>
           </div>
