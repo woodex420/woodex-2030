@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use App\Domain\Commerce\Models\Category;
+use App\Domain\Commerce\Models\ProductMedia;
 use App\Domain\Commerce\Services\CategoryContent;
+use App\Domain\Commerce\Services\ProductCatalogue;
 use App\Domain\Crm\Enums\LeadSource;
+use App\Domain\Media\Services\MasterMedia;
 use App\Domain\Sales\Models\CatalogItem;
 use App\Domain\Website\Models\Media;
 use App\Domain\Website\Services\StorefrontMedia;
@@ -60,6 +63,9 @@ const V1_ANSWERS = [
     ],
     'api.v1.catalogue.categories' => [200 => null, 400 => 'PARAMETER_NOT_ALLOWED', 429 => 'TOO_MANY_REQUESTS', 500 => 'SERVER_ERROR', 503 => 'UNAVAILABLE'],
     'api.v1.catalogue.categories.hero' => [200 => null, 400 => 'PARAMETER_NOT_ALLOWED', 404 => 'NOT_FOUND', 429 => 'TOO_MANY_REQUESTS', 500 => 'SERVER_ERROR'],
+    'api.v1.catalogue.products' => [200 => null, 400 => 'PARAMETER_NOT_ALLOWED', 404 => 'NOT_FOUND', 429 => 'TOO_MANY_REQUESTS', 500 => 'SERVER_ERROR', 503 => 'UNAVAILABLE'],
+    'api.v1.catalogue.products.show' => [200 => null, 400 => 'PARAMETER_NOT_ALLOWED', 404 => 'NOT_FOUND', 429 => 'TOO_MANY_REQUESTS', 500 => 'SERVER_ERROR', 503 => 'UNAVAILABLE'],
+    'api.v1.catalogue.products.picture' => [200 => null, 400 => 'PARAMETER_NOT_ALLOWED', 404 => 'NOT_FOUND', 429 => 'TOO_MANY_REQUESTS', 500 => 'SERVER_ERROR'],
     'api.v1.media' => [200 => null, 400 => 'PARAMETER_NOT_ALLOWED', 429 => 'TOO_MANY_REQUESTS', 500 => 'SERVER_ERROR'],
     'api.v1.media.file' => [200 => null, 400 => 'PARAMETER_NOT_ALLOWED', 404 => 'NOT_FOUND', 429 => 'TOO_MANY_REQUESTS', 500 => 'SERVER_ERROR'],
 ];
@@ -75,7 +81,7 @@ dataset('every documented answer', function () {
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('local');
-    config(['modules.enabled' => 'lead_api,quote_requests', 'woodex.category_sync_enabled' => true]);
+    config(['modules.enabled' => 'lead_api,quote_requests', 'woodex.category_sync_enabled' => true, 'woodex.product_sync_enabled' => true]);
 
     $business = app(BusinessSettings::class);
     $business->whatsapp = '+923001234567';
@@ -107,6 +113,34 @@ beforeEach(function () {
         $service->publish($category, $revision->id, 1, $admin);
 
         return [$category->id, $revision->id];
+    };
+
+    // A product of the admin, published the way an editor publishes it: reviewed, complete, previewed by the
+    // editor who publishes, with a photograph. Returns its slug, and the number of the picture.
+    // One published product, by the service the admin's own screens use, so that the copy the shop reads is the
+    // copy an editor's publication leaves behind.
+    $this->publishedProductWith = function (array $more = []): string {
+        $picture = UploadedFile::fake()->image('desk.png', 40, 40);
+        Storage::disk('local')->put('commerce/product-media/'.str_repeat('a', 64).'.png', file_get_contents($picture->getRealPath()));
+        $publisher = $this->userWithRole('owner');
+        $category = Category::where('slug', 'executive-tables')->sole();
+        $service = app(ProductCatalogue::class);
+        $form = array_replace([
+            'name' => 'SYNTHETIC Published Desk', 'slug' => 'synthetic-published-desk', 'price' => '42500.00',
+            'description' => 'A reviewed desk.', 'shipping' => 'Three weeks.', 'warranty' => 'One year.',
+            'category_ids' => [$category->id], 'primary_category_id' => $category->id, 'availability' => 'available',
+            'reviewed' => true,
+        ], $more);
+        $product = $service->save(null, $form, 0, $publisher);
+        // One photograph, saved the way the editor saves one: a new revision, so that the published copy carries it.
+        $media = ProductMedia::create(['product_id' => $product->id, 'path' => 'commerce/product-media/'.str_repeat('a', 64).'.png', 'sha256' => str_repeat('a', 64)]);
+        app(MasterMedia::class)->register($media);
+        $saved = $service->save($product->fresh(), [...$form, 'images' => [['id' => $media->id, 'alt' => 'A desk']]], $product->fresh()->version, $publisher);
+        // The editor opens the exact preview of what they are about to publish, then publishes it.
+        $this->actingAs($publisher)->get(route('admin.commerce.products.preview', $saved->fresh()))->assertOk();
+        $service->publish($saved->fresh(), $saved->fresh()->version, $publisher);
+
+        return (string) $saved->fresh()->slug;
     };
 
     // A photograph of the shop, replaced in the library and published.
@@ -169,6 +203,22 @@ beforeEach(function () {
 
                 return fn () => $this->get("/api/v1/catalogue/categories/{$category}/hero/{$revision}");
             },
+            'api.v1.catalogue.products' => function () {
+                ($this->publishedProductWith)();
+
+                return fn () => $this->getJson('/api/v1/catalogue/products');
+            },
+            'api.v1.catalogue.products.show' => function () {
+                $slug = ($this->publishedProductWith)();
+
+                return fn () => $this->getJson('/api/v1/catalogue/products/'.$slug);
+            },
+            'api.v1.catalogue.products.picture' => function () {
+                $slug = ($this->publishedProductWith)();
+                $url = $this->getJson('/api/v1/catalogue/products/'.$slug)->json('data.pictures.0.url');
+
+                return fn () => $this->get($url);
+            },
             'api.v1.media' => function () {
                 ($this->publishedPhoto)();
 
@@ -183,9 +233,9 @@ beforeEach(function () {
         // The ones that need something made first hand back the request itself.
         $plain = in_array($operation, ['api.v1.leads.store', 'api.v1.quote-requests.store'], true) ? $plain : $plain();
         $address = '/api/v1'.$this->contract->operations()[$operation]['path'];
-        $path = str_replace(['{category}', '{revision}', '{media}', '{version}'], '1', $address);
+        $path = str_replace(['{category}', '{revision}', '{media}', '{version}', '{image}'], '1', str_replace('{product}', 'synthetic-published-desk', $address));
         // The same address with numbers that name nothing.
-        $missing = str_replace(['{category}', '{revision}', '{media}', '{version}'], '987654', $address);
+        $missing = str_replace(['{category}', '{revision}', '{media}', '{version}', '{image}'], '987654', str_replace('{product}', 'no-such-product', $address));
         $isCreate = $this->contract->operations()[$operation]['method'] === 'POST';
 
         return match (true) {
@@ -267,6 +317,14 @@ beforeEach(function () {
 
                 return $plain();
             })(),
+
+            // The products. Off, the list and the one product say so; a filter naming nothing is not an empty list.
+            in_array($operation, ['api.v1.catalogue.products', 'api.v1.catalogue.products.show'], true) && $status === 503 => (function () use ($plain) {
+                config(['woodex.product_sync_enabled' => false]);
+
+                return $plain();
+            })(),
+            $operation === 'api.v1.catalogue.products' && $status === 404 => $this->getJson('/api/v1/catalogue/products?category=no-such-category'),
             $status === 404 => $this->get($missing),
             $status === 200 => $plain(),
         };
@@ -295,7 +353,7 @@ it('names every route under /api/v1 in the contract, and has a route for everyth
     ksort($routes);
 
     // Read the difference: a name on the left only is a route without its contract; on the right only, the reverse.
-    expect($routes)->toBe($contract)->and(count($routes))->toBe(7);
+    expect($routes)->toBe($contract)->and(count($routes))->toBe(10);
 });
 
 it('ends the group with one route for whatever nothing else owns, for every method', function () {
@@ -329,6 +387,31 @@ it('gives every address its door, with what the contract says the address takes'
 | 2. The contract is written so that it can be held.
 */
 
+it('names every value a fixed list may hold, so that a program can switch on it', function () {
+    $lists = [];
+
+    foreach ($this->contract->schemasOfAnswers() as $where => $schema) {
+        foreach ($schema['properties'] ?? [] as $property => $inner) {
+            // A list of values a field may hold, and the same inside a list of records.
+            foreach ([['', $inner], ['[]', $this->contract->resolve($inner)['items'] ?? null]] as [$suffix, $value]) {
+                if (! is_array($value)) {
+                    continue;
+                }
+                $value = $this->contract->resolve($value);
+                if (($value['type'] ?? null) === 'string' && isset($value['enum'])) {
+                    // Named by the schema it is in, never by the address that happens to answer it first.
+                    $lists[str_replace('#/components/schemas/', '', $where).'.'.$property.$suffix] = $value['enum'];
+                }
+            }
+        }
+    }
+
+    // The four values a product's availability and an option's may hold, and how the products relate.
+    expect($lists['Product.availability'])->toBe(['available', 'unavailable', 'on_request'])
+        ->and($lists['Product.related_mode'])->toBe(['off', 'manual', 'category'])
+        ->and($lists['ProductVariant.availability'])->toBe(['available', 'unavailable', 'on_request']);
+});
+
 it('is written in words this test can check, with no fraction and no loose object in any answer', function () {
     $document = $this->contract->document();
 
@@ -347,7 +430,11 @@ it('is written in words this test can check, with no fraction and no loose objec
             if ($status >= 400) {
                 expect($answer['schema'])->toBe(['$ref' => '#/components/schemas/Error'], "{$name} {$status} is the one error shape");
             } elseif ($answer['schema'] !== null) {
-                expect(array_keys($this->contract->resolve($answer['schema'])['properties']))->toBe(['data', 'meta'], "{$name} {$status} is {data, meta}");
+                // One thing is {data, meta}; one page of a list is {data, meta, links}, and nothing else is
+                // ever among them, in that order.
+                $keys = array_keys($this->contract->resolve($answer['schema'])['properties']);
+                expect($keys)->toBe(array_values(array_intersect(['data', 'meta', 'links'], $keys)), "{$name} {$status} is data and meta, and a page of a list brings its links")
+                    ->and($keys)->toContain('data', 'meta');
             } else {
                 expect($answer['types'])->toBe(['image/*'], "{$name} {$status} is a picture");
             }
@@ -373,7 +460,10 @@ it('is written in words this test can check, with no fraction and no loose objec
             if (str_ends_with((string) $property, '_at') && ($inner['format'] ?? null) !== 'date-time') {
                 $problems[] = "{$where}.{$property}: a moment that is not said to be written as one";
             }
-            if (str_ends_with((string) $property, '_minor') && ($inner['type'] ?? null) !== 'integer') {
+            // A price is a whole number of minor units; it may also be null, which means one thing only — no price
+            // was agreed, and the product is on_request. It never means zero: nothing free is in the shop by
+            // accident (rules §7; ProductControllerTest holds the pair together).
+            if (str_ends_with((string) $property, '_minor') && ! in_array('integer', (array) ($inner['type'] ?? null), true)) {
                 $problems[] = "{$where}.{$property}: money that is not a whole number";
             }
             if (preg_match('/(^|_)(amount|price|subtotal|rate|cost|balance|tax|discount)$/', (string) $property) === 1) {
@@ -511,7 +601,7 @@ it('refuses a body that is not a JSON object before it reads it', function () {
 
 it('answers 405 with the method the address takes, to every other method', function () {
     foreach ($this->contract->operations() as $name => $entry) {
-        $path = str_replace(['{category}', '{revision}', '{media}', '{version}'], '1', '/api/v1'.$entry['path']);
+        $path = str_replace(['{category}', '{revision}', '{media}', '{version}'], '1', str_replace('{product}', 'synthetic-published-desk', str_replace('{image}', '1', '/api/v1'.$entry['path'])));
 
         foreach (array_diff(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], [$entry['method']]) as $method) {
             $response = $this->json($method, $path, ['name' => 'Ayesha Khan']);

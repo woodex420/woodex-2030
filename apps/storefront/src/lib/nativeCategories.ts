@@ -10,7 +10,7 @@ export type NativeCategory = { id: number; slug: string; name: string; parent_id
 export type NativeCatalogue = { categories: NativeCategory[]; series: { id: string; name: string }[] };
 let current: NativeCatalogue | null = null;
 let signature = '';
-let pending = false;
+let pending: Promise<void> | null = null;
 /* Where the connection to the Laravel admin is switched off, the API says so
    (503, "SWITCHED_OFF"). The shop then asks again in ten minutes, not in fifteen
    seconds: on a site that has the connection off — every site, today — each
@@ -19,6 +19,21 @@ let pending = false;
 const DISABLED_PAUSE_MS = 10 * 60_000;
 let pausedUntil = 0;
 export const nativeCatalogue = () => current;
+/** A category of the admin by the number it is known by there — what a product's answer names it with. */
+export function nativeCategoryById(id: number) {
+  return current?.categories.find(c => c.id === id);
+}
+/**
+ * The way from the top of the admin's tree down to one category, the category itself last; empty when the tree
+ * does not have it. A tree that points at itself is followed once round and no further.
+ */
+export function nativeCategoryPath(id: number): NativeCategory[] {
+  const path: NativeCategory[] = [];
+  for (let node = nativeCategoryById(id); node && !path.includes(node) && path.length < 12; node = node.parent_id === null ? undefined : nativeCategoryById(node.parent_id)) {
+    path.unshift(node);
+  }
+  return path;
+}
 export function nativeCategory(id: string) {
   return current?.categories.find(c => c.slug === id || (id === 'office' && c.slug === 'office-furniture') || (id === 'home' && c.slug === 'home-furniture'));
 }
@@ -28,9 +43,15 @@ export function nativeCategory(id: string) {
    at build time there: a setting of the project reaches a new deployment only, and a new deployment builds the
    shop again. Everywhere else the shop asks, as before. */
 const OFF_AT_BUILD = import.meta.env?.VITE_NATIVE_CATEGORIES === 'off';
-export async function syncNativeCategories() {
-  if (OFF_AT_BUILD || pending || Date.now() < pausedUntil) return;
-  pending = true;
+/* Two callers at the same moment share one request: the products are read against the categories (a product
+   names its category by a number), so whoever reads the products waits for the answer that is already on its way
+   and asks no second time. */
+export function syncNativeCategories(): Promise<void> {
+  if (OFF_AT_BUILD || Date.now() < pausedUntil) return Promise.resolve();
+  pending ??= readNativeCategories().finally(() => { pending = null; });
+  return pending;
+}
+async function readNativeCategories(): Promise<void> {
   try {
     const response = await fetch('/api/v1/catalogue/categories', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(7000) });
     if (!response.ok) {
@@ -56,5 +77,4 @@ export async function syncNativeCategories() {
       window.dispatchEvent(new CustomEvent('woodex:runtime'));
     }
   } catch { /* Do not blank navigation when native host is unreachable. */ }
-  finally { pending = false; }
 }

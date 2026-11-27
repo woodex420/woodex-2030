@@ -312,19 +312,84 @@ final class AdminNavigation
     }
 
     /**
-     * Whether this person may use the destination. Two entries keep the rule their screens have always
-     * had: Approvals follows who can review anything at all, and Estimations is also open to website
-     * editors, who maintain the estimator's rates.
+     * Whether this person may use the destination.
+     *
+     * The route's own gate decides whenever it has one, so that this page cannot promise a screen and then
+     * refuse it: System → Access & team, Connections and Platform each admit one of two permissions, and
+     * reading only the registry's single permission hid them from a person who may open them (defect D-045,
+     * found on the hosted workspace: an accountant was offered nothing and a settings-only role lost the
+     * three hubs).
+     *
+     * Two entries keep the rule their screens have always had, because their gate is a named ability rather
+     * than a list in the route: Approvals follows who can review anything at all, and Estimations is also
+     * open to website editors, who maintain the estimator's rates.
      *
      * @param  array<string, mixed>  $item
      */
     private static function permitted(array $item, User $user): bool
     {
-        return match ($item['route'] ?? null) {
-            'admin.approvals' => OperationsSummary::canReview($user),
-            'admin.estimations.index' => $user->can('estimates.view') || $user->can('website.edit'),
-            default => $user->can($item['permission']),
-        };
+        $route = $item['route'] ?? null;
+
+        if ($route === 'admin.approvals') {
+            return OperationsSummary::canReview($user);
+        }
+
+        if ($route === 'admin.estimations.index') {
+            return $user->can('estimates.view') || $user->can('website.edit');
+        }
+
+        // The permissions the route itself asks for, read from its middleware: `can:x` (all of them) and
+        // `can-any:x,y` (one of them). Null when the route has no such gate.
+        $gate = self::routeGate($route);
+
+        if ($gate !== null) {
+            foreach ($gate['all'] as $permission) {
+                if (! $user->can($permission)) {
+                    return false;
+                }
+            }
+
+            return $gate['any'] === [] || $user->canAny($gate['any']);
+        }
+
+        return $user->can($item['permission']);
+    }
+
+    /**
+     * The permissions a named route gates on, or null when it gates on none.
+     *
+     * @return array{all: list<string>, any: list<string>}|null
+     */
+    private static function routeGate(?string $route): ?array
+    {
+        $router = $route === null ? null : Route::getRoutes()->getByName($route);
+
+        if ($router === null) {
+            return null;
+        }
+
+        $all = [];
+        $any = [];
+        foreach ($router->gatherMiddleware() as $middleware) {
+            if (! is_string($middleware)) {
+                continue;
+            }
+
+            if (str_starts_with($middleware, 'can-any:')) {
+                $any = array_values(array_filter(array_map(trim(...), explode(',', substr($middleware, 8)))));
+            } elseif (str_starts_with($middleware, 'can:')) {
+                $permission = trim(explode(',', substr($middleware, 4))[0]);
+                if ($permission !== '') {
+                    $all[] = $permission;
+                }
+            }
+        }
+
+        if ($all === [] && $any === []) {
+            return null;
+        }
+
+        return ['all' => array_values(array_unique($all)), 'any' => $any];
     }
 
     /**

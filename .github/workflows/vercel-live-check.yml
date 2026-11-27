@@ -137,6 +137,13 @@ jobs:
           expect "…and without a cookie" "$(tr -d '\r' < "$out/head" | grep -ci '^set-cookie:')" 0
           expect "/api/v1, the list of replaced photographs: 200" "$(code -H 'Accept: application/json' "$SITE/api/v1/media")" 200
           expect "…a whole list with its size" "$(jq -r 'if (keys == ["data","meta"]) and (.data | type == "array") and (.meta.total == (.data | length)) then "a whole list" else "another shape" end' "$out/body" 2>/dev/null || echo 'not JSON')" "a whole list"
+          # The products the admin published, which a shop reads (T-105, decision DL-049). The demo publishes
+          # nothing by itself, so the list may well be empty: what is asked is that the address is there, hands
+          # out a list in pages, and hands out no draft: a product that is in the list has a moment of publication.
+          expect "/api/v1, the published products: 200" "$(code -H 'Accept: application/json' "$SITE/api/v1/catalogue/products?per_page=100")" 200
+          expect "…a list in pages, each product with the moment it was published" "$(jq -r 'if (keys == ["data","links","meta"]) and (.data | type == "array") and (.meta.total >= (.data | length)) and ([.data[] | select((.published_at | type) != "string")] | length == 0) then "a list in pages" else "another shape" end' "$out/body" 2>/dev/null || echo 'not JSON')" "a list in pages"
+          note "published products on the demo: $(jq -r '.meta.total' "$out/body" 2>/dev/null || echo '?')"
+          expect "/api/v1, a product nobody published: 404" "$(code -H 'Accept: application/json' "$SITE/api/v1/catalogue/products/no-such-product-live-check")" 404
           # Only the site's own domain is open. The address Vercel keeps for the main branch must ask for a sign-in
           # to Vercel (the project setting "Deployment Protection"); so must every preview build.
           # An address that is not the site's own domain must send a visitor to Vercel's sign-in: 401, or a redirect
@@ -167,6 +174,43 @@ jobs:
           # One request from this runner's network: an impression, not a measurement.
           note "sign-in page first byte after $(curl -s -o /dev/null -w '%{time_starttransfer}' --max-time 40 "$SITE/admin/login") s with the function running"
 
+          # Which modules the live demo runs with (decision DL-045). The project on Vercel can set WOODEX_MODULES,
+          # and what it sets is written in platform/tools/vercel/as-deployed.conf: the rehearsal in CI runs with
+          # that file. From outside one module can be told. With the public website on, an address that nothing
+          # owns and that could be a page is sent to the same address with a slash; with it off, it is not found.
+          # When the live site and the file disagree, what is live is not what was rehearsed. That was so on
+          # 21 November 2026: the project was set to every module, the rehearsal ran with the demo's own two, and
+          # this check noticed four hours later, by a side effect.
+          wanted="$(grep -m1 '^WOODEX_MODULES=' platform/tools/vercel/as-deployed.conf 2>/dev/null | cut -d= -f2-)"
+          case ",$wanted," in *,'*',*|*,website,*) website=on ;; *) website=off ;; esac
+          #
+          # Who answered is asked first (issue #59). Every answer of the application carries its request number
+          # (X-Request-Id, document 29 §3); an answer without one came from in front of it. On 27 November 2026
+          # this address was answered 403 with no number, once, straight after the ten file names further down
+          # had been asked: Vercel's own protection had taken the runner for a scanner. Nothing was deployed in
+          # between, the application has no way to answer 403 here, and the same request twelve hours later got
+          # its 301. So this is asked BEFORE the file names now, an answer that is not the application's is asked
+          # again after a pause, and what was seen is written down either way: a failure here then says whether
+          # the modules differ or the application could not be asked.
+          asked=no
+          for attempt in 1 2 3; do
+            status="$(code "$SITE/no-such-page-live-check")"
+            if [ -n "$(header x-request-id)" ]; then asked=yes; break; fi
+            note "the modules, attempt $attempt: $status without the application's request number (x-vercel-mitigated: $(header x-vercel-mitigated), server: $(header server)): not the application's answer"
+            [ "$attempt" = 3 ] || sleep 20
+          done
+          case "$status $(header location)" in
+            "301 "*/no-such-page-live-check/) met=on ;;
+            "404 ") met=off ;;
+            *) met="neither ($status $(header location))" ;;
+          esac
+          note "the repository says the project sets WOODEX_MODULES=${wanted:-nothing: the demo keeps its own choice}"
+          if [ "$asked" = yes ]; then
+            must "the live demo runs with the modules that were rehearsed: the public website is $website (if the project's setting was changed on purpose, change platform/tools/vercel/as-deployed.conf)" "$met" "$website"
+          else
+            note "FAIL the application could not be asked which modules it runs with: three times in a minute the answer came from in front of it ($status)"; fails=$((fails + 1))
+          fi
+
           # Files of the application, asked by name: each is "not found" or "forbidden", and the answer holds
           # nothing of the file. A redirect is a failure: nothing may be offered in place of such a file. With
           # the public website switched on, its router sent a file's name to the same name with a slash (301)
@@ -180,23 +224,6 @@ jobs:
             else note "FAIL $file answered $status"; fails=$((fails + 1)); fi
           done
 
-          # Which modules the live demo runs with (decision DL-045). The project on Vercel can set WOODEX_MODULES,
-          # and what it sets is written in platform/tools/vercel/as-deployed.conf: the rehearsal in CI runs with
-          # that file. From outside one module can be told. With the public website on, an address that nothing
-          # owns and that could be a page is sent to the same address with a slash; with it off, it is not found.
-          # When the live site and the file disagree, what is live is not what was rehearsed. That was so on
-          # 21 November 2026: the project was set to every module, the rehearsal ran with the demo's own two, and
-          # this check noticed four hours later, by a side effect.
-          wanted="$(grep -m1 '^WOODEX_MODULES=' platform/tools/vercel/as-deployed.conf 2>/dev/null | cut -d= -f2-)"
-          case ",$wanted," in *,'*',*|*,website,*) website=on ;; *) website=off ;; esac
-          status="$(code "$SITE/no-such-page-live-check")"
-          case "$status $(header location)" in
-            "301 "*/no-such-page-live-check/) met=on ;;
-            "404 ") met=off ;;
-            *) met="neither ($status $(header location))" ;;
-          esac
-          note "the repository says the project sets WOODEX_MODULES=${wanted:-nothing: the demo keeps its own choice}"
-          must "the live demo runs with the modules that were rehearsed: the public website is $website (if the project's setting was changed on purpose, change platform/tools/vercel/as-deployed.conf)" "$met" "$website"
 
           if [ "$fails" = 0 ]; then echo "::notice title=woodex-os.vercel.app — all checks passed::${report# | }"; else echo "::error title=woodex-os.vercel.app — $fails check(s) failed::${report# | }"; exit 1; fi
   shop:

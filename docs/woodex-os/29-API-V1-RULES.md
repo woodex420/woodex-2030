@@ -129,7 +129,8 @@ ours, never instead of it; ours is the one in the answer.
   `meta.total`. It is never cut into pages: a client that read page one before a change and page two after it
   would hold a list that never existed.
 - Any other list comes in pages, with `page` and `per_page` as its query parameters, `meta.page`,
-  `meta.per_page`, `meta.total`, and `links`. **No address of today is in pages**; the builder for them
+  `meta.per_page`, `meta.total`, and `links`. **`GET /catalogue/products` is the first address in pages**
+  (T-105); every other list of today is whole. The builder for them
   (`ApiAnswer::page`) is written and tested, so that the first such list (the products, T-105) has one way to do
   it.
 - Which of the two a list is stands in the contract and does not change without a new version.
@@ -140,7 +141,8 @@ An address reads the query parameters its route names (`api.v1:query=a|b`) and n
 name is answered 400 `PARAMETER_NOT_ALLOWED`. So a filter that is misspelt does not silently hand out the
 unfiltered list, and a client cannot come to rely on a parameter that was never promised.
 
-None of the seven addresses of today takes a query parameter.
+Ten addresses of today. One takes query parameters: `GET /catalogue/products` reads `page`, `per_page`,
+`category`, `series` and `since`, and refuses any other (§5).
 
 ## 6. Creating: the `Idempotency-Key`
 
@@ -177,10 +179,29 @@ Money is a **whole number of minor units**: paisa for rupees. Its key ends in `_
 beside it in a key `currency` as three letters (`PKR`). So `"price_minor": 4250000, "currency": "PKR"` is
 Rs 42,500.00. Never a fraction, never text with a decimal point, never a formatted amount.
 
-No answer of today carries money. The rule is fixed now so that the first one that does (the products, T-105)
-has nothing to decide, and it is held in the code already: the builder of answers refuses to send any fraction,
-wherever it stands in an answer. A number that is not whole and is not money (a width in metres) is written as
-text.
+**`GET /catalogue/products` carries money** — `price_minor`, `was_price_minor`, `currency` on a product and on
+each of its options (T-105). The rule above has three consequences, each held by a test
+(`tests/Feature/Api/ProductCatalogueApiTest.php`):
+
+- A price is a whole number of paisa. The editor keeps rupees as text ("42500.50"); the answer converts once, and
+  the builder of answers refuses to send any fraction, wherever it stands in an answer.
+- **A product with no price is not a product that costs zero.** A product is published with a base price, or
+  with the editor's own word that it has none: the tick "Price on request" (decision DL-049, 27 November 2026).
+  Such a product is `on_request`, and its `price_minor` is `null`: no figure at all, on the product and on each
+  of its options. The shop shows the product, offers a quotation, and never a cart. Until 27 November
+  `on_request` repeated `availability` and a figure stood beside it; that shape was never switched on anywhere.
+- **`availability` is a second fact, and says nothing about the price**: whether the product can be ordered
+  (`available`, `unavailable`), or is made to order and confirmed when somebody asks (`on_request`). A product
+  with a price whose availability is confirmed on request still shows its price.
+- **An option without a price of its own is sold at the product's price**, as a quotation line already is. Its
+  `price_minor` then repeats what the product costs now.
+- **A product sold in one form carries its code in `sku`.** The admin keeps that code in a row with no colour,
+  material or size; the answer hands it out as the product's own `sku` and not as an option to choose. A product
+  sold in options has `sku: null`, and each option its own code.
+- `was_price_minor` is the regular price while a sale is on, and `null` at every other time: a sale price is
+  handed out only between its two dates.
+
+A number that is not whole and is not money (a width in metres) is written as text.
 
 ## 8. Times
 

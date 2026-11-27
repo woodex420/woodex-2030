@@ -4,8 +4,11 @@ import { refreshTheme } from "./theme";
 import { captureStorefrontLead } from "./leadCapture";
 import { Fragment, createElement, useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { products, catalog } from "@/data/products";
+import { products, catalog, hasCategoryLabel } from "@/data/products";
 import type { Product, ProductVariant } from "@/data/products";
+import { nativeCategoryPath, nativeCatalogue } from "./nativeCategories";
+import { readWhole } from "./nativeProducts";
+import type { Lookups } from "./nativeProducts";
 
 /**
  * WOODEX runtime bridge — the storefront and the dashboard share one backend
@@ -81,9 +84,14 @@ export async function syncCatalog(): Promise<number> {
   try {
     const res = await fetch("/api/products", { headers: { accept: "application/json" } });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const json = (await res.json()) as { items?: unknown };
-    if (!json || !Array.isArray(json.items)) throw new Error("unexpected catalogue reply");
-    const next = json.items.map(toProduct).filter((product): product is Product => product !== null);
+    const json = (await res.json()) as Record<string, unknown>;
+    /* Two answers can come from this one address, and the page must read both without being rebuilt:
+       the shop's own (a list in `items`), and — where the connection to the Laravel admin is switched on —
+       the admin's, in the shape its rules name (`data`, `meta`, `links`). The second carries money in paisa
+       and "ask us" as a switch, which ./nativeProducts.ts turns into the product the pages use. */
+    const next = Array.isArray(json?.items)
+      ? json.items.map(toProduct).filter((product): product is Product => product !== null)
+      : await nativeCatalogueWhole(json);
     const signature = JSON.stringify(next);
     if (catalog.status === "ready" && signature === lastCatalogSignature) return 0;
     const previousCount = products.length;
@@ -99,6 +107,42 @@ export async function syncCatalog(): Promise<number> {
     }
     return 0;
   }
+}
+
+/**
+ * Where a category of the admin stands on this shop's pages.
+ *
+ * The admin keeps categories in a tree of any depth, under two segments (office, home); this shop's sidebar knows
+ * two levels, a heading and its parts. The heading is the first category on the way down, below the segment,
+ * that this shop has a heading for ("Office Tables", "Office Chairs"); a level that only groups a menu
+ * ("Seating & more") is passed by. Where the shop has a heading for none of them, the first below the segment
+ * is the heading. The part is the category itself, when it is not the heading.
+ */
+const nativeLookups: Lookups = {
+  category: id => {
+    const path = nativeCategoryPath(id);
+    if (path.length === 0) return null;
+    const below = path.length > 1 ? path.slice(1) : path;
+    const heading = below.find(category => hasCategoryLabel(category.slug)) ?? below[0];
+    const own = path[path.length - 1];
+    return own === heading ? { category: heading.slug } : { category: heading.slug, subcategory: own.slug };
+  },
+  series: id => nativeCatalogue()?.series.find(series => series.id === String(id))?.id ?? null,
+};
+
+/**
+ * Every published product of the admin, as the shop's products: the first answer and every page after it
+ * (./nativeProducts.ts reads them). The products name their categories by number, so the categories are read
+ * first; a page is asked of this shop's own server, which asks the admin.
+ */
+async function nativeCatalogueWhole(first: Record<string, unknown>): Promise<Product[]> {
+  if (!nativeCatalogue()) await syncNativeCategories();
+
+  return readWhole(first, nativeLookups, async (page, perPage) => {
+    const res = await fetch(`/api/products?per_page=${perPage}&page=${page}`, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  });
 }
 
 /** The "Try again" button of the unavailable message. */

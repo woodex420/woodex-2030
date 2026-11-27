@@ -15,6 +15,12 @@ on:
       - "scripts/os-install.mjs"
       - "scripts/os-notice.mjs"
       - "scripts/lib/browser.mjs"
+      # A product from the admin to the shop (job "hostinger"): the journey, and the shop's side of the link.
+      - "scripts/os-product-to-shop.mjs"
+      - "apps/api/native-product-bridge.mjs"
+      - "apps/storefront/src/lib/nativeProducts.ts"
+      - "apps/storefront/src/lib/nativeCategories.ts"
+      - "apps/storefront/src/lib/runtime.ts"
       - ".github/workflows/os-ci.yml"
   pull_request:
     paths:
@@ -24,6 +30,12 @@ on:
       - "scripts/os-install.mjs"
       - "scripts/os-notice.mjs"
       - "scripts/lib/browser.mjs"
+      # A product from the admin to the shop (job "hostinger"): the journey, and the shop's side of the link.
+      - "scripts/os-product-to-shop.mjs"
+      - "apps/api/native-product-bridge.mjs"
+      - "apps/storefront/src/lib/nativeProducts.ts"
+      - "apps/storefront/src/lib/nativeCategories.ts"
+      - "apps/storefront/src/lib/runtime.ts"
       - ".github/workflows/os-ci.yml"
   workflow_dispatch:
 
@@ -429,13 +441,16 @@ jobs:
       E2E_REQUIRED: "1"
 
     services:
+      # This database keeps its files on the container's own disk, not in memory as the test jobs above do:
+      # the product journey below stops this server and starts it again, and what it reads afterwards has to
+      # be what MariaDB wrote to its files (the owner's acceptance of 27 November 2026: "it is in the
+      # persistent database"). In memory, a stop would empty it.
       mariadb:
         image: mariadb:10.11
         env:
           MARIADB_ROOT_PASSWORD: disposable-ci-root
         ports: ["3306:3306"]
         options: >-
-          --tmpfs /var/lib/mysql
           --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -pdisposable-ci-root --silent"
           --health-interval=5s
           --health-timeout=5s
@@ -582,6 +597,62 @@ jobs:
           node scripts/os-install.mjs --after-deploy --out "$RUNNER_TEMP/after-deploy" || echo "the owner after the next deployment" >> "$RUNNER_TEMP/failed"
           node scripts/os-notice.mjs "The next deployment on Apache and MariaDB 10.11" "$RUNNER_TEMP/after-deploy"
 
+      # The owner's acceptance of 27 November 2026 (decision DL-049, master list T-105): a product is typed into
+      # the admin that was just installed, published, and read by a visitor on the shop; changed, and withdrawn.
+      # Here it runs where the product will run: Apache, PHP 8.4, MariaDB 10.11, the release as Git carries it.
+      # The shop is the built shop on its own Node server, told where the admin is. In a sandbox the same journey
+      # runs on a database file (platform/tools/hostinger/rehearse-with-shop.sh), because the only database
+      # server a sandbox can fetch is older than the installer accepts.
+      - name: The shop, built, and told that it reads its products from this admin
+        run: |
+          if npm run vercel:build > "$RUNNER_TEMP/shop-build.log" 2>&1; then
+            grep -m1 'routes rendered' "$RUNNER_TEMP/shop-build.log" || true
+          else
+            tail -n 40 "$RUNNER_TEMP/shop-build.log"
+            echo "the shop's build" >> "$RUNNER_TEMP/failed"
+          fi
+          PORT=4185 WOODEX_SERVE_STATIC=dist WOODEX_DATA_DIR="$RUNNER_TEMP/shop-data" NODE_ENV=test \
+            NATIVE_CATALOGUE_ORIGIN=http://127.0.0.1:8080 NATIVE_PRODUCT_SYNC=1 NATIVE_MEDIA_SYNC=1 \
+            nohup node --experimental-sqlite apps/api/server.mjs > "$RUNNER_TEMP/shop.log" 2>&1 &
+          for attempt in $(seq 1 60); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4185/api/health)" = "200" ] && break
+            sleep 1
+          done
+          echo "the shop's server: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4185/api/health); the products it hands on from the admin: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4185/api/products)"
+
+      - name: A product made in the admin is what a visitor of the shop sees — with a price, and priced on request
+        env:
+          OS_BASE: http://127.0.0.1:8080
+          SHOP_BASE: http://127.0.0.1:4185
+        run: |
+          # One statement, asked of the admin's database by the database's own client.
+          cat > "$RUNNER_TEMP/query.sh" <<'SH'
+          #!/usr/bin/env bash
+          mysql --protocol=TCP -h 127.0.0.1 -uu123456789_woodex -pdisposable-ci-only -N -B u123456789_woodex -e "$1"
+          SH
+          # After the product is saved: the web server and the database server are stopped, and started again.
+          # What is read afterwards was kept by MariaDB's own files and by no process.
+          cat > "$RUNNER_TEMP/restart.sh" <<'SH'
+          #!/usr/bin/env bash
+          set -e
+          database="$(docker ps -q --filter ancestor=mariadb:10.11 | head -1)"
+          [ -n "$database" ] || { echo "the database server's container was not found" >&2; exit 1; }
+          docker stop woodex-hostinger "$database" > /dev/null
+          docker start "$database" > /dev/null
+          for attempt in $(seq 1 90); do
+            mysql --protocol=TCP -h 127.0.0.1 -uu123456789_woodex -pdisposable-ci-only -N -B u123456789_woodex -e 'SELECT 1' > /dev/null 2>&1 && break
+            sleep 1
+          done
+          docker start woodex-hostinger > /dev/null
+          SH
+          chmod +x "$RUNNER_TEMP/query.sh" "$RUNNER_TEMP/restart.sh"
+          OS_DB_QUERY_CMD="bash $RUNNER_TEMP/query.sh" OS_RESTART_CMD="bash $RUNNER_TEMP/restart.sh" \
+            node scripts/os-product-to-shop.mjs --out "$RUNNER_TEMP/product-priced" || echo "a product from the admin to the shop" >> "$RUNNER_TEMP/failed"
+          OS_DB_QUERY_CMD="bash $RUNNER_TEMP/query.sh" OS_PRICE_ON_REQUEST=1 \
+            node scripts/os-product-to-shop.mjs --out "$RUNNER_TEMP/product-on-request" || echo "a product priced on request, from the admin to the shop" >> "$RUNNER_TEMP/failed"
+          node scripts/os-notice.mjs "A product from the admin to the shop on Apache and MariaDB 10.11" "$RUNNER_TEMP/product-priced" "$RUNNER_TEMP/product-on-request"
+          tail -n 5 "$RUNNER_TEMP/shop.log" | cut -c1-300 || true
+
       - name: What the web server and the application wrote
         if: always()
         run: |
@@ -617,6 +688,9 @@ jobs:
           path: |
             ${{ runner.temp }}/install
             ${{ runner.temp }}/after-deploy
+            ${{ runner.temp }}/product-priced
+            ${{ runner.temp }}/product-on-request
+            ${{ runner.temp }}/shop.log
             ${{ runner.temp }}/apache.log
 
       - name: Pack the release that was just installed, for the job that publishes it

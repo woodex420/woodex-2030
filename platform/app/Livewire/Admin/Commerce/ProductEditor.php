@@ -346,7 +346,7 @@ final class ProductEditor extends Component
         $this->product->refresh();
         $this->version = $this->product->version;
         $this->confirmPublish = false;
-        $this->toast('Reviewed native product snapshot published. Live product backend cutover remains separate from category sync.');
+        $this->toast('Published. A shop that reads its products from this admin shows this product now.');
     }
 
     public function withdraw(): void
@@ -361,6 +361,7 @@ final class ProductEditor extends Component
         $this->product->refresh();
         $this->version = $this->product->version;
         $this->confirmWithdraw = false;
+        $this->toast('Publication withdrawn. The shop no longer shows this product.');
     }
 
     public function restoreRevision(int $id): void
@@ -379,6 +380,12 @@ final class ProductEditor extends Component
     {
         if ($key === null) {
             return;
+        }
+        // A price typed into a product that says "Price on request" is the editor's word that it has one now: the
+        // tick is taken off, where the editor sees it happen. The other way round nothing is taken away: ticking
+        // the box beside a price is refused when the draft is saved, and says which to clear.
+        if (filled($value) && preg_match('/^(?:price|sale_price|variants\.\d+\.(?:price|sale_price))$/', $key) === 1) {
+            $this->form['price_on_request'] = false;
         }
         if ($key === 'primary_category_id' && filled($value) && Category::whereKey($value)->exists() && ! in_array((int) $value, array_map('intval', $this->form['category_ids']), true)) {
             $this->form['category_ids'][] = (int) $value;

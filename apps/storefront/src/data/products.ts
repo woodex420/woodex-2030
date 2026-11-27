@@ -176,6 +176,8 @@ export const CATEGORY_LABELS: Record<string, string> = {
   "dining-chairs": "Dining Chairs",
   "dining-tables": "Dining Tables",
 };
+/** Whether this shop has a heading of its own for a category: its sidebar lists such a category at the top level. */
+export const hasCategoryLabel = (id: string): boolean => Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, id);
 export const categoryLabel = (id: string): string =>
   CATEGORY_LABELS[id] ?? id.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 

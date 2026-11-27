@@ -77,6 +77,63 @@ it('requires reviewed complete content exact per-user preview and explicit publi
     expect($product->fresh()->published_revision_id)->toBeNull()->and(DB::table('commerce_product_revisions')->where('product_id', $product->id)->count())->toBeGreaterThan(1);
 });
 
+it('says beside the form in words how a product is available, in how many categories, and what it costs', function () {
+    // Until 27 November the summary showed the stored key, "on_request", above a price: read as "price on
+    // request" by anybody, and it means "made to order" (decision DL-049: two facts, two words).
+    Livewire::test(ProductEditor::class)->set('form', nativeDraft(['price' => '185000', 'availability' => 'on_request']))
+        ->assertSee('Made to order · 1 category')->assertSee('PKR 185,000')->assertDontSee('on_request ·')->assertDontSee('1 categories');
+    Livewire::test(ProductEditor::class)->set('form', nativeDraft(['price' => '1200.50', 'availability' => 'available', 'category_ids' => []]))
+        ->assertSee('Available · 0 categories')->assertSee('PKR 1,200.50');
+    Livewire::test(ProductEditor::class)->set('form', nativeDraft(['price' => '', 'price_on_request' => true]))
+        ->assertSee('Price on request')->assertDontSee('Price not set');
+
+    // The list of products says the same of each product, in the same words.
+    app(ProductCatalogue::class)->save(null, nativeDraft(['price' => '185000', 'availability' => 'on_request']), 0, $this->editor);
+    Livewire::test(Products::class)->assertSee('PKR 185,000 · Made to order')->assertDontSee('· on_request')->assertDontSee('Confirm on request');
+
+    expect(ProductCatalogue::priceLabel(['price' => '', 'price_on_request' => false]))->toBe('Price not set')
+        ->and(ProductCatalogue::priceLabel(['price' => '99']))->toBe('PKR 99')
+        ->and(ProductCatalogue::availabilityLabel('unavailable'))->toBe('Unavailable')
+        ->and(ProductCatalogue::availabilityLabel(null))->toBe('Availability not chosen');
+});
+
+it('publishes a product without a price only on the word of its editor, and takes the word back when a price is typed', function () {
+    $editor = Livewire::test(ProductEditor::class)->set('form', nativeDraft(['price' => '']))->call('saveDraft')->assertHasNoErrors();
+    $product = Product::sole();
+    $editor->set('form.description', 'Reviewed.')->set('form.shipping', 'Reviewed.')->set('form.warranty', 'Reviewed.')->set('form.reviewed', true)
+        ->set('uploads', [UploadedFile::fake()->image('fixture.png')])->call('uploadImages')->assertHasNoErrors()
+        ->set('form.images.0.alt', 'Verified test fixture')->call('saveDraft')->assertHasNoErrors();
+    $this->get(route('admin.commerce.products.preview', $product))->assertOk()->assertSee('Price not set');
+
+    // No price and no word about it: refused, and the screen says what to do.
+    $editor->set('confirmPublish', true)->call('publish')->assertHasErrors('publish')->assertSee('Give a base price, or tick “Price on request”.');
+    expect($product->fresh()->published_revision_id)->toBeNull();
+
+    // The word (decision DL-049): saved, previewed, published, and no price was made up on the way.
+    $editor->set('form.price_on_request', true)->call('saveDraft')->assertHasNoErrors();
+    $this->get(route('admin.commerce.products.preview', $product))->assertOk()->assertSee('Price on request')->assertDontSee('Price not set');
+    $editor->set('confirmPublish', true)->call('publish')->assertHasNoErrors();
+    expect($product->fresh()->published_revision_id)->not->toBeNull()
+        ->and($product->fresh()->draft)->toMatchArray(['price' => '', 'price_on_request' => true]);
+    Livewire::test(Products::class)->assertSee('Price on request');
+
+    // A price typed afterwards takes the tick off, where the editor sees it happen.
+    $editor->set('form.price', '45000')->assertSet('form.price_on_request', false)->call('saveDraft')->assertHasNoErrors();
+    expect($product->fresh()->draft)->toMatchArray(['price' => '45000', 'price_on_request' => false]);
+
+    // The other way round nothing is taken away: the box ticked beside a price is refused, and the price stays.
+    $editor->set('form.price_on_request', true)->call('saveDraft')->assertHasErrors('price_on_request');
+    expect($product->fresh()->draft)->toMatchArray(['price' => '45000', 'price_on_request' => false]);
+});
+
+it('takes "price on request" back when a price is typed into the quick form, which has no such box', function () {
+    $product = app(ProductCatalogue::class)->save(null, nativeDraft(['price' => '', 'price_on_request' => true]), 0, $this->editor);
+
+    Livewire::test(Products::class)->call('openQuickEdit', $product->id)->set('quick.price', '52000')->call('saveQuickEdit')->assertHasNoErrors();
+
+    expect($product->fresh()->draft)->toMatchArray(['price' => '52000', 'price_on_request' => false]);
+});
+
 it('does not allow view-only users to mutate transfer or read unpublished media', function () {
     $product = app(ProductCatalogue::class)->save(null, nativeDraft(), 0, $this->editor);
     $fixture = UploadedFile::fake()->image('private.png');

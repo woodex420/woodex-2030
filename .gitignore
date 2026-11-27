@@ -8,6 +8,9 @@ data/*.db-*
 .env.*
 !.env.example
 *.local
+# A local note of a demo sign-in, if one is ever needed (the owner's rule of 27 November 2026, decision DL-049):
+# synthetic accounts only, a password made for it, never committed and never printed by a workflow.
+.local/
 *.log
 *.tsbuildinfo
 .DS_Store

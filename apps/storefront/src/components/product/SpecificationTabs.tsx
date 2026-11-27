@@ -108,10 +108,16 @@ const SpecificationTabs = ({ product }: SpecificationTabsProps) => {
                     promise free delivery "within UAE for orders above AED 2,000",
                     and free assembly for every item — a promise nobody confirmed. */}
                 <h4 className="font-medium mb-1">Delivery across Pakistan</h4>
-                <p className="text-sm text-muted-foreground">
-                  Delivery is {formatPKR(brand.delivery.fee)} per order and free on orders of {formatPKR(brand.delivery.freeFrom)} or more.
-                  Our team confirms the delivery date and the installation with you after your order.
-                </p>
+                {/* What the product's own editor wrote about its delivery and installation, where the product
+                    carries it (a product published in the admin does); the shop's general rule otherwise. */}
+                {product.shipping?.trim() ? (
+                  <p className="whitespace-pre-line text-sm text-muted-foreground">{product.shipping}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Delivery is {formatPKR(brand.delivery.fee)} per order and free on orders of {formatPKR(brand.delivery.freeFrom)} or more.
+                    Our team confirms the delivery date and the installation with you after your order.
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>

@@ -4,6 +4,7 @@ use App\Livewire\Admin\System\FeatureStatus;
 use App\Models\User;
 use App\Support\AdminNavigation;
 use Illuminate\Support\Facades\Route;
+use Spatie\Permission\Models\Permission;
 
 /*
 | The sidebar and the Feature status page are two views of one registry
@@ -92,6 +93,35 @@ it('tells each person only about what their role could use', function () {
         ->assertSee('Ledger &amp; reports', false)->assertSee('data-feature="workspace-preferences"', false)
         // The news of a release may name a screen; the list of destinations names only what this role could use.
         ->assertDontSee('data-feature="team-onboarding"', false);
+});
+
+it('follows the gate of each route, not one word of the registry', function () {
+    // D-045: the three System hubs each admit one of two permissions. Reading only the registry's single
+    // permission hid a screen the route itself opens, so this page could refuse to name a hub the sidebar
+    // offered — the two views disagreed. A person with settings.manage only reached nothing.
+    $settings = User::factory()->create(['is_active' => true]);
+    Permission::findOrCreate('settings.manage', 'web');
+    $settings->givePermissionTo('settings.manage');
+
+    $offered = collect(AdminNavigation::for($settings))->flatMap(fn (array $group): array => $group['items'])->pluck('route')->all();
+    $known = collect(AdminNavigation::status($settings))->flatMap(fn (array $group): array => $group['items'])->pluck('route')->all();
+
+    $this->actingAs($settings);
+    foreach (['admin.system.access', 'admin.settings', 'admin.system.platform'] as $route) {
+        // The sidebar offers it, the route opens it, and Feature status names it too.
+        expect(Route::has($route))->toBeTrue()
+            ->and($this->get(route($route))->getStatusCode())->toBe(200)
+            ->and($known)->toContain($route);
+    }
+    // Approvals is a named ability, not a permission list: settings alone is not a reviewer.
+    expect($offered)->not->toContain('admin.approvals')
+        ->and($known)->not->toContain('admin.approvals');
+
+    // A person may only be told of a destination that would open for them, if it opened.
+    $accountant = $this->userWithRole('accountant');
+    $this->actingAs($accountant);
+    $told = collect(AdminNavigation::status($accountant))->flatMap(fn (array $g): array => $g['items'])->pluck('id')->all();
+    expect($told)->toContain('payables', 'ledger-reports', 'feature-status', 'income-expenses');
 });
 
 it('keeps Feature status closed to someone with no access to the admin', function () {
