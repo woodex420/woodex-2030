@@ -650,7 +650,7 @@ jobs:
             node scripts/os-product-to-shop.mjs --out "$RUNNER_TEMP/product-priced" || echo "a product from the admin to the shop" >> "$RUNNER_TEMP/failed"
           OS_DB_QUERY_CMD="bash $RUNNER_TEMP/query.sh" OS_PRICE_ON_REQUEST=1 \
             node scripts/os-product-to-shop.mjs --out "$RUNNER_TEMP/product-on-request" || echo "a product priced on request, from the admin to the shop" >> "$RUNNER_TEMP/failed"
-          node scripts/os-notice.mjs "A product from the admin to the shop, on Apache and MariaDB 10.11" "$RUNNER_TEMP/product-priced" "$RUNNER_TEMP/product-on-request"
+          node scripts/os-notice.mjs "A product from the admin to the shop on Apache and MariaDB 10.11" "$RUNNER_TEMP/product-priced" "$RUNNER_TEMP/product-on-request"
           tail -n 5 "$RUNNER_TEMP/shop.log" | cut -c1-300 || true
 
       - name: What the web server and the application wrote

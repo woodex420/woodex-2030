@@ -83,8 +83,13 @@ together, installs it in a browser, starts the built shop against it and runs th
 number is asked again after a pause, up to three times, and written down; the question is asked before the ten
 file names; a failure says whether the modules differ or the application could not be asked.
 
-**The records**: 28 entries in the defect register (D-053 to D-080: this round's, and those owed since 19
+**The records**: 29 entries in the defect register (D-053 to D-081: this round's, and those owed since 19
 November); nine new lines in the master list (T-191 to T-199); decision DL-049; document 46.
+
+**The packages** (found by the first push, D-081): the audit failed on seven advisories against the Symfony
+packages the admin runs on, published since the lock file of 20 November. `main` carried them. The workflow
+`composer-update.yml` wrote a new lock file to the branch: 30 packages, Symfony at 8.1.12, Laravel at 13.44.1,
+Livewire at 4.4.10. Everything below was run again on them.
 
 ## The owner's seventeen steps
 
@@ -134,11 +139,12 @@ Apache and MariaDB 10.11: on this pull request.
 
 ## 1. Commit/branch/build identifier
 
-Branch `arena/85c0460e-woodex-2030`, from `main` at `31f2306`. Two commits: `982637b`, the merge of pull request
-#48's branch (head `3df14ec`), and one that carries this round. Against `main`: 68 files, 27 of them new. 24 of the admin
-(8 of its code, 6 screens, 5 test files, the contract, the routes, one setting, 2 tools), 7 of the shop, 2
-scripts, 3 workflows, `package.json`, `.gitignore`, 12 documents, 4 records of the acceptance and 14 pictures.
-The merge of #48 brought 40 of them; this round changed or added 47.
+Branch `arena/85c0460e-woodex-2030`, from `main` at `31f2306`. Four commits: `982637b`, the merge of pull
+request #48's branch (head `3df14ec`); `cb700d7`, this round; `e6be617`, the new lock file, written by the
+workflow; and one that records what the first push found. Against `main`: 69 files, 27 of them new. 25 of the
+admin (8 of its code, 6 screens, 5 test files, the contract, the routes, one setting, 2 tools, the lock file), 7
+of the shop, 2 scripts, 3 workflows, `package.json`, `.gitignore`, 12 documents, 4 records of the acceptance and
+14 pictures. The merge of #48 brought 40 of them; this round changed or added 48.
 
 The prompt names the branch `arena/bd1e6bb4-woodex-2030`. That branch was merged on 25 November (pull request
 #58) and is closed; this is the branch the session gives.
@@ -152,7 +158,9 @@ The prompt names the branch `arena/bd1e6bb4-woodex-2030`. That branch was merged
 - **CI** (`os-ci.yml`, job `hostinger`): Apache, PHP 8.4, MariaDB 10.11, the same release, the same journey; the
   web server and the database server are both stopped and started after the product is saved. That database
   keeps its files on disk (the test jobs keep theirs in memory), so what is read after the restart is what
-  MariaDB wrote. Its result is on the pull request; this report was written before it ran.
+  MariaDB wrote. **On `cb700d7` it held: 18 of 18 and 17 of 17, on MariaDB 10.11.19**, in both of that commit's
+  runs (46009728955 and 46009749225), with the suite on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4. That was
+  before the packages moved; the run on the last commit is on the pull request.
 - **The live sites**: nothing was written to Vercel, to Supabase or to Hostinger. No database of production was
   read or changed.
 
@@ -160,7 +168,7 @@ The prompt names the branch `arena/bd1e6bb4-woodex-2030`. That branch was merged
 
 | Command | Result |
 |---|---|
-| The whole Laravel suite (`tools/preview/sandbox/run-suite.sh`) | **2,905 pass, 36 skipped, none failing.** On the merge of #48 alone: 2,899 |
+| The whole Laravel suite (`tools/preview/sandbox/run-suite.sh`) | **2,905 pass, 36 skipped, none failing**, on the new packages and before them. On the merge of #48 alone: 2,899 |
 | `node scripts/os-product-to-shop.mjs`, with a price | **18 of 18** |
 | The same with `OS_PRICE_ON_REQUEST=1` | **17 of 17** |
 | `node scripts/os-install.mjs` (inside the rehearsal) | 8 of 8: installed in a browser |
@@ -169,11 +177,12 @@ The prompt names the branch `arena/bd1e6bb4-woodex-2030`. That branch was merged
 | `node scripts/test-storefront-facts.mjs`, `npm run secret-scan`, `npm run docs:verify` | pass |
 | `verify-acceptance.mjs`, `verify-plan.mjs`, `verify-table-map.mjs`, `verify-code-references.mjs` | pass |
 
-**Each new protection was taken out once, and its test failed**: thirteen changes, eight in the admin and five in
+**Each new protection was taken out once, and its test failed**: fourteen changes, nine in the admin and five in
 the shop. No price and no tick; `on_request` repeating the availability; an option without a price having none;
 the code row left among the options; a code of another product accepted; a price saved beside the tick; the tick
 kept when a price is typed; the import not saying "on request"; the reader stopping at the first page; a failed
-page skipped; the price question sent on to the admin; the admin's small page; the code not read.
+page skipped; the price question sent on to the admin; the admin's small page; the code not read; the summary
+beside the form put back to the stored key.
 
 ## 4. Browser/device coverage
 
@@ -182,10 +191,10 @@ tried: Safari, Firefox, a real phone, the live sites.
 
 ## 5. Defects open/closed by severity
 
-The register is open again: 80 entries, 62 closed.
+The register is open again: 81 entries, 63 closed.
 
 - **Entered and closed in this round**: D-053 to D-059, D-079 and D-080 (medium and low): the eleven faults of
-  the table above and issue #59. D-049 (from round 1) closed.
+  the table above and issue #59. D-081 (medium): the seven advisories. D-049 (from round 1) closed.
 - **Entered and open**: **D-060, high**: with the link on, an order or a basket for a product that only the
   admin has is refused. It blocks one release, the switch of the live shop, and is the next round (T-191).
 - **Owed since 19 November and entered now**: D-061 to D-078, the findings of the audit of 23 November: eleven

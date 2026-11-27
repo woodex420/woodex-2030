@@ -1121,6 +1121,21 @@
     "on": "2026-11-27",
     "how": "On unless an installation switches it off (DL-049): the addresses hand out a published product and nothing else, and whether a shop reads them is the shop's own switch. `Feature/Api/ProductCatalogueApiTest.php` holds both states, and the check of the live sites asks the demo for the list."
    }
+  },
+  {
+   "id": "D-081",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "Seven advisories against the Symfony packages the admin runs on",
+   "detail": "The audit of the packages failed on the first push of 27 November: seven advisories, published after the lock file of 20 November, each closed by version 8.1.12. `symfony/http-kernel`: forwarded headers that are not to be trusted can change the addresses a page writes (CVE-2026-133743). `symfony/mailer`: the demand for an encrypted connection can be got round by someone between the two servers (CVE-2026-133751, CVE-2026-133755). `symfony/routing`: an address can be made that leads to another host (CVE-2026-133746, CVE-2026-133754). `symfony/serializer`: a small CSV file can stop PHP, and a field marked to be left out is not always left out (CVE-2026-133761, CVE-2026-133752). `main` carried all seven, and so did both the demo and the release branch.",
+   "lines": [
+    "T-071"
+   ],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "The workflow `composer-update.yml` wrote a new `platform/composer.lock` to the branch (commit `e6be617`): 30 packages at the newest versions `composer.json` allows, the Symfony packages at 8.1.12. The whole suite ran on the new packages in the sandbox and in CI on three databases, and the product journey ran on them; the audit passes."
+   }
   }
  ]
 }

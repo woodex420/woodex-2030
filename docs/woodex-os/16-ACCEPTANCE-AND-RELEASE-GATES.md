@@ -412,7 +412,7 @@ may not.
 |---|---|---|---|---|---|
 | **Critical** | Data loss, privilege bypass, financial corruption, site unavailable | Blocks release | 1 | 0 | 1 |
 | **High** | Core workflow broken, wrong totals or status, major security or privacy issue | Blocks the release it affects | 2 | 0 | 8 |
-| **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 11 | 0 | 35 |
+| **Medium** | A workaround exists; significant experience or non-core defect | Needs the owner's acceptance | 11 | 0 | 36 |
 | **Low** | Cosmetic or a minor inconvenience | May be scheduled later | 4 | 0 | 18 |
 
 **Not closed (18)**
@@ -438,7 +438,7 @@ may not.
 | D-072 | Medium | 2026-11-23 | **Two-factor sign-in is off unless a site switches it on.** Document 43, AU-18. The admin holds money and customers; the owner's decision is T-022. | T-022, T-065 |
 | D-075 | Low | 2026-11-23 | **The shop takes its font from Google on every page.** Document 43, AU-23. Seen again on 27 November: where another server cannot be reached, the font does not arrive. | T-198 |
 
-**Closed (62)**
+**Closed (63)**
 
 | # | Severity | Found | Defect | Closed |
 |---|---|---|---|---|
@@ -504,6 +504,7 @@ may not.
 | D-078 | Low | 2026-11-23 | **A check that stood still was waited for half an hour, twice.** Document 43, AU-28: the step that fetches the browser waited for a package mirror to the limit of the job. | 2026-11-23. The fetch has a limit of its own, and where the mirror is silent the browser alone is fetched (pull request #57). |
 | D-079 | Low | 2026-11-27 | **A product read from the admin showed its own code as an option to choose, and the shop's general delivery sentence in place of its own.** Found in the browser, step 13 of the journey of document 45. The import writes a product's code into one row of options; the shop drew that row as a choice with one answer. And the delivery text an editor wrote for a product was not shown at all: the shop's one sentence stood there for every product. | 2026-11-27. The row with a code and no colour, material or size is the product's own code and is handed out as `sku` (DL-049; `Feature/Api/ProductCatalogueApiTest.php`); the shop prints it as the code, and prints the product's own delivery text where it has one (`scripts/test-native-product-reader.mjs`; the journey reads both on the page). |
 | D-080 | Low | 2026-11-27 | **The admin's product addresses shipped switched off, while the contract and document 33 said they were on.** `PRODUCT_SYNC_ENABLED` was off unless set. The first request of the rehearsal of 27 November was answered 503. The contract of `/api/v1` and document 33 both said "on unless set otherwise", as the categories are. | 2026-11-27. On unless an installation switches it off (DL-049): the addresses hand out a published product and nothing else, and whether a shop reads them is the shop's own switch. `Feature/Api/ProductCatalogueApiTest.php` holds both states, and the check of the live sites asks the demo for the list. |
+| D-081 | Medium | 2026-11-27 | **Seven advisories against the Symfony packages the admin runs on.** The audit of the packages failed on the first push of 27 November: seven advisories, published after the lock file of 20 November, each closed by version 8.1.12. `symfony/http-kernel`: forwarded headers that are not to be trusted can change the addresses a page writes (CVE-2026-133743). `symfony/mailer`: the demand for an encrypted connection can be got round by someone between the two servers (CVE-2026-133751, CVE-2026-133755). `symfony/routing`: an address can be made that leads to another host (CVE-2026-133746, CVE-2026-133754). `symfony/serializer`: a small CSV file can stop PHP, and a field marked to be left out is not always left out (CVE-2026-133761, CVE-2026-133752). `main` carried all seven, and so did both the demo and the release branch. | 2026-11-27. The workflow `composer-update.yml` wrote a new `platform/composer.lock` to the branch (commit `e6be617`): 30 packages at the newest versions `composer.json` allows, the Symfony packages at 8.1.12. The whole suite ran on the new packages in the sandbox and in CI on three databases, and the product journey ran on them; the audit passes. |
 <!-- /generated:defects -->
 
 ---
