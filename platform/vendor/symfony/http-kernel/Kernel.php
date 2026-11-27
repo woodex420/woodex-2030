@@ -45,11 +45,11 @@ abstract class Kernel extends AbstractKernel implements KernelInterface, Reboota
     private bool $resetServices = false;
     private bool $handlingHttpCache = false;
 
-    public const VERSION = '8.1.11';
-    public const VERSION_ID = 80111;
+    public const VERSION = '8.1.12';
+    public const VERSION_ID = 80112;
     public const MAJOR_VERSION = 8;
     public const MINOR_VERSION = 1;
-    public const RELEASE_VERSION = 11;
+    public const RELEASE_VERSION = 12;
     public const EXTRA_VERSION = '';
 
     public const END_OF_MAINTENANCE = '01/2027';
@@ -200,6 +200,7 @@ abstract class Kernel extends AbstractKernel implements KernelInterface, Reboota
     protected function initializeBundles(): void
     {
         $this->doInitializeBundles();
+        $this->bundleClasses = array_map('get_class', $this->bundles);
 
         foreach ($this->bundles as $name => $bundle) {
             $this->bundles[$name] = !$bundle instanceof BundleInterface ? new BundleAdapter($bundle) : $bundle;

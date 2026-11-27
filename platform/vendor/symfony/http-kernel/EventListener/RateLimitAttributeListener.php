@@ -12,6 +12,7 @@
 namespace Symfony\Component\HttpKernel\EventListener;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpKernel\Attribute\RateLimit;
 use Symfony\Component\HttpKernel\Event\ControllerArgumentsEvent;
 use Symfony\Component\HttpKernel\Event\ControllerAttributeEvent;
@@ -52,7 +53,14 @@ final class RateLimitAttributeListener implements EventSubscriberInterface
         }
 
         if (null === $attribute->key) {
-            $key = ($request->getClientIp() ?? 'unknown').'~'.$request->getPathInfo();
+            // Normalize the path's percent-encoding
+            $path = strtr(rawurlencode(rawurldecode($request->getPathInfo())), ['%2F' => '/']);
+            $ip = $request->getClientIp() ?? 'unknown';
+            // An IPv6 client commonly gets a whole /64 network, so limit it by that network
+            if (filter_var($ip, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV6)) {
+                $ip = IpUtils::anonymize($ip, 0, 8);
+            }
+            $key = $ip.'~'.$path;
         } elseif (!\is_string($key = $event->evaluate($attribute->key))) {
             throw new \TypeError(\sprintf('The value of the "$key" option of the "%s" attribute must evaluate to a string, "%s" given.', RateLimit::class, get_debug_type($key)));
         }

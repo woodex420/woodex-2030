@@ -20,6 +20,10 @@ be divided into several forms according to
 - absolute-path references, e.g. `/path`
 - relative-path references, e.g. `subpath`
 
+Passing a string that starts with a host and port, such as
+`example.com:8080/path`, to `GuzzleHttp\Psr7\Uri` is deprecated and will be
+rejected in 4.0. Start it with a scheme or with `//`.
+
 The following methods can be used to identify the type of the URI.
 
 ### `GuzzleHttp\Psr7\Uri::isAbsolute`
@@ -99,7 +103,9 @@ Registered names are otherwise intentionally permissive: single-label hosts such
 as `localhost`, underscores, sub-delims, and raw or percent-encoded non-ASCII
 (IDN) data are accepted and preserved as given, with no punycode conversion.
 Consumers that need DNS IDNs must perform the conversion themselves, with
-`GuzzleHttp\Psr7\Idna`.
+`GuzzleHttp\Psr7\Idna`. Passing non-ASCII data in a host to
+`GuzzleHttp\Psr7\Uri`, raw or percent-encoded, is deprecated and will be
+rejected in 4.0.
 
 Validity here is a statement about URI syntax only. It does not imply that the
 host resolves or that a client will interpret it exactly as written. A PSR-7 URI

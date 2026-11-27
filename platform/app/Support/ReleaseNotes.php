@@ -21,6 +21,20 @@ final class ReleaseNotes
     {
         return [
             [
+                'date' => '2026-11-27',
+                'title' => 'Products: price on request, one code for one product, and what you publish is what the shop shows',
+                'notes' => [
+                    'Products, Pricing & stock: a new box, "Price on request". Tick it to publish a product that has no price. The shop then prints no figure, says "Price on request" and takes a quotation request. Until now a product without a price could not be published at all.',
+                    'A product needs a price or that tick before it can be published, and never both: typing a price takes the tick off, and the tick beside a price is refused with the reason. No price is made up anywhere.',
+                    'Products, "Product code and options" (it was called "Structured variants"): a product sold in one form has one row with its code (SKU) and nothing else. A product sold in several colours, materials or sizes has a row for each. A row without a price is sold at the base price: the price no longer has to be typed a second time, which every product of the catalogue would have needed.',
+                    'One code names one product. A code that another product already has is refused when the draft is saved, whatever its capitals, and the screen names the product that has it.',
+                    'Availability: "Confirm on request" is now called "Made to order (confirmed on request)". It says whether a product can be ordered and nothing about its price: a product made to order keeps its price on the shop.',
+                    'Publishing: a shop that reads its products from this admin shows a product from the moment you publish it, with its photographs, code, description, specifications, delivery and warranty texts, and stops showing it the moment you withdraw it. A draft you save afterwards is seen by nobody until you publish again. The screen says so where it used to say that publishing changed nothing.',
+                    'The list of products and the preview say "Price on request" for such a product. They said "Price not set".',
+                    'The list of products and the summary beside the product form say in words how a product is available ("Made to order", not "on_request"), and write the price with its thousands.',
+                ],
+            ],
+            [
                 'date' => '2026-11-21',
                 'title' => 'The screens that ship switched off speak for a furniture company',
                 'notes' => [
@@ -71,6 +85,25 @@ final class ReleaseNotes
                     'Leads: "Newest first" and "Oldest first" now go by the date of the enquiry, the date you see under each reference. Leads brought in from a sheet with their own dates no longer stand on top as the newest.',
                     'Leads: the tick boxes are easier to hit with a mouse. The box looks the same; the space around it now counts.',
                     'Seven lists are drawn by one shared table now: Leads, Quotations, Invoices, Projects, Payables by age, Users and Receivables. On a wide screen they look as they did. A screen reader is told the name of each table, and which cell names a row.',
+                ],
+            ],
+            [
+                'date' => '2026-11-19',
+                'title' => 'Products and their pages can be read from this admin by the shop, and the shop is not switched on to them yet',
+                'notes' => [
+                    'Products: a published product is now readable outside this admin — its name, description, categories, series, price, availability and photographs — and so is the list of published products, in pages, narrowed by category or series. Only the copy you published is ever handed out: a draft, a withdrawn product and an archived one are not, and neither is a photograph of a draft or of an older copy.',
+                    'Prices are whole rupees and never a guess: a product published to ask about is handed out as "price on request" rather than as a figure, and a sale price is handed out only between the dates you set.',
+                    'This changes nothing you see on the live shop yet. The shop reads these new addresses only when a switch is turned on for it, and that switch is off in this release — so the shop shows exactly what it shows today. It is left off on purpose: every one of your 170 real products is still a draft, so a shop reading the published products would show an empty catalogue.',
+                    'One product was published on the throwaway demo workspace to prove the two ends fit together, and its database is thrown away at every start. No real product was published.',
+                ],
+            ],
+            [
+                'date' => '2026-11-19',
+                'title' => 'Feature status tells you about every screen you can open, and finds one by name',
+                'notes' => [
+                    'Feature status (System): the page now tells a person about the screens their own role can open, without a gap. A few System screens are open to either of two permissions — Access & team, Connections, Platform — and the page used to know only the first, so it left the others out while the menu offered them.',
+                    'Feature status: the four numbers at the top are filters now — press "Built, switched off" to see only those. A search box finds a destination by name, and says so when nothing matches.',
+                    'Feature status: what changed in each release sits below the list of destinations and opens one release at a time, so the page opens on what you came for. The "Open…" links are a comfortable size to press on a phone.',
                 ],
             ],
             [

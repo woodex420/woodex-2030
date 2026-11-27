@@ -46,7 +46,6 @@ final class QuoteParser implements InlineParserInterface
     {
         $char   = $inlineContext->getFullMatch();
         $cursor = $inlineContext->getCursor();
-        $index  = $cursor->getPosition();
 
         $charBefore = $cursor->peek(-1);
         if ($charBefore === null) {
@@ -64,11 +63,13 @@ final class QuoteParser implements InlineParserInterface
         $canOpen                        = $leftFlanking && ! $rightFlanking;
         $canClose                       = $rightFlanking;
 
-        $node = new Quote($char, ['delim' => true]);
+        // Kept so an unpaired double quote can still be turned into the right curly quote
+        $node = new Quote($char, ['delim' => true, 'can_close' => $canClose]);
         $inlineContext->getContainer()->appendChild($node);
 
         // Add entry to stack to this opener
-        $inlineContext->getDelimiterStack()->push(new Delimiter($char, 1, $node, $canOpen, $canClose, $index));
+        // Like other delimiters and brackets, the index is the position after the delimiter
+        $inlineContext->getDelimiterStack()->push(new Delimiter($char, 1, $node, $canOpen, $canClose, $cursor->getPosition()));
 
         return true;
     }

@@ -208,6 +208,8 @@ class PostgresGrammar extends Grammar
             'danish',
             'dutch',
             'english',
+            'esperanto',
+            'estonian',
             'finnish',
             'french',
             'german',
@@ -220,6 +222,7 @@ class PostgresGrammar extends Grammar
             'lithuanian',
             'nepali',
             'norwegian',
+            'polish',
             'portuguese',
             'romanian',
             'russian',
@@ -387,6 +390,16 @@ class PostgresGrammar extends Grammar
         }
 
         return $value;
+    }
+
+    /**
+     * Get the lock value for updating rows without blocking foreign key checks.
+     *
+     * @return string
+     */
+    public function getNoKeyUpdateLock()
+    {
+        return 'for no key update';
     }
 
     /**
