@@ -21,6 +21,20 @@ final class ReleaseNotes
     {
         return [
             [
+                'date' => '2026-11-27',
+                'title' => 'Products: price on request, one code for one product, and what you publish is what the shop shows',
+                'notes' => [
+                    'Products, Pricing & stock: a new box, "Price on request". Tick it to publish a product that has no price. The shop then prints no figure, says "Price on request" and takes a quotation request. Until now a product without a price could not be published at all.',
+                    'A product needs a price or that tick before it can be published, and never both: typing a price takes the tick off, and the tick beside a price is refused with the reason. No price is made up anywhere.',
+                    'Products, "Product code and options" (it was called "Structured variants"): a product sold in one form has one row with its code (SKU) and nothing else. A product sold in several colours, materials or sizes has a row for each. A row without a price is sold at the base price: the price no longer has to be typed a second time, which every product of the catalogue would have needed.',
+                    'One code names one product. A code that another product already has is refused when the draft is saved, whatever its capitals, and the screen names the product that has it.',
+                    'Availability: "Confirm on request" is now called "Made to order (confirmed on request)". It says whether a product can be ordered and nothing about its price: a product made to order keeps its price on the shop.',
+                    'Publishing: a shop that reads its products from this admin shows a product from the moment you publish it, with its photographs, code, description, specifications, delivery and warranty texts, and stops showing it the moment you withdraw it. A draft you save afterwards is seen by nobody until you publish again. The screen says so where it used to say that publishing changed nothing.',
+                    'The list of products and the preview say "Price on request" for such a product. They said "Price not set".',
+                    'The list of products and the summary beside the product form say in words how a product is available ("Made to order", not "on_request"), and write the price with its thousands.',
+                ],
+            ],
+            [
                 'date' => '2026-11-21',
                 'title' => 'The screens that ship switched off speak for a furniture company',
                 'notes' => [

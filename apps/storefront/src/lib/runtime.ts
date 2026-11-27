@@ -4,10 +4,11 @@ import { refreshTheme } from "./theme";
 import { captureStorefrontLead } from "./leadCapture";
 import { Fragment, createElement, useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { products, catalog } from "@/data/products";
+import { products, catalog, hasCategoryLabel } from "@/data/products";
 import type { Product, ProductVariant } from "@/data/products";
-import { nativeCategoryById, nativeCatalogue } from "./nativeCategories";
-import { toProducts } from "./nativeProducts";
+import { nativeCategoryPath, nativeCatalogue } from "./nativeCategories";
+import { readWhole } from "./nativeProducts";
+import type { Lookups } from "./nativeProducts";
 
 /**
  * WOODEX runtime bridge — the storefront and the dashboard share one backend
@@ -90,7 +91,7 @@ export async function syncCatalog(): Promise<number> {
        and "ask us" as a switch, which ./nativeProducts.ts turns into the product the pages use. */
     const next = Array.isArray(json?.items)
       ? json.items.map(toProduct).filter((product): product is Product => product !== null)
-      : nativeCataloguePage(json);
+      : await nativeCatalogueWhole(json);
     const signature = JSON.stringify(next);
     if (catalog.status === "ready" && signature === lastCatalogSignature) return 0;
     const previousCount = products.length;
@@ -109,19 +110,39 @@ export async function syncCatalog(): Promise<number> {
 }
 
 /**
- * One page of the admin's products, as the shop's products, or null when the answer is not the admin's shape.
+ * Where a category of the admin stands on this shop's pages.
  *
- * The admin names a product's category by a number; the shop names it by a slug. The categories the shop already
- * holds — read from the same admin, by ./nativeCategories.ts — are what the two are matched by.
+ * The admin keeps categories in a tree of any depth, under two segments (office, home); this shop's sidebar knows
+ * two levels, a heading and its parts. The heading is the first category on the way down, below the segment,
+ * that this shop has a heading for ("Office Tables", "Office Chairs"); a level that only groups a menu
+ * ("Seating & more") is passed by. Where the shop has a heading for none of them, the first below the segment
+ * is the heading. The part is the category itself, when it is not the heading.
  */
-function nativeCataloguePage(answer: Record<string, unknown>): Product[] {
-  const read = toProducts(answer, {
-    category: id => nativeCategoryById(id)?.slug ?? null,
-    series: id => nativeCatalogue()?.series.find(series => series.id === String(id))?.id ?? null,
-  });
-  if (read === null) throw new Error("unexpected catalogue reply");
+const nativeLookups: Lookups = {
+  category: id => {
+    const path = nativeCategoryPath(id);
+    if (path.length === 0) return null;
+    const below = path.length > 1 ? path.slice(1) : path;
+    const heading = below.find(category => hasCategoryLabel(category.slug)) ?? below[0];
+    const own = path[path.length - 1];
+    return own === heading ? { category: heading.slug } : { category: heading.slug, subcategory: own.slug };
+  },
+  series: id => nativeCatalogue()?.series.find(series => series.id === String(id))?.id ?? null,
+};
 
-  return read.products;
+/**
+ * Every published product of the admin, as the shop's products: the first answer and every page after it
+ * (./nativeProducts.ts reads them). The products name their categories by number, so the categories are read
+ * first; a page is asked of this shop's own server, which asks the admin.
+ */
+async function nativeCatalogueWhole(first: Record<string, unknown>): Promise<Product[]> {
+  if (!nativeCatalogue()) await syncNativeCategories();
+
+  return readWhole(first, nativeLookups, async (page, perPage) => {
+    const res = await fetch(`/api/products?per_page=${perPage}&page=${page}`, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  });
 }
 
 /** The "Try again" button of the unavailable message. */

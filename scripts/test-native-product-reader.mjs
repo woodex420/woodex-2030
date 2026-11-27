@@ -23,7 +23,7 @@ const reader = await import('data:text/javascript;base64,' + Buffer.from(bundle.
 /* ── The answer the admin gives (an example of the contract, docs/woodex-os/29-API-V1-RULES.md) ─────────────── */
 
 const desk = {
-  id: 'executive-desk', name: 'Executive Desk', slug: 'executive-desk',
+  id: 'executive-desk', name: 'Executive Desk', slug: 'executive-desk', sku: 'ET-10010',
   short_description: 'A desk for one.', description: 'A reviewed desk.', shipping: 'Three weeks.', warranty: 'One year.',
   category_ids: [3], primary_category_id: 3, series_ids: [7],
   availability: 'available', price_minor: 4250050, was_price_minor: null, currency: 'PKR', on_request: false,
@@ -33,13 +33,17 @@ const desk = {
   position: 1, revision: 2, published_at: '2026-11-19T10:00:00Z', updated_at: '2026-11-19T10:00:00Z',
 };
 const askDesk = {
-  ...desk, id: 'ask-desk', name: 'Ask Desk', slug: 'ask-desk', availability: 'on_request', on_request: true,
-  price_minor: 0,
+  ...desk, id: 'ask-desk', name: 'Ask Desk', slug: 'ask-desk', sku: null, availability: 'on_request', on_request: true,
+  price_minor: null,
 };
 const priced = {
   ...desk, id: 'sale-desk', name: 'Sale Desk', slug: 'sale-desk', price_minor: 800000, was_price_minor: 1000000,
 };
-const lookups = { category: id => (id === 3 ? 'executive-tables' : null), series: id => (id === 7 ? 'nova-series' : null) };
+// Category 3 is "Executive tables", a part of the heading "Office tables"; category 5 is a heading of its own.
+const lookups = {
+  category: id => (id === 3 ? { category: 'office-tables', subcategory: 'executive-tables' } : id === 5 ? { category: 'chairs' } : null),
+  series: id => (id === 7 ? 'nova-series' : null),
+};
 const page = {
   data: [desk, askDesk, priced],
   meta: { request_id: '4F7K-9Q2M-T8RB', page: 1, per_page: 24, total: 61 },
@@ -59,14 +63,28 @@ assert.equal(read.products.length, 3);
 const [first, ask, sale] = read.products;
 assert.equal(first.id, 'executive-desk', 'the shop links by the slug the admin knows the product by');
 assert.equal(first.price, 42501, 'the price in rupees');
-assert.equal(first.category, 'executive-tables', 'the category is the shop’s own name for it');
+assert.equal(first.category, 'office-tables', 'the heading the shop lists the product under');
+assert.equal(first.subcategory, 'executive-tables', 'and the part of that heading it stands in');
+assert.equal(first.sku, 'ET-10010', 'the code of a product sold in one form is its own');
+assert.equal(first.variants.length, 0, 'and is not an option to choose');
+assert.equal(reader.toProduct({ ...desk, primary_category_id: 5 }, lookups).subcategory, undefined, 'a product filed under a heading has no part');
+assert.equal(reader.toProduct({ ...desk, primary_category_id: 9 }, lookups).category, '', 'a category this shop does not have is no category');
 assert.equal(first.series, 'nova-series');
 assert.equal(first.priceOnRequest, false);
 assert.deepEqual(first.images, ['/api/v1/catalogue/products/executive-desk/picture/1/4'], 'a picture per row, at the admin’s address');
 assert.equal(first.isBestSeller, true);
 assert.equal(first.shipping, 'Three weeks.', 'the text an editor wrote is handed on as written');
-assert.equal(ask.priceOnRequest, true, '“ask us” is a switch the pages already understand');
+assert.equal(ask.priceOnRequest, true, '“price on request” is a switch the pages already understand');
 assert.equal(ask.inStock, true, 'a product to ask about is not a product out of stock');
+assert.equal(ask.sku, null);
+// Made to order says nothing about the price: the product keeps its figure, and is not "ask us".
+const madeToOrder = reader.toProduct({ ...desk, availability: 'on_request' }, lookups);
+assert.equal(madeToOrder.priceOnRequest, false, 'a product made to order still shows what it costs');
+assert.equal(madeToOrder.price, 42501);
+// A figure, or the word that there is none: an answer with both, or with neither, is not this API's.
+assert.equal(reader.toProduct({ ...desk, on_request: true }, lookups), null, 'a figure beside “on request” is refused');
+assert.equal(reader.toProduct({ ...desk, price_minor: null }, lookups), null, 'no figure and no word about it is refused');
+assert.equal(reader.toProduct({ ...desk, price_minor: -1 }, lookups), null);
 assert.equal(sale.originalPrice, 10000, 'the price it was reduced from, in rupees');
 
 // A product the editor marked unavailable cannot be ordered, by price or by quote.
@@ -78,6 +96,25 @@ assert.equal(reader.toProducts({ data: 'not a list' }, lookups), null);
 assert.equal(reader.toProduct({ ...desk, price_minor: 42.5 }, lookups), null, 'a fraction is not money of this API');
 assert.equal(reader.toProduct({ ...desk, slug: 'Not A Slug' }, lookups), null);
 assert.equal(reader.toProduct({ ...desk, on_request: 'yes' }, lookups), null);
+
+// The whole catalogue is read page after page, until the admin says there is none left. A catalogue of 170
+// products is eight pages of 24 or two of 100: a reader that stopped at the first showed 24 (D-054).
+{
+  const pageOf = (number, last) => ({
+    data: [{ ...desk, id: `desk-${number}`, slug: `desk-${number}`, name: `Desk ${number}` }],
+    meta: { request_id: '4F7K-9Q2M-T8RB', page: number, per_page: 100, total: 3 },
+    links: { self: `/api/v1/catalogue/products?page=${number}`, next: last ? null : `/api/v1/catalogue/products?page=${number + 1}`, prev: null },
+  });
+  const asked = [];
+  const whole = await reader.readWhole(pageOf(1, false), lookups, async (number, perPage) => { asked.push([number, perPage]); return pageOf(number, number === 3); });
+  assert.deepEqual(whole.map(product => product.id), ['desk-1', 'desk-2', 'desk-3'], 'every page is read, in order');
+  assert.deepEqual(asked, [[2, 100], [3, 100]], 'the pages after the first are asked for, the most the admin gives at a time, and no page after the last');
+  assert.deepEqual((await reader.readWhole(pageOf(1, true), lookups, async () => { throw new Error('asked'); })).length, 1, 'one page is one request');
+  // Half a catalogue is not the catalogue: a page that fails, or that is another shape, fails the whole reading.
+  await assert.rejects(reader.readWhole(pageOf(1, false), lookups, async () => { throw new Error('HTTP 503'); }), /HTTP 503/);
+  await assert.rejects(reader.readWhole(pageOf(1, false), lookups, async () => ({ items: [] })), /unexpected catalogue reply/);
+  await assert.rejects(reader.readWhole({ items: [] }, lookups, async () => pageOf(2, true)), /unexpected catalogue reply/);
+}
 
 // One row that cannot be read is dropped, and the rest of the page is still shown.
 const partial = reader.toProducts({ ...page, data: [desk, { id: 'broken' }, askDesk] }, lookups);
@@ -135,11 +172,28 @@ assert.equal(seen.options.headers.cookie, undefined, 'no cookie goes to the admi
 assert.equal(seen.options.headers.authorization, undefined, 'no authorization goes to the admin');
 assert.equal(res.data, JSON.stringify(page), 'the admin’s answer is handed on unchanged, byte for byte');
 assert.equal(res.headers['X-Request-Id'], '4F7K-9Q2M-T8RB', 'the number of the admin’s request travels with its answer');
+assert.equal(seen.url.searchParams.get('per_page'), '100', 'a page that does not say how many it wants is handed the most the admin gives');
+
+// A page that says how many it wants is handed that many.
+res = reply();
+await nativeProductBridge({ NATIVE_PRODUCT_SYNC: '1', NATIVE_CATALOGUE_ORIGIN: 'https://admin.example.test' })({ path: '/api/products', query: { per_page: '12' }, headers: {} }, res);
+assert.equal(seen.url.searchParams.get('per_page'), '12');
 
 // One product, and its address.
 res = reply();
 await nativeProductBridge({ NATIVE_PRODUCT_SYNC: '1', NATIVE_CATALOGUE_ORIGIN: 'https://admin.example.test' })({ path: '/api/products/executive-desk', query: {}, headers: {} }, res);
 assert.equal(seen.url.pathname, '/api/v1/catalogue/products/executive-desk');
+assert.equal(seen.url.searchParams.get('per_page'), null, 'one product is not a page');
+
+// What this shop's own database changed of a price: nothing, and the admin is not asked. A second writer of one
+// price is what the bridge ends, and the page that asks four times a minute is not told "not found" each time.
+seen = null;
+res = reply();
+await nativeProductBridge({ NATIVE_PRODUCT_SYNC: '1', NATIVE_CATALOGUE_ORIGIN: 'https://admin.example.test' })({ path: '/api/products/overrides', query: { since: '2026-11-27T00:00:00.000Z' }, headers: {} }, res);
+assert.equal(res.statusCode, 200);
+assert.deepEqual(res.data.items, [], 'no price of the shop’s own database stands over the admin’s');
+assert.ok(!Number.isNaN(Date.parse(res.data.serverTime)), 'the moment is given, as the page expects');
+assert.equal(seen, null, 'and the admin was not asked for it');
 assert.equal(res.statusCode, 200);
 
 // An address of the shop's own that is not a product is not passed on.
@@ -248,5 +302,13 @@ for (const option of forward.variants) {
 // And the id does not depend on which other options happen to be beside it.
 const alone = reader.toProduct({ ...desk, variants: [twoOptions.variants[0]] }, lookups);
 assert.equal(idOf(alone, 'HOF-10004'), idOf(forward, 'HOF-10004'), 'an option keeps its id when its neighbours are removed');
+
+// An option that is made to order keeps its price (D-049: the pill read "Price on request" beside a price).
+const madeOption = reader.toProduct({ ...desk, sku: null, variants: [{ ...twoOptions.variants[0], availability: 'on_request' }, twoOptions.variants[1]] }, lookups);
+assert.equal(madeOption.variants[0].priceOnRequest, false, 'an option made to order still shows what it costs');
+assert.equal(madeOption.variants[0].price, 18000);
+// An option has no figure only when the product has none.
+const askOptions = reader.toProduct({ ...askDesk, variants: [{ ...twoOptions.variants[0], price_minor: null }] }, lookups);
+assert.equal(askOptions.variants[0].priceOnRequest, true);
 
 console.log('Native product reader: paisa to rupees, “ask us” as a switch, a photograph at its own path, a dropped claim, an option’s identity kept when the list is reordered, the switch off, the bridge’s own refusals, and the admin’s answer handed on unchanged — all passed.');

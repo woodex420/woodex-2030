@@ -1,6 +1,6 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
-  "written": "2026-11-21",
+  "written": "2026-11-27",
   "commit": "effb443",
   "sizes": {
     "S": "small",
@@ -109,44 +109,48 @@
     "T-186": "Training and handover",
     "T-187": "Say whether Supabase keeps backups, or give the database address as a secret",
     "T-188": "The shop's old previews are gone",
-    "T-190": "The WhatsApp inbox takes the enquiry's turn before it asks who is writing"
+    "T-190": "The WhatsApp inbox takes the enquiry's turn before it asks who is writing",
+    "T-191": "With the product link on, a visitor can ask for a product of the admin",
+    "T-192": "`/api/v1`: series, filters and search",
+    "T-193": "One code for one product, held by the database",
+    "T-194": "The shop's named clients, projects and counts: confirmed or taken off",
+    "T-195": "An unknown address answers 404 on Vercel too",
+    "T-196": "The code style, the analyser and the database comparison in CI",
+    "T-197": "Compression, long life of built files and https on the host",
+    "T-198": "The shop's font in its own build",
+    "T-199": "A product's five steps to publication, with an approval that is kept"
   },
   "notes": {
     "T-080": "Done on the rehearsal on 17 November. What is left is the same journey on staging.",
-    "T-105": "The reading is built and proven on the rehearsal, behind a switch of the shop that stays off. Switching the live shop over, and closing the Node catalogue, also needs the real admin on Hostinger (T-133) and products that are published there (T-090); until then the line stays open.",
-    "T-115": "Building the prototype needs nobody. Accepting it is yours: gate C.",
+    "T-105": "Built in two rounds (19 and 27 November) and proved in a browser from the admin's form to a visitor's screen, behind a switch of the shop that stays off. Its last step, switching the live shop over and closing the Node catalogue, waits for a database for the real admin (T-006), for products published there (T-090) and for T-191; until then the line stays open.",
+    "T-115": "Building the prototype needs nobody, and what it needed of the catalogue is there since 27 November: the published products at `/api/v1`. It follows T-191. Accepting it is yours: gate C.",
     "T-188": "Nobody acts: Vercel deletes each preview 30 days after it was built. The outside check watches one of them.",
     "T-190": "Cannot happen today: the inbox is switched off and no WhatsApp account is connected (D-044). Done with the inbox's own acceptance (T-118), before it is switched on."
   },
   "rounds": [
     {
-      "name": "The shop reads its products from `/api/v1`, behind a switch that stays off",
-      "why": "P1, and the owner's word of 19 November (\"start as you recommend\", DL-037). Website Studio and Marketing, 17 of the 36 destinations of Feature status that are not open, wait for this line and then for the page builder (T-115); the Orders screen waits for it too. It is the first address of `/api/v1` in pages and the first that hands out money, so the rules of T-063 are tried on it before anything else is built on them.",
+      "name": "With the product link on, a visitor can ask for a product of the admin",
+      "why": "P0 since 27 November. The owner's acceptance of that day (a product made in the admin is what a visitor of the shop sees) holds, and found what stands between it and the live shop besides a database and published products: a visitor cannot yet ask for such a product. The shop's own server prices an order and a basket from its own database, which does not have a product that only the admin has, and refuses both (D-060). Until this is built the shop's switch stays off.",
       "lines": [
         {
-          "id": "T-105",
-          "size": "L",
-          "found": "Read in the code on 19 November; **built in round 1 and proven on the rehearsal, with the shop's switch off** (T-105, pull request opened 19 November; document 33 is the report). When the plan was written the shop read its products from its own Node API (`/api/products`, and `/api/products/overrides` for changed prices and stock), which reads the shop's database: the 148 sample products (D-007), and `/api/v1` had no address for products. Now `/api/v1` has three, the shop has a bridge and a reader behind `NATIVE_PRODUCT_SYNC` (off unless it is set to `1`), and the switch is off in this release. What remains is the owner's, not the code's: publishing the 170 real products through the admin's own review (T-090) and then turning the reader on, which also needs the real admin on Hostinger (T-133). Categories, series and pictures it could already read from `/api/v1`, through two bridges of the Node API; they are untouched. The basket still prices its lines from the sales catalogue by the shop's own product number, not from these products (D-047).",
+          "id": "T-191",
+          "size": "M",
+          "found": "Read on 27 November on the rehearsal of document 45, with the link on: the product's page offers \"Add to Cart\" and \"Add to Quote\". An order for it (`POST /api/orders`) and a basket (`POST /api/quotes`) are both answered 400, \"item 1 is not an available catalog product\". The shop can already send an enquiry and a basket to the admin's `/api/v1` (its `v1` mode, built with T-063 and off in every build); the admin's module `quote_requests` receives a basket and is off as it ships, and asks for an explicit mapping from the shop's product number to a product of the admin. Orders do not exist in the admin (T-106).",
           "build": [
-            "`GET /api/v1/catalogue/products`, in pages, and one product by its address: only the published copy of a product that is not archived, never the draft. Prices as whole paisa with the currency, times in UTC, the filters the contract names (category, series, changed since) and no other. Written into `platform/resources/api/v1.openapi.json` and document 29 first.",
-            "The pictures of a published product at an address of their own, as the categories' pictures are.",
-            "A bridge in the shop's Node API and a reader in the React shop that turn the answer into the product the pages use today, behind a switch of the shop that stays off. With the switch off the shop reads exactly what it reads today.",
-            "How a basket of products read from Laravel is priced: the round decides it, records the decision, and a test sends such a basket."
+            "The shop knows where its catalogue came from. For a product read from the admin the cart is not offered: the page offers the quotation basket and WhatsApp, and says in one line that it is made to order and quoted. A cart that already holds such a product says so and offers to move it to the basket.",
+            "A basket line is read by the admin by the product's address (its slug), which is what the shop knows a product of the admin by: the module `quote_requests` needs no mapping table for such a line, checks that the product is published, and keeps the name, the code and the price as they were published at that moment.",
+            "The rehearsal of document 45 builds the shop in `v1` mode, so that the enquiry and the basket of the journey are sent to the admin."
           ],
           "tests": [
-            "The contract test names the new routes, and each answer is compared with the contract key by key: success, a page beyond the last, a filter that is not allowed (400), a product that is not published (404), too many requests (429).",
-            "A draft, a withdrawn product and an archived one are never handed out, by the list or by their own address; what is handed out is the published copy, also when the draft was changed after it.",
-            "Money arrives as whole paisa; a product without a price is \"on request\" and carries no figure; a sale price is handed out only between its two dates.",
-            "The shop's reader is run against the answers the contract documents, in CI's `build-and-test`, and against a real answer of Laravel on the rehearsal: the same name, price and pictures arrive in the product the pages use.",
-            "With the switch off the shop asks Laravel nothing: its build and its existing scripts give what they gave before.",
-            "After the merge the outside check asks the products address on the live demo."
+            "The admin's suite: a basket with a published product is a lead with its lines; with a draft, a withdrawn or an archived product it is refused by the code the contract names, and nothing is written; a product priced on request is taken without a figure; the same basket sent twice is one lead (the idempotency key).",
+            "The shop's reader script: a product read from the admin offers no cart; a product read from the shop's own database offers what it offers today.",
+            "The contract test: the changed body of `POST /api/v1/quote-requests`, key by key."
           ],
           "browser": [
-            "On the rehearsal a product is published in the admin by a browser. The shop's bridge, pointed at that rehearsal, hands it to the shop's reader, and the product is shown with its name, price and picture. Withdrawn in the admin, it is gone from the shop."
+            "`scripts/os-product-to-shop.mjs` gains three steps after step 13: the visitor puts the published product into the basket and sends it; the owner finds the lead in the admin with the product, its code and its price on its line; no button of the product's page was answered with a refusal."
           ],
-          "against": "With the draft handed out in place of the published copy, the test of the unpublished product names it; with the sale window taken away, a sale price arrives outside its dates; with the shop's reader left reading rupees where paisa arrive, its script names the price; with the bridge's route for a product's photograph taken away, its script fails (D-048 — the defect a browser found after the whole suite was green).",
-          "back": "The shop's switch stays off: the live shop reads what it reads today, and the round changes no setting of either Vercel project. The new addresses hand out only published products, and none is published on the demo. The Node catalogue is not closed in this round.",
-          "released": "2026-11-19, round 1: the addresses, the bridge, the reader and the tests are merged with the shop's switch off. Nothing the live shop shows changes. Reported in document 33."
+          "against": "With the cart left on for a product of the admin, the journey's new step names the refusal; with the admin taking a basket line of a draft, its test names the draft; with the price taken from the request, the test of the published price names it.",
+          "back": "The shop's switch stays off, so no visitor sees any of it. With the switch off the shop offers its cart exactly as today; the `v1` mode is a setting of a build and no live build has it."
         }
       ]
     },

@@ -185,10 +185,19 @@ each of its options (T-105). The rule above has three consequences, each held by
 
 - A price is a whole number of paisa. The editor keeps rupees as text ("42500.50"); the answer converts once, and
   the builder of answers refuses to send any fraction, wherever it stands in an answer.
-- **A product with no price is not a product that costs zero.** Publication refuses a product without a base
-  price, so every published product carries a figure; what the shop must not do is print it as a buying price
-  when the editor published it to ask about. That is the switch `on_request`, and `availability` says it in the
-  admin's own words. The shop shows the product, offers a quote, and never a cart.
+- **A product with no price is not a product that costs zero.** A product is published with a base price, or
+  with the editor's own word that it has none: the tick "Price on request" (decision DL-049, 27 November 2026).
+  Such a product is `on_request`, and its `price_minor` is `null`: no figure at all, on the product and on each
+  of its options. The shop shows the product, offers a quotation, and never a cart. Until 27 November
+  `on_request` repeated `availability` and a figure stood beside it; that shape was never switched on anywhere.
+- **`availability` is a second fact, and says nothing about the price**: whether the product can be ordered
+  (`available`, `unavailable`), or is made to order and confirmed when somebody asks (`on_request`). A product
+  with a price whose availability is confirmed on request still shows its price.
+- **An option without a price of its own is sold at the product's price**, as a quotation line already is. Its
+  `price_minor` then repeats what the product costs now.
+- **A product sold in one form carries its code in `sku`.** The admin keeps that code in a row with no colour,
+  material or size; the answer hands it out as the product's own `sku` and not as an option to choose. A product
+  sold in options has `sku: null`, and each option its own code.
 - `was_price_minor` is the regular price while a sale is on, and `null` at every other time: a sale price is
   handed out only between its two dates.
 

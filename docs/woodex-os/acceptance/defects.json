@@ -715,13 +715,17 @@
   {
    "id": "D-049",
    "severity": "low",
-   "state": "open",
+   "state": "closed",
    "found": "2026-11-19",
    "title": "On a published product's page the variant pill prints \"Price on request\" beside a price",
    "detail": "Seen on the rehearsal with one product published from Laravel: the page's product-level line is right (a price, or \"Price on request\" when the editor published it to ask), but the option pill under \"Option:\" carries the same wording at all times, so a product with a real price shows both a figure and \"Price on request\" in the same column. Cosmetic, not in round 1's two acceptance criteria, and belonging to the price rule of D-047 rather than to the reading of the admin: nothing in the reader is wrong.",
    "lines": [
     "T-105"
-   ]
+   ],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "The pill read \"Price on request\" whenever an option was made to order. Since 27 November availability says nothing about the price (DL-049): an option has no figure only when the product has none, and an option without a price of its own arrives with the product's. `scripts/test-native-product-reader.mjs` holds it: an option made to order still shows what it costs."
+   }
   },
   {
    "id": "D-050",
@@ -766,6 +770,356 @@
    "closed": {
     "on": "2026-11-19",
     "how": "A retreat from SQL, after two attempts to reconcile the engines' JSON dialects were wrong in the same way. The category and the series a product is in are now read from the published revision's content in PHP (PublishedCatalogue::kept()), with one semantics on every engine and every writer, and the suite runs that path on SQLite, MySQL and MariaDB. The numbers may be stored as numbers or as text and either files the product. The cost is recorded in document 33 §8 and in the code: with 170 products the filter and the page are applied after the rows are read, which is invisible now and is the first thing to measure before the catalogue is large. The test 'it files a product whose numbers are written as text, on every database' writes a revision's numbers as text exactly as the program that caused this did; it cannot fail on SQLite, which is why the fault reached CI, and it fails if the reading is put back into SQL."
+   }
+  },
+  {
+   "id": "D-053",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "A product without a price could not be published, and none of the 170 real products could be published as it was imported",
+   "detail": "Document 43, AU-13, and what reading the code on 27 November added to it. Publication asked for a base price: 33 of the 170 have none. It also asked every option row for a price of its own, and the import writes each product's code into one such row without a price: so all 170 were refused as imported, not 33.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "A product is published with a price or with its editor's tick \"Price on request\", never both and never neither; an option without a price is sold at the product's price, as a quotation line already was (DL-049). `Feature/NativeProductsTest.php`, `Feature/Api/ProductCatalogueApiTest.php` and `Feature/WoodexCatalogueImportTest.php` hold it: no product of the import is refused by the price rule."
+   }
+  },
+  {
+   "id": "D-054",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "The shop's reader took one page of products: a catalogue of 170 would have shown 24",
+   "detail": "Round 1 (document 33). The admin hands its products out in pages of 24, 100 at most; the shop's reader asked once and read what came. Found by reading the reader against the real catalogue's size; no test of round 1 had more products than a page.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "The reader asks page after page until the admin says there is none left, and the shop's bridge asks for the largest page when the shop does not say; a page that fails makes the whole reading fail, so that half a catalogue is never shown as the catalogue (`apps/storefront/src/lib/runtime.ts`, `apps/api/native-product-bridge.mjs`; `scripts/test-native-product-reader.mjs`)."
+   }
+  },
+  {
+   "id": "D-055",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "Every product whose availability was \"confirm on request\" was handed out as \"ask us\": the real catalogue would have shown no price at all",
+   "detail": "Round 1 (document 33) handed `on_request` out as a repeat of `availability`, and the shop hid the price then. The import sets that availability on all 170 products, because the capture holds no stock figure; 137 of them have a price. The shape was never switched on anywhere.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "`on_request` is the editor's own word that a product has no price, and `price_minor` is null exactly then; `availability` is a second fact and says nothing about the price (DL-049, document 29 §7). Held by `Feature/Api/ProductCatalogueApiTest.php` (a product made to order keeps its price) and by the reader's script."
+   }
+  },
+  {
+   "id": "D-056",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "A product read from the admin could stand in no category, and stood under a heading of its own in the shop's list",
+   "detail": "Round 1. The reader matched a product's category by the categories it had read so far; when the products arrived first, every product had none, until the next reading a minute later. And it took the category's own address as the shop's heading, so that \"Executive tables\" stood beside \"Office tables\" and not under it.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "The products are read after the categories (one request, shared by whoever waits for it), and a product is placed under the shop's heading and part by the way from the top of the admin's tree (`runtime.ts`, `nativeCategories.ts`). The browser journey finds the product in its category (`scripts/os-product-to-shop.mjs`, step 11)."
+   }
+  },
+  {
+   "id": "D-057",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "One code could be given to two products",
+   "detail": "A code was compared inside one product only. Two products could carry the same code, in the admin and so in the shop, an order and a quotation.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "A code that another product has is refused when a draft is saved and again at publication, without regard to capitals or to the spaces around it, and the screen names the product that has it (DL-049; `Feature/Api/ProductCatalogueApiTest.php`). Two saves in the same moment are not yet stopped by the database: T-193."
+   }
+  },
+  {
+   "id": "D-058",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "With the product link on, every open page was told \"not found\" four times a minute",
+   "detail": "The shop asks its own server every fifteen seconds what changed of a price or of stock. With the link on, that question went on to the admin as if it were a product's address, and was answered 404: a refused request and a red line in the visitor's console, for each open page, and a call of the admin for nothing.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "The shop's bridge answers the question itself, with an empty list: the shop's own database changes no price of a product of the admin (DL-049). `scripts/test-native-product-reader.mjs` holds that the admin is not asked."
+   }
+  },
+  {
+   "id": "D-059",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "The check of the live sites blamed the modules for an answer that did not come from the application (issue #59)",
+   "detail": "On 27 November at 00:02 UTC the check failed on one point of 56: the address it asks to learn which modules the demo runs with was answered 403. The application has no way to answer 403 there, nothing had been deployed, and the same request twelve hours later got its answer. The request came straight after ten addresses of files (`/.env`, `/.git/config`…): Vercel's own protection had taken the runner for a scanner. The failure text told the reader to compare the modules.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "The check asks who answered: an answer without the application's request number is asked again after a pause, up to three times, and written down; the question is asked before the file names; a failure then says whether the modules differ or the application could not be asked (`.github/workflows/vercel-live-check.yml`)."
+   }
+  },
+  {
+   "id": "D-060",
+   "severity": "high",
+   "state": "open",
+   "found": "2026-11-27",
+   "title": "With the product link on, an order or a basket for a product that only the admin has is refused",
+   "detail": "Found on the rehearsal of document 45. The shop shows such a product with \"Add to Cart\" and \"Add to Quote\". Both are refused when they are sent (400, \"item 1 is not an available catalog product\"): the shop's own server prices an order and a basket from its own database, which does not have the product. It blocks one release: switching the live shop to the admin's products. No live site has the link on.",
+   "lines": [
+    "T-191",
+    "T-106"
+   ]
+  },
+  {
+   "id": "D-061",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "A site under the WOODEX name, open to search engines, showed sample products at sample prices",
+   "detail": "Document 43, AU-02 (first found on 16 November).",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "The demo address tells search engines to stay out, by a header on that host only (DL-048; `vercel.json`); the live check asks for it. The owner's own site is not touched."
+   }
+  },
+  {
+   "id": "D-062",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "The shop's contact facts were placeholders, and they disagreed",
+   "detail": "Document 43, AU-03: a sample telephone number in 19 places, three addresses, two e-mail addresses.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "One number, one e-mail address and one showroom, in one file, held by `scripts/test-storefront-facts.mjs` in every build (DL-048, document 44). The street is read from the Google listing on the owner's site and waits for his word."
+   }
+  },
+  {
+   "id": "D-063",
+   "severity": "high",
+   "state": "open",
+   "found": "2026-11-23",
+   "title": "The shop names clients and projects and counts customers, years and reviews with no record behind them",
+   "detail": "Document 43, AU-04: seven named projects, an article about eight bank branches, clients by name, and counts. None is in any record this programme has seen.",
+   "lines": [
+    "T-194"
+   ]
+  },
+  {
+   "id": "D-064",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "On a phone every page of the shop was 44 px wider than the screen",
+   "detail": "Document 43, AU-08.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "The header fits 390 px; 24 pages measured at 390 px, none wider (document 44)."
+   }
+  },
+  {
+   "id": "D-065",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "The quotation page carried its logo's bytes where the picture's address should be",
+   "detail": "Document 43, AU-09.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "The logo is a file at `/img`, and the step that writes the static pages loads no picture (document 44)."
+   }
+  },
+  {
+   "id": "D-066",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "Every visit to the shop asked the admin twice and was told 503",
+   "detail": "Document 43, AU-10.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "A shop that Vercel builds while it is connected to no admin does not ask (DL-048, document 44); the reader tests hold it."
+   }
+  },
+  {
+   "id": "D-067",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-23",
+   "title": "An address the shop does not have answers 200 on Vercel",
+   "detail": "Document 43, AU-11. Cured on the shop's own server on 25 November (404), and every such page says \"not found\" and asks not to be indexed. On Vercel the status is still success: one rule there hands every address to the shop's page.",
+   "lines": [
+    "T-195"
+   ]
+  },
+  {
+   "id": "D-068",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "The shop's controls had no name for a screen reader, and many were too small for a finger",
+   "detail": "Document 43, AU-12: 228 controls without a name at a desk's width, 251 on a phone, 25 fields without a label.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "None without a name or a label on 24 pages; two controls under 24 px remain, each a consent box inside its label (document 44)."
+   }
+  },
+  {
+   "id": "D-069",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-23",
+   "title": "The product screens of the admin speak the builders' language",
+   "detail": "Document 43, AU-15: \"native products\", \"native snapshot\", \"cutover\". The product form was put into plain words on 27 November (document 45); the list of products and the import screen still say \"native\".",
+   "lines": [
+    "T-045"
+   ]
+  },
+  {
+   "id": "D-070",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-23",
+   "title": "The code style and the analyser are run by no workflow; the comparison of the live shop's database is skipped",
+   "detail": "Document 43, AU-16.",
+   "lines": [
+    "T-196"
+   ]
+  },
+  {
+   "id": "D-071",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-23",
+   "title": "The host is told nothing about compression or about how long a built file may be kept",
+   "detail": "Document 43, AU-17.",
+   "lines": [
+    "T-197"
+   ]
+  },
+  {
+   "id": "D-072",
+   "severity": "medium",
+   "state": "open",
+   "found": "2026-11-23",
+   "title": "Two-factor sign-in is off unless a site switches it on",
+   "detail": "Document 43, AU-18. The admin holds money and customers; the owner's decision is T-022.",
+   "lines": [
+    "T-022",
+    "T-065"
+   ]
+  },
+  {
+   "id": "D-073",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "The defect register took no new entry from 19 to 27 November",
+   "detail": "Document 43, AU-19. Its numbers may have no gap, and the next eight (D-045 to D-052) were on the branch of pull request #48, which was open and in conflict with `main`. The findings of reports 34 to 44 and of the audit waited.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "The branch of pull request #48 was merged into the work of 27 November (DL-049); its eight entries are in, and the entries owed since then follow them here."
+   }
+  },
+  {
+   "id": "D-074",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "The shop's structured data named a logo that was not there",
+   "detail": "Document 43, AU-22.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "It names the logo's own address (document 44)."
+   }
+  },
+  {
+   "id": "D-075",
+   "severity": "low",
+   "state": "open",
+   "found": "2026-11-23",
+   "title": "The shop takes its font from Google on every page",
+   "detail": "Document 43, AU-23. Seen again on 27 November: where another server cannot be reached, the font does not arrive.",
+   "lines": [
+    "T-198"
+   ]
+  },
+  {
+   "id": "D-076",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "Contact: the map's link ended in \"undefined\", and the photograph at the top showed a sign with garbled words",
+   "detail": "Document 43, AU-24.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "The link is made from the showroom's place, and the photograph is another one (document 44)."
+   }
+  },
+  {
+   "id": "D-077",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "The shop's order status and its not-found page carried the home page's title",
+   "detail": "Document 43, AU-25.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-25",
+    "how": "Each has its own title; a view of nothing asks not to be kept (document 44)."
+   }
+  },
+  {
+   "id": "D-078",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-23",
+   "title": "A check that stood still was waited for half an hour, twice",
+   "detail": "Document 43, AU-28: the step that fetches the browser waited for a package mirror to the limit of the job.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-23",
+    "how": "The fetch has a limit of its own, and where the mirror is silent the browser alone is fetched (pull request #57)."
+   }
+  },
+  {
+   "id": "D-079",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "A product read from the admin showed its own code as an option to choose, and the shop's general delivery sentence in place of its own",
+   "detail": "Found in the browser, step 13 of the journey of document 45. The import writes a product's code into one row of options; the shop drew that row as a choice with one answer. And the delivery text an editor wrote for a product was not shown at all: the shop's one sentence stood there for every product.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "The row with a code and no colour, material or size is the product's own code and is handed out as `sku` (DL-049; `Feature/Api/ProductCatalogueApiTest.php`); the shop prints it as the code, and prints the product's own delivery text where it has one (`scripts/test-native-product-reader.mjs`; the journey reads both on the page)."
+   }
+  },
+  {
+   "id": "D-080",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "The admin's product addresses shipped switched off, while the contract and document 33 said they were on",
+   "detail": "`PRODUCT_SYNC_ENABLED` was off unless set. The first request of the rehearsal of 27 November was answered 503. The contract of `/api/v1` and document 33 both said \"on unless set otherwise\", as the categories are.",
+   "lines": [],
+   "closed": {
+    "on": "2026-11-27",
+    "how": "On unless an installation switches it off (DL-049): the addresses hand out a published product and nothing else, and whether a shop reads them is the shop's own switch. `Feature/Api/ProductCatalogueApiTest.php` holds both states, and the check of the live sites asks the demo for the list."
    }
   }
  ]

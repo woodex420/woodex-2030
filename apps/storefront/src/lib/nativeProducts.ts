@@ -10,8 +10,12 @@
  *
  *   · **Money.** The admin sends whole paisa in `price_minor`; this page prints whole rupees, so the rupees are
  *     made here, once, by `rupees()` — never by dividing in a template.
- *   · **"Ask us".** `on_request` is a switch, not a missing number. Such a product is kept and shown with no
- *     price, and `priceOnRequest` says so, which is the flag the pages already understand (a quote, no cart).
+ *   · **"Price on request".** `on_request` is the editor's own word that a product has no price (decision
+ *     DL-049), and `price_minor` is null exactly then. Such a product is kept and shown with no figure, and
+ *     `priceOnRequest` says so, which is the flag the pages already understand (a quote, no cart). `availability`
+ *     is a second fact and says nothing about the price: a product made to order still shows what it costs.
+ *   · **A code of its own.** A product sold in one form carries its code in `sku`; a product sold in options has
+ *     a code on each option and none of its own.
  *   · **An address the shop can use.** The admin knows a product by its slug; the shop's pages link by `id`. The
  *     slug IS the id here, so a product read from the admin and a product read from the shop's own database are
  *     linked the same way.
@@ -23,11 +27,11 @@ import type { Product } from "@/data/products";
 
 /** What the admin sends for one product (the contract's `Product`, the keys this reader uses). */
 export type NativeProduct = {
-  id: string; name: string; slug: string;
+  id: string; name: string; slug: string; sku: string | null;
   short_description: string; description: string; shipping: string; warranty: string;
   category_ids: number[]; primary_category_id: number | null; series_ids: number[];
   availability: "available" | "unavailable" | "on_request";
-  price_minor: number; was_price_minor: number | null; currency: string; on_request: boolean;
+  price_minor: number | null; was_price_minor: number | null; currency: string; on_request: boolean;
   variants: { sku: string; colour: string; material: string; size: string; price_minor: number | null; availability: string }[];
   specifications: { label: string; value: string }[];
   features: string[];
@@ -48,31 +52,37 @@ const isProduct = (value: unknown): value is NativeProduct => {
   const p = value as Record<string, unknown>;
   return typeof p.id === "string" && p.id !== "" && typeof p.name === "string" && p.name !== ""
     && typeof p.slug === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.slug)
-    && typeof p.price_minor === "number" && Number.isInteger(p.price_minor)
-    && typeof p.on_request === "boolean" && Array.isArray(p.pictures);
+    && typeof p.on_request === "boolean" && Array.isArray(p.pictures)
+    // A whole number of paisa, or no figure at all: and no figure exactly when the editor said "on request".
+    && (p.on_request ? p.price_minor === null : typeof p.price_minor === "number" && Number.isInteger(p.price_minor) && p.price_minor >= 0)
+    && (p.sku === null || p.sku === undefined || (typeof p.sku === "string" && p.sku !== ""));
 };
+
+/** Where a category of the admin stands on this shop's pages: under which heading, and as which of its parts. */
+export type Placement = { category: string; subcategory?: string };
+export type Lookups = { category: (id: number) => Placement | null; series: (id: number) => string | null };
 
 /**
  * One product of the admin, as the shop's pages use it.
  *
- * `categoryAlias` and `seriesAlias` are how this shop names a category on its own pages: the admin's category is
- * a number, the shop's is a slug, and the categories' own reader already knows the mapping.
+ * The admin names a category by a number and keeps categories in a tree; this shop's pages name one by a slug and
+ * know two levels, a heading and its parts. `lookups.category` says where a category stands here, and the
+ * categories' own reader knows the tree it is read from.
  */
-export function toProduct(
-  raw: unknown,
-  lookups: { category: (id: number) => string | null; series: (id: number) => string | null },
-): Product | null {
+export function toProduct(raw: unknown, lookups: Lookups): Product | null {
   if (!isProduct(raw)) return null;
-  const category = raw.primary_category_id === null ? null : lookups.category(raw.primary_category_id);
+  const placed = raw.primary_category_id === null ? null : lookups.category(raw.primary_category_id);
   const series = raw.series_ids.length > 0 ? lookups.series(raw.series_ids[0]) : null;
 
   return {
     id: raw.slug,
     name: raw.name,
-    category: category ?? "",
+    category: placed?.category ?? "",
+    subcategory: placed?.subcategory,
     series: series ?? undefined,
+    // No figure is not a price of zero: `priceOnRequest` below is what the pages read, and none prints this 0.
     price: rupees(raw.price_minor),
-    originalPrice: raw.was_price_minor !== null && raw.was_price_minor > raw.price_minor ? rupees(raw.was_price_minor) : undefined,
+    originalPrice: raw.price_minor !== null && raw.was_price_minor !== null && raw.was_price_minor > raw.price_minor ? rupees(raw.was_price_minor) : undefined,
     description: raw.description,
     shortDescription: raw.short_description,
     shipping: raw.shipping,
@@ -85,7 +95,7 @@ export function toProduct(
     inStock: raw.availability !== "unavailable",
     isNew: false,
     isBestSeller: raw.is_hot,
-    sku: raw.variants[0]?.sku ?? null,
+    sku: raw.sku ?? null,
     priceOnRequest: raw.on_request,
     trackStock: false,
     // The admin's options are priced per option; each one becomes an option of the shop, in rupees.
@@ -102,17 +112,16 @@ export function toProduct(
       label: [variant.colour, variant.material, variant.size].filter(Boolean).join(" · ") || variant.sku,
       attributes: { colour: variant.colour, material: variant.material, size: variant.size },
       price: rupees(variant.price_minor),
-      priceOnRequest: variant.price_minor === null || variant.availability === "on_request",
+      // An option has no figure only when the product has none: an option without a price of its own arrives
+      // with the product's. That it is made to order says nothing about what it costs.
+      priceOnRequest: variant.price_minor === null,
     })),
     updatedAt: raw.updated_at ?? undefined,
   };
 }
 
 /** One answer of the list, read as products. Returns null when the answer is not the shape the contract names. */
-export function toProducts(
-  body: unknown,
-  lookups: { category: (id: number) => string | null; series: (id: number) => string | null },
-): { products: Product[]; total: number; next: string | null } | null {
+export function toProducts(body: unknown, lookups: Lookups): { products: Product[]; total: number; next: string | null } | null {
   if (!body || typeof body !== "object") return null;
   const answer = body as { data?: unknown; meta?: { total?: unknown }; links?: { next?: unknown } };
   if (!Array.isArray(answer.data)) return null;
@@ -121,6 +130,32 @@ export function toProducts(
   const products = answer.data.map(item => toProduct(item, lookups)).filter((product): product is Product => product !== null);
 
   return { products, total, next };
+}
+
+/** How many products the shop asks the admin for at a time (the contract's own limit), and how many times at most. */
+export const PAGE_SIZE = 100;
+const PAGES_AT_MOST = 100;
+
+/**
+ * Every published product of the admin, as the shop's products.
+ *
+ * The admin hands its products out in pages. The first answer is in hand already; the pages after it are asked
+ * for through `ask`, one after the other, until the admin says there is none left. A page that fails, or that is
+ * not the shape the contract names, makes the whole reading fail: half a catalogue is not shown as if it were the
+ * catalogue, and the shop keeps the last whole list it has.
+ */
+export async function readWhole(first: unknown, lookups: Lookups, ask: (page: number, perPage: number) => Promise<unknown>): Promise<Product[]> {
+  let read = toProducts(first, lookups);
+  if (read === null) throw new Error("unexpected catalogue reply");
+  const all = [...read.products];
+
+  for (let page = 2; read.next !== null && page <= PAGES_AT_MOST; page++) {
+    read = toProducts(await ask(page, PAGE_SIZE), lookups);
+    if (read === null) throw new Error("unexpected catalogue reply");
+    all.push(...read.products);
+  }
+
+  return all;
 }
 
 /**

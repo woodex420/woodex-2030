@@ -79,7 +79,7 @@
    "steps": [
     "find a product of the real catalogue by its code, and open it"
    ],
-   "note": "Browsing only, on the real catalogue. Orders do not exist in Laravel.",
+   "note": "Browsing only, on the real catalogue, in the journeys this table counts. A product made in the admin and read by a visitor on the shop is pressed by a journey of its own (`scripts/os-product-to-shop.mjs`, document 45). Orders do not exist in Laravel.",
    "lines": [
     "T-106"
    ]

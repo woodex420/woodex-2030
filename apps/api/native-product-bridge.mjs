@@ -46,6 +46,13 @@ export function nativeProductBridge(env = process.env) {
     const picture = /^\/api\/v1\/catalogue\/products\/([a-z0-9]+(?:-[a-z0-9]+)*)\/picture\/(\d+)\/(\d+)$/.exec(req.path);
     if (picture) return handOnPicture(res, origin, picture[1], picture[2], picture[3]);
 
+    // What this shop's own database changed of a product's price or stock since a moment: nothing, any more.
+    // The admin's products carry their own price, and a second writer of one price is what this bridge ends.
+    // Answered here in the shape the page reads, so that no page is told "not found" four times a minute.
+    if (req.path === '/api/products/overrides') {
+      return res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }).json({ serverTime: new Date().toISOString(), items: [] });
+    }
+
     // /api/products → /api/v1/catalogue/products; /api/products/<slug> → .../<slug>. Anything else is not ours.
     const rest = req.path.replace(/^\/api\/products/, '');
     const one = /^\/([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(rest);
@@ -55,6 +62,9 @@ export function nativeProductBridge(env = process.env) {
     for (const [key, value] of Object.entries(req.query ?? {})) {
       if (FORWARDED.includes(key) && typeof value === 'string') target.searchParams.set(key, value);
     }
+    // The shop's page reads the whole catalogue, page after page. When it does not say how many a page holds,
+    // it is handed the most the admin gives at a time, not the admin's own small page.
+    if (!one && !target.searchParams.has('per_page')) target.searchParams.set('per_page', '100');
 
     try {
       const response = await fetch(target, {

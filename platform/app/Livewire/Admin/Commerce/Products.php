@@ -49,6 +49,10 @@ final class Products extends Component
         $allowed = array_flip(['name', 'price', 'availability', 'category_ids', 'primary_category_id', 'series_ids', 'sale_price', 'sale_start', 'sale_end', 'is_hot', 'is_featured', 'featured_position']);
         $data = array_replace($product->draft, array_intersect_key($this->quick, $allowed));
         $data['reviewed'] = false;
+        // This form has no "Price on request" box. A price typed here is the word that the product has one.
+        if (filled($data['price'] ?? '') || filled($data['sale_price'] ?? '')) {
+            $data['price_on_request'] = false;
+        }
         app(ProductCatalogue::class)->save($product, $data, $this->quickVersion, $this->user());
         $this->showQuickEdit = false;
         $this->toast('Quick changes saved to draft. Review, preview and explicitly publish/update; storefront unchanged.');

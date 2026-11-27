@@ -41,8 +41,14 @@ it('loads every product of the live shop as a draft, with its code, its price an
         ->and($products->every(fn (Product $product): bool => count($product->draft['variants']) === 1))->toBeTrue()
         // No stock figure is in the capture, and none is made up.
         ->and($products->every(fn (Product $product): bool => $product->draft['availability'] === 'on_request'))->toBeTrue()
-        // A product the live shop sells at PKR 0 has no price: 33 of them.
+        // A product the live shop sells at PKR 0 has no price: 33 of them, and each says so in the admin's own
+        // word. So every product has a price or that word, never both and never neither (decision DL-049): the
+        // price rule of publication refuses none of the 170 as it was imported.
         ->and($products->filter(fn (Product $product): bool => $product->draft['price'] === '')->count())->toBe(33)
+        ->and($products->filter(fn (Product $product): bool => $product->draft['price_on_request'] === true)->count())->toBe(33)
+        ->and($products->every(fn (Product $product): bool => ($product->draft['price'] === '') === $product->draft['price_on_request']))->toBeTrue()
+        // The one row of each product is the row that carries its code: the shop is handed a code, not an option.
+        ->and($products->every(fn (Product $product): bool => ProductCatalogue::ownCodeRow($product->draft['variants']) !== null))->toBeTrue()
         // A reduced price keeps the price it was reduced from: 10 of them.
         ->and($products->filter(fn (Product $product): bool => $product->draft['sale_price'] !== '')->count())->toBe(10)
         // The points of the import report travel with the product: 116 have at least one.
@@ -96,7 +102,9 @@ it('overwrites nothing and can be run again', function () {
 
     // An imported product that staff have corrected keeps the correction on the next run.
     $edited = Product::query()->where('slug', 'aspire-conference-table')->sole();
-    app(ProductCatalogue::class)->save($edited, array_replace($edited->draft, ['price' => '250000']), $edited->version, $this->editor);
+    // It came in priced on request; giving it a price takes that word back (decision DL-049).
+    expect($edited->draft['price_on_request'])->toBeTrue();
+    app(ProductCatalogue::class)->save($edited, array_replace($edited->draft, ['price' => '250000', 'price_on_request' => false]), $edited->version, $this->editor);
 
     expect(app(WoodexCatalogue::class)->import($this->editor))->toBe(['products' => 0, 'categories' => 0])
         ->and(Product::query()->count())->toBe(170)

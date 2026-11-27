@@ -109,33 +109,105 @@ it('hides a withdrawn product and an archived one, exactly as it hides a draft',
     expect($kept->fresh()->published_revision_id)->not->toBeNull();
 });
 
-it('hands out money as whole paisa, and says "ask us" instead of inventing a price', function (): void {
+it('hands out money as whole paisa, and says "price on request" instead of inventing a price', function (): void {
     ($this->publish)(['slug' => 'priced-desk', 'price' => '42500.50']);
     ($this->publish)(['slug' => 'whole-desk', 'price' => '1200']);
-    // Published with no base price at all: refused, because a shop cannot sell what nobody priced.
+    // No base price and no word of the editor about it: refused. A shop cannot sell what nobody priced, and the
+    // product does not go out as "ask us" by an oversight.
     expect(fn () => ($this->publish)(['slug' => 'unpriced-desk', 'price' => '']))
-        ->toThrow(ValidationException::class, 'Base price, description, shipping and warranty must be reviewed and completed.');
+        ->toThrow(ValidationException::class, 'Give a base price, or tick “Price on request”.');
 
-    // The editor's way of saying "no buying price": available to ask about, not to buy at.
-    ($this->publish)(['slug' => 'ask-desk', 'price' => '42500.00', 'availability' => 'on_request']);
+    // The editor's own word that there is no price (decision DL-049): published, without a figure.
+    ($this->publish)(['slug' => 'ask-desk', 'price' => '', 'price_on_request' => true]);
+    // A second fact, and not about the price: made to order, confirmed when somebody asks. It keeps its price.
+    ($this->publish)(['slug' => 'made-to-order-desk', 'price' => '42500.00', 'availability' => 'on_request']);
 
     $bySlug = collect($this->getJson('/api/v1/catalogue/products?per_page=100')->json('data'))->keyBy('id');
 
-    expect($bySlug->keys()->all())->toEqualCanonicalizing(['priced-desk', 'whole-desk', 'ask-desk'])
+    expect($bySlug->keys()->all())->toEqualCanonicalizing(['priced-desk', 'whole-desk', 'ask-desk', 'made-to-order-desk'])
         ->and($bySlug['priced-desk']['price_minor'])->toBe(4250050)
         ->and($bySlug['priced-desk']['currency'])->toBe('PKR')
         ->and($bySlug['priced-desk']['on_request'])->toBeFalse()
         ->and($bySlug['priced-desk']['availability'])->toBe('available')
         ->and($bySlug['whole-desk']['price_minor'])->toBe(120000)
-        // "Ask us" is a switch, not a missing number: the shop is told not to offer the figure.
+        // "Price on request" carries no figure at all: not 0, and not a number the shop is asked to hide.
         ->and($bySlug['ask-desk']['on_request'])->toBeTrue()
-        ->and($bySlug['ask-desk']['availability'])->toBe('on_request');
+        ->and($bySlug['ask-desk']['price_minor'])->toBeNull()
+        ->and($bySlug['ask-desk']['was_price_minor'])->toBeNull()
+        ->and($bySlug['made-to-order-desk']['on_request'])->toBeFalse()
+        ->and($bySlug['made-to-order-desk']['price_minor'])->toBe(4250000)
+        ->and($bySlug['made-to-order-desk']['availability'])->toBe('on_request');
 
-    // No figure reaches the answer as a fraction anywhere, and no price stands in a key that does not say minor.
+    // No figure reaches the answer as a fraction anywhere, and a figure is absent exactly where the word is given.
     foreach ($bySlug as $product) {
-        expect(is_int($product['price_minor']))->toBeTrue("{$product['id']}: price_minor is whole paisa")
+        expect($product['price_minor'] === null)->toBe($product['on_request'], "{$product['id']}: a figure, or the word that there is none")
+            ->and($product['price_minor'] === null || is_int($product['price_minor']))->toBeTrue("{$product['id']}: price_minor is whole paisa")
             ->and($product['was_price_minor'] === null || is_int($product['was_price_minor']))->toBeTrue("{$product['id']}: was_price_minor is whole paisa or nothing");
     }
+});
+
+it('refuses a price beside "price on request", so that no figure waits behind the word', function (): void {
+    expect(fn () => ($this->publish)(['slug' => 'both-desk', 'price' => '42500', 'price_on_request' => true]))
+        ->toThrow(ValidationException::class, 'A product priced on request carries no price.');
+    // A sale price with no regular price is refused by an older rule, before this one is asked.
+    expect(fn () => ($this->publish)(['slug' => 'sale-desk', 'price' => '', 'sale_price' => '900', 'price_on_request' => true]))
+        ->toThrow(ValidationException::class, 'Sale price must be lower than an explicit regular price.');
+    expect(fn () => ($this->publish)(['slug' => 'option-desk', 'price' => '', 'price_on_request' => true,
+        'variants' => [['sku' => 'SYN-1', 'colour' => 'Oak', 'material' => '', 'size' => '', 'price' => '500', 'availability' => 'available']]]))
+        ->toThrow(ValidationException::class, 'A product priced on request carries no price.');
+
+    expect(Product::count())->toBe(0, 'nothing of the three was saved');
+});
+
+it('hands out the code of a product sold in one form as its own, and not as an option to choose', function (): void {
+    // As the import of the real catalogue writes every product: one row, a code, nothing else, no price of its own.
+    ($this->publish)(['slug' => 'one-form-desk', 'price' => '130000',
+        'variants' => [['sku' => 'ET-10010', 'colour' => '', 'material' => '', 'size' => '', 'price' => '', 'availability' => 'on_request']]]);
+    // Sold in two finishes: one with a price of its own, one at the product's price.
+    ($this->publish)(['slug' => 'two-finish-desk', 'price' => '90000',
+        'variants' => [
+            ['sku' => 'TF-OAK', 'colour' => 'Oak', 'material' => '', 'size' => '', 'price' => '95000', 'availability' => 'available'],
+            ['sku' => 'TF-ASH', 'colour' => 'Ash', 'material' => '', 'size' => '', 'price' => '', 'availability' => 'available'],
+        ]]);
+    // Priced on request, in two sizes: no figure on the product and none on an option.
+    ($this->publish)(['slug' => 'ask-table', 'price' => '', 'price_on_request' => true,
+        'variants' => [
+            ['sku' => 'AT-8', 'colour' => '', 'material' => '', 'size' => '8 seats', 'price' => '', 'availability' => 'on_request'],
+            ['sku' => 'AT-12', 'colour' => '', 'material' => '', 'size' => '12 seats', 'price' => '', 'availability' => 'on_request'],
+        ]]);
+    ($this->publish)(['slug' => 'no-code-desk', 'price' => '1000']);
+
+    $bySlug = collect($this->getJson('/api/v1/catalogue/products?per_page=100')->json('data'))->keyBy('id');
+
+    expect($bySlug['one-form-desk']['sku'])->toBe('ET-10010')
+        ->and($bySlug['one-form-desk']['variants'])->toBe([])
+        ->and($bySlug['one-form-desk']['price_minor'])->toBe(13000000)
+        ->and($bySlug['one-form-desk']['on_request'])->toBeFalse()
+        ->and($bySlug['two-finish-desk']['sku'])->toBeNull()
+        ->and(array_column($bySlug['two-finish-desk']['variants'], 'price_minor', 'sku'))->toBe(['TF-OAK' => 9500000, 'TF-ASH' => 9000000])
+        ->and($bySlug['ask-table']['sku'])->toBeNull()
+        ->and(array_column($bySlug['ask-table']['variants'], 'price_minor', 'sku'))->toBe(['AT-8' => null, 'AT-12' => null])
+        ->and($bySlug['no-code-desk']['sku'])->toBeNull()
+        ->and($bySlug['no-code-desk']['variants'])->toBe([]);
+});
+
+it('keeps one code for one thing, across products and without regard to case', function (): void {
+    ($this->publish)(['slug' => 'first-desk', 'variants' => [['sku' => 'ET-5000', 'colour' => '', 'material' => '', 'size' => '', 'price' => '', 'availability' => 'available']]]);
+
+    // The same code on a second product, written in small letters with a space after it: refused when it is saved.
+    expect(fn () => ($this->publish)(['slug' => 'second-desk', 'variants' => [['sku' => 'et-5000 ', 'colour' => '', 'material' => '', 'size' => '', 'price' => '', 'availability' => 'available']]]))
+        ->toThrow(ValidationException::class, 'is already the code of “SYNTHETIC Desk”');
+    // Twice on one product: refused by the same rule.
+    expect(fn () => ($this->publish)(['slug' => 'third-desk', 'variants' => [
+        ['sku' => 'TD-1', 'colour' => 'Oak', 'material' => '', 'size' => '', 'price' => '', 'availability' => 'available'],
+        ['sku' => 'td-1', 'colour' => 'Ash', 'material' => '', 'size' => '', 'price' => '', 'availability' => 'available'],
+    ]]))->toThrow(ValidationException::class);
+
+    // The product that has the code can be saved again with it.
+    $first = Product::where('slug', 'first-desk')->sole();
+    $this->service->save($first, [...$first->draft, 'short_description' => 'Saved again.'], $first->version, $this->publisher);
+
+    expect(Product::pluck('slug')->all())->toBe(['first-desk']);
 });
 
 it('hands out a sale price only between its two dates', function (): void {

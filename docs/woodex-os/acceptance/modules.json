@@ -1,7 +1,7 @@
 {
   "about": "One acceptance sheet per open module: the ten conditions of document 07 §15, the last being the owner's sign-off. Checked by scripts/verify-acceptance.mjs: ten conditions each, every named file must exist, every line must be a row of document 14, and a sheet counts as accepted only with a recorded decision of the owner.",
   "source": "docs/woodex-os/spec/07-MODULE-SPECIFICATIONS.md",
-  "read_on": "2026-11-17",
+  "read_on": "2026-11-27",
   "states": {
     "met": "true today",
     "partly": "part of it is true; the lines close the rest",
@@ -199,17 +199,19 @@
         },
         {
           "state": "partly",
-          "evidence": "Products with their revisions, categories and series are in the Laravel database: the 170 products of woodexfurniture.pk and the category tree, as drafts. The React shop does not read them: it reads the old catalogue, which still holds 148 sample products.",
+          "evidence": "Products with their revisions, categories and series are in the Laravel database: the 170 products of woodexfurniture.pk and the category tree, as drafts. Since 27 November a product is published with a price or as \"Price on request\", and one code names one product (DL-049). The shop can read what is published (a bridge and a reader, proved in a browser: document 45), behind a switch of its own that is off on the live shop: it still reads the old catalogue, which holds 148 sample products. No real product is published, and the real admin has no database yet.",
           "lines": [
             "T-105",
-            "T-091"
+            "T-091",
+            "T-006"
           ]
         },
         {
           "state": "partly",
-          "evidence": "The category tree, the page of each category, the series and their pictures are in the contract of `/api/v1` (`platform/resources/api/v1.openapi.json`; the rules are document 29) and are held to it key by key on every push (`Feature/Api/V1ContractTest.php`, `Feature/CategoryStorefrontSyncTest.php`). Products are not offered to the shop yet: `/api/v1` has no address for them.",
+          "evidence": "The category tree, the page of each category, the series and their pictures are in the contract of `/api/v1` (`platform/resources/api/v1.openapi.json`; the rules are document 29) and are held to it key by key on every push (`Feature/Api/V1ContractTest.php`, `Feature/CategoryStorefrontSyncTest.php`). Since 27 November the published products are offered too: in pages, one product, and its photographs, in the contract and held by `Feature/Api/ProductCatalogueApiTest.php` (a draft, a withdrawn and an archived product are never handed out; no figure for a product priced on request). The addresses for series, filters and search of the owner's list of 27 November are not built.",
           "lines": [
-            "T-105"
+            "T-105",
+            "T-192"
           ]
         },
         {
@@ -242,10 +244,11 @@
         },
         {
           "state": "partly",
-          "evidence": "Pressed in a browser: a product of the real catalogue is found by its code, is a draft, and its editor opens. Not pressed: publishing a product; an order, which does not exist in Laravel.",
+          "evidence": "Pressed in a browser: a product of the real catalogue is found by its code, is a draft, and its editor opens (`scripts/os-journeys.mjs`). Since 27 November, on an installed admin: a product is typed in with a photograph, saved, published, read by a visitor on the shop in its category and on its own page, changed, and withdrawn, with a price and priced on request (`scripts/os-product-to-shop.mjs`, seventeen steps; in CI on Apache and MariaDB 10.11). Not pressed: an order, which does not exist in Laravel; a visitor asking for such a product, which is refused today (D-060).",
           "lines": [
             "T-165",
-            "T-106"
+            "T-106",
+            "T-191"
           ]
         },
         {

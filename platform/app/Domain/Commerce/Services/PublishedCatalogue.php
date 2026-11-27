@@ -28,7 +28,13 @@ use Illuminate\Support\Facades\Storage;
  * Money: the editor keeps prices as text in rupees ("1200.50"), which is right for a form and wrong for a
  * machine. Here each is turned into whole **paisa**, and the currency stands beside it (§7 of the rules).
  * A price that was never filled in is not a price of zero: such a product is "on request" and carries no figure
- * at all.
+ * at all. "On request" is the editor's own word (the tick "Price on request", decision DL-049), and it is about
+ * the price only: `availability` is a second fact, whether the product can be ordered, and a product whose
+ * availability is confirmed when somebody asks still shows its price.
+ *
+ * A product's own code: a product sold in one form has one row with a code and no colour, material or size
+ * (ProductCatalogue::ownCodeRow). That row is handed out as the product's `sku`, not as an option to choose.
+ * An option without a price of its own is sold at the product's price, as on a quotation.
  *
  * A moment: `updated_at` of the product (the last time anybody saved it) and `published_at` of the revision that
  * was published, both in UTC to the second.
@@ -38,7 +44,7 @@ final class PublishedCatalogue
     /** The keys of a published revision's content that the shop is handed, and no others. */
     private const array HANDED_OUT = [
         'name', 'slug', 'short_description', 'description', 'shipping', 'warranty',
-        'price', 'category_ids', 'primary_category_id', 'series_ids', 'availability', 'variants',
+        'price', 'price_on_request', 'category_ids', 'primary_category_id', 'series_ids', 'availability', 'variants',
         'specifications', 'features', 'faqs', 'seo_title', 'seo_description', 'og_title', 'og_description',
         'sale_price', 'sale_start', 'sale_end', 'is_hot', 'is_featured', 'related_mode', 'related_ids', 'images',
     ];
@@ -181,22 +187,31 @@ final class PublishedCatalogue
             }
             $content = array_intersect_key($content, array_flip(self::HANDED_OUT));
 
-            // A published product always has a base price: publication refuses one without (ProductCatalogue::
-            // publish). So the figure below is always a number; what the shop does with it is decided by
-            // `availability`, which is where the editor says "ask us" instead of "this is the price".
-            $salePrice = $this->money($content['sale_price'] ?? '');
-            $saleOn = $salePrice !== null && $this->merchandising->isOnSale($content, CarbonImmutable::now('UTC'));
-            $price = ($saleOn ? $salePrice : $this->money($content['price'] ?? '')) ?? 0;
+            // A product is published with a base price, or with the editor's word that it has none ("Price on
+            // request"): publication refuses anything else (ProductCatalogue::publish). On request there is no
+            // figure at all: not the sale price, not an option's price, and never 0.
+            $now = CarbonImmutable::now('UTC');
+            $base = $this->money($content['price'] ?? '');
+            $onRequest = (bool) ($content['price_on_request'] ?? false) || $base === null;
+            $salePrice = $onRequest ? null : $this->money($content['sale_price'] ?? '');
+            $saleOn = $salePrice !== null && $this->merchandising->isOnSale($content, $now);
+            $price = $onRequest ? null : ($saleOn ? $salePrice : $base);
             $availability = (string) ($content['availability'] ?? 'on_request');
 
+            // The row that carries the product's own code is its `sku`; every other row is an option.
+            $rows = (array) ($content['variants'] ?? []);
+            $own = ProductCatalogue::ownCodeRow($rows);
             $variants = [];
-            foreach ((array) ($content['variants'] ?? []) as $variant) {
+            foreach ($own === null ? $rows : [] as $variant) {
                 if (! is_array($variant) || ! filled($variant['sku'] ?? null)) {
                     continue;
                 }
-                $variantSale = $this->money($variant['sale_price'] ?? '');
-                $variantOn = $variantSale !== null && $this->merchandising->isOnSale($variant, CarbonImmutable::now('UTC'));
-                $variantPrice = $variantOn ? $variantSale : $this->money($variant['price'] ?? '');
+                // An option with a price of its own is sold at that price, or at its own sale price while its
+                // sale is on; an option without one is sold at whatever the product costs now.
+                $variantOwn = $onRequest ? null : $this->money($variant['price'] ?? '');
+                $variantSale = $variantOwn === null ? null : $this->money($variant['sale_price'] ?? '');
+                $variantOn = $variantSale !== null && $this->merchandising->isOnSale($variant, $now);
+                $variantPrice = $variantOwn === null ? $price : ($variantOn ? $variantSale : $variantOwn);
                 $variants[] = [
                     'sku' => (string) $variant['sku'],
                     'colour' => (string) ($variant['colour'] ?? ''),
@@ -211,6 +226,7 @@ final class PublishedCatalogue
                 'id' => (string) $product->slug,
                 'name' => (string) ($content['name'] ?? $product->name),
                 'slug' => (string) $product->slug,
+                'sku' => $own === null ? null : (string) $own['sku'],
                 'short_description' => (string) ($content['short_description'] ?? ''),
                 'description' => (string) ($content['description'] ?? ''),
                 'shipping' => (string) ($content['shipping'] ?? ''),
@@ -220,11 +236,11 @@ final class PublishedCatalogue
                 'series_ids' => array_values(array_map('intval', (array) ($content['series_ids'] ?? []))),
                 'availability' => $availability,
                 'price_minor' => $price,
-                'was_price_minor' => $saleOn ? $this->money($content['price'] ?? '') : null,
+                'was_price_minor' => $saleOn ? $base : null,
                 'currency' => 'PKR',
-                // "Ask us": the editor did not give a price to buy at. The figure above is not an offer then, and
-                // the shop must not print it as one (the storefront calls this priceOnRequest).
-                'on_request' => $availability === 'on_request',
+                // "Price on request": the editor published it without a price. No figure stands above then, and
+                // the shop takes a quotation request for it (the storefront calls this priceOnRequest).
+                'on_request' => $onRequest,
                 'variants' => $variants,
                 'specifications' => $this->rows((array) ($content['specifications'] ?? []), ['label', 'value']),
                 'features' => array_values(array_map('strval', (array) ($content['features'] ?? []))),

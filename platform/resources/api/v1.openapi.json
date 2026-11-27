@@ -1588,13 +1588,14 @@
         }
       },
       "Product": {
-        "description": "One product as the admin published it. Only the published copy is ever handed out: a draft saved after publication, a withdrawn product and an archived one are all absent. Money is whole paisa in a key ending in _minor, with the currency beside it; a product with no price is on_request and its price_minor is null, never 0.",
+        "description": "One product as the admin published it. Only the published copy is ever handed out: a draft saved after publication, a withdrawn product and an archived one are all absent. Money is whole paisa in a key ending in _minor, with the currency beside it; a product published without a price is on_request and its price_minor is null, never 0.",
         "type": "object",
         "additionalProperties": false,
         "required": [
           "id",
           "name",
           "slug",
+          "sku",
           "short_description",
           "description",
           "shipping",
@@ -1640,6 +1641,15 @@
             "type": "string",
             "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
           },
+          "sku": {
+            "description": "The product's own code, when it is sold in one form; null when it has none, or when it is sold in options, each of which then has a code of its own.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 100
+          },
           "short_description": {
             "type": "string"
           },
@@ -1673,7 +1683,7 @@
             }
           },
           "availability": {
-            "description": "What the editor said about ordering it. on_request is the same fact as on_request below, in the words the admin uses.",
+            "description": "What the editor said about ordering it: available, unavailable, or on_request, which means that it is made to order and its availability is confirmed when somebody asks. It says nothing about the price: on_request below does.",
             "type": "string",
             "enum": [
               "available",
@@ -1682,8 +1692,11 @@
             ]
           },
           "price_minor": {
-            "description": "What it costs now, in paisa: the sale price while a sale is on, the regular price at every other time. Always a whole number, because a product cannot be published without a base price. When on_request is true this is not an offer to buy at.",
-            "type": "integer",
+            "description": "What it costs now, in paisa: the sale price while a sale is on, the regular price at every other time. null when on_request is true: a product published without a price carries no figure, never 0.",
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0
           },
           "was_price_minor": {
@@ -1698,11 +1711,11 @@
             "pattern": "^[A-Z]{3}$"
           },
           "on_request": {
-            "description": "The editor published it as \"ask us\": the shop may show it and take a quote for it, but must not print a buying price or put it in a cart.",
+            "description": "The editor published it as \"Price on request\": it has no price. The shop may show it and take a quotation request for it, and must not print a buying price or put it in a cart. price_minor is null exactly when this is true.",
             "type": "boolean"
           },
           "variants": {
-            "description": "The ways it is sold — a size, a finish. A product with any is ordered by one of them.",
+            "description": "The ways it is sold: a size, a finish. A product with any is ordered by one of them. The one row that carries the code of a product sold in one form is not among them: it is the product's sku.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProductVariant"
@@ -1820,7 +1833,7 @@
             "type": "string"
           },
           "price_minor": {
-            "description": "This option’s own price in paisa; null when it has none.",
+            "description": "What this option costs now, in paisa: its own price (its own sale price while that sale is on), or the product's price when the option has none of its own. null when the product is priced on request.",
             "type": [
               "integer",
               "null"

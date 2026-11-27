@@ -97,12 +97,15 @@ final class WoodexCatalogue
                 $data['name'] = $row['name'];
                 $data['slug'] = $row['id'];
                 $data['price'] = $regular;
+                // Rule R-3 in the admin's own word: the product is published without a figure (decision DL-049).
+                $data['price_on_request'] = $onRequest;
                 $data['sale_price'] = $sale;
                 // No stock figure is in the capture, and none is assumed.
                 $data['availability'] = 'on_request';
                 $data['category_ids'] = $assigned;
                 $data['primary_category_id'] = end($assigned) ?: '';
-                // One option row carries the product's code; the price stays on the product.
+                // One row carries the product's code and nothing else; the price stays on the product. The shop is
+                // handed that code as the product's own, not as an option to choose (ProductCatalogue::ownCodeRow).
                 $data['variants'] = [['sku' => $row['sku'], 'colour' => '', 'material' => '', 'size' => '', 'price' => '', 'availability' => 'on_request', 'sale_price' => '', 'sale_start' => '', 'sale_end' => '']];
                 $data['seo_title'] = $row['name'];
 
