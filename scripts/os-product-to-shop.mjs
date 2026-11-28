@@ -11,6 +11,13 @@
  *   price are the ones entered · 14 edit it in the admin · 15 the shop shows the change · 16 withdraw it ·
  *   17 the shop no longer has it.
  *
+ * And, since 27 November (master list T-191), what a visitor does with such a product, between his steps 13 and
+ * 14: 13a no cart is offered for it, the quotation basket and WhatsApp are · 13b the visitor puts it into the
+ * basket and sends the basket · 13c the owner finds the enquiry in the admin, with the product, its code and its
+ * price on its line. Nothing the shop's page offered was answered with a refusal. For these three the admin takes
+ * baskets (its part `quote_requests` is on) and knows the shop's server by the key the two share
+ * (PUBLIC_LEADS_BRIDGE_KEY there, NATIVE_BRIDGE_KEY here), or has its robot check set up.
+ *
  * Nothing here is a fixture: the product is typed into the admin's own form, the photograph is a file sent through
  * the admin's own upload, and the shop is the built shop asking its own server, which asks the admin.
  *
@@ -33,10 +40,13 @@
  *   OS_PRICE_ON_REQUEST=1   the product has no price: it is published as "Price on request"
  *   OS_CATEGORY             the category it is filed under, by the end of its name (default "Executive Tables")
  *   OS_PICTURE              the photograph to upload (default apps/api/public/img/workstation-product.jpg)
- *   --out <dir>             journeys.json (the form scripts/os-notice.mjs reads) and pictures of the key screens
+ *   --out <dir>             journeys.json (the form scripts/os-notice.mjs reads) and pictures of the key screens.
+ *                           A step that fails is written with two pictures and with what the shop's page had
+ *                           asked the shop's server last, and what it was told.
  *
  * It WRITES: it creates a product whose name begins "ACCEPTANCE", publishes it, changes it and withdraws it. The
- * product is left as a withdrawn draft. Point it at a rehearsal, or at a site whose owner asked for it.
+ * product is left as a withdrawn draft. It sends one basket, which leaves one enquiry of a visitor whose name
+ * begins "Acceptance Visitor". Point it at a rehearsal, or at a site whose owner asked for it.
  *
  * Exit 1 when a step fails or the browser reports a problem. No password is printed.
  * Browser: see scripts/lib/browser.mjs (E2E_CHROMIUM_PATH, E2E_CHROMIUM_ARGS, E2E_REQUIRED).
@@ -80,6 +90,21 @@ const product = {
   renamed: `ACCEPTANCE Desk ${stamp.toUpperCase()} II`,
   repriced: 172500,
 };
+// Who asks for it in step 13b: a name, an address and a telephone number made for this run, and written to
+// nobody. The number is the run's own because the admin knows a returning visitor by it: two runs with one
+// number are one person to it, and the second basket joins the first run's enquiry.
+const shopper = {
+  name: `Acceptance Visitor ${stamp.toUpperCase()}`,
+  company: 'Acceptance Trading',
+  email: `acceptance-${stamp}@example.test`,
+  phone: `0300 00${String(Date.now() % 100000).padStart(5, '0')}`,
+  about: 'Two desks for a new office',
+  quantity: 2,
+};
+// Where the visitor stands: where this browser stands. On a rehearsal that is this machine for every run, so two
+// runs in a row are one visitor to the admin: two baskets and under 80 reads in any minute, of the five and the
+// 120 that one visitor may make. (A run of 28 November said another address to the shop for each run, in a header
+// of the whole browser. The header went to every server, and the font's server refused it: D-083.)
 
 const steps = [];
 const problems = [];
@@ -87,10 +112,53 @@ const elsewhere = new Set();
 const browser = await launchBrowser();
 const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
 const page = await context.newPage();
+// A second sheet of the same signed-in owner, for the enquiries: the product's form stays open on the first.
+const crm = await context.newPage();
 const visitor = await (await browser.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
 // An answer that is asked for as a refusal on purpose: its address, while that step runs.
 let expected = null;
-for (const [name, sheet] of [['admin', page], ['shop', visitor]]) {
+// Every answer of 400 or more that the shop's page was given, with what was asked: a button that leads to a
+// refusal is what this journey exists to find (defect D-060).
+const refusals = [];
+// When the visitor's pages asked for something the shop's server hands on to the admin: the categories, the
+// products and the photographs. The admin allows one visitor 120 such reads a minute; the end of the run says
+// how many this one made, which is what a visitor who does not rest costs.
+const reads = [];
+const handedOn = /^\/api\/(v1\/(catalogue|media)(\/|$)|products(\/(?!overrides$)|$))/;
+// What the visitor's page asked the shop's server for and what it was told, the last sixty of it: written beside a
+// step that fails. A page that was told nothing, or told something it could not use, looks from outside like a
+// page that is slow: on 28 November a card was missing from its category, and nothing here said what the page
+// had been given.
+const lately = [];
+const noted = (line) => { lately.push(`${new Date().toISOString().slice(14, 23)} ${line}`); if (lately.length > 60) lately.shift(); };
+/** What an answer of the catalogue held, in a few words: how many categories, or which products in which category. */
+async function held(response, asked) {
+  if (response.status() !== 200) return '';
+  try {
+    if (asked.pathname === '/api/v1/catalogue/categories') return `: ${(await response.json())?.data?.categories?.length ?? 'no'} categories`;
+    if (asked.pathname === '/api/products') {
+      const list = (await response.json())?.data;
+      return Array.isArray(list) ? `: ${list.length} product(s)${list.slice(0, 3).map((item) => `, ${item?.slug} in category ${item?.primary_category_id}`).join('')}` : ': the shop\'s own list';
+    }
+  } catch { /* The page has gone on and the browser no longer has the answer: the line stays as it is. */ }
+  return '';
+}
+visitor.on('requestfailed', (request) => {
+  if (request.url().startsWith(shop + '/api/')) noted(`${request.method()} ${new URL(request.url()).pathname} got no answer (${request.failure()?.errorText ?? 'no reason given'})`);
+});
+visitor.on('response', (response) => {
+  const asked = new URL(response.url());
+  if (!response.url().startsWith(shop)) return;
+  if (asked.pathname.startsWith('/api/')) {
+    noted(`${response.request().method()} ${asked.pathname}${asked.search} answered ${response.status()}`);
+    const line = lately[lately.length - 1];
+    void held(response, asked).then((more) => { const index = lately.indexOf(line); if (more && index >= 0) lately[index] = line + more; });
+  }
+  if (handedOn.test(asked.pathname) && !response.fromServiceWorker()) reads.push(Date.now());
+  if (response.status() < 400 || (expected && asked.pathname.includes(expected))) return;
+  refusals.push(`${response.request().method()} ${asked.pathname} answered ${response.status()}`);
+});
+for (const [name, sheet] of [['admin', page], ['admin, enquiries', crm], ['shop', visitor]]) {
   sheet.on('pageerror', (error) => problems.push(`${name}, page error: ${error.message.slice(0, 200)}`));
   sheet.on('console', (message) => {
     if (message.type() !== 'error') return;
@@ -112,6 +180,7 @@ async function step(name, run) {
   } catch (error) {
     entry.result = 'FAILED';
     entry.note = String(error.message).split('\n')[0].slice(0, 300);
+    entry.asked = [...lately];
     if (out) {
       await page.screenshot({ path: path.join(out, `failed-${steps.length + 1}-admin.jpg`), type: 'jpeg', quality: 60 }).catch(() => {});
       await visitor.screenshot({ path: path.join(out, `failed-${steps.length + 1}-shop.jpg`), type: 'jpeg', quality: 60 }).catch(() => {});
@@ -120,6 +189,8 @@ async function step(name, run) {
   entry.ms = Date.now() - started;
   steps.push(entry);
   console.log(`  ${entry.result.padEnd(8)} ${name}${entry.note ? ` — ${entry.note}` : ''} (${entry.ms} ms)`);
+  // In the log too, which is where a run that failed somewhere else is read from.
+  for (const line of (entry.asked ?? []).slice(-12)) console.log(`             the shop's page had asked: ${line}`);
   return entry.result === 'ok';
 }
 const must = (condition, message) => { if (!condition) throw new Error(message); };
@@ -169,15 +240,24 @@ async function called(action, press, timeout = 45000) {
   const response = await answered;
   must(response.status() === 200, `the admin answered ${response.status()} to "${action}"`);
   await quiet();
+  // The answer has arrived; the screen draws it a moment later, and what follows reads the screen.
+  await page.waitForTimeout(150);
   const refused = page.locator('[role="alert"]', { hasText: 'Please correct these issues' });
   if (await refused.isVisible().catch(() => false)) throw new Error(`the admin refused: ${(await refused.innerText()).replace(/\s+/g, ' ').slice(0, 220)}`);
 }
 /**
  * A field that the admin reads as it is typed (the name, the price, the texts, a tick): the value is given and
  * the admin's answer to it is waited for, so that what the next line reads is what the admin made of it.
+ *
+ * The answer to the request that carried this field, by the field's name, and no other answer of the admin that
+ * happened to arrive first: every screen of the admin asks for its notifications twice a minute, and since the
+ * journey grew by three steps that question fell into step 14, where its answer was taken for the price's. (A
+ * request names what it changes, as "form.price"; the rest of its body is the screen's state, written with its
+ * quotes escaped, so the name is found only where it is the change.)
  */
-async function given(act) {
-  const answered = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname.includes('/livewire'), { timeout: 20000 });
+async function given(act, model) {
+  const answered = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname.includes('/livewire')
+    && (response.request().postData() || '').includes(`"${model}"`), { timeout: 20000 });
   await act();
   await answered;
   await page.waitForTimeout(150);
@@ -233,9 +313,9 @@ if (signedIn) {
     await page.goto(`${base}/admin/commerce/products/create`, { waitUntil: 'domcontentloaded' });
     await quiet();
     await shown(page.getByRole('heading', { name: 'New product' }), 'the form of a new product');
-    await given(() => field('name').fill(product.name));
-    await given(() => field('slug').fill(product.slug));
-    await given(() => field('short_description').fill(product.short));
+    await given(() => field('name').fill(product.name), 'form.name');
+    await given(() => field('slug').fill(product.slug), 'form.slug');
+    await given(() => field('short_description').fill(product.short), 'form.short_description');
     return `its page will be /shop/${product.slug}`;
   });
 
@@ -259,7 +339,7 @@ if (signedIn) {
     await called('addRow', () => page.getByRole('button', { name: 'Add a code or an option' }).click());
     await shown(page.locator('#variant-0-sku'), 'the row for the product code');
     await page.locator('#variant-0-sku').fill(product.code);
-    for (const name of ['description', 'shipping', 'warranty']) await given(() => field(name).fill(product[name]));
+    for (const name of ['description', 'shipping', 'warranty']) await given(() => field(name).fill(product[name]), `form.${name}`);
     await called('addRow', () => page.getByRole('button', { name: 'Add specification' }).click());
     await shown(page.locator('textarea[aria-label="specifications 1 label"]'), 'the row for a specification');
     await page.locator('textarea[aria-label="specifications 1 label"]').fill('Dimensions');
@@ -273,7 +353,7 @@ if (signedIn) {
     const wanted = options.find((option) => option.value !== '' && option.text.replace(/\s*\(inactive\)$/, '').endsWith(categoryName));
     must(wanted, `the admin has no category whose name ends in "${categoryName}"`);
     must(!/\(inactive\)$/.test(wanted.text), `the category "${wanted.text}" is switched off: a product in it cannot be published`);
-    await given(() => select.selectOption(wanted.value));
+    await given(() => select.selectOption(wanted.value), 'form.primary_category_id');
     // The address the shop knows that category by, read from what the admin hands out.
     const tree = await (await visitor.request.get(`${base}/api/v1/catalogue/categories`)).json();
     const found = tree.data.categories.find((category) => String(category.id) === wanted.value);
@@ -284,11 +364,11 @@ if (signedIn) {
 
   await step(`6. ${onRequest ? 'It is marked "Price on request", with no figure' : 'Its price is entered'}`, async () => {
     if (onRequest) {
-      await given(() => field('price_on_request').check());
+      await given(() => field('price_on_request').check(), 'form.price_on_request');
       must((await field('price').inputValue()) === '', 'a price stands beside "Price on request"');
       return 'no price was typed, and none was made up';
     }
-    await given(() => field('price').fill(String(product.price)));
+    await given(() => field('price').fill(String(product.price)), 'form.price');
     must(!(await field('price_on_request').isChecked()), '"Price on request" is ticked beside a price');
     return `PKR ${product.price}`;
   });
@@ -413,12 +493,124 @@ if (signedIn) {
     return `photograph ${size.width} × ${size.height}; code ${product.code}; ${onRequest ? '"Price on request", no figure' : `PKR ${product.price}`}; dimensions, delivery and warranty as written`;
   });
 
+  /* ───────────────────────────── 13a to 13c: what a visitor does with it ───────────────────────────── */
+
+  let reference = '';
+
+  await step('13a. No cart is offered for it: the page offers the quotation basket and WhatsApp', async () => {
+    const main = visitor.locator('main');
+    const words = (await main.innerText()).replace(/\s+/g, ' ');
+    // The shop's own server prices an order from its own database, which does not hold this product: a cart
+    // would be refused when it is sent. So none is offered, with a price or without.
+    must(await main.getByRole('button', { name: /add to cart/i }).count() === 0, 'the page offers a cart for a product that only the admin has');
+    must(await main.getByRole('button', { name: 'Add to Quote', exact: true }).isEnabled(), 'the page does not offer the quotation basket');
+    must(onRequest ? words.includes('Add it to your quote and we will send you the price') : words.includes('Ordered by quotation'), 'the page does not say how the product is bought');
+    const link = (await main.getByRole('link', { name: 'Ask on WhatsApp' }).getAttribute('href')) || '';
+    must(/^https:\/\/wa\.me\/\d{10,15}\?text=/.test(link), `the WhatsApp link is "${link.slice(0, 60)}"`);
+    must(decodeURIComponent(link).includes(product.name) && decodeURIComponent(link).includes(product.code), 'the WhatsApp message does not name the product and its code');
+    // In its category the card offers the same: the basket, and no cart.
+    await openCategory();
+    await card().first().waitFor({ timeout: 20000 });
+    must(await visitor.getByRole('button', { name: `Add ${product.name} to cart` }).count() === 0, 'the card in the category offers a cart');
+    must(await visitor.getByRole('button', { name: `Add ${product.name} to quote` }).count() > 0, 'the card in the category does not offer the quotation basket');
+    return `no cart on its page or on its card; "Add to Quote", and WhatsApp to ${link.slice(0, 26)}…`;
+  });
+
+  await step('13b. A visitor puts it into the quotation basket and sends the basket', async () => {
+    await openProduct();
+    const main = visitor.locator('main');
+    for (let more = 1; more < shopper.quantity; more++) await main.getByRole('button', { name: 'One more', exact: true }).click();
+    await main.getByRole('button', { name: 'Add to Quote', exact: true }).click();
+    // The basket opens beside the page; from there the visitor goes on to the request.
+    const onward = visitor.getByRole('link', { name: `Request Quote (${shopper.quantity})` });
+    await onward.waitFor({ timeout: 20000 });
+    await Promise.all([visitor.waitForURL((url) => url.pathname === '/quotation', { timeout: 20000 }), onward.click()]);
+    await catalogueRead();
+    const basket = (await visitor.locator('main').innerText()).replace(/\s+/g, ' ');
+    must(basket.includes(product.name), 'the request page does not list the product');
+    must(onRequest ? /on request/i.test(basket) : amount(product.price * shopper.quantity).test(basket), 'the request page does not show what the basket comes to');
+    must(await visitor.getByRole('button', { name: /Log & open WhatsApp/ }).count() === 0, 'the request page offers a WhatsApp button that the admin cannot answer');
+
+    await visitor.locator('#name').fill(shopper.name);
+    await visitor.locator('#company').fill(shopper.company);
+    await visitor.locator('#email').fill(shopper.email);
+    await visitor.locator('#phone').fill(shopper.phone);
+    await visitor.locator('#project-type').fill(shopper.about);
+    await visitor.locator('input[name="contactConsent"]').check();
+    const answered = visitor.waitForResponse((response) => response.request().method() === 'POST' && /^\/api\/(v1\/quote-requests|quotes)$/.test(new URL(response.url()).pathname), { timeout: 45000 });
+    await visitor.getByRole('button', { name: 'Submit Quote Request' }).click();
+    const response = await answered;
+    const address = new URL(response.url()).pathname;
+    const body = await response.text().catch(() => '');
+    must(address === '/api/v1/quote-requests', `the basket was sent to ${address}, which cannot price a product of the admin`);
+    must(response.status() === 201, `the basket was answered ${response.status()}: ${body.replace(/\s+/g, ' ').slice(0, 220)}`);
+    reference = String(JSON.parse(body)?.data?.reference || '');
+    must(/^QR-[0-9a-f-]{36}$/.test(reference), `the answer names no reference: ${body.slice(0, 120)}`);
+    await visitor.getByRole('heading', { name: 'Quote Request Submitted!' }).waitFor({ timeout: 20000 });
+    const told = (await visitor.locator('main').innerText()).replace(/\s+/g, ' ');
+    must(told.includes(reference), 'the page does not give the visitor the reference of the request');
+    must(told.includes('Pending staff review'), 'the page does not say that the request waits for the team');
+    // What was sent is with the team: the header does not go on counting it, and it is not kept to be sent again.
+    const counted = await visitor.locator('header button[aria-label^="Quote basket"]').first().getAttribute('aria-label');
+    must(counted === 'Quote basket', `the basket was received and the header still says "${counted}"`);
+    const kept = await visitor.evaluate(() => localStorage.getItem('woodex-quote'));
+    must(kept === '[]', `the basket was received and this browser still keeps it: ${String(kept).slice(0, 80)}`);
+    await shot(visitor, 'shop-basket-sent');
+    must(refusals.length === 0, `something the shop's page asked was refused: ${refusals.join('; ')}`);
+    return `${shopper.quantity} of it, sent to the admin through the shop's own server: ${reference.slice(0, 11)}…; the basket is empty afterwards; nothing the page asked was refused`;
+  });
+
+  await step('13c. The enquiry is in the admin, with the product, its code and its price on its line', async () => {
+    must(reference !== '', 'no basket was sent');
+    // What the database kept: which enquiry, and what the priced lines come to, in paisa.
+    const kept = database(`SELECT lead_id, estimated_total_minor, status FROM storefront_quote_requests WHERE reference = '${reference}'`);
+    let address = '';
+    if (kept !== null) {
+      const [lead, estimate, status] = kept.split('\t');
+      must(/^\d+$/.test(lead || ''), `the database holds no basket ${reference}`);
+      must(status === 'pending_review', `the basket's state is "${status}"`);
+      must(Number(estimate) === (onRequest ? 0 : product.price * shopper.quantity * 100), `the database keeps an estimate of ${estimate} paisa`);
+      address = `${base}/admin/leads/${lead}`;
+    } else {
+      // No way into the database: the enquiry is found as its owner finds it, in the list, by the visitor's name.
+      await crm.goto(`${base}/admin/leads`, { waitUntil: 'domcontentloaded' });
+      await quiet(crm);
+      const found = crm.locator('tr', { hasText: shopper.name }).first();
+      await found.waitFor({ timeout: 20000 });
+      address = new URL(await found.locator('a[href*="/admin/leads/"]').first().getAttribute('href'), base).href;
+    }
+    await crm.goto(address, { waitUntil: 'domcontentloaded' });
+    await quiet(crm);
+    const screen = (await crm.locator('main').innerText()).replace(/\s+/g, ' ');
+    must(screen.includes(shopper.name), 'the enquiry is not this visitor\'s');
+    must(screen.includes(reference), 'the enquiry does not show the basket');
+    must(screen.includes(product.name) && screen.includes(`[${product.code}]`), 'the line does not name the product and its code');
+    if (onRequest) {
+      must(screen.includes(`${shopper.quantity} each × price on request`), 'the line does not say "price on request"');
+      must(!/[×=] Rs 0\b/.test(screen) && !screen.includes('estimate: Rs 0'), 'the enquiry prints a price of zero');
+      must(screen.includes('No catalogue estimate: the line is priced on request'), 'the enquiry does not say that there is no estimate');
+    } else {
+      must(amount(product.price).test(screen) && amount(product.price * shopper.quantity).test(screen), 'the line does not show the price as published and what the line comes to');
+      must(!screen.includes('price on request'), 'the line says "price on request" beside a price');
+      must(screen.includes('Saved catalogue estimate:') && !screen.includes('No catalogue estimate'), 'the enquiry does not give the estimate of the basket');
+    }
+    // The picture shows the basket itself, which stands below the first screen of the enquiry.
+    await crm.getByText(reference).first().scrollIntoViewIfNeeded().catch(() => {});
+    await shot(crm, 'admin-enquiry-with-basket');
+    // The sheet is left empty: an open screen of the admin asks its server now and then, and the steps that
+    // follow wait for the answers to what they do on the other sheet.
+    await crm.goto('about:blank').catch(() => {});
+    return `${kept === null ? 'read on the screen' : 'read in the database and on the screen'}: ${shopper.name}, ${shopper.quantity} × ${product.name} [${product.code}], ${onRequest ? 'price on request, no figure' : `PKR ${product.price} each`}`;
+  });
+
   /* ───────────────────────────── 14, 15: changed in the admin, changed in the shop ───────────────────────────── */
 
   await step('14. The product is changed in the admin: a new name' + (onRequest ? ', and a price in place of "on request"' : ' and a new price'), async () => {
-    await given(() => field('name').fill(product.renamed));
+    await given(() => field('name').fill(product.renamed), 'form.name');
     // Typing a price into a product that says "Price on request" takes the tick off, where the editor sees it.
-    await given(() => field('price').fill(String(product.repriced)));
+    // The admin's answer to the price is what takes it off, so that answer is waited for, and then the tick.
+    await given(() => field('price').fill(String(product.repriced)), 'form.price');
+    await page.waitForFunction(() => !document.getElementById('form.price_on_request')?.checked, null, { timeout: 10000 }).catch(() => {});
     must(!(await field('price_on_request').isChecked()), 'a price was typed and "Price on request" is still ticked');
     await page.locator('input[type="checkbox"][wire\\:model="form.reviewed"]').check();
     await saveDraft();
@@ -446,6 +638,8 @@ if (signedIn) {
   await step('16. The publication is withdrawn in the admin', async () => {
     await page.locator('input[type="checkbox"][wire\\:model="confirmWithdraw"]').check();
     await called('withdraw', () => page.getByRole('button', { name: 'Withdraw publication' }).click());
+    // Waited for, and then asserted: read in the same moment as the answer arrived, the button was once still there.
+    await page.getByRole('button', { name: 'Withdraw publication' }).waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
     must(!(await page.getByRole('button', { name: 'Withdraw publication' }).isVisible().catch(() => false)), 'the admin still offers to withdraw a publication');
     const kept = row();
     must(kept === null || kept.split('\t')[3] === 'none', 'the database still names a published copy');
@@ -472,13 +666,17 @@ await browser.close();
 
 const failed = steps.filter((entry) => entry.result === 'FAILED');
 const serious = [...new Set(problems)];
+// The most reads in any one minute of the run: for each read, how many fell into the minute that began with it.
+const busiest = reads.reduce((most, from, index) => Math.max(most, reads.filter((at, later) => later >= index && at < from + 60000).length), 0);
 if (out) {
   writeFileSync(path.join(out, 'journeys.json'), `${JSON.stringify({
     base, shop, journey: 'a product from the admin to the shop', priced: onRequest ? 'on request' : 'with a price',
     product: { name: product.name, slug: product.slug, code: product.code }, database: queryCommand ? 'read' : 'not read', restarted: Boolean(restartCommand), steps, problems: serious,
+    refused: refusals, visitor: { readsHandedToTheAdmin: reads.length, mostInOneMinute: busiest, allowedInOneMinute: 120 },
   }, null, 2)}\n`);
 }
 console.log(`\n${steps.length - failed.length} of ${steps.length} steps held${serious.length ? `; the browser reported ${serious.length} problem(s):` : '; the browser reported no problem'}`);
 for (const problem of serious) console.log(`  ${problem}`);
+console.log(`  the visitor's pages asked the admin, through the shop's server, ${reads.length} times: at most ${busiest} in one minute, of the 120 the admin allows one visitor`);
 if (elsewhere.size) console.log(`  (not counted: a file of another server did not arrive: ${[...elsewhere].join(', ')})`);
 process.exit(failed.length || serious.length ? 1 : 0);

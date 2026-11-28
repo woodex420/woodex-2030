@@ -1,4 +1,5 @@
-// Public read-only bridge. Never forwards cookies, authorization or staff routes.
+// Public read-only bridge. Never forwards cookies, authorization or staff routes. It says for which visitor it
+// asks, when it holds the key it shares with the admin (native-bridge-key.mjs).
 //
 // It stands in front of an address of the Laravel admin's /api/v1 and answers at the same address on the shop's
 // own site. What the admin answers with success is handed on as it is: {data, meta} for the list, the bytes for
@@ -7,6 +8,8 @@
 // with the number of the admin's request when the admin was asked and named one, and null otherwise. Two codes are
 // this bridge's own: SWITCHED_OFF (this shop is not connected to an admin; the shop then asks again much later)
 // and BAD_GATEWAY (the admin answered something that is neither JSON nor a picture).
+import { vouching } from './native-bridge-key.mjs';
+
 const REQUEST_NUMBER = /^[0-9A-HJKMNP-TV-Z]{4}(?:-[0-9A-HJKMNP-TV-Z]{4}){2}$/;
 const numberOf = response => { const value = response?.headers?.get?.('x-request-id'); return typeof value === 'string' && REQUEST_NUMBER.test(value) ? value : null; };
 const problem = (res, status, code, message, requestId = null) => res.status(status).json({ error: { code, message, details: {} }, meta: { request_id: requestId } });
@@ -25,7 +28,7 @@ export function nativeMediaBridge(env = process.env) {
     if (suffix !== '' && !/^\/\d+\/\d+$/.test(suffix)) return problem(res, 404, 'NOT_FOUND', 'Nothing is at this address.');
     try {
       const response = await fetch(new URL('/api/v1/media' + suffix, origin), {
-        headers: { Accept: suffix ? 'image/*' : 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(5000),
+        headers: { Accept: suffix ? 'image/*' : 'application/json', ...vouching(env, req) }, redirect: 'error', signal: AbortSignal.timeout(5000),
       });
       if (!response.ok) {
         return response.status === 404

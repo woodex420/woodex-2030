@@ -21,8 +21,8 @@ four of them. A large line can take more than one.
 ## The short version
 
 <!-- generated:short — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-1. **111 lines of the list are not done.** 10 can start now and need nobody: they are planned in 7 rounds (§2). 30 wait for you (§3). 71 wait for an earlier line (§4), and 53 of those stand behind an answer of yours.
-2. **The next round** is round 1: T-191, With the product link on, a visitor can ask for a product of the admin.
+1. **111 lines of the list are not done.** 15 can start now and need nobody: they are planned in 11 rounds (§2). 30 wait for you (§3). 66 wait for an earlier line (§4), and 53 of those stand behind an answer of yours.
+2. **The next round** is round 1: T-192, `/api/v1`: series, filters and search.
 3. **The answers of yours that the most lines stand behind:** T-006, Install the trial site on Hostinger (document 24) and send its address (23 lines) · T-003, Give Furniture's price list, terms, quotation wording and who signs (8 lines) · T-004, Say who may approve what, and each role's discount limit (5 lines) · T-008, Confirm the currency (PKR) and the tax rules (3 lines) · T-011, Decide product options, and the stock rule: from stock or made to order (3 lines).
 4. **1 critical defect is open:** D-002, The owner password of the old dashboard was printed in a public document — T-021, which waits for you.
 5. **Every line has its test.** A line that can start now says in §2 what is built, which tests are written, what a browser does, and what the tests are tried against. A waiting line carries the list's own "done when" (§4). §5 names the checks every round passes before it is merged.
@@ -35,12 +35,12 @@ four of them. A large line can take more than one.
 <!-- generated:numbers — written by scripts/verify-plan.mjs --write; do not edit by hand -->
 |  |  |
 |---|---|
-| Lines on the list | 162 |
-| Done | 51 |
-| **Can start now, needing nobody** | **10**, in 7 rounds (§2) |
+| Lines on the list | 163 |
+| Done | 52 |
+| **Can start now, needing nobody** | **15**, in 11 rounds (§2) |
 | **Wait for you** | **30** (§3) |
-| Wait for an earlier line | 71 (§4): 53 stand behind an answer of yours · 10 stand behind lines that need nobody · 8 go with a wave, a date or an event |
-| Not done, by priority | 25 P0, 51 P1, 28 P2, 7 P3 |
+| Wait for an earlier line | 66 (§4): 53 stand behind an answer of yours · 5 stand behind lines that need nobody · 8 go with a wave, a date or an event |
+| Not done, by priority | 24 P0, 52 P1, 28 P2, 7 P3 |
 <!-- /generated:numbers -->
 
 ---
@@ -63,35 +63,130 @@ or read on the sites on the day the plan was written. **Tried against** is the p
 protection is taken away once, by hand, and the test must go red.
 
 <!-- generated:rounds — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-### Round 1 — With the product link on, a visitor can ask for a product of the admin
+### Round 1 — The addresses the owner listed: series, filters and search
 
-**Lines:** T-191 · **Why here:** P0 since 27 November. The owner's acceptance of that day (a product made in the admin is what a visitor of the shop sees) holds, and found what stands between it and the live shop besides a database and published products: a visitor cannot yet ask for such a product. The shop's own server prices an order and a basket from its own database, which does not have a product that only the admin has, and refuses both (D-060). Until this is built the shop's switch stays off. · **When it is merged, these can start:** T-115 (The page-builder prototype (gate C)); T-192 (`/api/v1`: series, filters and search); T-193 (One code for one product, held by the database); T-195 (An unknown address answers 404 on Vercel too); T-196 (The code style, the analyser and the database comparison in CI); T-198 (The shop's font in its own build).
+**Lines:** T-192 · **Why here:** The owner's list of 27 November names three addresses of `/api/v1` that do not exist yet. They are what a shop needs when it stops reading the whole catalogue: a list of the series, what a list can be narrowed by, and a search. First of the freed lines, because the next (the cost of an open page) is easier once the shop no longer has to hold everything. · **When it is merged, these can start:** T-115 (The page-builder prototype (gate C)).
 
-#### T-191 · P0 · medium — With the product link on, a visitor can ask for a product of the admin
+#### T-192 · P1 · medium — `/api/v1`: series, filters and search
 
-- **Done when** (the list): On the rehearsal, with the link on, a visitor sends a basket that holds a product only the admin has: it is a lead with its lines in the admin, and no button of the product's page leads to a refusal
-- **Found on 27 November 2026:** Read on 27 November on the rehearsal of document 45, with the link on: the product's page offers "Add to Cart" and "Add to Quote". An order for it (`POST /api/orders`) and a basket (`POST /api/quotes`) are both answered 400, "item 1 is not an available catalog product". The shop can already send an enquiry and a basket to the admin's `/api/v1` (its `v1` mode, built with T-063 and off in every build); the admin's module `quote_requests` receives a basket and is off as it ships, and asks for an explicit mapping from the shop's product number to a product of the admin. Orders do not exist in the admin (T-106).
+- **Done when** (the list): The three addresses are in the contract, held by the contract test, and the shop's list uses them
+- **Found on 28 November 2026:** The contract of `/api/v1` has ten addresses, seven of them read. The series come inside the answer of `/catalogue/categories`. The list of products is narrowed by `category`, `series` and `since`, in pages of at most 100. Nothing answers at `/catalogue/series`, `/catalogue/filters` or `/catalogue/search`: the last route of the group says 404. The shop reads the whole catalogue page after page and narrows and searches it in the browser (`apps/storefront/src/pages/Shop.tsx`: the search box compares the words typed with the names it has read).
 - **What is built:**
-  1. The shop knows where its catalogue came from. For a product read from the admin the cart is not offered: the page offers the quotation basket and WhatsApp, and says in one line that it is made to order and quoted. A cart that already holds such a product says so and offers to move it to the basket.
-  2. A basket line is read by the admin by the product's address (its slug), which is what the shop knows a product of the admin by: the module `quote_requests` needs no mapping table for such a line, checks that the product is published, and keeps the name, the code and the price as they were published at that moment.
-  3. The rehearsal of document 45 builds the shop in `v1` mode, so that the enquiry and the basket of the journey are sent to the admin.
+  1. `GET /api/v1/catalogue/series`: the published series, each with its address, its name and how many published products it holds.
+  2. `GET /api/v1/catalogue/filters`: what the list can be narrowed by, counted over the published products only: the categories and the series with their counts, the lowest and the highest price of what has one, and how many are priced on request.
+  3. `GET /api/v1/catalogue/search`: the words typed, at least two signs, compared with the name and the code of each published product; a page of products in the shape of the list.
+  4. The three are written into the contract first, are answered through `ApiAnswer`, and are counted with the other reads, by the visitor.
+  5. The shop's server hands them on, and the shop's list takes its filters and its counts from the answer instead of working them out.
 - **Tests written:**
-  1. The admin's suite: a basket with a published product is a lead with its lines; with a draft, a withdrawn or an archived product it is refused by the code the contract names, and nothing is written; a product priced on request is taken without a figure; the same basket sent twice is one lead (the idempotency key).
-  2. The shop's reader script: a product read from the admin offers no cart; a product read from the shop's own database offers what it offers today.
-  3. The contract test: the changed body of `POST /api/v1/quote-requests`, key by key.
+  1. The contract test: the three addresses key by key, for every status the contract documents.
+  2. The admin's suite: a draft, a withdrawn and an archived product is in no count, no filter and no search result; a search finds a product by a word of its name and by its code, whatever the capitals; one sign is refused by the code the contract names.
+  3. The shop's reader script: the filters and counts shown are the ones the admin answered.
 - **In a browser:**
-  1. `scripts/os-product-to-shop.mjs` gains three steps after step 13: the visitor puts the published product into the basket and sends it; the owner finds the lead in the admin with the product, its code and its price on its line; no button of the product's page was answered with a refusal.
-- **Tried against:** With the cart left on for a product of the admin, the journey's new step names the refusal; with the admin taking a basket line of a draft, its test names the draft; with the price taken from the request, the test of the published price names it.
-- **The way back:** The shop's switch stays off, so no visitor sees any of it. With the switch off the shop offers its cart exactly as today; the `v1` mode is a setting of a build and no live build has it.
+  1. The product journey gains a step: the visitor finds the published product by typing its code into the shop's search, and no longer finds it after the publication is withdrawn.
+- **Tried against:** With a draft counted in a filter, the test of the counts names it; with the search reading the saved draft, the test names the draft's name.
+- **The way back:** The shop's switch stays off, so no visitor sees any of it. The three addresses hand out nothing the list does not hand out already.
 
-### Round 2 — The timer, still to be read from the live site
+### Round 2 — One code, one product: held by the database
+
+**Lines:** T-193 · **Why here:** The rule of 27 November (DL-049) is checked by reading the other products, which two editors can pass in the same moment. It follows the addresses because the search of that round finds a product by its code, and a code that names two products would answer with both. · **When it is merged, these can start:** no waiting line.
+
+#### T-193 · P2 · medium — One code for one product, held by the database
+
+- **Done when** (the list): Two saves in the same moment, tried by the two-writers command on the three servers: one is refused
+- **Found on 28 November 2026:** A code another product has is refused when a draft is saved and again at publication (`ProductCatalogue::refuseACodeOfAnotherProduct`): the check reads the saved and the published copies of every other product, archived or not. A code is a value inside the saved draft, not a column, so no index holds it. Two editors who give two products the same new code in the same moment can both pass the check when they save; the second publication is then refused, and until then two drafts carry one code.
+- **What is built:**
+  1. A table of codes: one row for each code that a product's saved draft or published copy carries, in one spelling, with a unique index.
+  2. Saving a draft and publishing write the product's rows in the same transaction as the product. A code that another product holds fails on the index, and the editor is told as today, on the row of the code.
+  3. A migration fills the table from the products there are. Where two products already share a code it stops, lists them, and changes nothing.
+- **Tests written:**
+  1. The admin's suite: the rules of DL-049 as they stand, each asked of the table: a code taken, a code freed by a changed draft, a code kept by the published copy, the same code in other capitals.
+  2. The two-writers command gains a step: two saves of the same new code in the same moment, fifty runs, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4: one is refused every time.
+  3. The migration on a copy of the 170 imported products: every code is in the table once.
+- **In a browser:**
+  1. The product journey, unchanged, on the new table: its code is typed once and accepted.
+- **Tried against:** With the unique index left out, the two-writers step reports two products with one code.
+- **The way back:** The migration's way back drops the table; the check that reads the other products is still there.
+
+### Round 3 — What an open page of the shop costs the admin's host
+
+**Lines:** T-200 · **Why here:** Measured in the round of 28 November. It does not stand in the way of the switch for a few visitors, and it does for many: the host is shared hosting, and every read of every open page is a request it has to answer. · **When it is merged, these can start:** no waiting line.
+
+#### T-200 · P1 · medium — What an open page of the shop costs the admin's host
+
+- **Done when** (the list): Measured on the rehearsal: fifty open pages cause no more reads at the admin than one does, and a withdrawn product is gone from every page within fifteen seconds
+- **Found on 28 November 2026:** Measured on the rehearsal with the link on: a page of the shop that stands open and is not touched asks the admin nine times a minute through the shop's server: the categories and the replaced photographs every fifteen seconds, the whole list of products once a minute. A journey of ten pages asked 34 times in under a minute. The list takes `since` and the shop does not send it. The admin allows one visitor 120 reads a minute (D-082), which fourteen open pages of one visitor reach; the shop's server then answers 503 for the catalogue.
+- **What is built:**
+  1. The shop's server keeps what it read of the admin for a few seconds and answers every visitor from it: one read at the admin for all the pages that ask in that time. It keeps only what is public and the same for everybody: the categories, the products, the list of replaced photographs. An answer that is an error is not kept, and a basket is never answered from what is kept.
+  2. An open page asks whether anything changed since its last reading, and reads the list again only then.
+  3. How long a withdrawn product may still be shown is one number of the shop's server, written down: fifteen seconds at most.
+- **Tests written:**
+  1. The bridges' script: many requests within the time are one read at the admin; after the time, a new read; an error is not kept; nothing a visitor writes is kept.
+  2. The reader's script: with nothing changed since the last reading, the page reads nothing more.
+  3. A measurement kept with the report: fifty pages opened on the rehearsal, and the reads the admin received in a minute.
+- **In a browser:**
+  1. The product journey: after "Withdraw", the product is gone from the shop within fifteen seconds, and the journey says how long it took.
+- **Tried against:** With the time set to an hour, the journey's step 17 fails: the withdrawn product is still shown.
+- **The way back:** The time is a setting of the shop's server; 0 asks the admin every time, as today.
+
+### Round 4 — The code style and the analyser in CI
+
+**Lines:** T-196 · **Why here:** Two checks exist and no workflow runs them (the audit of 23 November, AU-16). Small, and it protects every round after it. · **When it is merged, these can start:** no waiting line.
+
+#### T-196 · P1 · medium — The code style, the analyser and the database comparison in CI
+
+- **Done when** (the list): `composer lint` and `composer analyse` fail a pull request; the comparison runs or says in an error why it cannot
+- **Found on 28 November 2026:** No workflow runs the code style (`composer lint`) or the analyser (`composer analyse`): the audit of 23 November, AU-16. Run in the sandbox on the code of 28 November (PHP 8.5): the style check names 16 files of 1,264, fifteen of them tests; the analyser reports 147 errors in 36 files of `app/` at level 6. None is in a file of the last two rounds. The comparison of the live shop's database with its schema files says "Production is unverified this run" on every run: no read-only address is given to it.
+- **What is built:**
+  1. `os-ci.yml` runs `composer lint` and `composer analyse` on every push that touches `platform/`; a pull request fails on either.
+  2. What the two report on the day is cured in the same round: the 16 files are rewritten by the tool, and each of the 147 errors is cured in the code or, where the analyser is wrong, named in a list with its reason. The first run is then green, and a later fault is somebody's own.
+  3. The comparison of the live shop's database with its schema files runs when a read-only address is given as a secret; without one the run carries an error that names what is missing, instead of a notice nobody reads. The address is the owner's to give.
+- **Tests written:**
+  1. On the round's own branch: a file of `app/` with a style fault fails the run and the run names the file; taken out, the run passes. The same with a type fault for the analyser.
+- **In a browser:** nothing; this line has no screen.
+- **Tried against:** The two faults above are the test: each is pushed once and taken out again.
+- **The way back:** The two steps are taken out of the workflow.
+
+### Round 5 — Two small cures of the live shop
+
+**Lines:** T-195, T-198 · **Why here:** Both are findings of the audit of 23 November (AU-11, AU-23) that need nobody and change what a visitor and a search engine are told. · **When it is merged, these can start:** no waiting line.
+
+#### T-195 · P2 · small — An unknown address answers 404 on Vercel too
+
+- **Done when** (the list): An unknown address answers 404 on Vercel too, held by the live check
+- **Found on 28 November 2026:** The last rule of the shop's `vercel.json` hands every address that is no file to the shop's page (`/:path*` to `/index.html`) with the status 200. The page then says "not found" and asks not to be indexed (since 25 November); the status is still success. Read on 23 November: `/this-page-is-not-there` answered 200. The shop's own server answers 404 for the same address.
+- **What is built:**
+  1. The addresses the shop has are written down once, where the build already knows them for its static pages and its sitemap: the fixed pages, and the patterns of a product, a category, a series, an article and a published page.
+  2. On Vercel an address that fits none of them is answered by the shop's server, which already answers `/api` and the sitemap there: the not-found page, with the status 404.
+- **Tests written:**
+  1. A script reads `vercel.json` against the shop's routes: every route of the application is named, and an address that fits none goes to the server.
+  2. The check of the live sites asks for an address that is not there and requires 404.
+- **In a browser:**
+  1. The crawl of the built shop: every address of the sitemap answers 200; five addresses that are not there answer 404 and show the not-found page.
+- **Tried against:** With the last rule put back, the new point of the live check fails.
+- **The way back:** The one rule put back in `vercel.json`.
+
+#### T-198 · P3 · small — The shop's font in its own build
+
+- **Done when** (the list): The font is a file of the shop's own build, and no page asks another server for it
+- **Found on 28 November 2026:** The shop asks Google for the font Inter on every page, twice: a link in `apps/storefront/index.html` (six weights) and an `@import` in `apps/storefront/src/index.css` (seven). The admin carries its font as files of its own build. Every run of the browser scripts in the sandbox, which reaches no other server, reports the file that did not arrive.
+- **What is built:**
+  1. Inter as files of the shop's build, with its licence, declared in the stylesheet with `font-display: swap`.
+  2. Both references to Google are taken out.
+- **Tests written:**
+  1. The build's own check refuses `fonts.googleapis.com` and `fonts.gstatic.com` anywhere in the built shop.
+- **In a browser:**
+  1. The crawl: no request leaves for another server, and a heading and a paragraph are set in Inter at both widths.
+- **Tried against:** With the link put back in `index.html`, the build's check fails.
+- **The way back:** The two references put back.
+
+### Round 6 — The timer, still to be read from the live site
 
 **Lines:** T-142 · **Why here:** One small line whose building is merged and whose proof can only come from the live site: GitHub starts a timer when it will. Nothing is built here; the line is closed by reading, and the readings are written down at the start of every round. The two lines that stood here with it are done: the long life of the built files (T-152) was read on 20 November, and the third cold start (T-154) on 21 November. · **When it is merged, these can start:** no waiting line.
 
 #### T-142 · P2 · small — The outside check on a timer: moved to another minute, to be counted again
 
 - **Done when** (the list): It runs every six hours from `main`; a forced failure opens an issue
-- **Found on 27 November 2026:** The timer was written again with pull request #52: 03:47, 09:47, 15:47 and 21:47 UTC, from 20 November at 15:02 UTC. Before that, six timed runs came for thirteen times due: the times due at 06:23 and 18:23 UTC brought a run every time, 1 h 08 min to 2 h 43 min late, and the times due at 00:23 and 12:23 UTC never. Read on 21 November at 12:26 UTC: two runs for four times due at the new minute. 15:47 UTC on 20 November brought none; 21:47 UTC brought a run at 22:22 UTC, green; 03:47 UTC on 21 November brought none; 09:47 UTC brought a run at 11:49 UTC, 2 h 02 min late. That run failed, and rightly: it is the first timed run that found a live site changed (issue #54, cured with pull request #55). The change had stood for four hours by then. Eight timed runs in all, five of them green; the two of 18 and 19 November failed on a point of the check itself (issue #46, cured with pull request #47). Starting the check by hand is refused to this session (HTTP 403). The check after a merge has run every time.
+- **Found on 28 November 2026:** The timer was written again with pull request #52: 03:47, 09:47, 15:47 and 21:47 UTC, from 20 November at 15:02 UTC. Before that, six timed runs came for thirteen times due: the times due at 06:23 and 18:23 UTC brought a run every time, 1 h 08 min to 2 h 43 min late, and the times due at 00:23 and 12:23 UTC never. Read on 21 November at 12:26 UTC: two runs for four times due at the new minute. 15:47 UTC on 20 November brought none; 21:47 UTC brought a run at 22:22 UTC, green; 03:47 UTC on 21 November brought none; 09:47 UTC brought a run at 11:49 UTC, 2 h 02 min late. That run failed, and rightly: it is the first timed run that found a live site changed (issue #54, cured with pull request #55). The change had stood for four hours by then. Eight timed runs in all, five of them green; the two of 18 and 19 November failed on a point of the check itself (issue #46, cured with pull request #47). Starting the check by hand is refused to this session (HTTP 403). The check after a merge has run every time.
 - **What is built:**
   1. Nothing more is built. GitHub's list of timed runs is read at the start of every round, and how many of the times due brought a run is written into the list.
   2. If the new minute does no better after eight times due, the line says that GitHub does not keep a six-hourly timer for this repository, and the owner is asked whether twice a day is enough or another service should start the check.
@@ -101,14 +196,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** Done on 17 November: a forced failure opened issue #38, and the next proof closed it.
 - **The way back:** Nothing changes on any site.
 
-### Round 3 — Without a mouse; help, pinned and recent screens
+### Round 7 — Without a mouse; help, pinned and recent screens
 
 **Lines:** T-054, T-046 · **Why here:** T-054 is P1, and the accessibility review of gate A waits for it. The new entries of the top bar get their keyboard tests from the first day. · **When it is merged, these can start:** T-047 (Search finds a screen by keyword and by its old name).
 
 #### T-054 · P1 · medium — Keyboard and screen-reader tests in a browser
 
 - **Done when** (the list): The tests run with the journeys; sign-in, a lead and a quotation done by keyboard only
-- **Found on 27 November 2026:** The search opens with Ctrl+K and answers to the arrow keys and Escape. The journeys press Ctrl+K once and Escape three times. No task is done by keyboard alone: the sidebar, the focus inside a dialog and the announcing of a refused field are untested.
+- **Found on 28 November 2026:** The search opens with Ctrl+K and answers to the arrow keys and Escape. The journeys press Ctrl+K once and Escape three times. No task is done by keyboard alone: the sidebar, the focus inside a dialog and the announcing of a refused field are untested.
 - **What is built:**
   1. A third journey, done by keyboard only: sign in; the sidebar, a group opened and a link followed; the search opened, a screen found, chosen, and Escape giving the focus back; a dialog and a drawer that keep the focus inside and return it; a lead and a quotation made; a refused field announced where it stands.
   2. What the journey finds is corrected in the same round.
@@ -124,7 +219,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-046 · P2 · medium — Help, pinned screens and recently opened screens in the top bar
 
 - **Done when** (the list): Present, usable by keyboard, remembered per person, tested
-- **Found on 27 November 2026:** The top bar has the search, "Create new", the colour theme, the notifications and the account. It has no help entry, and no pinned or recent screens. A person's record has no place for such preferences yet.
+- **Found on 28 November 2026:** The top bar has the search, "Create new", the colour theme, the notifications and the account. It has no help entry, and no pinned or recent screens. A person's record has no place for such preferences yet.
 - **What is built:**
   1. A Help entry in the top bar: what this screen is for, the keyboard shortcuts, and the request number to give when asking for help.
   2. A screen can be pinned from its heading; pinned screens stand at the head of the menu. The screens opened last are listed, for each person.
@@ -138,14 +233,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the check of the person's rights taken out, "is not offered" fails.
 - **The way back:** One migration that only adds; its way back removes the table.
 
-### Round 4 — Every shared part on one screen; a slow list and a lost connection
+### Round 8 — Every shared part on one screen; a slow list and a lost connection
 
 **Lines:** T-050, T-051 · **Why here:** Both waited for the shared table (T-041), and both are P2. The first is a criterion of gate A ("shared component examples"). The second finishes the five states: the table can say "loading" since 20 November and no screen says it. · **When it is merged, these can start:** no waiting line.
 
 #### T-050 · P2 · medium — A reference screen showing every shared component and state
 
 - **Done when** (the list): One screen under System, for owner and admin
-- **Found on 27 November 2026:** No screen shows the shared parts side by side. The parts are 25 files in `platform/resources/views/components/admin` and the three parts of the table beside them; their rules are written there since 20 November (`README.md`). A new screen is a 69th destination: the registry of destinations, Feature status and the tests that count destinations change with it.
+- **Found on 28 November 2026:** No screen shows the shared parts side by side. The parts are 25 files in `platform/resources/views/components/admin` and the three parts of the table beside them; their rules are written there since 20 November (`README.md`). A new screen is a 69th destination: the registry of destinations, Feature status and the tests that count destinations change with it.
 - **What is built:**
   1. One screen under System, for owner and admin: every shared part in each of its states, drawn by the part itself with sample values, never by a copy of its markup. Buttons, badges, cards, fields with and without an error, the empty state, the dialog, the toast, the page links, and the table in its five states.
   2. The destination is added to the registry with its permission, so that the menu, Feature status and the route agree.
@@ -161,7 +256,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-051 · P2 · medium — Placeholders while a list loads; a notice when the connection is lost
 
 - **Done when** (the list): Seen in a browser with the network slowed and cut
-- **Found on 27 November 2026:** No screen says "loading": a Livewire screen arrives with its rows, and no component is loaded late. `wire:loading` is written 117 times in 64 views, to dim rows or to stop a button being pressed twice. Nothing tells a person that the connection is lost: `wire:offline` is written nowhere and no script listens for it, so a press then does nothing and says nothing. The shared table has had a loading state since 20 November (T-041).
+- **Found on 28 November 2026:** No screen says "loading": a Livewire screen arrives with its rows, and no component is loaded late. `wire:loading` is written 117 times in 64 views, to dim rows or to stop a button being pressed twice. Nothing tells a person that the connection is lost: `wire:offline` is written nowhere and no script listens for it, so a press then does nothing and says nothing. The shared table has had a loading state since 20 November (T-041).
 - **What is built:**
   1. A notice in the top bar while the browser is offline or the server does not answer, and that it is back when it is: said to a screen reader, and never laid over the form a person is typing in.
   2. A press that could not be sent says so, and what was typed stays.
@@ -175,14 +270,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With the notice taken out, the journey step fails where it reads it.
 - **The way back:** Views and one small script; the built files change. The notice can be taken out alone, and a late list made an early one again by one word.
 
-### Round 5 — Lighter pages; nothing smaller than 12 px
+### Round 9 — Lighter pages; nothing smaller than 12 px
 
 **Lines:** T-052, T-049 · **Why here:** Both change the same shared parts: the menu, the top bar, the search. · **When it is merged, these can start:** no waiting line.
 
 #### T-052 · P2 · medium — Page weight: a near-empty page under 60 KB of HTML
 
 - **Done when** (the list): A near-empty page is under 60 KB of HTML
-- **Found on 27 November 2026:** By the crawl's figures in the list (§17): a near-empty page is 144 KB of HTML, 15.6 KB compressed. About 110 KB of it is the menu, the search's templates and the icons, sent again with every page. The median page is 161 KB.
+- **Found on 28 November 2026:** By the crawl's figures in the list (§17): a near-empty page is 144 KB of HTML, 15.6 KB compressed. About 110 KB of it is the menu, the search's templates and the icons, sent again with every page. The median page is 161 KB.
 - **What is built:**
   1. First a measurement, part by part.
   2. Then, as far as the measurement says: each icon drawn once and referred to; the search's list of screens fetched when the search is first opened; the phone's menu made of the same markup as the sidebar.
@@ -198,7 +293,7 @@ protection is taken away once, by hand, and the test must go red.
 #### T-049 · P2 · small — No text smaller than 12 px
 
 - **Done when** (the list): Nothing in the admin is set below 12 px, or the owner accepts named exceptions
-- **Found on 27 November 2026:** 19 places in 14 views, and 7 rules of the stylesheets, set text below 12 px: from 8 px (the line under the logo) to 11 px.
+- **Found on 28 November 2026:** 19 places in 14 views, and 7 rules of the stylesheets, set text below 12 px: from 8 px (the line under the logo) to 11 px.
 - **What is built:**
   1. Each is raised to 12 px. Where a label then no longer fits, the layout gives way, not the size.
 - **Tests written:**
@@ -210,14 +305,14 @@ protection is taken away once, by hand, and the test must go red.
 - **The way back:** Views and the stylesheets; the bundle is rebuilt and committed.
 - **Yours:** If a place cannot take 12 px, it is shown to you as a named exception to accept or refuse.
 
-### Round 6 — The content policy without `eval`
+### Round 10 — The content policy without `eval`
 
 **Lines:** T-072 · **Why here:** After the rounds that replace whole parts of the views (the table, the dashboard, the top bar, the menu), so that nothing is converted twice; and before the screen pass, which its test then holds to the strict form from the first view. · **When it is merged, these can start:** no waiting line.
 
 #### T-072 · P2 · large — The content policy without `eval`
 
 - **Done when** (the list): The policy has no `'unsafe-eval'`; the journeys and the crawl pass with nothing refused
-- **Found on 27 November 2026:** About 200 Alpine expressions in the views: 21 `x-data`, 19 of them written out in the markup; 121 handlers of events; 30 `x-show`.
+- **Found on 28 November 2026:** About 200 Alpine expressions in the views: 21 `x-data`, 19 of them written out in the markup; 121 handlers of events; 30 `x-show`.
 - **What is built:**
   1. Livewire's build for a strict policy is switched on, and every expression in the views is read against what it accepts.
   2. The longer ones become named components in the admin's own script; the bundle is rebuilt and committed.
@@ -232,14 +327,14 @@ protection is taken away once, by hand, and the test must go red.
 - **Tried against:** With one arrow function left in a view, the crawl reports the refusal and fails.
 - **The way back:** `SECURITY_CSP=report` or `off` on the site; or the strict build off and the word back in the policy, in one commit.
 
-### Round 7 — The screen pass, area by area
+### Round 11 — The screen pass, area by area
 
 **Lines:** T-045 · **Why here:** P1, and last all the same: it is the largest line, several rounds of its own, one for each area in the order you set (DL-008): E-commerce, CRM, Sales, then the others. Every round before it changes a part it builds on. · **When it is merged, these can start:** no waiting line.
 
 #### T-045 · P1 · large — Screen pass, area by area: theme colours, page patterns, dark theme
 
 - **Done when** (the list): Before-and-after screenshots of one screen per area at 1366 px and 390 px, light and dark
-- **Found on 27 November 2026:** 3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.
+- **Found on 28 November 2026:** 3,109 uses of a grey written directly, in 145 views: the most in Sales, CRM and System. 1,807 dark-theme variants are written by hand. Colours written as numbers are mostly in the PDF and mail templates, which must carry their own; those stay as they are.
 - **What is built:**
   1. In each area: greys move to the theme's roles; what is selected takes the theme's green; each page follows the patterns of document 05 §8; its lists use the table of T-041, and are drawn as cards on a phone (T-042) where people work the list from a phone.
   2. The dark theme is looked at on every screen of the area.
@@ -271,7 +366,7 @@ Until you answer, the admin works by what the fourth column says.
 <!-- generated:owner — written by scripts/verify-plan.mjs --write; do not edit by hand -->
 | # | Pri | What is asked of you | In force until you answer | Can start the day you answer | Stand behind it |
 |---|---|---|---|---|---|
-| T-006 | P0 | Install the trial site on Hostinger (document 24) and send its address | Plan: "Business" (OD-3). Nothing verified on the account | T-130, T-131, T-135 (with T-009), T-140 (with T-007), T-197 | 23 lines |
+| T-006 | P0 | Install the trial site on Hostinger (document 24) and send its address | Plan: "Business" (OD-3). Nothing verified on the account | T-105 (with T-090), T-130, T-131, T-135 (with T-009), T-140 (with T-007), T-197 | 23 lines |
 | T-003 | P0 | Give Furniture's price list, terms, quotation wording and who signs | No template or rate is installed; issuing documents is blocked | T-033, T-084, T-085, T-103, T-155 | 8 lines |
 | T-004 | P0 | Say who may approve what, and each role's discount limit | Quotations: by permission, with a limit per role set in Settings; the owner may approve anything | T-060, T-081, T-199 | 5 lines |
 | T-008 | P0 | Confirm the currency (PKR) and the tax rules | PKR; one tax rate typed per document | T-064, T-066, T-087 | 3 lines |
@@ -284,7 +379,7 @@ Until you answer, the admin works by what the fourth column says.
 | T-018 | P1 | Name one person and one document for warranty, delivery and returns | — | T-107 (with T-010), T-108 | 3 lines |
 | T-010 | P1 | Say whether delivery and installation are two separate jobs | Two milestones of one job | T-107 (with T-018) | 2 lines |
 | T-013 | P1 | Name who reviews the accounting; show the ledger screens at launch or not | A generic chart; ledger screens visible to owner and accountant | T-113 | 2 lines |
-| T-090 | P1 | Review the imported catalogue: points to check, prices, categories | — | — | 2 lines |
+| T-090 | P1 | Review the imported catalogue: points to check, prices, categories | — | T-105 (with T-006) | 2 lines |
 | T-005 | P1 | Approve the design on the live demo, or say what to change | Light sidebar (DL-017) | T-048 | 1 line |
 | T-007 | P1 | Name the addresses for the shop, the admin and the API | `woodex-os.vercel.app` for the demo | T-140 (with T-006) | 1 line |
 | T-017 | P1 | Say which existing customer and order records may be moved | None | T-101 | 1 line |
@@ -338,7 +433,7 @@ answer is added here.
 | T-101 | P1 | Import of leads, contacts, companies, tasks and meetings | T-017 | T-017 | Counts, statuses and duplicates agree with the source |
 | T-102 | P0 | The old system stops writing CRM records: one writer | T-100 | T-006 | The old form endpoint answers "moved" |
 | T-103 | P0 | Sales documents merged, with Furniture's templates | T-003 | T-003 | A quotation becomes an invoice and a receipt with totals computed on the server |
-| T-105 | P1 | The shop reads products, categories and series from `/api/v1` | T-006, T-090, T-191 — Built in two rounds (19 and 27 November) and proved in a browser from the admin's form to a visitor's screen, behind a switch of the shop that stays off. Its last step, switching the live shop over and closing the Node catalogue, waits for a database for the real admin (T-006), for products published there (T-090) and for T-191; until then the line stays open. | T-006, T-090 | The shop shows only what Laravel has published |
+| T-105 | P1 | The shop reads products, categories and series from `/api/v1` | T-006, T-090 — Built in two rounds (19 and 27 November) and proved in a browser from the admin's form to a visitor's screen, behind a switch of the shop that stays off. Since 28 November a visitor can also ask for such a product by quotation (T-191). Its last step, switching the live shop over and closing the Node catalogue, waits for a database for the real admin (T-006) and for products published there (T-090); until then the line stays open. | T-006, T-090 | The shop shows only what Laravel has published |
 | T-106 | P1 | Orders, in the admin and from the shop | T-105, T-018 | T-006, T-018, T-090 | An order placed in the shop is delivered and closed in the admin |
 | T-107 | P1 | Delivery and installation | T-010; also T-018 (the list, §3) | T-010, T-018 | A delivery is closed with its proof |
 | T-108 | P1 | Support and warranty | T-018 | T-018 | A claim is opened against an order and resolved |
@@ -373,20 +468,15 @@ answer is added here.
 | T-197 | P2 | Compression, long life of built files and https on the host | T-006 | T-006 | Measured on the trial installation: a page is sent compressed, a built file is kept for a year, http is sent to https |
 | T-199 | P1 | A product's five steps to publication, with an approval that is kept | T-004 | T-004 | A product waits for approval as a state of its own; who approved and when is kept; the roles that may approve are the owner's (T-004) |
 
-#### Behind lines that need nobody (10)
+#### Behind lines that need nobody (5)
 
 | # | Pri | Task | Waits for | Stands behind | Done when |
 |---|---|---|---|---|---|
-| T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 3) | "stock" finds Stock Ledger; "clients" finds Contacts |
-| T-115 | P2 | The page-builder prototype (gate C) | T-191 — Building the prototype needs nobody, and what it needed of the catalogue is there since 27 November: the published products at `/api/v1`. It follows T-191. Accepting it is yours: gate C. | T-191 (round 1) | The owner accepts the prototype before any broad build |
-| T-116 | P2 | Website Studio on Puck | T-115 | T-191 (round 1) | A page is edited, approved, published and rolled back |
-| T-117 | P2 | Today's pages moved into the page builder | T-116 | T-191 (round 1) | Selected pages are approved; the old content is kept |
-| T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-191 (round 1) | A lead shows the campaign it came from |
-| T-192 | P1 | `/api/v1`: series, filters and search | T-191 | T-191 (round 1) | The three addresses are in the contract, held by the contract test, and the shop's list uses them |
-| T-193 | P2 | One code for one product, held by the database | T-191 | T-191 (round 1) | Two saves in the same moment, tried by the two-writers command on the three servers: one is refused |
-| T-195 | P2 | An unknown address answers 404 on Vercel too | T-191 | T-191 (round 1) | An unknown address answers 404 on Vercel too, held by the live check |
-| T-196 | P1 | The code style, the analyser and the database comparison in CI | T-191 | T-191 (round 1) | `composer lint` and `composer analyse` fail a pull request; the comparison runs or says in an error why it cannot |
-| T-198 | P3 | The shop's font in its own build | T-191 | T-191 (round 1) | The font is a file of the shop's own build, and no page asks another server for it |
+| T-047 | P3 | Search finds a screen by keyword and by its old name | T-046 | T-046 (round 7) | "stock" finds Stock Ledger; "clients" finds Contacts |
+| T-115 | P2 | The page-builder prototype (gate C) | T-192 — Building the prototype needs nobody, and what it needs of the catalogue is there since 27 November: the published products at `/api/v1`. It stands behind T-192 by order, not by need: the lines of the product link are finished first. Accepting it is yours: gate C. | T-192 (round 1) | The owner accepts the prototype before any broad build |
+| T-116 | P2 | Website Studio on Puck | T-115 | T-192 (round 1) | A page is edited, approved, published and rolled back |
+| T-117 | P2 | Today's pages moved into the page builder | T-116 | T-192 (round 1) | Selected pages are approved; the old content is kept |
+| T-120 | P2 | Marketing: campaigns, attribution, landing pages | T-116 | T-192 (round 1) | A lead shows the campaign it came from |
 
 #### With a wave, a date or an event (8)
 
@@ -410,9 +500,9 @@ The tests of §2 are written for one line each. These stand for every round, and
 of them pass on its last commit.
 
 <!-- generated:standing — written by scripts/verify-plan.mjs --write; do not edit by hand -->
-| Check | Where it runs | On 27 November 2026 | What it stops |
+| Check | Where it runs | On 28 November 2026 | What it stops |
 |---|---|---|---|
-| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,833 pass, 36 skipped, none fails: run in the sandbox on 21 November, 13:03 to 13:08 UTC, on the code of pull request #55. In CI on `effb443`, on each of the three servers (MySQL 8.4.13, MariaDB 10.11.19, MariaDB 11.4.13): 2,833 pass, 36 skipped. The 23 new tests ask the website's router for 14 files by name, for 5 addresses that could be a page and for an old address that was a file; read the page builder on a site without a page and on a narrow window; and read every address of the admin that the Website Studio's scripts name | A rule, a screen or a permission that no longer does what its test says |
+| The Laravel test suite | In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/` | 2,917 pass, 36 skipped, none fails: run in the sandbox on 28 November, 03:34 to 03:43 UTC, on the code of document 47. What CI counted on the three servers is on that round's pull request (#61). The reading before it: 2,833 pass, 36 skipped, none fails: run in the sandbox on 21 November, 13:03 to 13:08 UTC, on the code of pull request #55. In CI on `effb443`, on each of the three servers (MySQL 8.4.13, MariaDB 10.11.19, MariaDB 11.4.13): 2,833 pass, 36 skipped. The 23 new tests ask the website's router for 14 files by name, for 5 addresses that could be a page and for an old address that was a file; read the page builder on a site without a page and on a narrow window; and read every address of the admin that the Website Studio's scripts name | A rule, a screen or a permission that no longer does what its test says |
 | Two writers at the same moment: in the accounts, and two enquiries or baskets of the shop (`platform/tools/ci/two-writers.php`) | CI, job `two-writers` of `os-ci.yml`, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4, on every push that touches `platform/`. In the sandbox on the server that `platform/tools/preview/sandbox/database.sh` builds (MariaDB 10.2) | 33 steps of 50 runs hold on each of the three servers; with a lock taken out, each of six checks reports the fault it is for (CI, `d93b112`). The four new steps send an enquiry and a basket as the shop sends them: one sent twice with its key, and two of two visitors at once | What the suite cannot see, because it calls one action after another: money written twice, a number given twice, an entry out of balance, an enquiry written twice, or one of two people stopped by the database with an error page |
 | The contract of `/api/v1` (`platform/resources/api/v1.openapi.json`, held by `tests/Feature/Api/V1ContractTest.php`) | Part of the Laravel suite, so in the sandbox and in CI on the three servers. The file itself is read as OpenAPI 3.1 by a validator, by hand, when it changes | every route under `/api/v1` is in the contract, and each of the seven addresses answers key by key as the contract says, for every status it documents (CI, `d93b112`) | An address that answers in a shape its callers were not told; a route added without its contract; a key, a code or a header that is in the answer and not in the contract, or the other way round |
 | The shared table: its five states, its headings, its cards on a phone, and the count of views that still write a table by hand (`platform/tests/Unit/AdminTableTest.php`, `platform/tests/Feature/SharedTableListsTest.php`) | Part of the Laravel suite, so in the sandbox and in CI on the three servers | 32 tests pass. 44 views write a table by hand; it was 51 before 20 November. Leads, Quotations and Invoices are cards below 640 px | A list that writes its own table again; a state without its words or its role; a heading that does not say how it sorts; a word printed into a script; a fact on a card without the word of its column; a rule for cards that reaches a wide screen, or that was written and not built |

@@ -15,10 +15,14 @@
 // nothing here is reached at all. That is the point of the round: the shop can read Laravel's catalogue, and does
 // not until the owner says so.
 //
-// Never forwards cookies or authorization: what the admin published is what a visitor may see. Where this bridge
+// Never forwards cookies or authorization: what the admin published is what a visitor may see. It says for which
+// visitor it asks, when it holds the key it shares with the admin (native-bridge-key.mjs), so that the admin
+// counts its limit of reads by the visitor and not by this one server. Where this bridge
 // answers itself it uses the API's error shape (docs/woodex-os/29-API-V1-RULES.md), with two codes of its own:
 //   SWITCHED_OFF (503) — this shop is not connected to an admin, and will not ask again for a while;
 //   BAD_GATEWAY (502)  — the admin answered something that is not a JSON answer of the contract.
+import { vouching } from './native-bridge-key.mjs';
+
 const REQUEST_NUMBER = /^[0-9A-HJKMNP-TV-Z]{4}(?:-[0-9A-HJKMNP-TV-Z]{4}){2}$/;
 const numberOf = response => { const value = response?.headers?.get?.('x-request-id'); return typeof value === 'string' && REQUEST_NUMBER.test(value) ? value : null; };
 const problem = (res, status, code, message, requestId = null) => res.status(status).json({ error: { code, message, details: {} }, meta: { request_id: requestId } });
@@ -28,23 +32,32 @@ const FORWARDED = ['page', 'per_page', 'category', 'series', 'since'];
 
 export const productSyncOn = (env = process.env) => String(env?.NATIVE_PRODUCT_SYNC ?? '') === '1';
 
+/**
+ * Where the admin is (NATIVE_CATALOGUE_ORIGIN), or null when that is not set up safely. The same rule as the
+ * categories' bridge: a plain HTTPS origin, or a loopback address while developing. Read by this bridge and by
+ * the one that carries what a visitor writes (native-enquiry-bridge.mjs), so that both ask the same server.
+ */
+export function adminOrigin(env = process.env) {
+  try {
+    const origin = new URL(String(env?.NATIVE_CATALOGUE_ORIGIN ?? ''));
+    const local = ['127.0.0.1', 'localhost'].includes(origin.hostname) && env.NODE_ENV !== 'production' && env.VERCEL !== '1';
+    if ((!local && origin.protocol !== 'https:') || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/') return null;
+    return origin;
+  } catch { return null; }
+}
+
 export function nativeProductBridge(env = process.env) {
   return async (req, res) => {
     if (!productSyncOn(env)) return problem(res, 503, 'SWITCHED_OFF', 'This shop is not connected to the admin.');
 
-    let origin;
-    try {
-      origin = new URL(String(env.NATIVE_CATALOGUE_ORIGIN ?? ''));
-      // The same rule as the categories' bridge: a plain HTTPS origin, or a loopback address while developing.
-      const local = ['127.0.0.1', 'localhost'].includes(origin.hostname) && env.NODE_ENV !== 'production' && env.VERCEL !== '1';
-      if ((!local && origin.protocol !== 'https:') || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/') throw new Error('Invalid origin');
-    } catch { return problem(res, 503, 'UNAVAILABLE', 'The address of the admin is not set up safely.'); }
+    const origin = adminOrigin(env);
+    if (!origin) return problem(res, 503, 'UNAVAILABLE', 'The address of the admin is not set up safely.');
 
     // A picture of a published product: /api/v1/catalogue/products/<slug>/picture/<media>/<version>, the address
     // the admin's own answer names, answered here so that a page asks the shop it stands on. Asked before the
     // product route, which would read its slashes as a path that is not ours.
     const picture = /^\/api\/v1\/catalogue\/products\/([a-z0-9]+(?:-[a-z0-9]+)*)\/picture\/(\d+)\/(\d+)$/.exec(req.path);
-    if (picture) return handOnPicture(res, origin, picture[1], picture[2], picture[3]);
+    if (picture) return handOnPicture(res, origin, picture[1], picture[2], picture[3], vouching(env, req));
 
     // What this shop's own database changed of a product's price or stock since a moment: nothing, any more.
     // The admin's products carry their own price, and a second writer of one price is what this bridge ends.
@@ -68,7 +81,7 @@ export function nativeProductBridge(env = process.env) {
 
     try {
       const response = await fetch(target, {
-        headers: { Accept: 'application/json' },
+        headers: { Accept: 'application/json', ...vouching(env, req) },
         redirect: 'error',
         signal: AbortSignal.timeout(5000),
       });
@@ -98,10 +111,10 @@ export function nativeProductBridge(env = process.env) {
 // The bytes of one picture, handed on as they are — the same shape as the media bridge, and the same rules: only
 // a picture of a publication, only bytes of the three formats a product photograph is kept in, and a size this
 // shop takes.
-async function handOnPicture(res, origin, slug, media, version) {
+async function handOnPicture(res, origin, slug, media, version, vouched) {
   const target = new URL(`/api/v1/catalogue/products/${slug}/picture/${media}/${version}`, origin);
   try {
-    const response = await fetch(target, { headers: { Accept: 'image/*' }, redirect: 'error', signal: AbortSignal.timeout(5000) });
+    const response = await fetch(target, { headers: { Accept: 'image/*', ...vouched }, redirect: 'error', signal: AbortSignal.timeout(5000) });
     if (!response.ok) {
       return response.status === 404
         ? problem(res, 404, 'NOT_FOUND', 'No picture of a published product of the admin is at this address.', numberOf(response))

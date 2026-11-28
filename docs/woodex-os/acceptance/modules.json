@@ -1,7 +1,7 @@
 {
   "about": "One acceptance sheet per open module: the ten conditions of document 07 §15, the last being the owner's sign-off. Checked by scripts/verify-acceptance.mjs: ten conditions each, every named file must exist, every line must be a row of document 14, and a sheet counts as accepted only with a recorded decision of the owner.",
   "source": "docs/woodex-os/spec/07-MODULE-SPECIFICATIONS.md",
-  "read_on": "2026-11-27",
+  "read_on": "2026-11-28",
   "states": {
     "met": "true today",
     "partly": "part of it is true; the lines close the rest",
@@ -29,7 +29,7 @@
         },
         {
           "state": "partly",
-          "evidence": "Tables for leads, contacts, companies, tasks and visits exist and build on MySQL in CI. Who holds the records is not settled: an enquiry from the React shop is still written to the old database, which held 1 lead and 1 client on 17 November.",
+          "evidence": "Tables for leads, contacts, companies, tasks and visits exist and build on MySQL in CI. Who holds the records is not settled: an enquiry from the React shop is still written to the old database, which held 1 lead and 1 client on 17 November. One exception since 28 November, with the product link on: a quotation basket for a product of this admin is written here, as an enquiry with its lines (document 47). No live site has the link on.",
           "lines": [
             "T-100",
             "T-102"
@@ -122,7 +122,7 @@
         },
         {
           "state": "met",
-          "evidence": "The basket's address is in the contract of `/api/v1` (`platform/resources/api/v1.openapi.json`; the rules are document 29) and is held to it key by key on every push (`Feature/Api/V1ContractTest.php`, `Feature/StorefrontQuoteRequestApiTest.php`); a basket sent twice with its key is written once. The client's pages for a quotation and an invoice open on signed links (`Feature/QuotePortalTest.php`); they are pages, not an API. Staff have no API: the screens are Livewire.",
+          "evidence": "The basket's address is in the contract of `/api/v1` (`platform/resources/api/v1.openapi.json`; the rules are document 29) and is held to it key by key on every push (`Feature/Api/V1ContractTest.php`, `Feature/StorefrontQuoteRequestApiTest.php`); a basket sent twice with its key is written once. Since 28 November a line of a basket names a product this admin published by its address, and its option by its code; the price is the published one, and \"price on request\" is no figure (`Feature/Api/BasketOfPublishedProductsTest.php`). The client's pages for a quotation and an invoice open on signed links (`Feature/QuotePortalTest.php`); they are pages, not an API. Staff have no API: the screens are Livewire.",
           "lines": [
             "T-063"
           ]
@@ -199,7 +199,7 @@
         },
         {
           "state": "partly",
-          "evidence": "Products with their revisions, categories and series are in the Laravel database: the 170 products of woodexfurniture.pk and the category tree, as drafts. Since 27 November a product is published with a price or as \"Price on request\", and one code names one product (DL-049). The shop can read what is published (a bridge and a reader, proved in a browser: document 45), behind a switch of its own that is off on the live shop: it still reads the old catalogue, which holds 148 sample products. No real product is published, and the real admin has no database yet.",
+          "evidence": "Products with their revisions, categories and series are in the Laravel database: the 170 products of woodexfurniture.pk and the category tree, as drafts. Since 27 November a product is published with a price or as \"Price on request\", and one code names one product (DL-049). The shop can read what is published (a bridge and a reader, proved in a browser: document 45), and since 28 November a visitor can ask for it by quotation (document 47), behind a switch of its own that is off on the live shop: it still reads the old catalogue, which holds 148 sample products. No real product is published, and the real admin has no database yet.",
           "lines": [
             "T-105",
             "T-091",

@@ -1,4 +1,4 @@
-import { catalog, getProductById, optionPrice } from "@/data/products";
+import { boughtByQuotation, catalog, getProductById, optionPrice } from "@/data/products";
 
 /**
  * Brings the lines of a cart or a quote basket up to date with the catalogue.
@@ -19,7 +19,11 @@ import { catalog, getProductById, optionPrice } from "@/data/products";
  * like a lost order.
  *
  * `forOrder` — a product priced on request is a problem in a cart (an order is
- * a commitment to a price) and perfectly fine in a quote basket.
+ * a commitment to a price) and perfectly fine in a quote basket. So is a
+ * product that is bought by quotation whatever it costs (one read from the
+ * Laravel admin: data/products.ts, `boughtByQuotation`). Such a line carries
+ * `quoteInstead`, and the page offers to move it to the quote basket: a
+ * visitor who filled a cart before the catalogue changed hands loses nothing.
  *
  * Returns the SAME array when nothing changed, so it is safe inside setState.
  */
@@ -29,6 +33,8 @@ export interface ReconcilableLine {
   price: number;
   priceOnRequest?: boolean;
   issue?: string;
+  /** With `issue`, in a cart: the line cannot be ordered and can be quoted. The page offers to move it. */
+  quoteInstead?: boolean;
 }
 
 export function reconcile<T extends ReconcilableLine>(items: T[], { forOrder }: { forOrder: boolean }): T[] {
@@ -39,6 +45,7 @@ export function reconcile<T extends ReconcilableLine>(items: T[], { forOrder }: 
   const next = items.map((item) => {
     const product = getProductById(item.id);
     let issue: string | undefined;
+    let quoteInstead = false;
     let price = item.price;
     let priceOnRequest = !!item.priceOnRequest;
     if (!product) {
@@ -54,12 +61,14 @@ export function reconcile<T extends ReconcilableLine>(items: T[], { forOrder }: 
         const current = optionPrice(product, variant);
         priceOnRequest = current === null;
         price = current ?? 0;
-        if (current === null && forOrder) issue = "Priced on request — add it to a quote instead";
+        if (forOrder && boughtByQuotation(product)) issue = "Ordered by quotation — add it to a quote instead";
+        else if (current === null && forOrder) issue = "Priced on request — add it to a quote instead";
+        quoteInstead = issue !== undefined;
       }
     }
-    if (issue === item.issue && price === item.price && priceOnRequest === !!item.priceOnRequest) return item;
+    if (issue === item.issue && price === item.price && priceOnRequest === !!item.priceOnRequest && quoteInstead === !!item.quoteInstead) return item;
     changed = true;
-    return { ...item, price, priceOnRequest, issue };
+    return { ...item, price, priceOnRequest, issue, quoteInstead };
   });
   return changed ? next : items;
 }

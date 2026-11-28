@@ -7,6 +7,7 @@ namespace App\Http\Requests\Api;
 use App\Domain\Crm\Data\LeadInput;
 use App\Domain\Crm\Enums\BusinessLine;
 use App\Domain\Crm\Enums\LeadSource;
+use App\Support\BridgedVisitor;
 use App\Support\Phone;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
@@ -97,10 +98,7 @@ class StorePublicLeadRequest extends FormRequest
      */
     public function hasValidBridgeKey(): bool
     {
-        $expected = (string) config('woodex.public_leads.bridge_key');
-        $given = (string) $this->header('X-Woodex-Key');
-
-        return $expected !== '' && $given !== '' && hash_equals($expected, $given);
+        return BridgedVisitor::vouchedFor($this);
     }
 
     public function toLeadInput(): LeadInput

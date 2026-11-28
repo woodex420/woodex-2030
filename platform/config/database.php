@@ -53,7 +53,14 @@ return [
             'busy_timeout' => null,
             'journal_mode' => null,
             'synchronous' => null,
-            'transaction_mode' => 'DEFERRED',
+            // How a transaction begins on SQLite. DEFERRED, the framework's own choice, takes the write lock at
+            // the first write: two requests that each read and then write can then not both go on, and SQLite
+            // ends one at once with "database is locked" (a person is told 409, App\Support\TwoWritersMet).
+            // IMMEDIATE takes the lock at the start, so that the second waits its turn, as MySQL and MariaDB
+            // make it wait. Set where several workers serve one SQLite file: the rehearsal with the shop
+            // (tools/hostinger/rehearse-with-shop.sh), where the count of a limit, which is kept in this
+            // database, met a save (defect D-084). No installation on a host runs SQLite.
+            'transaction_mode' => env('DB_SQLITE_TRANSACTION_MODE', 'DEFERRED'),
         ],
 
         'mysql' => [

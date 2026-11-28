@@ -55,7 +55,8 @@ const isProduct = (value: unknown): value is NativeProduct => {
     && typeof p.on_request === "boolean" && Array.isArray(p.pictures)
     // A whole number of paisa, or no figure at all: and no figure exactly when the editor said "on request".
     && (p.on_request ? p.price_minor === null : typeof p.price_minor === "number" && Number.isInteger(p.price_minor) && p.price_minor >= 0)
-    && (p.sku === null || p.sku === undefined || (typeof p.sku === "string" && p.sku !== ""));
+    && (p.sku === null || p.sku === undefined || (typeof p.sku === "string" && p.sku !== ""))
+    && Array.isArray(p.variants);
 };
 
 /** Where a category of the admin stands on this shop's pages: under which heading, and as which of its parts. */
@@ -73,6 +74,10 @@ export function toProduct(raw: unknown, lookups: Lookups): Product | null {
   if (!isProduct(raw)) return null;
   const placed = raw.primary_category_id === null ? null : lookups.category(raw.primary_category_id);
   const series = raw.series_ids.length > 0 ? lookups.series(raw.series_ids[0]) : null;
+  // An option the editor marked unavailable is not offered: the admin refuses a basket that names it, and a page
+  // must not offer what will be refused. A product sold in options of which none is left has nothing to offer.
+  const offered = raw.variants.filter((variant) => variant.availability !== "unavailable");
+  const nothingOffered = raw.variants.length > 0 && offered.length === 0;
 
   return {
     id: raw.slug,
@@ -91,8 +96,8 @@ export function toProduct(raw: unknown, lookups: Lookups): Product | null {
     colors: [],
     specifications: raw.specifications,
     features: raw.features,
-    // A product the editor marked unavailable cannot be ordered; everything else can, by price or by quote.
-    inStock: raw.availability !== "unavailable",
+    // A product the editor marked unavailable cannot be asked for; everything else can, by price or by quote.
+    inStock: raw.availability !== "unavailable" && !nothingOffered,
     isNew: false,
     isBestSeller: raw.is_hot,
     sku: raw.sku ?? null,
@@ -106,7 +111,9 @@ export function toProduct(raw: unknown, lookups: Lookups): Product | null {
     // options in the admin — silently, with the right price attached. The contract makes `sku` unique within a
     // product ("Each variant combination needs its own explicit price" and the catalogue's own SKU rule), so the
     // id is derived from the SKU: the same option keeps the same id across reorders and republications.
-    variants: raw.variants.map((variant) => ({
+    // (The number is made among every option of the product, offered or not, so that an option keeps its number
+    // when another one is marked unavailable.)
+    variants: offered.map((variant) => ({
       id: skuNumber(variant.sku, raw.variants.map((v) => v.sku)),
       sku: variant.sku,
       label: [variant.colour, variant.material, variant.size].filter(Boolean).join(" · ") || variant.sku,
@@ -117,6 +124,9 @@ export function toProduct(raw: unknown, lookups: Lookups): Product | null {
       priceOnRequest: variant.price_minor === null,
     })),
     updatedAt: raw.updated_at ?? undefined,
+    // Read from the admin: this shop's own database does not hold it, so it is asked for by quotation and its
+    // basket goes to the admin (data/products.ts, `boughtByQuotation`; master list T-191).
+    source: "admin",
   };
 }
 

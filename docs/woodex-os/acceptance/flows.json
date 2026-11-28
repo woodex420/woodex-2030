@@ -15,7 +15,7 @@
     "create a lead from the New menu",
     "the lead is still there after a reload, and its page opens"
    ],
-   "note": "A member of staff creates the lead, in both journeys. The shop's public form is not in a journey: the React shop does not write to Laravel yet.",
+   "note": "A member of staff creates the lead, in both journeys. Since 28 November a visitor's quotation basket for a product of the admin arrives in Laravel as an enquiry with its lines, pressed by the product journey (steps 13a to 13c of `scripts/os-product-to-shop.mjs`, document 47), which this table does not count. The shop's forms without a basket still write to the shop's own database.",
    "lines": [
     "T-100",
     "T-165"
@@ -79,7 +79,7 @@
    "steps": [
     "find a product of the real catalogue by its code, and open it"
    ],
-   "note": "Browsing only, on the real catalogue, in the journeys this table counts. A product made in the admin and read by a visitor on the shop is pressed by a journey of its own (`scripts/os-product-to-shop.mjs`, document 45). Orders do not exist in Laravel.",
+   "note": "Browsing only, on the real catalogue, in the journeys this table counts. A product made in the admin, read by a visitor on the shop and asked for by quotation is pressed by a journey of its own (`scripts/os-product-to-shop.mjs`, documents 45 and 47). Orders do not exist in Laravel: for a product of the admin the shop offers no cart.",
    "lines": [
     "T-106"
    ]

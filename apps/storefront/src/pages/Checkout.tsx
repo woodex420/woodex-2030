@@ -15,6 +15,7 @@ import { useCart } from "@/contexts/CartContext";
 import { formatPKR } from "@/data/products";
 import { brand } from "@/config/brand";
 import { keyOf } from "@/contexts/lineKey";
+import { useMoveToQuote } from "@/contexts/moveToQuote";
 import { ProductImage } from "@/components/shop/ProductImage";
 
 const cities = [
@@ -24,6 +25,7 @@ const cities = [
 
 const Checkout = () => {
   const { items, totalPrice, totalItems, issueCount, removeItem, clearCart } = useCart();
+  const moveToQuote = useMoveToQuote();
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderRef, setOrderRef] = useState("");
@@ -250,6 +252,14 @@ const Checkout = () => {
                             {item.issue && (
                               <p className="mt-1 text-xs text-destructive">
                                 {item.issue}.{" "}
+                                {item.quoteInstead && (
+                                  <>
+                                    <button type="button" className="font-semibold underline underline-offset-2" onClick={() => moveToQuote(item)}>
+                                      Move to quote
+                                    </button>
+                                    {" · "}
+                                  </>
+                                )}
                                 <button type="button" className="font-semibold underline underline-offset-2" onClick={() => removeItem(keyOf(item))}>
                                   Remove
                                 </button>

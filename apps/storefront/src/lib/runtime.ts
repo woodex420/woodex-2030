@@ -2,10 +2,10 @@ import { syncNativeCategories } from "./nativeCategories";
 import { captureBasketRequest } from "./quoteCapture";
 import { refreshTheme } from "./theme";
 import { captureStorefrontLead } from "./leadCapture";
-import { Fragment, createElement, useEffect, useState } from "react";
+import { Fragment, createElement, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { products, catalog, hasCategoryLabel } from "@/data/products";
-import type { Product, ProductVariant } from "@/data/products";
+import type { CatalogSource, Product, ProductVariant } from "@/data/products";
 import { nativeCategoryPath, nativeCatalogue } from "./nativeCategories";
 import { readWhole } from "./nativeProducts";
 import type { Lookups } from "./nativeProducts";
@@ -89,14 +89,19 @@ export async function syncCatalog(): Promise<number> {
        the shop's own (a list in `items`), and — where the connection to the Laravel admin is switched on —
        the admin's, in the shape its rules name (`data`, `meta`, `links`). The second carries money in paisa
        and "ask us" as a switch, which ./nativeProducts.ts turns into the product the pages use. */
-    const next = Array.isArray(json?.items)
-      ? json.items.map(toProduct).filter((product): product is Product => product !== null)
+    const own = Array.isArray(json?.items);
+    const next = own
+      ? (json.items as unknown[]).map(toProduct).filter((product): product is Product => product !== null)
       : await nativeCatalogueWhole(json);
-    const signature = JSON.stringify(next);
+    /* Who answered is part of what the catalogue is: an empty list of this shop's own and an empty list of the
+       admin's are not the same catalogue, because a basket goes to whoever answered. */
+    const source: CatalogSource = own ? "shop" : "admin";
+    const signature = source + JSON.stringify(next);
     if (catalog.status === "ready" && signature === lastCatalogSignature) return 0;
     const previousCount = products.length;
     products.splice(0, products.length, ...next);
     lastCatalogSignature = signature;
+    catalog.source = source;
     catalog.status = "ready";
     announce();
     return Math.abs(next.length - previousCount) || 1;
@@ -211,15 +216,34 @@ export function startRuntimeSync(intervalMs = 15000) {
   window.setInterval(() => void refreshTheme(), Math.max(intervalMs * 4, 60000));
 }
 
-/** Subscribe to catalog mutations so memoized storefront filters recalculate. */
+/* How often the catalogue, the categories or the settings have changed since the page was opened.
+
+   One listener counts every announcement. It is attached when this module is first read, which is before
+   anything is drawn. A component reads the count through React's own reader of an outside store, which looks at
+   the count again once the component is on the screen.
+
+   Until 28 November 2026 each component counted for itself, from the moment its own listener was attached, and
+   that moment comes a little after the component is first drawn. A catalogue that arrived in between was never
+   counted by that component. Everything above it was drawn again and read the catalogue as it now was, while
+   what the component had worked out from the empty catalogue stayed: beside "All Products 148", a category that
+   holds thirty of them said "Nothing is listed in this category yet", and went on saying it (defect D-085). */
+let revision = 0;
+const readers = new Set<() => void>();
+if (typeof window !== "undefined") {
+  window.addEventListener("woodex:runtime", () => {
+    revision += 1;
+    readers.forEach((changed) => changed());
+  });
+}
+const subscribe = (changed: () => void) => {
+  readers.add(changed);
+  return () => { readers.delete(changed); };
+};
+const currentRevision = () => revision;
+
+/** The count of changes, kept current: what a page works out from the catalogue is worked out again when it moves. */
 export function useRuntimeRevision() {
-  const [revision, setRevision] = useState(0);
-  useEffect(() => {
-    const handler = () => setRevision((value) => value + 1);
-    window.addEventListener("woodex:runtime", handler);
-    return () => window.removeEventListener("woodex:runtime", handler);
-  }, []);
-  return revision;
+  return useSyncExternalStore(subscribe, currentRevision, currentRevision);
 }
 
 /** Where the catalogue stands — loading, ready or unavailable — kept current. */
@@ -292,20 +316,40 @@ async function postOrExplain(path: string, body: unknown): Promise<Record<string
   throw new Error("The request could not be saved right now. Please try again in a moment.");
 }
 
-/* Two destinations, chosen when the site is built. "legacy" (the default) is
-   this repository's API; "v1" is the Laravel API, behind its own opt-in. On
-   the default path a refusal still carries the API's reason (postOrExplain). */
+/**
+ * Where a basket is sent. Three destinations:
+ *
+ *   "admin"   the catalogue on the page came from the Laravel admin (master list T-191). Nobody else can price
+ *             such a basket: this shop's own database does not hold the products, and its own address refused
+ *             every one of them (defect D-060). So it goes to the admin whatever the site was built with — the
+ *             page reads where its catalogue came from and cannot be built to disagree with it. Each line names
+ *             its product by its address, and its option by its code.
+ *   "v1"      chosen when the site is built (VITE_QUOTE_API_MODE=v1): this shop's own products, sent to the
+ *             Laravel API, which reads each through a line of its rate book that names the shop's own key.
+ *   "legacy"  the default: this repository's API. A refusal carries the API's reason (postOrExplain).
+ */
+export type BasketDestination = "legacy" | "v1" | "admin";
+export const basketDestination = (): BasketDestination =>
+  catalog.source === "admin" ? "admin" : ((import.meta.env.VITE_QUOTE_API_MODE || "legacy") as BasketDestination);
+
+/**
+ * Is the visitor asked for the robot check before a request to the Laravel API is sent? Where the site was built
+ * with the check's public key, yes: the page then has the box that makes the token. Where it was not, the
+ * request is sent without one and the admin decides: it refuses, unless the shop's own server carried the
+ * request and vouches for it with the key the two share (apps/api/native-enquiry-bridge.mjs). The page cannot
+ * know which of the two holds, and until 27 November it refused every such request itself in a built site.
+ */
+const challengeRequired = (): boolean => !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
 export const submitQuoteRequest = (payload: unknown) => {
-  const mode = import.meta.env.VITE_QUOTE_API_MODE || "legacy";
+  const mode = basketDestination();
   if (mode === "legacy") return postOrExplain("/api/quotes", payload);
-  return captureBasketRequest(payload as Record<string, unknown>, mode, fetch,
-    import.meta.env.PROD || !!import.meta.env.VITE_TURNSTILE_SITE_KEY)
-    .finally(() => { if (mode === "v1") window.dispatchEvent(new Event("woodex:lead-attempt")); });
+  return captureBasketRequest(payload as Record<string, unknown>, mode, fetch, challengeRequired())
+    .finally(() => window.dispatchEvent(new Event("woodex:lead-attempt")));
 };
 export const submitLead = (payload: unknown) => {
   const mode = import.meta.env.VITE_LEAD_API_MODE || "legacy";
-  return captureStorefrontLead(payload as Record<string, unknown>, mode, fetch,
-    import.meta.env.PROD || !!import.meta.env.VITE_TURNSTILE_SITE_KEY)
+  return captureStorefrontLead(payload as Record<string, unknown>, mode, fetch, challengeRequired())
     .finally(() => { if (mode === "v1") window.dispatchEvent(new Event("woodex:lead-attempt")); });
 };
 export const logManualWhatsAppHandoff = (leadId: number) => post(`/api/leads/${leadId}/whatsapp-handoff`, {});

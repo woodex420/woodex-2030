@@ -54,11 +54,14 @@ export default function LeadChallenge({ mode = import.meta.env.VITE_LEAD_API_MOD
       if (widget !== undefined) window.turnstile?.remove(widget);
     };
   }, [enabled, siteKey, attempt]);
-  if (!enabled) return null;
+  /* Without the check's public key there is no box to draw and no token to make: the request is sent without
+     one, and the Laravel admin decides whether it takes it (lib/runtime.ts, `challengeRequired`). A line that
+     said "verification is not configured, contact the team" stood here in a built site; it told a visitor to
+     give up on a form that the shop's own server can vouch for. */
+  if (!enabled || !siteKey) return null;
   return <div className="space-y-2 sm:col-span-full">
     <input type="hidden" name="turnstile_token" value={token} />
     <div ref={host} />
-    {!siteKey && <p role="status" className="text-sm">{import.meta.env.PROD ? "Enquiry verification is not configured. Please contact the team directly." : "Local rehearsal: verification provider is not configured."}</p>}
     {error && <div role="alert" className="text-sm"><p>{error}</p><button type="button" onClick={() => { setError(""); setToken(""); setAttempt(value => value + 1); }}>Retry verification</button></div>}
   </div>;
 }

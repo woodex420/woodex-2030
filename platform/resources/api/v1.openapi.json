@@ -172,7 +172,7 @@
       "post": {
         "operationId": "api.v1.quote-requests.store",
         "summary": "The basket of a visitor, saved for the team to review",
-        "description": "Prices the basket from the catalogue and saves it with an enquiry. It is not a quotation. A product that is not offered for this refuses the whole request (422), naming the line.\n\nSwitches: the modules lead_api and quote_requests (the second is off as the product ships). Limit: as for an enquiry.",
+        "description": "Prices the basket from the catalogue and saves it with an enquiry. It is not a quotation. A product that is not offered for this refuses the whole request (422), naming the line.\n\nA line names its product once. By `slug`, the address of a product this admin published: the published copy is read, its name, its code and its price at that moment, and `sku` names the option of a product sold in options. A product priced on request is taken without a figure. A draft, a withdrawn or an archived product, and one marked unavailable, are refused like a product that is not there. Or by `product_id`, the shop's own key of a product it keeps itself, which needs a line of the rate book that names this key.\n\nSwitches: the modules lead_api and quote_requests (the second is off as the product ships). Limit: as for an enquiry. A server that holds the bridge key (the header X-Woodex-Key) and carries a visitor's request here names the visitor in X-Woodex-Visitor, and the limit is counted by that address.",
         "security": [],
         "parameters": [
           {
@@ -1555,16 +1555,29 @@
         }
       },
       "BasketLine": {
-        "description": "One line. A colour or an option cannot be asked for here yet: a line that names one is refused.",
+        "description": "One line. It names its product once: by `slug` or by `product_id`, never by both and never by neither. The same product in the same option stands on one line.",
         "type": "object",
         "required": [
-          "product_id",
           "qty"
         ],
         "properties": {
           "product_id": {
-            "description": "The shop's own key of the product.",
+            "description": "The shop's own key of a product the shop keeps itself. It is read through the line of the rate book that names this key. Not sent with `slug` or `sku`.",
             "type": "string",
+            "maxLength": 100
+          },
+          "slug": {
+            "description": "The address of a product this admin published, as GET /catalogue/products hands it out. The published copy is what is read.",
+            "type": "string",
+            "maxLength": 160,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "sku": {
+            "description": "With `slug`: the code of the option chosen. Required for a product sold in options; left out, or the product's own code, for a product sold in one form.",
+            "type": [
+              "string",
+              "null"
+            ],
             "maxLength": 100
           },
           "qty": {

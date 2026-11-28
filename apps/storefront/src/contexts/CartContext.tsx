@@ -18,6 +18,10 @@ export interface CartItem {
   key?: string;
   /** Why this line cannot be submitted as it stands, in the customer's words. See ./reconcile. */
   issue?: string;
+  /** With `issue`: the line cannot be ordered and can be quoted (./reconcile, ./moveToQuote). */
+  quoteInstead?: boolean;
+  /** Kept current by ./reconcile for a line that is moved to the quote basket. */
+  priceOnRequest?: boolean;
 }
 
 interface CartContextType {

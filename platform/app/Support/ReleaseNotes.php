@@ -21,6 +21,17 @@ final class ReleaseNotes
     {
         return [
             [
+                'date' => '2026-11-28',
+                'title' => 'Enquiries: a quotation basket from the shop names the products you published',
+                'notes' => [
+                    'Leads, the page of an enquiry, "Storefront basket requests": a basket that a visitor of the shop sent for products published here shows each product with its code, how many were asked for, and its price as it was published in that moment: "Executive Desk [ET-10010] · 2 each × Rs 42,500 = Rs 85,000". Changing or withdrawing the product afterwards changes nothing on a basket that was already sent.',
+                    'A product published as "Price on request" stands on its line as "price on request", without a figure. The estimate under the lines adds up only the lines that have a price and says how many it leaves out. Where no line has a price it says "No catalogue estimate". It never prints "Rs 0".',
+                    'A basket is refused, and nothing of it is saved, when it names a product that is a draft, was withdrawn, is archived or is marked unavailable, or an option the product no longer has. The visitor is told which line it is, and why.',
+                    'A shop that shows the products of this admin offers no cart for them. The page of such a product offers "Add to Quote" and "Ask on WhatsApp" and says that it is ordered by quotation. Orders in this admin are not built yet.',
+                    'None of this is switched on for a live shop yet. It starts on the day the shop is connected to this admin.',
+                ],
+            ],
+            [
                 'date' => '2026-11-27',
                 'title' => 'Products: price on request, one code for one product, and what you publish is what the shop shows',
                 'notes' => [

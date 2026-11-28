@@ -1,6 +1,6 @@
 import LeadChallenge from "@/components/LeadChallenge";
 import { redeemLeadHandoff } from "@/lib/leadCapture";
-import { getLeadAttribution, logManualWhatsAppHandoff, submitLead, submitQuoteRequest, useRuntimeRevision } from "@/lib/runtime";
+import { basketDestination, getLeadAttribution, logManualWhatsAppHandoff, submitLead, submitQuoteRequest, useRuntimeRevision } from "@/lib/runtime";
 import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle, Clock, Shield, Users, Headphones, Trash2, Minus, Plus, ShoppingBag, Search, Download, Send, MessageCircle, FileText, ArrowRight, SlidersHorizontal } from "lucide-react";
@@ -31,12 +31,21 @@ const benefits = [
 
 const Quotation = () => {
   const [submitted, setSubmitted] = useState(false);
+  /* Whether what was received was a basket that the admin keeps. The confirmation says "Pending staff review"
+     for it, and cannot ask the basket: the basket is emptied once it has been received. */
+  const [basketWithTheTeam, setBasketWithTheTeam] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
   const catalogRevision = useRuntimeRevision();
-  const { items, removeItem, updateQuantity, estimateText, totalItems, onRequestCount, issueCount, addItem } = useQuote();
+  /* Where this basket goes (lib/runtime.ts). "legacy" is this shop's own API; the other two are the Laravel
+     admin, which keeps a basket for its team to review and does not log a WhatsApp click against it. Read on
+     every render: the catalogue, and with it the destination, arrives after the page has mounted. */
+  const destination = basketDestination();
+  const toLaravel = destination !== "legacy";
+  const toAdmin = destination === "admin";
+  const { items, removeItem, updateQuantity, estimateText, totalItems, onRequestCount, issueCount, addItem, clearQuote } = useQuote();
   const printRef = useRef<HTMLDivElement>(null);
 
   // Client info state
@@ -80,6 +89,8 @@ const Quotation = () => {
   const lineRequest = (item: QuoteItem) => ({
     productId: item.id, name: item.name, qty: item.quantity ?? 1, material: item.color,
     ...(item.variantId != null ? { variantId: item.variantId } : {}),
+    /* The Laravel admin knows an option by its code, not by a number of this shop (lib/quoteCapture.ts). */
+    ...(toAdmin && item.variantId != null && item.sku ? { sku: item.sku } : {}),
   });
   const blockedByIssues = () => {
     if (issueCount === 0) return false;
@@ -155,6 +166,16 @@ const Quotation = () => {
         setManualHandoffUrl("");
       }
       setSubmissionReference(String(result.ref ?? ""));
+      /* The admin has received the basket, so it is emptied, as a cart is after its order (pages/Checkout.tsx).
+         Until 28 November it stayed: the header went on counting products that were already with the team, and
+         the same basket could be sent a second time from the next page (defect D-086). A basket filled after
+         this one is a new request and gets a key of its own. A basket sent to this shop's own database is left
+         as it was: there the builder above this form still prints it and sends it by WhatsApp. */
+      if (items.length > 0 && toLaravel) {
+        setBasketWithTheTeam(true);
+        clearQuote();
+        basketRequestKey.current = crypto.randomUUID();
+      }
       setSubmitted(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : "The request could not be saved. Please try again.";
@@ -206,7 +227,7 @@ const Quotation = () => {
   };
 
   const createAndOpenBuilderHandoff = async () => {
-    if (import.meta.env.VITE_QUOTE_API_MODE === "v1") {
+    if (toLaravel) {
       toast.info("Use the basket request form below to save your enquiry. Builder WhatsApp is not available on the new API yet.");
       return;
     }
@@ -413,10 +434,15 @@ const Quotation = () => {
                     <Download className="h-4 w-4" />
                     Print / Save PDF
                   </Button>
-                  <Button variant="outline" size="sm" disabled={handoffBusy} className="border-green-600 text-green-700 hover:bg-green-600 hover:text-white gap-2" onClick={() => requestAction("whatsapp")}>
-                    <MessageCircle className="h-4 w-4" />
-                    Log &amp; open WhatsApp
-                  </Button>
+                  {/* Not offered where the basket goes to the Laravel admin: that click cannot be logged there, and
+                      a button that only answers "not available" is no button. The form below records WhatsApp as
+                      the way the visitor wants to be answered. */}
+                  {!toLaravel && (
+                    <Button variant="outline" size="sm" disabled={handoffBusy} className="border-green-600 text-green-700 hover:bg-green-600 hover:text-white gap-2" onClick={() => requestAction("whatsapp")}>
+                      <MessageCircle className="h-4 w-4" />
+                      Log &amp; open WhatsApp
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" className="border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white gap-2" onClick={() => requestAction("email")}>
                     <Send className="h-4 w-4" />
                     Draft Email
@@ -559,7 +585,7 @@ const Quotation = () => {
                       </div>
                       <h3 className="text-2xl font-bold mb-2">Quote Request Submitted!</h3>
                       {submissionReference && <p className="mb-2 break-all text-sm font-semibold">Reference: {submissionReference}</p>}
-                      {items.length > 0 && import.meta.env.VITE_QUOTE_API_MODE === "v1" && <p className="mb-2 text-sm">Pending staff review. This is not an issued quotation, order or stock reservation.</p>}
+                      {basketWithTheTeam && <p className="mb-2 text-sm">Pending staff review. This is not an issued quotation, order or stock reservation.</p>}
                       <p className="text-muted-foreground max-w-sm mx-auto">
                         Thank you! Our team will review your requirements and follow up through your selected contact method.
                       </p>
@@ -620,7 +646,7 @@ const Quotation = () => {
                         <input name="contactConsent" type="checkbox" required className="mt-1 accent-[hsl(var(--accent))]" />
                         <span>I agree that WOODEX may contact me about this quote request using my selected method.</span>
                       </label>
-                      <LeadChallenge mode={items.length > 0 ? import.meta.env.VITE_QUOTE_API_MODE : import.meta.env.VITE_LEAD_API_MODE} />
+                      <LeadChallenge mode={items.length > 0 ? (toLaravel ? "v1" : "legacy") : import.meta.env.VITE_LEAD_API_MODE} />
                       {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
                       <Button type="submit" size="lg" disabled={submitting} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 gap-2 uppercase tracking-wider text-xs">
                         <ArrowRight className="h-4 w-4" /> {submitting ? "Submitting…" : "Submit Quote Request"}

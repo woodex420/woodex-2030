@@ -59,6 +59,7 @@ use App\Integrations\WhatsApp\Contracts\WhatsAppGateway;
 use App\Integrations\WhatsApp\WhatsAppCredentials;
 use App\Livewire\Support\TellsTheBrowserOfComplaints;
 use App\Models\User;
+use App\Support\BridgedVisitor;
 use App\Support\DebugGuard;
 use App\Support\WorkspacePreferences;
 use Illuminate\Auth\Events\Authenticated;
@@ -169,10 +170,20 @@ class AppServiceProvider extends ServiceProvider
 
         Password::defaults(fn () => Password::min(10)->letters()->numbers());
 
+        // Counted by the visitor: by the sender's own address, or by the one the shop's server names when it
+        // carried the enquiry here and holds the bridge key (App\Support\BridgedVisitor, master list T-191).
         RateLimiter::for('public-leads', fn (Request $request): array => [
-            Limit::perMinute(5)->by('leads-min:'.$request->ip()),
-            Limit::perDay(50)->by('leads-day:'.$request->ip()),
+            Limit::perMinute(5)->by('leads-min:'.BridgedVisitor::address($request)),
+            Limit::perDay(50)->by('leads-day:'.BridgedVisitor::address($request)),
         ]);
+
+        // What the shop reads of /api/v1: 120 a minute for one visitor, over all those addresses together, as it
+        // was. Counted by the visitor for the same reason as above: every read of every visitor reaches this
+        // application from the shop's one server, and counted by that server's address the whole shop had one
+        // visitor's allowance (defect D-082: about fourteen open pages use it up, and the shop then says that
+        // its catalogue is not available). Whoever does not hold the bridge key is counted by the address he
+        // really has.
+        RateLimiter::for('v1-read', fn (Request $request): Limit => Limit::perMinute(120)->by('v1-read:'.BridgedVisitor::address($request)));
 
         // The original pages ask for the form's configuration on every page view and poll the chat every few
         // seconds, so those two answers need a room of their own: the lead limiter above is for writing a lead.

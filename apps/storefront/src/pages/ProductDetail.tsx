@@ -28,8 +28,9 @@ import {
   Plus,
   ChevronLeft,
   CheckCircle,
+  MessageCircle,
 } from "lucide-react";
-import { getProductById, products, categoryLabel, formatPKR, optionPrice, fromPrice } from "@/data/products";
+import { getProductById, products, categoryLabel, formatPKR, optionPrice, fromPrice, boughtByQuotation } from "@/data/products";
 import type { ProductColor } from "@/data/products";
 import { useQuote } from "@/contexts/QuoteContext";
 import { useCart } from "@/contexts/CartContext";
@@ -68,6 +69,12 @@ const ProductDetail = () => {
   const selectedColor = (pickedColor && product?.colors.find((color) => color.name === pickedColor.name)) || product?.colors[0];
   /* null means "price on request": it can be quoted and cannot be ordered. */
   const unitPrice = product ? optionPrice(product, variant) : null;
+  /* A product that is asked for by quotation whatever it costs: one read from the Laravel admin, which takes a
+     basket and does not take an order yet (data/products.ts). Its price is printed; no cart is offered for it,
+     because an order for it would be refused (master list T-191, defect D-060). */
+  const byQuotation = product ? boughtByQuotation(product) : false;
+  /* The quote button is the way to buy when there is no cart button beside it. */
+  const quoteFirst = byQuotation || (unitPrice === null && !needsChoice);
 
   const lineOf = () => ({
     id: product!.id,
@@ -89,7 +96,7 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
-    if (!product || needsChoice || unitPrice === null) return;
+    if (!product || needsChoice || unitPrice === null || byQuotation) return;
     addToCart({ ...lineOf(), price: unitPrice });
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2500);
@@ -347,6 +354,13 @@ const ProductDetail = () => {
                   )}
                 </div>
               )}
+              {/* Said once, where the price is: why there is no cart button. A product with no price says its
+                  own sentence above. */}
+              {byQuotation && unitPrice !== null && !needsChoice && (
+                <p className="text-sm text-muted-foreground" data-bought-by-quotation>
+                  Ordered by quotation. Add it to your quote and our team will confirm it with you.
+                </p>
+              )}
 
               {/* Short Description */}
               {product.shortDescription && <p className="text-muted-foreground text-lg">{product.shortDescription}</p>}
@@ -432,7 +446,7 @@ const ProductDetail = () => {
               <div className="flex flex-col sm:flex-row gap-3">
                 {/* A product with no price cannot be ordered, so it has no cart
                     button: the quote button is the way to buy it. */}
-                {(unitPrice !== null || needsChoice) && (
+                {!byQuotation && (unitPrice !== null || needsChoice) && (
                   <Button
                     size="lg"
                     /* "sm:flex-1", not "flex-1": on a phone the buttons stand one above the other, and there
@@ -450,17 +464,35 @@ const ProductDetail = () => {
                 )}
                 <Button
                   size="lg"
-                  variant={unitPrice === null && !needsChoice ? "default" : "outline"}
-                  className={unitPrice === null && !needsChoice ? "sm:flex-1 bg-accent hover:bg-hon-green-dark text-accent-foreground" : "border-accent text-accent hover:bg-accent hover:text-accent-foreground"}
+                  variant={quoteFirst ? "default" : "outline"}
+                  className={quoteFirst ? "sm:flex-1 bg-accent hover:bg-hon-green-dark text-accent-foreground" : "border-accent text-accent hover:bg-accent hover:text-accent-foreground"}
                   disabled={!product.inStock || needsChoice}
                   onClick={handleAddToQuote}
                 >
                   {addedToQuote ? (
                     <><CheckCircle className="h-5 w-5 mr-2" />Added to Quote!</>
+                  ) : byQuotation && !product.inStock ? (
+                    /* The cart button said these two things; where there is none, this one says them. */
+                    <>Not available</>
+                  ) : byQuotation && needsChoice ? (
+                    <>Choose an option</>
                   ) : (
                     <>Add to Quote</>
                   )}
                 </Button>
+                {/* A second way to ask, for a product that has no cart: the business's own WhatsApp number, with
+                    the product named. It opens WhatsApp; the visitor sends the message, or does not. */}
+                {byQuotation && product.inStock && (
+                  <Button size="lg" variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground" asChild>
+                    <a
+                      href={`${brand.whatsappLink}?text=${encodeURIComponent(`Hello Woodex, I would like to ask about ${product.name}${variant?.sku || product.sku ? ` (${variant?.sku || product.sku})` : ""}.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <MessageCircle className="h-5 w-5 mr-2" />Ask on WhatsApp
+                    </a>
+                  </Button>
+                )}
                 {/* A "Wishlist" button stood here and did nothing; the shop has no
                     wishlist. Share works: it hands over the link to this page. */}
                 <Button size="icon" variant="outline" aria-label={`Share ${product.name}`} title="Share" onClick={() => void handleShare()}>

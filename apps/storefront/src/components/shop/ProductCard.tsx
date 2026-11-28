@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, ShoppingBag, ShoppingCart } from "lucide-react";
-import { Product, formatPKR, priceText, fromPrice, hasOptions, availabilityText } from "@/data/products";
+import { Product, formatPKR, priceText, fromPrice, hasOptions, availabilityText, canOrder } from "@/data/products";
 import { useQuote } from "@/contexts/QuoteContext";
 import { useCart } from "@/contexts/CartContext";
 import { ProductImage } from "@/components/shop/ProductImage";
@@ -15,14 +15,18 @@ interface ProductCardProps {
 /* A card can add a product straight to the cart only when there is nothing to
    choose and a price to charge. A product sold in options is opened instead —
    the option is chosen on its page — and one priced on request goes to the
-   quote basket, never to the cart. No rating is shown: the shop has no review
-   system, and the figures that used to be here were typed in by hand. */
+   quote basket, never to the cart. So does a product that is bought by
+   quotation whatever it costs (data/products.ts, `canOrder`): its price is
+   printed, and the button under it is the quote button. No rating is shown:
+   the shop has no review system, and the figures that used to be here were
+   typed in by hand. */
 const ProductCard = ({ product }: ProductCardProps) => {
   const { addItem: addToQuote } = useQuote();
   const { addItem: addToCart } = useCart();
   const price = fromPrice(product);
   const options = hasOptions(product);
-  const canCart = product.inStock && !options && price !== null;
+  const orderable = !options && canOrder(product);
+  const canCart = product.inStock && orderable;
   const canQuote = product.inStock && !options;
   const discount = price !== null && !options && product.originalPrice && product.originalPrice > price
     ? Math.round(((product.originalPrice - price) / product.originalPrice) * 100)
@@ -36,7 +40,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (price === null) return;
+    if (price === null || !orderable) return;
     addToCart({ ...line, price });
   };
 
@@ -136,8 +140,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
             <Button size="sm" variant="outline" className="text-xs px-3" asChild>
               <Link to={`/shop/${product.id}`}>Options</Link>
             </Button>
-          ) : price === null ? (
-            <Button size="sm" variant="outline" className="text-xs px-3" disabled={!product.inStock} onClick={handleAddToQuote}>
+          ) : !orderable ? (
+            <Button size="sm" variant="outline" className="text-xs px-3" disabled={!product.inStock} onClick={handleAddToQuote} aria-label={`Add ${product.name} to quote`}>
               <ShoppingBag className="h-3 w-3 mr-1" />
               Quote
             </Button>

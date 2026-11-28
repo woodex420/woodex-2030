@@ -7,7 +7,9 @@ and sent the programme in one piece: the "WOODEX 2030 — Master System Implemen
 duplicate". Section 6 says where each of his twelve documents lives.
 
 Read on 27 November: `main` at `31f2306` with the work of [document 45](45-RELEASE-2026-11-27-A-PRODUCT-FROM-THE-ADMIN-TO-THE-SHOP.md)
-on top, and the two live sites as they answered that day. The detail of every line stays where it is kept: the
+on top, and the two live sites as they answered that day. **Updated on 28 November** with the round of
+[document 47](47-RELEASE-2026-11-28-A-VISITOR-ASKS-FOR-A-PRODUCT-OF-THE-ADMIN.md): blocker 4 is gone, and with it
+changed row 8 and row 9 of P0 and section 7. Nothing else here was read again. The detail of every line stays where it is kept: the
 master list ([document 14](14-PRODUCTION-TODO.md)), the plan ([21](21-PENDING-WORK-PLAN-AND-TESTS.md)), the
 audit ([43](43-DEEP-AUDIT-2026-11-23.md)) and the acceptance tables ([16](16-ACCEPTANCE-AND-RELEASE-GATES.md)).
 
@@ -26,6 +28,11 @@ what a visitor of the shop sees, in its category and on its own page; a change i
 withdrawn product is gone. With a price, and priced on request. On a rehearsal in a sandbox and in CI on Apache
 and MariaDB. **Not on a live site, because no live admin has a database.**
 
+**What the round of 28 November added** (document 47): a visitor of such a shop can ask for the product. Its page
+offers the quotation basket and WhatsApp and no cart; the basket arrives in the admin as an enquiry that names
+the product, its code, how many, and its price as published, or "price on request" without a figure. Proved the
+same way: a rehearsal in a sandbox and CI. Not on a live site.
+
 **So the programme is not complete, and by the owner's own rule nothing here is called complete**: "Do not claim
 completion until the actual database, browser workflow and deployment have been verified."
 
@@ -36,7 +43,7 @@ completion until the actual database, browser workflow and deployment have been 
 | 1 | **The old dashboard's password is public** (D-002, critical; audit AU-01). It was printed in a document of a public repository and has not been changed | **The owner**, five minutes: `woodex-2030.vercel.app/dashboard` → Settings → "Your password". Then the repository private | Everything the old dashboard holds: enquiries, orders, customers |
 | 2 | **No database for the real admin exists** (his P0 point 5). Whatever is typed into the admin today is typed into a demonstration | **The owner**: the ten steps of [document 24](24-HOSTINGER-STEP-BY-STEP.md) on Hostinger (T-006), or his word that the host is another one (blocker 3) | Every "is it in the database" of his acceptance on a live site; the photographs (T-089); the switch of the live shop; every module's move |
 | 3 | **Hosting and architecture: the prompt and the decisions in force name different things** (section 5) | **The owner**, one answer: which Hostinger plan he has | Next.js, PostgreSQL, Docker, Redis, tenants. Nothing of them is begun, and nothing built so far depends on the answer |
-| 4 | **A visitor cannot yet ask for a product that only the admin has** (D-060, high): cart and basket are refused, because the shop's server prices them from its own database | The agent: T-191, the next round | Switching the live shop to the admin's products |
+| 4 | ~~A visitor cannot yet ask for a product that only the admin has~~ **Gone on 28 November** (D-060 closed; document 47). The quotation basket for such a product arrives in the admin as an enquiry with its lines. No cart is offered for it until the admin takes orders (T-106) | — | Nothing any more. For the switch of the live shop, three settings on each side join the list ([document 24](24-HOSTINGER-STEP-BY-STEP.md), §6) |
 | 5 | **The real products are drafts**: 170, their photographs only linked (T-089), 116 with a point to check and 33 without a price (T-090) | The owner reviews (T-090); the agent copies the photographs once a server exists (T-089) | A shop that shows Woodex's own products |
 | 6 | **No backup of the live shop's database is known** (D-011, audit AU-05) | **The owner**: it is his Supabase account | Any change to that database, and the day the old system is closed |
 | 7 | **Facts and claims on the shop that nobody confirmed** (D-063): the street, the hours, the delivery charge and the free-delivery threshold, named clients and projects, counts | **The owner**: T-194 and the open points of [document 44](44-RELEASE-2026-11-25-THE-SHOPS-CURES.md) | A shop that may be shown to customers |
@@ -71,8 +78,8 @@ Nothing of the Laravel admin is "Verified" in this sense, and nothing can be bef
 | 5 | A persistent Laravel production database | **Missing; blocked by the owner** | The release installs itself in a browser into an empty database: proved on every push on Apache with MariaDB 10.11, and the suite on MySQL 8.4 and MariaDB 11.4 | A host and an empty database | T-006, T-133 |
 | 6 | Canonical product ownership | **Not integrated** | The admin is the only writer of a product. With the link on, the shop's own database changes no price of it, and the shop's server reads and never writes | The live switch | T-105 |
 | 7 | Native product create, edit and publish | **Not integrated** | Create, photograph, code, description, measures, category, price or "Price on request", save, publish, change, withdraw, archive; every published version is kept. Publication is refused without a name, a code no other product has, an address of its own, an active category, a description, delivery and warranty texts, a main photograph with its describing text, a price or the tick, and the saved preview opened by the person who publishes | His five steps (draft → review → approved → published → archived): the admin has draft, published, withdrawn and archived; "reviewed" is a tick, and publishing is a permission of its own, but an approval is not a state that is kept (T-199). A database-level guard of the code (T-193) | T-090, T-193, T-199 |
-| 8 | The storefront reads published Laravel products | **Not integrated; switched off live** | The list in pages, one product, its photographs, the categories and the media, in the contract of `/api/v1`; the shop reads them through its own server. His seventeen steps pass, with a price and on request | Cart and basket for such a product (D-060); the addresses for series, filters and search of his list (T-192); then the switch | T-191, T-192 |
-| 9 | Security and data-integrity blockers | **Partial** | The defect register (document 16 §5): 81 entries, 63 closed. The last one, D-081, is seven advisories against Symfony packages that the first push of this round found and the same push cured. Open: 1 critical (blocker 1), 2 high (blockers 4 and 7), 11 medium, 4 low | Blockers 1, 6 and 7; two-factor sign-in (T-022); style and analyser in CI (T-196) | document 16 §5 |
+| 8 | The storefront reads published Laravel products | **Not integrated; switched off live** | The list in pages, one product, its photographs, the categories and the media, in the contract of `/api/v1`; the shop reads them through its own server. His seventeen steps pass, with a price and on request, and since 28 November three more: no cart is offered for such a product, a visitor's quotation basket is sent, and it is in the admin as an enquiry with its lines (document 47) | The addresses for series, filters and search of his list (T-192); an order for such a product (T-106); what an open page costs the host (T-200); then the switch | T-192, T-106, T-200 |
+| 9 | Security and data-integrity blockers | **Partial** | The defect register (document 16 §5): 86 entries, 69 closed, as of 28 November. D-081 was seven advisories against Symfony packages that the first push of 27 November found and the same push cured. The round of 28 November closed D-060 and entered and closed five of its own: the admin counted every visitor of the shop as one address (D-082, high); a category of the shop could say that nothing is listed in it, which the live shop could do too (D-085, medium); a basket that had been sent stayed in the header (D-086, low); and two faults of the rehearsal itself (D-083, D-084, low). Open: 1 critical (blocker 1), 1 high (blocker 7), 11 medium, 4 low | Blockers 1, 6 and 7; two-factor sign-in (T-022); style and analyser in CI (T-196) | document 16 §5 |
 
 ### P1
 
@@ -149,10 +156,11 @@ He asked for twelve documents by name, and for existing ones to be updated rathe
 
 In the order of the plan (document 21), each its own pull request with its own report:
 
-1. **T-191** (P0, the agent, can start now): a visitor asks for a product of the admin, by cart and by basket.
-   It closes D-060. After it the live shop can be switched, once blockers 2 and 5 are gone.
-2. **T-192** and **T-193** (the agent): the addresses for series, filters and search; one code for one product,
-   held by the database.
+1. **T-191: done on 28 November** (document 47). A visitor asks for a product of the admin by quotation basket;
+   D-060 is closed. An order for such a product is T-106. The live shop can be switched once blockers 2 and 5
+   are gone.
+2. **T-192** and **T-193** (the agent, can start now): the addresses for series, filters and search; one code
+   for one product, held by the database. Then **T-200**: what an open page of the shop costs the admin's host.
 3. **With the owner's step for blocker 2**: the real admin on its host, the 170 products with their photographs
    (T-089), his review (T-090), and his acceptance, module by module (T-171).
 4. **P1 and P2**, after his answer to section 5.

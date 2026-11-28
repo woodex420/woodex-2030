@@ -38,7 +38,13 @@ for (const folder of folders) {
     said.push(`${count('ok')} of ${report.steps.length} steps held${count('left out') ? `, ${count('left out')} left out` : ''}`);
     for (const step of report.steps.filter((entry) => entry.result === 'FAILED')) wrong.push(`step "${step.name}": ${String(step.note).slice(0, 160)}`);
     for (const step of report.steps.filter((entry) => entry.result === 'left out')) wrong.push(`left out "${step.name}": ${String(step.note).slice(0, 120)}`);
-    for (const problem of [...new Set(report.problems ?? [])].filter((entry) => entry.startsWith('HTTP 5') || /Content[ -]Security[ -]Policy/i.test(entry))) wrong.push(problem.slice(0, 200));
+    // scripts/os-journeys.mjs lists everything the browser said and fails on two kinds of it. The installation
+    // and the journey of a product (scripts/os-install.mjs, scripts/os-product-to-shop.mjs, which name themselves
+    // in `journey`) list only what they fail on, so every entry of their list is named here: on 28 November the
+    // journey of a product failed with every step held, and this line said that the browser had found nothing
+    // wrong.
+    const failsOnAll = typeof report.journey === 'string';
+    for (const problem of [...new Set(report.problems ?? [])].filter((entry) => failsOnAll || entry.startsWith('HTTP 5') || /Content[ -]Security[ -]Policy/i.test(entry))) wrong.push(problem.slice(0, 200));
   } else {
     wrong.push(`no report in ${path.basename(folder)}: the script did not finish`);
   }
