@@ -1474,6 +1474,7 @@ class ComposerStaticInit1ccdb72def058b74382e52d18a5402f1
         'App\\Support\\Api\\IdempotentOutcome' => __DIR__ . '/../..' . '/app/Support/Api/IdempotentOutcome.php',
         'App\\Support\\Api\\Problem' => __DIR__ . '/../..' . '/app/Support/Api/Problem.php',
         'App\\Support\\Brand' => __DIR__ . '/../..' . '/app/Support/Brand.php',
+        'App\\Support\\BridgedVisitor' => __DIR__ . '/../..' . '/app/Support/BridgedVisitor.php',
         'App\\Support\\BusinessHours' => __DIR__ . '/../..' . '/app/Support/BusinessHours.php',
         'App\\Support\\Concerns\\EnumHelpers' => __DIR__ . '/../..' . '/app/Support/Concerns/EnumHelpers.php',
         'App\\Support\\Concerns\\HasPublicId' => __DIR__ . '/../..' . '/app/Support/Concerns/HasPublicId.php',

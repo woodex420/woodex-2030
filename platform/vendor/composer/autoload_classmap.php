@@ -783,6 +783,7 @@ return array(
     'App\\Support\\Api\\IdempotentOutcome' => $baseDir . '/app/Support/Api/IdempotentOutcome.php',
     'App\\Support\\Api\\Problem' => $baseDir . '/app/Support/Api/Problem.php',
     'App\\Support\\Brand' => $baseDir . '/app/Support/Brand.php',
+    'App\\Support\\BridgedVisitor' => $baseDir . '/app/Support/BridgedVisitor.php',
     'App\\Support\\BusinessHours' => $baseDir . '/app/Support/BusinessHours.php',
     'App\\Support\\Concerns\\EnumHelpers' => $baseDir . '/app/Support/Concerns/EnumHelpers.php',
     'App\\Support\\Concerns\\HasPublicId' => $baseDir . '/app/Support/Concerns/HasPublicId.php',
