@@ -603,6 +603,32 @@ jobs:
       # The shop is the built shop on its own Node server, told where the admin is. In a sandbox the same journey
       # runs on a database file (platform/tools/hostinger/rehearse-with-shop.sh), because the only database
       # server a sandbox can fetch is older than the installer accepts.
+      # Since 27 November the journey below also sends a quotation basket that holds the product (master list
+      # T-191). The admin takes baskets when its settings name that part, and it knows the shop's server by a key
+      # the two share: two lines of the settings file the installer wrote, outside the website's folder, which the
+      # owner sets once before the link is switched on (docs/woodex-os/24). The key is made here for this run,
+      # kept in a file of the runner and printed nowhere.
+      - name: The admin is told that it takes baskets, and by which key it knows the shop's server
+        run: |
+          state="$HOSTING_HOME/woodex-os/staging.woodex.test"
+          ( umask 077; head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$RUNNER_TEMP/bridge-key" )
+          if bash platform/tools/hostinger/take-baskets.sh "$state/.env" "$RUNNER_TEMP/bridge-key"; then
+            if [ "$(stat -c %a "$state/.env" 2>/dev/null)" != 600 ]; then
+              echo "::error title=The settings file::its mode is $(stat -c %a "$state/.env" 2>/dev/null) after the change; it was 600"
+              echo "the mode of the settings file" >> "$RUNNER_TEMP/failed"
+            fi
+            # Asked from outside, as a visitor without the shop's server would ask: the address is there now, and
+            # refuses a request that is neither vouched for nor passed a robot check. It must not be a 404.
+            answer="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{}' "$SITE_URL/api/v1/quote-requests")"
+            echo "POST /api/v1/quote-requests without a basket answers $answer"
+            case "$answer" in
+              400|422) ;;
+              *) echo "::error title=The admin's address for baskets::answered $answer to an empty request; 400 or 422 was expected"; echo "the admin's address for baskets" >> "$RUNNER_TEMP/failed" ;;
+            esac
+          else
+            echo "the admin's settings for baskets" >> "$RUNNER_TEMP/failed"
+          fi
+
       - name: The shop, built, and told that it reads its products from this admin
         run: |
           if npm run vercel:build > "$RUNNER_TEMP/shop-build.log" 2>&1; then
@@ -613,6 +639,7 @@ jobs:
           fi
           PORT=4185 WOODEX_SERVE_STATIC=dist WOODEX_DATA_DIR="$RUNNER_TEMP/shop-data" NODE_ENV=test \
             NATIVE_CATALOGUE_ORIGIN=http://127.0.0.1:8080 NATIVE_PRODUCT_SYNC=1 NATIVE_MEDIA_SYNC=1 \
+            NATIVE_BRIDGE_KEY="$(cat "$RUNNER_TEMP/bridge-key" 2>/dev/null || true)" \
             nohup node --experimental-sqlite apps/api/server.mjs > "$RUNNER_TEMP/shop.log" 2>&1 &
           for attempt in $(seq 1 60); do
             [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4185/api/health)" = "200" ] && break
@@ -620,7 +647,7 @@ jobs:
           done
           echo "the shop's server: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4185/api/health); the products it hands on from the admin: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4185/api/products)"
 
-      - name: A product made in the admin is what a visitor of the shop sees — with a price, and priced on request
+      - name: A product made in the admin is what a visitor of the shop sees and asks for — with a price, and priced on request
         env:
           OS_BASE: http://127.0.0.1:8080
           SHOP_BASE: http://127.0.0.1:4185

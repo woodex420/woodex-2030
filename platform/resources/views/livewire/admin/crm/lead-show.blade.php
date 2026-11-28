@@ -197,11 +197,29 @@
                         <section class="mb-5 space-y-2" wire:key="basket-request-{{ $basket->id }}">
                             <p class="break-all font-semibold">{{ $basket->reference }} · Pending review</p>
                             <ul class="space-y-1 text-sm">
+                                {{-- A line of a published product carries its code, and no figure when it was
+                                     published "Price on request" (master list T-191): none is printed, never 0. --}}
                                 @foreach ($basket->lines as $line)
-                                    <li>{{ $line['description'] }} · {{ $line['qty'] }} {{ $line['unit'] }} × {{ \App\Support\Money::ofMinor($line['rate_minor'])->format() }} = {{ \App\Support\Money::ofMinor($line['line_total_minor'])->format() }}</li>
+                                    @php
+                                        $figure = ($line['rate_minor'] ?? null) === null
+                                            ? 'price on request'
+                                            : \App\Support\Money::ofMinor($line['rate_minor'])->format().' = '.\App\Support\Money::ofMinor($line['line_total_minor'])->format();
+                                    @endphp
+                                    <li>{{ $line['description'] }} @if (filled($line['sku'] ?? null))<span class="font-mono text-theme-xs text-gray-600 dark:text-gray-300">[{{ $line['sku'] }}]</span> @endif· {{ $line['qty'] }} {{ $line['unit'] }} × {{ $figure }}</li>
                                 @endforeach
                             </ul>
-                            <p class="text-sm">Saved catalogue estimate: {{ \App\Support\Money::ofMinor($basket->estimated_total_minor)->format() }} · Final scope, taxes, delivery and terms require staff review.</p>
+                            @php
+                                // The estimate is the sum of the lines that have a figure. It says which lines it
+                                // leaves out, and where no line has a figure there is no estimate: never "Rs 0",
+                                // which reads as free.
+                                $unpriced = collect($basket->lines)->filter(fn ($line) => ($line['rate_minor'] ?? null) === null)->count();
+                                $estimate = match (true) {
+                                    $unpriced === 0 => 'Saved catalogue estimate: '.\App\Support\Money::ofMinor($basket->estimated_total_minor)->format(),
+                                    $unpriced < count($basket->lines) => 'Saved catalogue estimate: '.\App\Support\Money::ofMinor($basket->estimated_total_minor)->format().', without the '.($unpriced === 1 ? 'line' : $unpriced.' lines').' priced on request',
+                                    default => 'No catalogue estimate: '.($unpriced === 1 ? 'the line is' : 'all '.$unpriced.' lines are').' priced on request',
+                                };
+                            @endphp
+                            <p class="text-sm">{{ $estimate }} · Final scope, taxes, delivery and terms require staff review.</p>
                         </section>
                     @endforeach
                 </x-admin.card>

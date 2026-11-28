@@ -23,6 +23,8 @@
 import { nativeMediaBridge } from "./native-media-bridge.mjs";
 import { nativeCategoryBridge } from "./native-category-bridge.mjs";
 import { nativeProductBridge, productSyncOn } from "./native-product-bridge.mjs";
+import { nativeEnquiryBridge, ENQUIRY_ADDRESSES } from "./native-enquiry-bridge.mjs";
+import { bridgeKey } from "./native-bridge-key.mjs";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -1788,6 +1790,9 @@ const PUBLIC_WRITE_LIMITS = [
   // Business writes: enough headroom for a busy showroom kiosk on one IP, far below
   // anything a script needs to poison the pipeline.
   { test: (p) => /^\/api\/(leads|quotes|orders|target)$/.test(p), max: 30, windowMs: 60_000 },
+  // The basket a visitor sends to the Laravel admin through this server (native-enquiry-bridge.mjs): the same room.
+  // The admin keeps its own, smaller limit for each visitor; this one keeps a flood from reaching it at all.
+  { test: (p) => productSyncOn() && ENQUIRY_ADDRESSES.includes(p), max: 30, windowMs: 60_000 },
   // The analytics pixel is one beacon per page view; it must never throttle a real visitor.
   { test: (p) => p === "/api/track", max: 120, windowMs: 60_000 },
 ];
@@ -1906,6 +1911,11 @@ const isPublic = (m, p) =>
     /^\/api\/(track|leads|quotes|orders|auth\/login)$/.test(p)
     || /^\/api\/orders\/lookup$/.test(p)
     || /^\/api\/leads\/\d+\/whatsapp-handoff$/.test(p)
+    /* The basket a visitor sends to the Laravel admin, carried by this server (T-191). The same trap as the
+       three bridges above, the other way round: registered and not listed here, a visitor's basket would be
+       answered 401 "sign in required". A signed-out visitor is exactly who sends it. With the link off the
+       address is not this server's, and it answers as it always did. */
+    || (productSyncOn() && ENQUIRY_ADDRESSES.includes(p))
   ));
 const requestToken = (req) => {
   const auth = String(req.headers.authorization ?? "");
@@ -2258,6 +2268,14 @@ if (productSyncOn()) {
   app.get('/api/products/:id', nativeProductBridge());
   // A product photograph, at the path the admin's answer names, so that a page asks the shop it stands on.
   app.get('/api/v1/catalogue/products/:slug/picture/:media/:version', nativeProductBridge());
+  // What a visitor writes about such a product: a basket is carried to the admin, which is the only one that
+  // can price a product this shop's database does not hold (T-191, defect D-060).
+  for (const address of ENQUIRY_ADDRESSES) app.post(address, nativeEnquiryBridge());
+  // Without the key the admin counts every visitor of this shop as one, and asks a basket for a robot check that
+  // this shop's page may not have: said once, where the person who set the link up reads it. Never the key.
+  if (!bridgeKey()) console.warn(process.env.NATIVE_BRIDGE_KEY
+    ? "[woodex-api] NATIVE_BRIDGE_KEY is shorter than 32 characters and is not used."
+    : "[woodex-api] NATIVE_PRODUCT_SYNC is on without NATIVE_BRIDGE_KEY: the admin counts all visitors of this shop as one address.");
 }
 
 // Same-origin read-only native categories. Runtime origin is a deployment setting, never a browser URL.

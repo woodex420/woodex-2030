@@ -59,6 +59,12 @@ export interface Product {
   variants?: ProductVariant[];
   /** When the product was last changed, as the API reports it. */
   updatedAt?: string;
+  /**
+   * "admin": the product was read from the Laravel admin and this shop's own database does not hold it. It is
+   * asked for by quotation, and a basket that names it goes to the admin (see `boughtByQuotation`). Absent: a
+   * product of this shop's own database.
+   */
+  source?: "admin";
 }
 
 // ─── CATEGORY STRUCTURE ────────────────────────────────────────────────
@@ -129,7 +135,13 @@ export const products: Product[] = [];
  * the status "ready": a customer mid-order should not lose the page.
  */
 export type CatalogStatus = "loading" | "ready" | "unavailable";
-export const catalog: { status: CatalogStatus } = { status: "loading" };
+/**
+ * `source` says who answered: this shop's own database ("shop"), or the Laravel admin through this shop's server
+ * ("admin"). It is read from the shape of the answer itself, each time the catalogue arrives, so it can never
+ * disagree with the products on the page; lib/runtime.ts sends a basket where the catalogue came from.
+ */
+export type CatalogSource = "shop" | "admin";
+export const catalog: { status: CatalogStatus; source: CatalogSource } = { status: "loading", source: "shop" };
 
 // ─── CATEGORY NAMES AND TREE ───────────────────────────────────────────
 /* A name for every category the catalogue may use. A category that is not
@@ -256,6 +268,20 @@ export const priceText = (p: Product, format: (amount: number) => string = forma
 /** The price of one chosen option, or of the product itself. */
 export const optionPrice = (p: Product, variant?: ProductVariant | null): number | null =>
   variant ? (variant.priceOnRequest ? null : variant.price) : (p.priceOnRequest ? null : p.price);
+
+/**
+ * A product that is asked for by quotation, whatever it costs: no cart is offered for it.
+ *
+ * Today that is every product read from the Laravel admin. The admin does not take orders yet (master list
+ * T-106), and this shop's own server cannot take one for a product its database does not hold: it priced an
+ * order from that database and refused (defect D-060). So the page offers what will be received: the quotation
+ * basket, which goes to the admin and arrives there as an enquiry with its lines.
+ */
+export const boughtByQuotation = (p: Product): boolean => p.source === "admin";
+
+/** Whether a cart is offered for the product, in this option: it has a price, and it is not bought by quotation. */
+export const canOrder = (p: Product, variant?: ProductVariant | null): boolean =>
+  !boughtByQuotation(p) && optionPrice(p, variant) !== null;
 
 /** "In stock", "Made to order" or "Not available" — and never a quantity. */
 export const availabilityText = (p: Product): string =>

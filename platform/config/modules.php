@@ -20,7 +20,7 @@ declare(strict_types=1);
 return [
 
     'available' => [
-        'quote_requests' => 'Opt-in Furniture basket requests; requires explicit catalogue mappings',
+        'quote_requests' => 'Baskets sent from the shop, saved as enquiries with their lines: POST /api/v1/quote-requests',
         'lead_api' => 'Public enquiry endpoint: POST /api/public/leads',
         'website' => 'Public website, CMS page router, theme stylesheets and the Website admin screens',
         'estimator' => 'Estimations and the estimator rate book',

@@ -220,12 +220,16 @@ The creates are protected by:
 1. **The switch of the part.** `POST /leads`, `POST /leads/whatsapp-handoff` and `POST /quote-requests` exist
    only where the admin's module for them is on (`lead_api`; the basket also needs `quote_requests`). Off, every
    method gets 404.
-2. **The limits** of §10, counted for each address a request comes from.
+2. **The limits** of §10, counted for each visitor.
 3. **The robot check** (Cloudflare Turnstile): the field `turnstile_token`. Where the check is not set up on a
    site, a create without the shop's key (next point) is refused.
-4. **The shop's own key**, the header `X-Woodex-Key`: the shop's server, which has already checked its visitor,
-   sends it and is not asked the robot check. The key is a setting of the site and is compared in constant
-   time. It lets a request skip the robot check and nothing else.
+4. **The shop's own key**, the header `X-Woodex-Key`: the shop's server sends it with what it carries here for
+   a visitor. The key is a setting of the site (`PUBLIC_LEADS_BRIDGE_KEY`) and is compared in constant time. It
+   lets its holder do two things and nothing else:
+   - **send a create without the robot check's token.** Since 28 November, for a basket: where the visitor's
+     page made a token all the same, the token is checked, for the visitor's address (decision DL-050);
+   - **name the visitor it asks for**, in the header `X-Woodex-Visitor`, so that the limits count that visitor
+     and not the shop's one server (§10). From anyone without the key that header is not read.
 5. **The trap for robots**: a field no person sees, and the time a form was open. A request caught by it is
    answered 202 with `null` values, as if it had been taken, and nothing is written.
 
@@ -235,14 +239,23 @@ caller (§13). Until then `UNAUTHENTICATED` and `FORBIDDEN` are in the list of c
 
 ## 10. Limits
 
-| Addresses | Limit, for each address a request comes from |
-|---|---|
-| `POST /leads`, `POST /quote-requests` | 5 a minute and 50 a day, counted together, and together with the older `POST /api/public/leads` |
-| `POST /leads/whatsapp-handoff` | 20 a minute |
-| Every address that reads, and any address that is not there | 120 a minute |
+| Addresses | Limit | Counted for |
+|---|---|---|
+| `POST /leads`, `POST /quote-requests` | 5 a minute and 50 a day, counted together, and together with the older `POST /api/public/leads` | each visitor |
+| `POST /leads/whatsapp-handoff` | 20 a minute | each address a request comes from |
+| Every address that reads | 120 a minute, over all of them together | each visitor |
+| Any address that is not there | 120 a minute | each address a request comes from |
 
 Over the limit: 429 `TOO_MANY_REQUESTS`, with `Retry-After` in seconds. The numbers are the ones the addresses
 had before this page; whether they fit a busy day of the shop is open (§13).
+
+**Who a visitor is** (since 28 November, decision DL-050). The address a request comes from, unless the shop's
+own server sent it. Everything a visitor of the shop reads here, and the basket a visitor sends, arrives from that
+one server: counted by its address, the whole shop was one visitor, and about fourteen open pages used up the
+reads of everybody (defect D-082). So the shop's server, which proves itself by its key (§9), names the address
+it asks for in the header `X-Woodex-Visitor`, and the limit is counted by that. An address that is not one, and
+the header from anyone without the key, is not read: such a request is counted by the address it came from. The
+visitor's address is used for counting and is kept nowhere: not in a log, not in the database.
 
 ## 11. What every answer carries, and browsers on other sites
 
@@ -260,19 +273,32 @@ the websites named in the site's setting `PUBLIC_LEADS_ALLOWED_ORIGINS`. It may 
 `Retry-After`. No cookie goes with such a request. The addresses that read are not opened to other websites: the
 shop's own server asks for them, not the visitor's browser.
 
-## 12. The seven addresses, and how the rules are held
+## 12. The ten addresses, and how the rules are held
 
 | Method and address | What it is | Takes | Good answers |
 |---|---|---|---|
 | `POST /api/v1/leads` | An enquiry of a visitor | key | 201 made · 200 joined the visitor's open enquiry · 202 taken for a robot's. `data`: `reference`, `handoff` (`token`, `expires_at`, or `null`) |
 | `POST /api/v1/leads/whatsapp-handoff` | Turn the hand-off token of an enquiry into the WhatsApp link, once | the token | 200. `data`: `delivery`, `whatsapp_url` |
-| `POST /api/v1/quote-requests` | A basket of products sent for a quotation | key | 201 made · 202 taken for a robot's. `data`: `reference`, `status` |
+| `POST /api/v1/quote-requests` | A basket of products sent for a quotation. A line is `{slug, sku, qty}`, a product this admin published by its address and its option by its code, or `{product_id, qty}`, a line of the rate book by the shop's own key; never both | key | 201 made · 202 taken for a robot's. `data`: `reference`, `status` |
 | `GET /api/v1/catalogue/categories` | The published category tree with the page of each category, and the series | — | 200. `data`: `categories`, `series` |
 | `GET /api/v1/catalogue/categories/{category}/hero/{revision}` | The picture at the head of a category page | — | 200, the picture |
 | `GET /api/v1/media` | The photographs of the shop that the admin has replaced | — | 200, a whole list. `data`: `[{key, url}]` |
 | `GET /api/v1/media/{media}/{version}` | One of those photographs | — | 200, the picture |
+| `GET /api/v1/catalogue/products` | The published products | `page`, `per_page`, `category`, `series`, `since` | 200, one page. `data`: the products, each with `slug`, `name`, `sku`, `on_request`, `price_minor`, `availability`, `variants`, `pictures` and its texts |
+| `GET /api/v1/catalogue/products/{product}` | One published product, by its address | — | 200. `data`: the product |
+| `GET /api/v1/catalogue/products/{product}/picture/{image}/{version}` | One photograph of a published product | — | 200, the picture |
 
-Anything else under `/api/v1`: 404. A wrong method on one of the seven: 405 with `Allow`.
+Anything else under `/api/v1`: 404. A wrong method on one of the ten: 405 with `Allow`.
+
+**A basket of published products** (since 28 November, master list T-191; `tests/Feature/Api/BasketOfPublishedProductsTest.php`).
+A line that names a `slug` is read from the copy of the product that is published in that moment, and only while
+the products are handed out at all. The name, the code and the price are the published ones; nothing of them is
+taken from the request. A product sold in options needs the option's `sku`. Refused with 422, under
+`items.N.slug`, and nothing written: a product that is a draft, was withdrawn, is archived or is marked
+unavailable; an option the product does not have, or one marked unavailable; the same product and option twice.
+A product published as "Price on request" is taken without a figure: its line carries no price, never 0, and
+the saved estimate adds up only the lines that have one. The change to the body breaks no caller: `product_id`
+alone is read as before.
 
 **The contract** is `platform/resources/api/v1.openapi.json` (OpenAPI 3.1): every address, the fields each create
 reads, every status it can answer, and the shape of each answer key by key.
@@ -293,7 +319,9 @@ reads, every status it can answer, and the shape of each answer key by key.
 
 `tests/Feature/Api/IdempotencyTest.php` holds §6, `tests/Feature/Api/ApiAnswerTest.php` the builder of answers.
 The shop's side is held by `scripts/test-storefront-lead-adapter.mjs`, `test-basket-adapter.mjs`,
-`test-media-sync.mjs` and `test-native-category-sync.mjs`, which run in CI on every change.
+`test-media-sync.mjs`, `test-native-category-sync.mjs`, `test-native-product-reader.mjs` and
+`test-native-enquiry-bridge.mjs`, which run in CI on every change. `tests/Feature/Api/ReadsCountedByVisitorTest.php`
+holds who a visitor is (§10).
 
 **To add an address:**
 
@@ -323,7 +351,7 @@ each:
 |---|---|
 | Money: decimal text or whole minor units | **Decided: whole minor units**, key ending `_minor`, currency beside it (§7). It is how the admin keeps money, so nothing is converted on the way |
 | Route names compatible with the endpoints that exist | **Decided for these seven**: the addresses stay as they were; only the shape of the answers changed (release report of 19 November). The older `POST /api/public/leads` and the old website's two addresses keep address and shape |
-| Limits of the API and of public forms | **Kept as they were** (§10). Whether 5 enquiries a minute from one address fits an office that sits behind one address is the owner's to say when the shop's forms are switched over |
+| Limits of the API and of public forms | **The numbers kept as they were; counted for each visitor since 28 November** (§10, DL-050). Whether 5 enquiries a minute from one address fits an office that sits behind one address is the owner's to say when the shop's forms are switched over |
 | Cookie or token for a sign-in | **Open.** Nothing needs a sign-in yet (§9). To be decided with the first private address |
 | Public checkout and a payment gateway | **Answered by the owner before, and not this page's**: no online payment at checkout at launch, cash on delivery; payments are recorded by hand in the admin (master list §3, "Already answered"). An address for orders comes with T-106 |
 | Webhooks: how they prove who they are, and idempotency | **Open for webhooks; for creates it is §6.** The webhooks this application receives and sends are outside `/api/v1` and are not changed by this page |

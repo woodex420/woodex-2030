@@ -12,6 +12,12 @@
 #                       reads the categories and the replaced photographs (NATIVE_MEDIA_SYNC=1).
 #   the acceptance      run twice: a product with a price, with the admin stopped and started again after the
 #                       product is saved; and a product priced on request.
+#   the basket          since 27 November the acceptance also sends a quotation basket that holds the product
+#                       (master list T-191). So the installed admin is told two things in its settings file, as
+#                       its owner will tell it before the link is switched on: that it takes baskets
+#                       (WOODEX_MODULES names quote_requests), and the key by which it knows the shop's server
+#                       (PUBLIC_LEADS_BRIDGE_KEY). The shop's server is given the same key (NATIVE_BRIDGE_KEY).
+#                       The key is made here for this run, kept in the folder and printed nowhere.
 #
 # The database is a file (SQLite), which the installer offers beside MySQL. The sandbox's own database server
 # (tools/preview/sandbox/database.sh, MariaDB 10.2 of 2017) is no use here: the installer refuses a server older
@@ -59,10 +65,16 @@ stop_all() {
 trap stop_all EXIT
 
 # ── The admin's server, started by a few lines that the restart below runs again ─────────────────────────────
+# Four workers on one SQLite file. A host's MariaDB makes the second of two writers wait; SQLite, begun the usual
+# way, ends it at once. On 27 and 28 November a save that met the notification bell's own question was answered
+# 409, and a visitor's read that met a basket being saved was answered 503 by the shop (defect D-084). Measured
+# then: of 40 enquiries written while the categories were read 400 times, 3 enquiries and 19 reads were ended.
+# So SQLite is told here to take its lock at the start of a transaction (config/database.php): the second waits,
+# and the same measurement ended none.
 cat > "$work/start-admin.sh" <<SH
 #!/usr/bin/env bash
 cd "$site" || exit 2
-WOODEX_HOME="$home" HOME="$home" PHP_CLI_SERVER_WORKERS=4 setsid nohup "$php" -d display_errors=0 -d log_errors=1 \\
+WOODEX_HOME="$home" HOME="$home" PHP_CLI_SERVER_WORKERS=4 DB_SQLITE_TRANSACTION_MODE=IMMEDIATE setsid nohup "$php" -d display_errors=0 -d log_errors=1 \\
   -S "127.0.0.1:$admin_port" -t "$site" "$here/router.php" >> "$work/admin.log" 2>&1 &
 echo \$! > "$work/admin.pid"
 SH
@@ -117,14 +129,28 @@ tail -3 "$work/install.log"
 [ -s "$database" ] || { echo "the installer left no database at $database" >&2; exit 1; }
 say "installed; its database: $database ($(bash "$work/query.sh" "SELECT COUNT(*) FROM migrations") changes applied, $(bash "$work/query.sh" "SELECT COUNT(*) FROM commerce_products") products)"
 
+# ── The admin is told that it takes baskets, and by which key it knows the shop's server ─────────────────────
+# Two lines of the settings file the installer wrote, outside the website's folder: what the owner does once, in
+# the host's file manager, before the link is switched on (docs/woodex-os/24). The file is read on every request,
+# so nothing is restarted. BASKET=off leaves the admin as it is installed, to see what the acceptance says then.
+settings="$(dirname "$database")/.env"
+bridge_key=""
+if [ "${BASKET:-on}" != "off" ]; then
+  bridge_key="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  ( umask 077; printf '%s\n' "$bridge_key" > "$work/bridge-key" )
+  said="$(bash "$here/take-baskets.sh" "$settings" "$work/bridge-key")" || { echo "the admin's settings could not be changed" >&2; exit 1; }
+  say "$said; the file's mode is still $(stat -c %a "$settings")"
+fi
+
 # ── The shop, told where the admin is and that it reads its products there ───────────────────────────────────
 cd "$root" || exit 2
 PORT="$shop_port" WOODEX_SERVE_STATIC=dist WOODEX_DATA_DIR="$work/shop-data" NODE_ENV=test \
   NATIVE_CATALOGUE_ORIGIN="http://127.0.0.1:$admin_port" NATIVE_PRODUCT_SYNC=1 NATIVE_MEDIA_SYNC=1 \
+  NATIVE_BRIDGE_KEY="$bridge_key" \
   setsid nohup node --experimental-sqlite apps/api/server.mjs >> "$work/shop.log" 2>&1 &
 echo $! > "$work/shop.pid"
 until_listening "$shop_port" || { echo "the shop did not start (see $work/shop.log)" >&2; exit 1; }
-say "the shop: http://127.0.0.1:$shop_port, reading its products from the admin"
+say "the shop: http://127.0.0.1:$shop_port, reading its products from the admin and handing its baskets to it"
 
 # ── The acceptance, twice ────────────────────────────────────────────────────────────────────────────────────
 failed=0
@@ -137,6 +163,8 @@ say "the acceptance: a product priced on request"
 
 say "what the database holds at the end (address, version, published copy, saved copies):"
 bash "$work/query.sh" "SELECT slug, version, COALESCE(published_revision_id, 'not published'), (SELECT COUNT(*) FROM commerce_product_revisions r WHERE r.product_id = p.id) FROM commerce_products p ORDER BY id"
+say "and the baskets it kept (state, lines, what the priced lines come to in paisa, the enquiry):"
+bash "$work/query.sh" "SELECT q.status, json_array_length(q.lines), q.estimated_total_minor, l.ref FROM storefront_quote_requests q JOIN leads l ON l.id = q.lead_id ORDER BY q.id"
 if [ "${KEEP:-}" = "1" ]; then
   say "left running: the admin http://127.0.0.1:$admin_port (owner@woodex.test, the password is in $work/owner-password), the shop http://127.0.0.1:$shop_port"
 fi

@@ -14,9 +14,19 @@ import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { nativeProductBridge, productSyncOn } from '../apps/api/native-product-bridge.mjs';
 
+import path from 'node:path';
+
 const bundle = await build({
-  stdin: { contents: `export * from './apps/storefront/src/lib/nativeProducts';`, resolveDir: process.cwd() },
+  stdin: {
+    // The reader, and beside it what the pages ask about a product once it is read: whether a cart is offered
+    // for it, and what a cart that already holds it says (master list T-191).
+    contents: `export * from './apps/storefront/src/lib/nativeProducts';
+      export { boughtByQuotation, canOrder, catalog, products as shopProducts } from './apps/storefront/src/data/products';
+      export { reconcile } from './apps/storefront/src/contexts/reconcile';`,
+    resolveDir: process.cwd(),
+  },
   bundle: true, platform: 'node', format: 'esm', write: false,
+  alias: { '@': path.resolve('apps/storefront/src') },
 });
 const reader = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 
@@ -311,4 +321,71 @@ assert.equal(madeOption.variants[0].price, 18000);
 const askOptions = reader.toProduct({ ...askDesk, variants: [{ ...twoOptions.variants[0], price_minor: null }] }, lookups);
 assert.equal(askOptions.variants[0].priceOnRequest, true);
 
-console.log('Native product reader: paisa to rupees, “ask us” as a switch, a photograph at its own path, a dropped claim, an option’s identity kept when the list is reordered, the switch off, the bridge’s own refusals, and the admin’s answer handed on unchanged — all passed.');
+/* ── An option the editor marked unavailable is not offered ───────────────────────────────────────────────────
+   The admin refuses a basket that names such an option (CaptureStorefrontQuoteRequest), so a page that offered
+   it would offer a refusal. Until 27 November every option was offered, whatever the editor had said of it. */
+
+const oneLeft = reader.toProduct({ ...desk, sku: null, variants: [{ ...twoOptions.variants[0], availability: 'unavailable' }, twoOptions.variants[1]] }, lookups);
+assert.deepEqual(oneLeft.variants.map(v => v.sku), ['HOF-10005'], 'an option marked unavailable is not an option to choose');
+assert.equal(oneLeft.inStock, true);
+assert.equal(idOf(oneLeft, 'HOF-10005'), idOf(forward, 'HOF-10005'), 'and the option that is left keeps its number');
+const noneLeft = reader.toProduct({ ...desk, sku: null, variants: twoOptions.variants.map(v => ({ ...v, availability: 'unavailable' })) }, lookups);
+assert.equal(noneLeft.inStock, false, 'a product sold in options of which none is offered cannot be asked for');
+assert.equal(noneLeft.variants.length, 0);
+assert.equal(reader.toProduct({ ...desk, variants: 'none' }, lookups), null, 'options that are not a list are not this API’s');
+
+/* ── How a product of the admin is bought: by quotation, never by cart (master list T-191) ────────────────────
+   The shop's own server priced an order from its own database, which does not hold a product that only the
+   admin has, and refused it (defect D-060). So no cart is offered for such a product, with a price or without:
+   the quotation basket is, and it goes to the admin. A product of the shop's own database is bought as before. */
+
+for (const product of [first, ask, sale, madeToOrder, forward]) {
+  assert.equal(product.source, 'admin', `${product.id} says where it was read from`);
+  assert.equal(reader.boughtByQuotation(product), true);
+  assert.equal(reader.canOrder(product), false, `no cart is offered for ${product.id}, which only the admin has`);
+}
+assert.equal(reader.canOrder(forward, forward.variants[0]), false, 'nor for an option of it, though the option has a price');
+
+// The same products as this shop's own database hands them out: no word about where they came from.
+const own = ({ source, ...product }) => product;
+assert.equal(reader.boughtByQuotation(own(first)), false);
+assert.equal(reader.canOrder(own(first)), true, 'a product of the shop’s own database with a price is ordered by cart, as before');
+assert.equal(reader.canOrder(own(ask)), false, 'and one without a price is quoted, as before');
+assert.equal(reader.canOrder(own(forward), forward.variants[0]), true);
+assert.equal(reader.canOrder(own(askOptions), askOptions.variants[0]), false);
+
+// A cart that already holds such a product: the line says why it cannot be ordered, and that it can be quoted.
+{
+  const line = product => ({ id: product.id, name: product.name, category: product.category, price: product.price, quantity: 2 });
+  const cart = [line(first), line(ask)];
+  assert.equal(reader.reconcile(cart, { forOrder: true }), cart, 'a catalogue that has not been read judges nothing');
+
+  reader.shopProducts.splice(0, reader.shopProducts.length, first, ask);
+  reader.catalog.status = 'ready';
+  const [priced, unpriced] = reader.reconcile(cart, { forOrder: true });
+  assert.equal(priced.issue, 'Ordered by quotation — add it to a quote instead');
+  assert.equal(priced.quoteInstead, true, 'the page offers to move such a line to the quote basket');
+  assert.equal(priced.price, 42501, 'and the line keeps its price for the basket');
+  assert.equal(unpriced.issue, 'Ordered by quotation — add it to a quote instead');
+  assert.equal(unpriced.priceOnRequest, true);
+  // In the quote basket the same two lines are in order.
+  const basket = reader.reconcile(cart, { forOrder: false });
+  assert.deepEqual(basket.map(item => item.issue), [undefined, undefined]);
+  assert.deepEqual(basket.map(item => !!item.quoteInstead), [false, false]);
+
+  // The shop's own products, in a cart: the one with a price is ordered; the one without is quoted, and says so.
+  reader.shopProducts.splice(0, reader.shopProducts.length, own(first), own(ask));
+  const [ordered, quoted] = reader.reconcile(cart, { forOrder: true });
+  assert.equal(ordered.issue, undefined, 'a product of the shop’s own database stays in the cart');
+  assert.equal(!!ordered.quoteInstead, false);
+  assert.equal(quoted.issue, 'Priced on request — add it to a quote instead');
+  assert.equal(quoted.quoteInstead, true);
+  // A product that is gone cannot be quoted either: nothing is offered for it but to remove it.
+  const [gone] = reader.reconcile([{ id: 'withdrawn-desk', name: 'Withdrawn', category: '', price: 1, quantity: 1 }], { forOrder: true });
+  assert.equal(gone.issue, 'No longer available');
+  assert.equal(!!gone.quoteInstead, false);
+  reader.shopProducts.splice(0);
+  reader.catalog.status = 'loading';
+}
+
+console.log('Native product reader: paisa to rupees, “ask us” as a switch, a photograph at its own path, a dropped claim, an option’s identity kept when the list is reordered, an unavailable option not offered, no cart for a product of the admin, the switch off, the bridge’s own refusals, and the admin’s answer handed on unchanged — all passed.');

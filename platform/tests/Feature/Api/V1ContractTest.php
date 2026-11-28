@@ -479,10 +479,18 @@ it('documents the fields each create reads, and no others', function () {
     $named = fn (string $schema): array => array_keys($this->contract->schema($schema)['properties']);
     $read = fn (string $request): array => array_values(array_unique(array_map(fn (string $rule): string => Str::before($rule, '.'), array_keys((new $request)->rules()))));
     $trap = (string) config('woodex.public_leads.honeypot_field');
+    // What a line of a basket may carry: every key the request has a rule for, but the ones it refuses by name.
+    $line = [];
+    foreach ((new StoreQuoteRequest)->rules() as $rule => $checks) {
+        if (str_starts_with($rule, 'items.*.') && ! in_array('prohibited', (array) $checks, true)) {
+            $line[] = Str::after($rule, 'items.*.');
+        }
+    }
 
     expect($named('EnquiryBody'))->toEqualCanonicalizing([...$read(StorePublicLeadRequest::class), $trap])
         ->and($named('BasketBody'))->toEqualCanonicalizing([...$read(StoreQuoteRequest::class), $trap])
-        ->and($named('BasketLine'))->toBe(['product_id', 'qty'])
+        ->and($named('BasketLine'))->toEqualCanonicalizing($line)
+        ->and($named('BasketLine'))->toBe(['product_id', 'slug', 'sku', 'qty'])
         ->and($named('HandoffBody'))->toBe(['token'])
         ->and($this->contract->schema('EnquiryBody')['properties']['source']['enum'])->toBe(array_map(fn (LeadSource $source): string => $source->value, LeadSource::publicSources()));
 });

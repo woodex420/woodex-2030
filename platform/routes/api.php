@@ -54,26 +54,29 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->middleware(['module:quote_requests', 'throttle:public-leads', 'api.v1:key'])->name('quote-requests.store');
     });
 
-    // What the shop reads: the published category tree with its pages, independent of the enquiry module.
+    // What the shop reads. Every address below shares one allowance, "v1-read": 120 a minute for one visitor,
+    // who is named by the shop's own server when it asks for him (App\Providers\AppServiceProvider).
+
+    // The published category tree with its pages, independent of the enquiry module.
     Route::get('/catalogue/categories', [V1\CategoryController::class, 'index'])
-        ->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.categories');
+        ->middleware(['throttle:v1-read', 'api.v1'])->name('catalogue.categories');
     Route::get('/catalogue/categories/{category}/hero/{revision}', [V1\CategoryController::class, 'hero'])
-        ->whereNumber(['category', 'revision'])->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.categories.hero');
+        ->whereNumber(['category', 'revision'])->middleware(['throttle:v1-read', 'api.v1'])->name('catalogue.categories.hero');
 
     // What the shop reads of the products: only the published copy of a product that is not archived, in pages
     // (T-105). Its filters are named here, and a query parameter that is not named is refused by the door.
     Route::get('/catalogue/products', [V1\ProductController::class, 'index'])
-        ->middleware(['throttle:120,1', 'api.v1:query=page|per_page|category|series|since'])->name('catalogue.products');
+        ->middleware(['throttle:v1-read', 'api.v1:query=page|per_page|category|series|since'])->name('catalogue.products');
     Route::get('/catalogue/products/{product}', [V1\ProductController::class, 'show'])
-        ->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.products.show');
+        ->middleware(['throttle:v1-read', 'api.v1'])->name('catalogue.products.show');
     Route::get('/catalogue/products/{product}/picture/{image}/{version}', [V1\ProductController::class, 'picture'])
-        ->whereNumber(['image', 'version'])->middleware(['throttle:120,1', 'api.v1'])->name('catalogue.products.picture');
+        ->whereNumber(['image', 'version'])->middleware(['throttle:v1-read', 'api.v1'])->name('catalogue.products.picture');
 
     // Only explicitly published React media mappings; never private product images or the whole library.
     Route::get('/media', [V1\MediaController::class, 'index'])
-        ->middleware(['throttle:120,1', 'api.v1'])->name('media');
+        ->middleware(['throttle:v1-read', 'api.v1'])->name('media');
     Route::get('/media/{media}/{version}', [V1\MediaController::class, 'file'])
-        ->whereNumber(['media', 'version'])->middleware(['throttle:120,1', 'api.v1'])->name('media.file');
+        ->whereNumber(['media', 'version'])->middleware(['throttle:v1-read', 'api.v1'])->name('media.file');
 
     // The last route of the group: whatever nothing above owns, for every method (404, or 405 with Allow).
     Route::any('/{unknown?}', V1\UnknownAddress::class)

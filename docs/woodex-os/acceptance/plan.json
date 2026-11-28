@@ -1,6 +1,6 @@
 {
   "about": "The plan for the lines of docs/woodex-os/14-PRODUCTION-TODO.md that are not done: a short title for each, the rounds in which the lines that can start now are done, and for each of those lines what is built and how it is tested. Read with the list by scripts/verify-plan.mjs, which writes docs/woodex-os/21-PENDING-WORK-PLAN-AND-TESTS.md and fails when the three disagree. When a line is done, take it out of its round and out of the titles.",
-  "written": "2026-11-27",
+  "written": "2026-11-28",
   "commit": "effb443",
   "sizes": {
     "S": "small",
@@ -110,7 +110,6 @@
     "T-187": "Say whether Supabase keeps backups, or give the database address as a secret",
     "T-188": "The shop's old previews are gone",
     "T-190": "The WhatsApp inbox takes the enquiry's turn before it asks who is writing",
-    "T-191": "With the product link on, a visitor can ask for a product of the admin",
     "T-192": "`/api/v1`: series, filters and search",
     "T-193": "One code for one product, held by the database",
     "T-194": "The shop's named clients, projects and counts: confirmed or taken off",
@@ -118,39 +117,157 @@
     "T-196": "The code style, the analyser and the database comparison in CI",
     "T-197": "Compression, long life of built files and https on the host",
     "T-198": "The shop's font in its own build",
-    "T-199": "A product's five steps to publication, with an approval that is kept"
+    "T-199": "A product's five steps to publication, with an approval that is kept",
+    "T-200": "What an open page of the shop costs the admin's host"
   },
   "notes": {
     "T-080": "Done on the rehearsal on 17 November. What is left is the same journey on staging.",
-    "T-105": "Built in two rounds (19 and 27 November) and proved in a browser from the admin's form to a visitor's screen, behind a switch of the shop that stays off. Its last step, switching the live shop over and closing the Node catalogue, waits for a database for the real admin (T-006), for products published there (T-090) and for T-191; until then the line stays open.",
-    "T-115": "Building the prototype needs nobody, and what it needed of the catalogue is there since 27 November: the published products at `/api/v1`. It follows T-191. Accepting it is yours: gate C.",
+    "T-105": "Built in two rounds (19 and 27 November) and proved in a browser from the admin's form to a visitor's screen, behind a switch of the shop that stays off. Since 28 November a visitor can also ask for such a product by quotation (T-191). Its last step, switching the live shop over and closing the Node catalogue, waits for a database for the real admin (T-006) and for products published there (T-090); until then the line stays open.",
+    "T-115": "Building the prototype needs nobody, and what it needs of the catalogue is there since 27 November: the published products at `/api/v1`. It stands behind T-192 by order, not by need: the lines of the product link are finished first. Accepting it is yours: gate C.",
     "T-188": "Nobody acts: Vercel deletes each preview 30 days after it was built. The outside check watches one of them.",
     "T-190": "Cannot happen today: the inbox is switched off and no WhatsApp account is connected (D-044). Done with the inbox's own acceptance (T-118), before it is switched on."
   },
   "rounds": [
     {
-      "name": "With the product link on, a visitor can ask for a product of the admin",
-      "why": "P0 since 27 November. The owner's acceptance of that day (a product made in the admin is what a visitor of the shop sees) holds, and found what stands between it and the live shop besides a database and published products: a visitor cannot yet ask for such a product. The shop's own server prices an order and a basket from its own database, which does not have a product that only the admin has, and refuses both (D-060). Until this is built the shop's switch stays off.",
+      "name": "The addresses the owner listed: series, filters and search",
+      "why": "The owner's list of 27 November names three addresses of `/api/v1` that do not exist yet. They are what a shop needs when it stops reading the whole catalogue: a list of the series, what a list can be narrowed by, and a search. First of the freed lines, because the next (the cost of an open page) is easier once the shop no longer has to hold everything.",
       "lines": [
         {
-          "id": "T-191",
+          "id": "T-192",
           "size": "M",
-          "found": "Read on 27 November on the rehearsal of document 45, with the link on: the product's page offers \"Add to Cart\" and \"Add to Quote\". An order for it (`POST /api/orders`) and a basket (`POST /api/quotes`) are both answered 400, \"item 1 is not an available catalog product\". The shop can already send an enquiry and a basket to the admin's `/api/v1` (its `v1` mode, built with T-063 and off in every build); the admin's module `quote_requests` receives a basket and is off as it ships, and asks for an explicit mapping from the shop's product number to a product of the admin. Orders do not exist in the admin (T-106).",
+          "found": "The contract of `/api/v1` has ten addresses, seven of them read. The series come inside the answer of `/catalogue/categories`. The list of products is narrowed by `category`, `series` and `since`, in pages of at most 100. Nothing answers at `/catalogue/series`, `/catalogue/filters` or `/catalogue/search`: the last route of the group says 404. The shop reads the whole catalogue page after page and narrows and searches it in the browser (`apps/storefront/src/pages/Shop.tsx`: the search box compares the words typed with the names it has read).",
           "build": [
-            "The shop knows where its catalogue came from. For a product read from the admin the cart is not offered: the page offers the quotation basket and WhatsApp, and says in one line that it is made to order and quoted. A cart that already holds such a product says so and offers to move it to the basket.",
-            "A basket line is read by the admin by the product's address (its slug), which is what the shop knows a product of the admin by: the module `quote_requests` needs no mapping table for such a line, checks that the product is published, and keeps the name, the code and the price as they were published at that moment.",
-            "The rehearsal of document 45 builds the shop in `v1` mode, so that the enquiry and the basket of the journey are sent to the admin."
+            "`GET /api/v1/catalogue/series`: the published series, each with its address, its name and how many published products it holds.",
+            "`GET /api/v1/catalogue/filters`: what the list can be narrowed by, counted over the published products only: the categories and the series with their counts, the lowest and the highest price of what has one, and how many are priced on request.",
+            "`GET /api/v1/catalogue/search`: the words typed, at least two signs, compared with the name and the code of each published product; a page of products in the shape of the list.",
+            "The three are written into the contract first, are answered through `ApiAnswer`, and are counted with the other reads, by the visitor.",
+            "The shop's server hands them on, and the shop's list takes its filters and its counts from the answer instead of working them out."
           ],
           "tests": [
-            "The admin's suite: a basket with a published product is a lead with its lines; with a draft, a withdrawn or an archived product it is refused by the code the contract names, and nothing is written; a product priced on request is taken without a figure; the same basket sent twice is one lead (the idempotency key).",
-            "The shop's reader script: a product read from the admin offers no cart; a product read from the shop's own database offers what it offers today.",
-            "The contract test: the changed body of `POST /api/v1/quote-requests`, key by key."
+            "The contract test: the three addresses key by key, for every status the contract documents.",
+            "The admin's suite: a draft, a withdrawn and an archived product is in no count, no filter and no search result; a search finds a product by a word of its name and by its code, whatever the capitals; one sign is refused by the code the contract names.",
+            "The shop's reader script: the filters and counts shown are the ones the admin answered."
           ],
           "browser": [
-            "`scripts/os-product-to-shop.mjs` gains three steps after step 13: the visitor puts the published product into the basket and sends it; the owner finds the lead in the admin with the product, its code and its price on its line; no button of the product's page was answered with a refusal."
+            "The product journey gains a step: the visitor finds the published product by typing its code into the shop's search, and no longer finds it after the publication is withdrawn."
           ],
-          "against": "With the cart left on for a product of the admin, the journey's new step names the refusal; with the admin taking a basket line of a draft, its test names the draft; with the price taken from the request, the test of the published price names it.",
-          "back": "The shop's switch stays off, so no visitor sees any of it. With the switch off the shop offers its cart exactly as today; the `v1` mode is a setting of a build and no live build has it."
+          "against": "With a draft counted in a filter, the test of the counts names it; with the search reading the saved draft, the test names the draft's name.",
+          "back": "The shop's switch stays off, so no visitor sees any of it. The three addresses hand out nothing the list does not hand out already."
+        }
+      ]
+    },
+    {
+      "name": "One code, one product: held by the database",
+      "why": "The rule of 27 November (DL-049) is checked by reading the other products, which two editors can pass in the same moment. It follows the addresses because the search of that round finds a product by its code, and a code that names two products would answer with both.",
+      "lines": [
+        {
+          "id": "T-193",
+          "size": "M",
+          "found": "A code another product has is refused when a draft is saved and again at publication (`ProductCatalogue::refuseACodeOfAnotherProduct`): the check reads the saved and the published copies of every other product, archived or not. A code is a value inside the saved draft, not a column, so no index holds it. Two editors who give two products the same new code in the same moment can both pass the check when they save; the second publication is then refused, and until then two drafts carry one code.",
+          "build": [
+            "A table of codes: one row for each code that a product's saved draft or published copy carries, in one spelling, with a unique index.",
+            "Saving a draft and publishing write the product's rows in the same transaction as the product. A code that another product holds fails on the index, and the editor is told as today, on the row of the code.",
+            "A migration fills the table from the products there are. Where two products already share a code it stops, lists them, and changes nothing."
+          ],
+          "tests": [
+            "The admin's suite: the rules of DL-049 as they stand, each asked of the table: a code taken, a code freed by a changed draft, a code kept by the published copy, the same code in other capitals.",
+            "The two-writers command gains a step: two saves of the same new code in the same moment, fifty runs, on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4: one is refused every time.",
+            "The migration on a copy of the 170 imported products: every code is in the table once."
+          ],
+          "browser": [
+            "The product journey, unchanged, on the new table: its code is typed once and accepted."
+          ],
+          "against": "With the unique index left out, the two-writers step reports two products with one code.",
+          "back": "The migration's way back drops the table; the check that reads the other products is still there."
+        }
+      ]
+    },
+    {
+      "name": "What an open page of the shop costs the admin's host",
+      "why": "Measured in the round of 28 November. It does not stand in the way of the switch for a few visitors, and it does for many: the host is shared hosting, and every read of every open page is a request it has to answer.",
+      "lines": [
+        {
+          "id": "T-200",
+          "size": "M",
+          "found": "Measured on the rehearsal with the link on: a page of the shop that stands open and is not touched asks the admin nine times a minute through the shop's server: the categories and the replaced photographs every fifteen seconds, the whole list of products once a minute. A journey of ten pages asked 36 times in under a minute. The list takes `since` and the shop does not send it. The admin allows one visitor 120 reads a minute (D-082), which fourteen open pages of one visitor reach; the shop's server then answers 503 for the catalogue.",
+          "build": [
+            "The shop's server keeps what it read of the admin for a few seconds and answers every visitor from it: one read at the admin for all the pages that ask in that time. It keeps only what is public and the same for everybody: the categories, the products, the list of replaced photographs. An answer that is an error is not kept, and a basket is never answered from what is kept.",
+            "An open page asks whether anything changed since its last reading, and reads the list again only then.",
+            "How long a withdrawn product may still be shown is one number of the shop's server, written down: fifteen seconds at most."
+          ],
+          "tests": [
+            "The bridges' script: many requests within the time are one read at the admin; after the time, a new read; an error is not kept; nothing a visitor writes is kept.",
+            "The reader's script: with nothing changed since the last reading, the page reads nothing more.",
+            "A measurement kept with the report: fifty pages opened on the rehearsal, and the reads the admin received in a minute."
+          ],
+          "browser": [
+            "The product journey: after \"Withdraw\", the product is gone from the shop within fifteen seconds, and the journey says how long it took."
+          ],
+          "against": "With the time set to an hour, the journey's step 17 fails: the withdrawn product is still shown.",
+          "back": "The time is a setting of the shop's server; 0 asks the admin every time, as today."
+        }
+      ]
+    },
+    {
+      "name": "The code style and the analyser in CI",
+      "why": "Two checks exist and no workflow runs them (the audit of 23 November, AU-16). Small, and it protects every round after it.",
+      "lines": [
+        {
+          "id": "T-196",
+          "size": "M",
+          "found": "No workflow runs the code style (`composer lint`) or the analyser (`composer analyse`): the audit of 23 November, AU-16. Run in the sandbox on the code of 28 November (PHP 8.5): the style check names 16 files of 1,264, fifteen of them tests; the analyser reports 147 errors in 36 files of `app/` at level 6. None is in a file of the last two rounds. The comparison of the live shop's database with its schema files says \"Production is unverified this run\" on every run: no read-only address is given to it.",
+          "build": [
+            "`os-ci.yml` runs `composer lint` and `composer analyse` on every push that touches `platform/`; a pull request fails on either.",
+            "What the two report on the day is cured in the same round: the 16 files are rewritten by the tool, and each of the 147 errors is cured in the code or, where the analyser is wrong, named in a list with its reason. The first run is then green, and a later fault is somebody's own.",
+            "The comparison of the live shop's database with its schema files runs when a read-only address is given as a secret; without one the run carries an error that names what is missing, instead of a notice nobody reads. The address is the owner's to give."
+          ],
+          "tests": [
+            "On the round's own branch: a file of `app/` with a style fault fails the run and the run names the file; taken out, the run passes. The same with a type fault for the analyser."
+          ],
+          "browser": [],
+          "against": "The two faults above are the test: each is pushed once and taken out again.",
+          "back": "The two steps are taken out of the workflow."
+        }
+      ]
+    },
+    {
+      "name": "Two small cures of the live shop",
+      "why": "Both are findings of the audit of 23 November (AU-11, AU-23) that need nobody and change what a visitor and a search engine are told.",
+      "lines": [
+        {
+          "id": "T-195",
+          "size": "S",
+          "found": "The last rule of the shop's `vercel.json` hands every address that is no file to the shop's page (`/:path*` to `/index.html`) with the status 200. The page then says \"not found\" and asks not to be indexed (since 25 November); the status is still success. Read on 23 November: `/this-page-is-not-there` answered 200. The shop's own server answers 404 for the same address.",
+          "build": [
+            "The addresses the shop has are written down once, where the build already knows them for its static pages and its sitemap: the fixed pages, and the patterns of a product, a category, a series, an article and a published page.",
+            "On Vercel an address that fits none of them is answered by the shop's server, which already answers `/api` and the sitemap there: the not-found page, with the status 404."
+          ],
+          "tests": [
+            "A script reads `vercel.json` against the shop's routes: every route of the application is named, and an address that fits none goes to the server.",
+            "The check of the live sites asks for an address that is not there and requires 404."
+          ],
+          "browser": [
+            "The crawl of the built shop: every address of the sitemap answers 200; five addresses that are not there answer 404 and show the not-found page."
+          ],
+          "against": "With the last rule put back, the new point of the live check fails.",
+          "back": "The one rule put back in `vercel.json`."
+        },
+        {
+          "id": "T-198",
+          "size": "S",
+          "found": "The shop asks Google for the font Inter on every page, twice: a link in `apps/storefront/index.html` (six weights) and an `@import` in `apps/storefront/src/index.css` (seven). The admin carries its font as files of its own build. Every run of the browser scripts in the sandbox, which reaches no other server, reports the file that did not arrive.",
+          "build": [
+            "Inter as files of the shop's build, with its licence, declared in the stylesheet with `font-display: swap`.",
+            "Both references to Google are taken out."
+          ],
+          "tests": [
+            "The build's own check refuses `fonts.googleapis.com` and `fonts.gstatic.com` anywhere in the built shop."
+          ],
+          "browser": [
+            "The crawl: no request leaves for another server, and a heading and a paragraph are set in Inter at both widths."
+          ],
+          "against": "With the link put back in `index.html`, the build's check fails.",
+          "back": "The two references put back."
         }
       ]
     },
@@ -366,7 +483,7 @@
     {
       "check": "The Laravel test suite",
       "where": "In the sandbox on SQLite; in CI on MySQL 8.4, MariaDB 10.11 and MariaDB 11.4 (`os-ci.yml`), on every push that touches `platform/`",
-      "today": "2,833 pass, 36 skipped, none fails: run in the sandbox on 21 November, 13:03 to 13:08 UTC, on the code of pull request #55. In CI on `effb443`, on each of the three servers (MySQL 8.4.13, MariaDB 10.11.19, MariaDB 11.4.13): 2,833 pass, 36 skipped. The 23 new tests ask the website's router for 14 files by name, for 5 addresses that could be a page and for an old address that was a file; read the page builder on a site without a page and on a narrow window; and read every address of the admin that the Website Studio's scripts name",
+      "today": "2,917 pass, 36 skipped, none fails: run in the sandbox on 28 November, 03:34 to 03:43 UTC, on the code of document 47. What CI counted on the three servers is on that round's pull request (#61). The reading before it: 2,833 pass, 36 skipped, none fails: run in the sandbox on 21 November, 13:03 to 13:08 UTC, on the code of pull request #55. In CI on `effb443`, on each of the three servers (MySQL 8.4.13, MariaDB 10.11.19, MariaDB 11.4.13): 2,833 pass, 36 skipped. The 23 new tests ask the website's router for 14 files by name, for 5 addresses that could be a page and for an old address that was a file; read the page builder on a site without a page and on a narrow window; and read every address of the admin that the Website Studio's scripts name",
       "catches": "A rule, a screen or a permission that no longer does what its test says"
     },
     {

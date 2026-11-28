@@ -11,6 +11,7 @@ use App\Http\Requests\Api\StoreQuoteRequest;
 use App\Integrations\Turnstile\TurnstileVerifier;
 use App\Support\Api\ApiAnswer;
 use App\Support\Api\Idempotency;
+use App\Support\BridgedVisitor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
@@ -37,7 +38,7 @@ final class QuoteRequestController extends Controller
         $outcome = $idempotency->seen('quote-requests', $key, $fingerprint);
 
         if ($outcome === null) {
-            if (! $request->hasValidBridgeKey() && ! $turnstile->verify($request->input('turnstile_token'), $request->ip(), failClosed: true)) {
+            if (! $this->passesTheRobotCheck($request, $turnstile)) {
                 throw ValidationException::withMessages(['turnstile_token' => 'The spam check failed. Please refresh and try again.']);
             }
 
@@ -52,5 +53,26 @@ final class QuoteRequestController extends Controller
             $outcome->status,
             [...self::PRIVATE, ...$outcome->headers()],
         );
+    }
+
+    /**
+     * Who vouches for a basket: the robot check, or the shop's own server.
+     *
+     * A basket from anyone else needs a token that the check accepts, and is refused where the check is not set
+     * up. A basket the shop's server carried here (it holds the bridge key) is not asked for a token. Where the
+     * visitor's page made one all the same, because the shop was built with the check's public key, the token
+     * is checked, for the visitor's own address: a page that shows the box must not show a box nobody reads
+     * (decision DL-050). Only where the check is set up here; and when the check's own service gives no answer,
+     * a basket the shop's server vouches for is taken.
+     */
+    private function passesTheRobotCheck(StoreQuoteRequest $request, TurnstileVerifier $turnstile): bool
+    {
+        $token = $request->input('turnstile_token');
+
+        if (! $request->hasValidBridgeKey()) {
+            return $turnstile->verify($token, $request->ip(), failClosed: true);
+        }
+
+        return blank($token) || ! $turnstile->enabled() || $turnstile->verify($token, BridgedVisitor::address($request));
     }
 }

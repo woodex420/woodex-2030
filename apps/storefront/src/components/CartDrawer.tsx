@@ -6,10 +6,12 @@ import { ShoppingCart, Minus, Plus, Trash2, X } from "lucide-react";
 import { useCart, MAX_ORDER_QTY } from "@/contexts/CartContext";
 import { formatPKR } from "@/data/products";
 import { keyOf } from "@/contexts/lineKey";
+import { useMoveToQuote } from "@/contexts/moveToQuote";
 import { ProductImage } from "@/components/shop/ProductImage";
 
 const CartDrawer = () => {
   const { items, removeItem, updateQuantity, totalItems, totalPrice, issueCount, isOpen, setIsOpen } = useCart();
+  const moveToQuote = useMoveToQuote();
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -60,6 +62,15 @@ const CartDrawer = () => {
                     {item.issue
                       ? <p className="text-xs text-destructive mt-1">{item.issue}</p>
                       : <p className="text-sm font-bold text-accent mt-1">{formatPKR(item.price)}</p>}
+                    {item.issue && item.quoteInstead && (
+                      <button
+                        type="button"
+                        className="mt-1 text-xs font-semibold text-accent underline underline-offset-2"
+                        onClick={() => { moveToQuote(item); if (items.length === 1) setIsOpen(false); }}
+                      >
+                        Move to quote
+                      </button>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center border border-border rounded-sm">
                         <button

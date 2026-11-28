@@ -309,6 +309,20 @@ WOODEX OS, the admin that everything is moving into (§1). Its record is `docs/l
   job `publish` writes the release to the branch `hostinger-release`: never push to that branch by hand. The
   owner's steps on the host are `docs/woodex-os/24-HOSTINGER-STEP-BY-STEP.md`; nothing has been seen on the
   account itself.
+- **The product link** (the shop reads its products from the admin, and a visitor's quotation basket goes to
+  the admin) is proved by `platform/tools/hostinger/rehearse-with-shop.sh`: the release installed in a browser,
+  told to take baskets (`take-baskets.sh`), the shop reading it, and `scripts/os-product-to-shop.mjs` twice,
+  with a price and priced on request. The job `hostinger` runs the same journey on MariaDB. A change to a bridge
+  (`apps/api/native-*.mjs`), to what the shop offers for a product of the admin, or to `/api/v1` needs that run.
+  Three things it taught (document 47):
+  - The shop's server stands between every visitor and the admin. Whatever the admin counts by address must be
+    counted by the visitor the shop's server names (`App\Support\BridgedVisitor`), or the whole shop is one
+    visitor.
+  - A browser script waits for the answer to the field it typed, by the field's name (`given` in the journey).
+    Every screen of the admin also asks for its notifications, and that answer arrives when it likes.
+  - Several workers on one SQLite file need `DB_SQLITE_TRANSACTION_MODE=IMMEDIATE`: without it one of two
+    requests that meet is ended at once (409 for a person, 503 through the shop). A host runs MySQL and has
+    no such fault.
 - **Packages.** A sandbox that reaches only GitHub and npm can install from `platform/composer.lock` and cannot
   write one. To move Composer's packages, let GitHub do it: the workflow `composer-update.yml` runs
   `composer update`, names every package that moves and commits the lock file to your branch (started by hand,

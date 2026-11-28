@@ -866,14 +866,17 @@
   {
    "id": "D-060",
    "severity": "high",
-   "state": "open",
+   "state": "closed",
    "found": "2026-11-27",
    "title": "With the product link on, an order or a basket for a product that only the admin has is refused",
    "detail": "Found on the rehearsal of document 45. The shop shows such a product with \"Add to Cart\" and \"Add to Quote\". Both are refused when they are sent (400, \"item 1 is not an available catalog product\"): the shop's own server prices an order and a basket from its own database, which does not have the product. It blocks one release: switching the live shop to the admin's products. No live site has the link on.",
    "lines": [
-    "T-191",
-    "T-106"
-   ]
+    "T-191"
+   ],
+   "closed": {
+    "on": "2026-11-28",
+    "how": "A basket for such a product is received by the admin. The shop's own server carries it there (`apps/api/native-enquiry-bridge.mjs`), and the admin prices each line from what it published in that moment and keeps the basket as an enquiry with its lines (`CaptureStorefrontQuoteRequest`; `Feature/Api/BasketOfPublishedProductsTest.php`). An order is no longer offered for it: the product's page and its card offer the quotation basket and WhatsApp, and a cart that already holds such a product offers to move it to the basket (`boughtByQuotation`; `scripts/test-native-product-reader.mjs`). The journey presses both in a browser on an installed admin, with a price and priced on request (steps 13a to 13c of `scripts/os-product-to-shop.mjs`). With the cart put back the journey fails at 13a, and with the basket sent to the shop's own server at 13b. Orders for such a product come with T-106."
+   }
   },
   {
    "id": "D-061",
@@ -1135,6 +1138,51 @@
    "closed": {
     "on": "2026-11-27",
     "how": "The workflow `composer-update.yml` wrote a new `platform/composer.lock` to the branch (commit `e6be617`): 30 packages at the newest versions `composer.json` allows, the Symfony packages at 8.1.12. The whole suite ran on the new packages in the sandbox and in CI on three databases, and the product journey ran on them; the audit passes."
+   }
+  },
+  {
+   "id": "D-082",
+   "severity": "high",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "With the product link on, the admin counted every visitor of the shop as one address",
+   "detail": "Found on 27 November while a failed step of the rehearsal was being explained. Everything a visitor's page reads of the admin reaches it from one place, the shop's server, and the admin allowed one address 120 reads a minute over all the addresses that are read together. An open page of the shop asks nine times a minute without being touched, so about fourteen open pages use the minute up, and then every page of the shop is told that the catalogue is not available until the minute ends. Measured on the rehearsal's admin: of 125 reads from one address within a minute, the last five were answered 429. The same held for baskets: five a minute and fifty a day for the whole shop. It blocked one release, the switch of the live shop; no live site has the link on. (The failed step itself had another cause: D-084.)",
+   "lines": [
+    "T-191"
+   ],
+   "closed": {
+    "on": "2026-11-28",
+    "how": "The shop's server says for whom it asks. With a key that both sides hold (`NATIVE_BRIDGE_KEY` in the shop, `PUBLIC_LEADS_BRIDGE_KEY` in the admin) it names the visitor's address in a header, with every read and with a basket, and the admin counts its limits by that address (`apps/api/native-bridge-key.mjs`; `App\\Support\\BridgedVisitor`; the limiters `v1-read` and `public-leads`). Whoever does not hold the key is counted by the address he really has, whatever he writes in the header (`Feature/Api/ReadsCountedByVisitorTest.php`, `Feature/Api/BasketOfPublishedProductsTest.php`, `scripts/test-native-enquiry-bridge.mjs`). Without the key the fault is back: the shop's server says so when it starts, and document 24 lists the key among the settings of the switch. How many reads an open page costs is a line of its own (T-200)."
+   }
+  },
+  {
+   "id": "D-083",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "The product journey could read the admin's screen before the admin had answered",
+   "detail": "A fault of the script, not of the admin, found when the journey had grown by three steps. Every screen of the admin asks for its notifications twice a minute. That question now fell into step 14, and its answer was taken for the answer to the price that had just been typed: once, the journey read \"Price on request\" as still ticked. In step 16 the journey read the screen in the moment the answer arrived, before the screen had drawn it: once, it still saw the button that withdraws a publication. Both were there before this round and had not shown.",
+   "lines": [
+    "T-191"
+   ],
+   "closed": {
+    "on": "2026-11-28",
+    "how": "The journey waits for the answer to the field it typed, by the field's name, in every step that types one (`given` in `scripts/os-product-to-shop.mjs`), and waits for the button to go before it says that it is gone. Five rehearsals in a row held afterwards, 21 of 21 and 20 of 20 each."
+   }
+  },
+  {
+   "id": "D-084",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-27",
+   "title": "On the rehearsal's database file, one of two writers that met was ended at once",
+   "detail": "Found on the sandbox rehearsal, which serves the admin with four workers from one SQLite file. A visitor's read of the categories that met a basket being saved was answered 503 by the shop (the first failure of the round), and a save of a product that met the notification bell's own question was answered 409, \"Somebody else was saving the same records\". The admin counts its limits in the database; SQLite, in the mode the framework begins a transaction with, ends the second of two requests that both read and then write, where MySQL and MariaDB make it wait. Measured on 28 November: of 40 enquiries written while the categories were read 400 times, 3 enquiries and 19 reads were ended, each with \"database is locked\" on the count of the limit. No installation on a host runs SQLite: the host's database is MySQL, and CI runs the journey on MariaDB.",
+   "lines": [
+    "T-191"
+   ],
+   "closed": {
+    "on": "2026-11-28",
+    "how": "The rehearsal tells SQLite to take its lock when a transaction begins, so that the second writer waits (`DB_SQLITE_TRANSACTION_MODE=IMMEDIATE` in `platform/tools/hostinger/rehearse-with-shop.sh`; a setting of `platform/config/database.php` that is `DEFERRED` unless set, so nothing else changes). The same measurement then ended none: 40 of 40 and 400 of 400. The other two tools that serve SQLite with several workers, the rehearsal without the shop and the sandbox's preview, were not changed."
    }
   }
  ]
