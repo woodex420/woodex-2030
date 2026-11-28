@@ -17,14 +17,42 @@ With the link on, the page of such a product offered "Add to Cart" and "Add to Q
 they were sent (400, "item 1 is not an available catalog product"): the shop's own server priced an order and a
 basket from its own database, which does not hold a product of the admin.
 
-Four more things were found while this was cured. Each is in the register:
+Six more things were found while this was cured, three of them after the first push (below, "What the first
+push found"). Each is in the register:
 
 | | Found | Cured |
 |---|---|---|
 | **D-082**, high | The admin counted every visitor of the shop as one address. Everything a visitor reads of the admin reaches it from the shop's one server, and the admin allowed one address 120 reads a minute. An open page asks nine times a minute, so about fourteen open pages would have used up the reads of everybody, and the shop would then have said that its catalogue is not available. Measured: of 125 reads from one address within a minute, the last five were answered 429 | The shop's server says for whom it asks, by a key both sides hold. The admin counts each visitor |
 | **D-084**, low | On the rehearsal's database file, one of two requests that met was ended at once: a visitor's read was answered 503, a save of the owner 409. Measured: of 40 enquiries written while the categories were read 400 times, 3 enquiries and 19 reads were ended. It is a property of SQLite, which no host runs | The rehearsal tells SQLite to make the second writer wait, as MySQL does. The same measurement then ended none |
-| **D-083**, low | The journey script could read the admin's screen before the admin had answered: twice it took another answer for the one it waited for | It waits for the answer by the name of the field it typed |
+| **D-085**, medium | **On the live shop too.** A category could say "No products found. Nothing is listed in this category yet" beside "All Products 148", and go on saying it until the visitor opened another page. Each page counted the catalogue's changes from the moment its own listener was attached; a catalogue that arrived in the moment before was never counted by it. Rare: made to happen in 2 of 61 openings, and in 5 of 41 around them, with the processor slowed | The changes are counted once, from before anything is drawn. The same openings afterwards: none of 253 |
+| **D-086**, low | Under "Quote Request Submitted!" the header still counted the two products that had just been sent, and the next page offered the same basket again | A basket that the admin has received is emptied, as a cart is after its order |
+| **D-083**, low | Three faults of the journey script. Twice it read the admin's screen before the admin had answered. And it told the visitor's address to every server, the font's included, which refused it: CI, which reaches that server, failed the journey on the first push with every step held | It waits for the answer by the name of the field it typed, and says no address at all: nothing needed it |
 | Not shipped | A basket in which every line is priced on request printed "Saved catalogue estimate: Rs 0", which reads as free. And a shop built with the robot check's public key would have shown a box whose token nobody read | "No catalogue estimate: the line is priced on request". The token is checked |
+
+## What the first push found
+
+The round was pushed as one commit, `c2036da`, and CI failed it. Both findings are cured in the second commit.
+
+1. **CI held every step and failed.** On Apache and MariaDB 10.11.19 the journey held 21 of 21 and 20 of 20
+   steps, and the job ended red: the browser had reported a refused font. The journey gave its visitor a made-up
+   address in a header, so that two runs on one machine would not count as one visitor. The browser sent that
+   header to every server, and the font's server refuses a header it does not know. The sandbox reaches no
+   other server, so it never showed there. The journey no longer says an address: two runs in a row stay within
+   what one visitor may do. (Saying the header to the shop alone was tried first and dropped: it switches the
+   browser's own cache off, and that one rehearsal ended with a photograph answered "not found", which no
+   rehearsal with the cache on has shown.) The line on the run page, which said "the browser found nothing wrong" on that
+   failed run, now names every problem of this journey (D-083).
+2. **The next rehearsal failed once, at step 13a, and that was a fault of the shop.** The product's card was
+   missing from its category for twenty seconds, under a header that counted the product. Nothing had been
+   refused and nothing was slow. It is D-085, in the table above: older than this round, in the shop's pages,
+   and on the live shop. It was made to happen on the shop's own 148 products, cured, and tried again.
+
+3. **The picture of step 13b showed a basket that had been sent and was still counted** (D-086). The journey
+   now reads the header and what the browser keeps after the sending.
+
+The journey now also writes down, beside a step that fails, what the shop's page had asked its server last and
+what it was told: the first failure of step 13a could not be read from what the run had kept. What was decided
+about these findings is [DL-051](12-DECISION-LOG.md).
 
 ## What was built
 
@@ -57,6 +85,8 @@ the three bridges that read say for whom they ask (`apps/api/native-bridge-key.m
 - a cart that already holds such a product says so and offers "Move to quote";
 - the basket goes to the admin. The page decides that when it runs, by where its catalogue came from, and not
   by a setting of its build: the two cannot disagree;
+- once the admin has received it, the basket is empty: the header counts nothing, and the next basket is a new
+  request;
 - an option the admin marked unavailable is not offered.
 
 A product of the shop's own database is offered exactly as before. So is everything while the link is off.
@@ -72,7 +102,7 @@ database until the forms are moved (T-100).
 | | Step | What is asserted |
 |---|---|---|
 | 13a | No cart is offered for it | No cart button on the product's page or on its card; "Add to Quote"; the WhatsApp link names the product and its code |
-| 13b | A visitor puts it into the quotation basket and sends the basket | Two of the product, sent from the request page; answered 201 with a reference; shown to the visitor with "Pending staff review"; nothing the page asked was answered with a refusal |
+| 13b | A visitor puts it into the quotation basket and sends the basket | Two of the product, sent from the request page; answered 201 with a reference; shown to the visitor with "Pending staff review"; the basket is empty afterwards, in the header and in what the browser keeps; nothing the page asked was answered with a refusal |
 | 13c | The enquiry is in the admin | Read in the database: the basket, its state, and what its priced lines come to. Read on the owner's screen: the visitor, the product, its code, "2 each × Rs 185,000 = Rs 370,000", or "2 each × price on request" and no estimate |
 
 The journey now has 21 steps with a price (the admin is stopped and started in between) and 20 priced on
@@ -84,23 +114,26 @@ request.
   its code and its price, or "price on request".
 - **A visitor of a shop that reads from the admin**: "Add to Quote" and "Ask on WhatsApp" where "Add to Cart"
   stood, and a request that is received.
-- **A visitor of the live shop today**: nothing. It reads its own catalogue and offers its cart as before.
+- **A visitor of the live shop today**: one thing, and only now and then: a category no longer says that
+  nothing is listed in it while the shop is full (D-085). Otherwise nothing: the shop reads its own catalogue
+  and offers its cart as before.
 
 ## What this merge changes on each live site
 
 | Site | Changes | Does not change |
 |---|---|---|
 | The admin demo, `woodex-os.vercel.app` | An enquiry's page prints a basket's lines as above. Feature status has the entry of 28 November | It keeps nothing. `quote_requests` answers there as before: every module is on (DL-045) |
-| The shop, `woodex-2030.vercel.app` | Nothing a visitor sees | Its switch `NATIVE_PRODUCT_SYNC` is not set: it reads its own database, offers its cart and sends its baskets to its own server |
+| The shop, `woodex-2030.vercel.app` | The cure of D-085: a category's list is worked out again whenever the catalogue arrives. Nothing else a visitor sees | Its switch `NATIVE_PRODUCT_SYNC` is not set: it reads its own database, offers its cart and sends its baskets to its own server |
 | Hostinger | Nothing: nothing is installed there | — |
 
 ## 1. Commit/branch/build identifier
 
-Branch `arena/8d3c1c4c-woodex-2030`, from `main` at `1fb856c`. One commit; its number is on pull request #61.
-Against `main`: 61 files, 13 of them
-new. 17 of the admin (7 of its code, one screen, the contract, the routes, two settings, 3 test files, 2 tools),
-19 of the shop (6 of its server, 13 of its pages), 4 scripts, 2 workflows, 11 documents, 4 records of the
-acceptance and 4 pictures.
+Branch `arena/8d3c1c4c-woodex-2030`, from `main` at `1fb856c`. Two commits: `c2036da`, the round, and one that
+cures what its push found (the third fault of D-083, D-085 and D-086) and records it; its number is on pull
+request #61. Against `main`: 64 files, 15 of them new. 17 of the admin (7 of its code, one screen, the
+contract, the routes, two settings, 3 test files, 2 tools), 19 of the shop (6 of its server, 13 of its pages),
+6 scripts, 2 workflows, 11 documents, 4 records of the acceptance and 5 pictures. The second commit changes
+nothing of the admin: 16 files, of the shop's pages two (`lib/runtime.ts`, `pages/Quotation.tsx`).
 
 ## 2. Environment
 
@@ -109,7 +142,10 @@ acceptance and 4 pictures.
   sandbox's MariaDB is too old for the installer. The admin is told to take baskets as an owner would tell it
   (`platform/tools/hostinger/take-baskets.sh`: two lines of the settings file), with a key made for the run.
 - **CI** (`os-ci.yml`, job `hostinger`): Apache, PHP 8.4, MariaDB 10.11, the same release, the same journey, the
-  same two lines. The run on this commit is on the pull request.
+  same two lines. **On `c2036da` every step held there, 21 of 21 and 20 of 20, on MariaDB 10.11.19**, and the
+  job failed all the same: the browser reported the refused font (D-083). The suite passed on MySQL 8.4,
+  MariaDB 10.11 and MariaDB 11.4, and so did the two writers on each. The run on the last commit is on the pull
+  request.
 - **The live sites**: nothing was written to Vercel, to Supabase or to Hostinger. No database of production was
   read or changed.
 
@@ -118,15 +154,18 @@ acceptance and 4 pictures.
 | Command | Result |
 |---|---|
 | The whole Laravel suite (`tools/preview/sandbox/run-suite.sh`) | **2,917 pass, 36 skipped, none failing** (2,905 before this round), run on the code as it is merged |
-| `node scripts/os-product-to-shop.mjs`, with a price | **21 of 21**, five rehearsals in a row |
+| `node scripts/os-product-to-shop.mjs`, with a price | **21 of 21**: five rehearsals in a row before the first push, and three in a row on the code as it is merged |
 | The same with `OS_PRICE_ON_REQUEST=1` | **20 of 20**, the same rehearsals |
+| The rehearsals between the two commits | Six on the journey without the header, the shop not yet cured: five held, one failed at step 13a (D-085). Four with D-085 cured: all held. One against the build of before with the new reading of the basket: failed at 13b, as it must |
+| `node scripts/test-runtime-revision.mjs` (new): a page drawn by React in a window, the catalogue arriving in the moment after its first drawing | pass. On the code of before: "worked out from 0, beside a count of 1" |
+| A category of the built shop opened in a browser, the processor slowed four times, the catalogue's answer held back a little longer each time | Before the cure: wrong in 2 of 61 openings, and in 5 of 41 in the narrow range around them. After: 0 of 61, 0 of 41, 0 of 151 |
 | `node scripts/os-install.mjs` (inside the rehearsal) | 8 of 8: installed in a browser |
 | `node scripts/test-native-enquiry-bridge.mjs` (new), `test-native-product-reader.mjs`, `test-basket-adapter.mjs`, `test-native-category-sync.mjs`, `test-media-sync.mjs`, `test-lead-challenge.mjs`, `test-storefront-lead-adapter.mjs` | pass |
 | `npm run typecheck:all`, `npm run vercel:build`, `npm run smoke:render` | pass; 16 of 16 static pages written |
 | `npm run secret-scan`, `npm run docs:verify`, `node scripts/test-storefront-facts.mjs` | pass |
 | `verify-acceptance.mjs`, `verify-plan.mjs`, `verify-code-references.mjs` | pass; also `test-verify-plan.mjs` and `verify-table-map.mjs` |
 
-**Each new protection was taken out once, and its test failed**: 24 changes.
+**Each new protection was taken out once, and its test failed**: 26 changes.
 
 - **In the admin, twelve**: the draft read in place of the published copy; 0 written for "on request"; an
   unavailable product accepted; the price taken from the request; a product in options taken without its
@@ -141,6 +180,10 @@ acceptance and 4 pictures.
   sent to the shop's own server, at 13b, "sent to /api/quotes, which cannot price a product of the admin".
 - **On the rehearsal, one**: the admin not told to take baskets (`BASKET=off`). The journey fails at 13b with
   the admin's own 404, and no basket is kept.
+- **In the page's count of changes, one**: counted by each page for itself, as before. The new script fails,
+  and the built shop is wrong in the openings of the table above.
+- **In the request page, one**: the basket not emptied, as before. The journey fails at 13b, in both runs:
+  "the basket was received and the header still says "Quote basket, 2 items"".
 
 ## 4. Browser/device coverage
 
@@ -149,10 +192,11 @@ tried: Safari, Firefox, a real phone, the live sites.
 
 ## 5. Defects open/closed by severity
 
-The register: 84 entries, 67 closed.
+The register: 86 entries, 69 closed.
 
 - **Closed in this round**: **D-060**, high, the reason for the round.
-- **Entered and closed in this round**: D-082 (high), D-083 and D-084 (low): the table at the top.
+- **Entered and closed in this round**: D-082 (high), D-085 (medium), D-083, D-084 and D-086 (low): the table
+  at the top.
 - **Open in all**: 1 critical (D-002: the old dashboard's password, the owner's act), 1 high (D-063: facts and
   claims on the shop that nobody confirmed, the owner's), 11 medium, 4 low.
 
@@ -170,8 +214,9 @@ Nothing that needs a backup changed. No backup of the live shop's database is kn
 
 Measured on the rehearsal, with the link on. A page of the shop that stands open and is not touched asks the
 admin **nine times a minute** through the shop's server: the categories and the replaced photographs every
-fifteen seconds, the whole list of products once a minute. A journey of ten pages asked 36 times in under a
-minute; the admin allows one visitor 120. Each is a request the host must answer, for answers that are the same
+fifteen seconds, the whole list of products once a minute. A journey of ten pages asked 34 times in under a
+minute (36 while a basket that had been sent was still kept, and its photograph asked for); the admin allows
+one visitor 120. Each is a request the host must answer, for answers that are the same
 for everybody. For a few visitors that is nothing; for many, on shared hosting, it is the first thing to cure,
 and it has its line and its plan (T-200): the shop's server keeps what it read for a few seconds, and a page
 asks whether anything changed.
@@ -189,12 +234,15 @@ That is the sandbox, not a host. Nothing was timed on MySQL, and the real catalo
   the enquiry in the admin, with the product, its code and its price on its line.
 - [`evidence/ask-for-a-product-2026-11-28-admin-enquiry-on-request.jpg`](evidence/ask-for-a-product-2026-11-28-admin-enquiry-on-request.jpg):
   the same for a product priced on request: no figure, and no estimate.
+- [`evidence/ask-for-a-product-2026-11-28-shop-category-says-nothing-is-listed.jpg`](evidence/ask-for-a-product-2026-11-28-shop-category-says-nothing-is-listed.jpg):
+  D-085 before its cure, on the shop's own products: "All Products 148", and a category that holds thirty of
+  them says that nothing is listed in it.
 
 ## 10. Explicit owner approval status
 
 Ordered by the owner on 27 November ("Start next"). He has not seen the result. Merged by the agent when every
 check is green, by his standing word of 17 November (DL-026). Nothing here is accepted by him. What was decided
-on the way is DL-050, and each point of it can be reversed by saying so.
+on the way is DL-050 and DL-051, and each point of them can be reversed by saying so.
 
 ## The phase, in the owner's form
 
@@ -205,11 +253,11 @@ on the way is DL-050, and each point of it can be reversed by saying so.
 | **Files** | See point 1 |
 | **Database** | No change of structure. Written in the proof: `leads`, `contacts`, `storefront_quote_requests` (the lines in its column `lines`), the keys of the creates. Read: the published copy of a product |
 | **APIs** | `POST /api/v1/quote-requests`: a line may name a published product by `slug` and its option by `sku`. Two headers of the shop's server, `X-Woodex-Key` and `X-Woodex-Visitor`, on that address and on every address that is read. The contract and document 29 say both. No address was added |
-| **UI** | The admin: the basket on an enquiry's page. The shop: the product's page and card, the cart, the checkout and the request page, for a product of the admin |
+| **UI** | The admin: the basket on an enquiry's page. The shop: the product's page and card, the cart, the checkout and the request page, for a product of the admin; and, for every catalogue, the count by which a page notices that the catalogue changed (D-085) |
 | **Integration** | The visitor's page → the shop's server → the admin, and back. One writer of an enquiry and of a product: the admin. The shop's database is not written |
 | **Tests** | Point 3 |
 | **Browser** | The journey, twice, with its three new steps; point 4 |
-| **Deployment** | Both Vercel projects deploy this merge. The link stays off on the live shop. No Hostinger |
+| **Deployment** | Both Vercel projects deploy this merge; the cure of D-085 reaches the live shop with it. The link stays off on the live shop. No Hostinger |
 | **Risks** | A shop switched over without the key works for a few visitors and then says that its catalogue is not available (D-082): the key is in the list of the switch (document 24, §6), and the shop's server says when it is missing. An open page costs the host nine reads a minute (T-200) |
 | **Owner input** | Nothing new. The three of before, below |
 | **Next phase** | T-192: the addresses for series, filters and search. Its own branch and pull request |
@@ -221,6 +269,9 @@ on the way is DL-050, and each point of it can be reversed by saying so.
   price. For a product with a price that is less than a visitor of the shop has today.
 - **An enquiry without a basket** (the contact form, the request form with nothing in the basket) still goes to
   the shop's own database, with the link on too (T-100).
+- **A basket sent to the shop's own database stays in the header after it is sent**, as on the live shop today
+  (D-086 was cured for a basket the admin receives). There the builder above the form still prints the same
+  basket and sends it by WhatsApp; that way of sending ends with the switch.
 - **What an open page costs the host** (T-200), above.
 - **A visitor over his own limit** (more than about thirteen open pages) is told that the catalogue is not
   available, not that he asked too often: the shop's server answers 503 for every refusal of the admin. Changed
@@ -238,10 +289,15 @@ on the way is DL-050, and each point of it can be reversed by saying so.
 
 - **A live site**: none has the link on, and no live admin has a database.
 - **MySQL or MariaDB in the sandbox**: the acceptance there ran on a database file. CI runs it on MariaDB 10.11.
-- **The visitor's address on Vercel.** The shop's server names the address it was asked from. On the rehearsal
-  that address was given to it as a proxy would give it. That Vercel hands the visitor's own address to the
-  shop's server in the way the server reads it was not tried: it is tried on the day of the switch, by sending
-  six baskets from one place and reading which is refused.
+- **Two visitors counted apart, in a browser.** On the rehearsal every visitor comes from the same machine, so
+  the admin saw one address, named by the shop's server. That two visitors are counted apart is held by the
+  admin's tests and by the script of the bridges. That Vercel hands the visitor's own address to the shop's
+  server in the way the server reads it was not tried: it is tried on the day of the switch, by sending six
+  baskets from one place and reading which is refused.
+- **How often a visitor of the live shop met D-085.** It was not measured there. It needs the catalogue to
+  arrive within a few thousandths of a second of a page's first drawing. In the sandbox, at full speed, it
+  showed once, in the six rehearsals between the two commits, and not once in eighty openings of a category
+  that were made to look for it; it took a slowed processor to make it show on demand.
 - **Cloudflare's own answer.** The check of a token was tried against a stand-in that answers yes, no, or not
   at all; no real token was made.
 - **The real catalogue through the link**: two products were read and asked for, not 170.

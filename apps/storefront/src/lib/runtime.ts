@@ -2,7 +2,7 @@ import { syncNativeCategories } from "./nativeCategories";
 import { captureBasketRequest } from "./quoteCapture";
 import { refreshTheme } from "./theme";
 import { captureStorefrontLead } from "./leadCapture";
-import { Fragment, createElement, useEffect, useState } from "react";
+import { Fragment, createElement, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { products, catalog, hasCategoryLabel } from "@/data/products";
 import type { CatalogSource, Product, ProductVariant } from "@/data/products";
@@ -216,15 +216,34 @@ export function startRuntimeSync(intervalMs = 15000) {
   window.setInterval(() => void refreshTheme(), Math.max(intervalMs * 4, 60000));
 }
 
-/** Subscribe to catalog mutations so memoized storefront filters recalculate. */
+/* How often the catalogue, the categories or the settings have changed since the page was opened.
+
+   One listener counts every announcement. It is attached when this module is first read, which is before
+   anything is drawn. A component reads the count through React's own reader of an outside store, which looks at
+   the count again once the component is on the screen.
+
+   Until 28 November 2026 each component counted for itself, from the moment its own listener was attached, and
+   that moment comes a little after the component is first drawn. A catalogue that arrived in between was never
+   counted by that component. Everything above it was drawn again and read the catalogue as it now was, while
+   what the component had worked out from the empty catalogue stayed: beside "All Products 148", a category that
+   holds thirty of them said "Nothing is listed in this category yet", and went on saying it (defect D-085). */
+let revision = 0;
+const readers = new Set<() => void>();
+if (typeof window !== "undefined") {
+  window.addEventListener("woodex:runtime", () => {
+    revision += 1;
+    readers.forEach((changed) => changed());
+  });
+}
+const subscribe = (changed: () => void) => {
+  readers.add(changed);
+  return () => { readers.delete(changed); };
+};
+const currentRevision = () => revision;
+
+/** The count of changes, kept current: what a page works out from the catalogue is worked out again when it moves. */
 export function useRuntimeRevision() {
-  const [revision, setRevision] = useState(0);
-  useEffect(() => {
-    const handler = () => setRevision((value) => value + 1);
-    window.addEventListener("woodex:runtime", handler);
-    return () => window.removeEventListener("woodex:runtime", handler);
-  }, []);
-  return revision;
+  return useSyncExternalStore(subscribe, currentRevision, currentRevision);
 }
 
 /** Where the catalogue stands — loading, ready or unavailable — kept current. */

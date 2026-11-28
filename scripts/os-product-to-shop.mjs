@@ -40,7 +40,9 @@
  *   OS_PRICE_ON_REQUEST=1   the product has no price: it is published as "Price on request"
  *   OS_CATEGORY             the category it is filed under, by the end of its name (default "Executive Tables")
  *   OS_PICTURE              the photograph to upload (default apps/api/public/img/workstation-product.jpg)
- *   --out <dir>             journeys.json (the form scripts/os-notice.mjs reads) and pictures of the key screens
+ *   --out <dir>             journeys.json (the form scripts/os-notice.mjs reads) and pictures of the key screens.
+ *                           A step that fails is written with two pictures and with what the shop's page had
+ *                           asked the shop's server last, and what it was told.
  *
  * It WRITES: it creates a product whose name begins "ACCEPTANCE", publishes it, changes it and withdraws it. The
  * product is left as a withdrawn draft. It sends one basket, which leaves one enquiry of a visitor whose name
@@ -99,12 +101,10 @@ const shopper = {
   about: 'Two desks for a new office',
   quantity: 2,
 };
-// Where the visitor stands. In front of a real shop a proxy of the host tells the shop's server each visitor's
-// address, and the shop's server tells the admin, which counts its limits by it (defect D-082). A rehearsal has
-// no proxy: every visitor would be 127.0.0.1, and two runs one after the other would be one visitor who never
-// rests. So against a shop on this machine the browser says what the proxy would: an address of this run's own,
-// from the range kept for examples. A shop anywhere else is told nothing; its own proxy knows better.
-const visitorAddress = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(shop) ? `198.51.100.${1 + (Date.now() % 254)}` : '';
+// Where the visitor stands: where this browser stands. On a rehearsal that is this machine for every run, so two
+// runs in a row are one visitor to the admin: two baskets and under 80 reads in any minute, of the five and the
+// 120 that one visitor may make. (A run of 28 November said another address to the shop for each run, in a header
+// of the whole browser. The header went to every server, and the font's server refused it: D-083.)
 
 const steps = [];
 const problems = [];
@@ -114,7 +114,7 @@ const context = await browser.newContext({ viewport: { width: 1366, height: 900 
 const page = await context.newPage();
 // A second sheet of the same signed-in owner, for the enquiries: the product's form stays open on the first.
 const crm = await context.newPage();
-const visitor = await (await browser.newContext({ viewport: { width: 1366, height: 900 }, ...(visitorAddress ? { extraHTTPHeaders: { 'X-Forwarded-For': visitorAddress } } : {}) })).newPage();
+const visitor = await (await browser.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
 // An answer that is asked for as a refusal on purpose: its address, while that step runs.
 let expected = null;
 // Every answer of 400 or more that the shop's page was given, with what was asked: a button that leads to a
@@ -125,9 +125,35 @@ const refusals = [];
 // how many this one made, which is what a visitor who does not rest costs.
 const reads = [];
 const handedOn = /^\/api\/(v1\/(catalogue|media)(\/|$)|products(\/(?!overrides$)|$))/;
+// What the visitor's page asked the shop's server for and what it was told, the last sixty of it: written beside a
+// step that fails. A page that was told nothing, or told something it could not use, looks from outside like a
+// page that is slow: on 28 November a card was missing from its category, and nothing here said what the page
+// had been given.
+const lately = [];
+const noted = (line) => { lately.push(`${new Date().toISOString().slice(14, 23)} ${line}`); if (lately.length > 60) lately.shift(); };
+/** What an answer of the catalogue held, in a few words: how many categories, or which products in which category. */
+async function held(response, asked) {
+  if (response.status() !== 200) return '';
+  try {
+    if (asked.pathname === '/api/v1/catalogue/categories') return `: ${(await response.json())?.data?.categories?.length ?? 'no'} categories`;
+    if (asked.pathname === '/api/products') {
+      const list = (await response.json())?.data;
+      return Array.isArray(list) ? `: ${list.length} product(s)${list.slice(0, 3).map((item) => `, ${item?.slug} in category ${item?.primary_category_id}`).join('')}` : ': the shop\'s own list';
+    }
+  } catch { /* The page has gone on and the browser no longer has the answer: the line stays as it is. */ }
+  return '';
+}
+visitor.on('requestfailed', (request) => {
+  if (request.url().startsWith(shop + '/api/')) noted(`${request.method()} ${new URL(request.url()).pathname} got no answer (${request.failure()?.errorText ?? 'no reason given'})`);
+});
 visitor.on('response', (response) => {
   const asked = new URL(response.url());
   if (!response.url().startsWith(shop)) return;
+  if (asked.pathname.startsWith('/api/')) {
+    noted(`${response.request().method()} ${asked.pathname}${asked.search} answered ${response.status()}`);
+    const line = lately[lately.length - 1];
+    void held(response, asked).then((more) => { const index = lately.indexOf(line); if (more && index >= 0) lately[index] = line + more; });
+  }
   if (handedOn.test(asked.pathname) && !response.fromServiceWorker()) reads.push(Date.now());
   if (response.status() < 400 || (expected && asked.pathname.includes(expected))) return;
   refusals.push(`${response.request().method()} ${asked.pathname} answered ${response.status()}`);
@@ -154,6 +180,7 @@ async function step(name, run) {
   } catch (error) {
     entry.result = 'FAILED';
     entry.note = String(error.message).split('\n')[0].slice(0, 300);
+    entry.asked = [...lately];
     if (out) {
       await page.screenshot({ path: path.join(out, `failed-${steps.length + 1}-admin.jpg`), type: 'jpeg', quality: 60 }).catch(() => {});
       await visitor.screenshot({ path: path.join(out, `failed-${steps.length + 1}-shop.jpg`), type: 'jpeg', quality: 60 }).catch(() => {});
@@ -162,6 +189,8 @@ async function step(name, run) {
   entry.ms = Date.now() - started;
   steps.push(entry);
   console.log(`  ${entry.result.padEnd(8)} ${name}${entry.note ? ` — ${entry.note}` : ''} (${entry.ms} ms)`);
+  // In the log too, which is where a run that failed somewhere else is read from.
+  for (const line of (entry.asked ?? []).slice(-12)) console.log(`             the shop's page had asked: ${line}`);
   return entry.result === 'ok';
 }
 const must = (condition, message) => { if (!condition) throw new Error(message); };
@@ -521,9 +550,14 @@ if (signedIn) {
     const told = (await visitor.locator('main').innerText()).replace(/\s+/g, ' ');
     must(told.includes(reference), 'the page does not give the visitor the reference of the request');
     must(told.includes('Pending staff review'), 'the page does not say that the request waits for the team');
+    // What was sent is with the team: the header does not go on counting it, and it is not kept to be sent again.
+    const counted = await visitor.locator('header button[aria-label^="Quote basket"]').first().getAttribute('aria-label');
+    must(counted === 'Quote basket', `the basket was received and the header still says "${counted}"`);
+    const kept = await visitor.evaluate(() => localStorage.getItem('woodex-quote'));
+    must(kept === '[]', `the basket was received and this browser still keeps it: ${String(kept).slice(0, 80)}`);
     await shot(visitor, 'shop-basket-sent');
     must(refusals.length === 0, `something the shop's page asked was refused: ${refusals.join('; ')}`);
-    return `${shopper.quantity} of it, sent to the admin through the shop's own server: ${reference.slice(0, 11)}…; nothing the page asked was refused`;
+    return `${shopper.quantity} of it, sent to the admin through the shop's own server: ${reference.slice(0, 11)}…; the basket is empty afterwards; nothing the page asked was refused`;
   });
 
   await step('13c. The enquiry is in the admin, with the product, its code and its price on its line', async () => {
@@ -638,7 +672,7 @@ if (out) {
   writeFileSync(path.join(out, 'journeys.json'), `${JSON.stringify({
     base, shop, journey: 'a product from the admin to the shop', priced: onRequest ? 'on request' : 'with a price',
     product: { name: product.name, slug: product.slug, code: product.code }, database: queryCommand ? 'read' : 'not read', restarted: Boolean(restartCommand), steps, problems: serious,
-    refused: refusals, visitor: { address: visitorAddress || 'as the shop\'s own proxy names it', readsHandedToTheAdmin: reads.length, mostInOneMinute: busiest, allowedInOneMinute: 120 },
+    refused: refusals, visitor: { readsHandedToTheAdmin: reads.length, mostInOneMinute: busiest, allowedInOneMinute: 120 },
   }, null, 2)}\n`);
 }
 console.log(`\n${steps.length - failed.length} of ${steps.length} steps held${serious.length ? `; the browser reported ${serious.length} problem(s):` : '; the browser reported no problem'}`);

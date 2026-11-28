@@ -1160,14 +1160,14 @@
    "severity": "low",
    "state": "closed",
    "found": "2026-11-27",
-   "title": "The product journey could read the admin's screen before the admin had answered",
-   "detail": "A fault of the script, not of the admin, found when the journey had grown by three steps. Every screen of the admin asks for its notifications twice a minute. That question now fell into step 14, and its answer was taken for the answer to the price that had just been typed: once, the journey read \"Price on request\" as still ticked. In step 16 the journey read the screen in the moment the answer arrived, before the screen had drawn it: once, it still saw the button that withdraws a publication. Both were there before this round and had not shown.",
+   "title": "Three faults of the product journey's own script",
+   "detail": "Faults of the script, not of the admin or the shop. (1) Every screen of the admin asks for its notifications twice a minute. Since the journey grew by three steps that question fell into step 14, and its answer was taken for the answer to the price that had just been typed: once, the journey read \"Price on request\" as still ticked. (2) In step 16 the journey read the screen in the moment the answer arrived, before the screen had drawn it: once, it still saw the button that withdraws a publication. Both were there before this round and had not shown. (3) New in this round, and found by CI on the first push: the journey told the shop its visitor's address by a header that the browser sent to every server, the font's server included, which refused it. Where that server can be reached the browser reported a fault of the page, and the journey failed with all its steps held, on Apache and MariaDB too. The line on the run page said meanwhile that the browser had found nothing wrong.",
    "lines": [
     "T-191"
    ],
    "closed": {
     "on": "2026-11-28",
-    "how": "The journey waits for the answer to the field it typed, by the field's name, in every step that types one (`given` in `scripts/os-product-to-shop.mjs`), and waits for the button to go before it says that it is gone. Five rehearsals in a row held afterwards, 21 of 21 and 20 of 20 each."
+    "how": "(1) The journey waits for the answer to the field it typed, by the field's name, in every step that types one (`given` in `scripts/os-product-to-shop.mjs`). (2) It waits for the button to go before it says that it is gone. (3) The journey says no address any more: two runs in a row are within what one visitor may do, and nothing needed the pretence. The line on the run page now names every problem of this journey (`scripts/os-notice.mjs`). Five rehearsals in a row held after (1) and (2), 21 of 21 and 20 of 20 each, and three in a row after (3), on the code as it is merged. CI runs the same journey on Apache and MariaDB with every push."
    }
   },
   {
@@ -1183,6 +1183,36 @@
    "closed": {
     "on": "2026-11-28",
     "how": "The rehearsal tells SQLite to take its lock when a transaction begins, so that the second writer waits (`DB_SQLITE_TRANSACTION_MODE=IMMEDIATE` in `platform/tools/hostinger/rehearse-with-shop.sh`; a setting of `platform/config/database.php` that is `DEFERRED` unless set, so nothing else changes). The same measurement then ended none: 40 of 40 and 400 of 400. The other two tools that serve SQLite with several workers, the rehearsal without the shop and the sandbox's preview, were not changed."
+   }
+  },
+  {
+   "id": "D-085",
+   "severity": "medium",
+   "state": "closed",
+   "found": "2026-11-28",
+   "title": "A category of the shop could say that nothing is listed in it, beside a count of all the products",
+   "detail": "A fault of the shop's pages, older than this round and on the live shop, found when the rehearsal of the second commit failed once at step 13a: the product's card was missing from its category for twenty seconds, under \"All Products 1\". A page works its list out from the catalogue and keeps it until the catalogue changes, and each page counted the changes for itself, from the moment its own listener was attached, which is a moment after the page is first drawn. A catalogue that arrived in between was never counted by that page. The frame around it heard the change and drew everything again, so the page read the size of the catalogue anew and kept the list it had worked out from the empty one: \"No products found. Nothing is listed in this category yet\", with no categories at the side, until the visitor opened another page. It needs the catalogue to arrive within a few thousandths of a second of the page's first drawing, so it is rare. Made to happen on the shop's own 148 products, with the processor slowed four times and the catalogue's answer held back a little longer at each opening: 2 of 61 openings of a category that holds 30 products, and 5 of 41 in the narrow range around them.",
+   "lines": [
+    "T-191"
+   ],
+   "closed": {
+    "on": "2026-11-28",
+    "how": "The changes are counted once, by one listener that is attached before anything is drawn, and a page reads that count through React's reader of an outside store, which looks at the count again when the page is on the screen (`useRuntimeRevision` in `apps/storefront/src/lib/runtime.ts`). `scripts/test-runtime-revision.mjs` draws a page as the shop does and lets the catalogue arrive in that moment; on the code of before it fails with \"worked out from 0, beside a count of 1\". The same openings on the cured build: 0 of 61, 0 of 41, and 0 of 151 across the whole range. It reaches the live shop with the deployment of this pull request."
+   }
+  },
+  {
+   "id": "D-086",
+   "severity": "low",
+   "state": "closed",
+   "found": "2026-11-28",
+   "title": "A basket that the admin had received stayed in the shop's header, and could be sent again",
+   "detail": "Seen on the picture of step 13b: under \"Quote Request Submitted!\" the header still counted two products. The request page did not empty the quotation basket after it was received, as the checkout empties a cart after its order. A visitor could take the count for a request that had not gone, and the same basket was offered again on the next page: sent again, it would have been a second request of the same person. The page behaved so before this round too, with the shop's own database.",
+   "lines": [
+    "T-191"
+   ],
+   "closed": {
+    "on": "2026-11-28",
+    "how": "A basket that the admin has received is emptied, and the next one gets a key of its own (`apps/storefront/src/pages/Quotation.tsx`). Step 13b of the journey reads the header and what the browser keeps after the sending; against the build of before it fails with \"the basket was received and the header still says \\\"Quote basket, 2 items\\\"\". A basket sent to the shop's own database, as on the live shop today, is left as it was: there the builder above the form still prints the same basket and sends it by WhatsApp, and that way of sending ends with the switch."
    }
   }
  ]

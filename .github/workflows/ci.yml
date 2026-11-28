@@ -45,6 +45,7 @@ jobs:
           node scripts/test-native-category-sync.mjs
           node scripts/test-native-product-reader.mjs
           node scripts/test-native-enquiry-bridge.mjs
+          node scripts/test-runtime-revision.mjs
           node scripts/test-media-sync.mjs
           node scripts/test-vercel-livewire-root.mjs
           node scripts/build-category-reference.mjs --check

@@ -31,6 +31,9 @@ const benefits = [
 
 const Quotation = () => {
   const [submitted, setSubmitted] = useState(false);
+  /* Whether what was received was a basket that the admin keeps. The confirmation says "Pending staff review"
+     for it, and cannot ask the basket: the basket is emptied once it has been received. */
+  const [basketWithTheTeam, setBasketWithTheTeam] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -42,7 +45,7 @@ const Quotation = () => {
   const destination = basketDestination();
   const toLaravel = destination !== "legacy";
   const toAdmin = destination === "admin";
-  const { items, removeItem, updateQuantity, estimateText, totalItems, onRequestCount, issueCount, addItem } = useQuote();
+  const { items, removeItem, updateQuantity, estimateText, totalItems, onRequestCount, issueCount, addItem, clearQuote } = useQuote();
   const printRef = useRef<HTMLDivElement>(null);
 
   // Client info state
@@ -163,6 +166,16 @@ const Quotation = () => {
         setManualHandoffUrl("");
       }
       setSubmissionReference(String(result.ref ?? ""));
+      /* The admin has received the basket, so it is emptied, as a cart is after its order (pages/Checkout.tsx).
+         Until 28 November it stayed: the header went on counting products that were already with the team, and
+         the same basket could be sent a second time from the next page (defect D-086). A basket filled after
+         this one is a new request and gets a key of its own. A basket sent to this shop's own database is left
+         as it was: there the builder above this form still prints it and sends it by WhatsApp. */
+      if (items.length > 0 && toLaravel) {
+        setBasketWithTheTeam(true);
+        clearQuote();
+        basketRequestKey.current = crypto.randomUUID();
+      }
       setSubmitted(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : "The request could not be saved. Please try again.";
@@ -572,7 +585,7 @@ const Quotation = () => {
                       </div>
                       <h3 className="text-2xl font-bold mb-2">Quote Request Submitted!</h3>
                       {submissionReference && <p className="mb-2 break-all text-sm font-semibold">Reference: {submissionReference}</p>}
-                      {items.length > 0 && toLaravel && <p className="mb-2 text-sm">Pending staff review. This is not an issued quotation, order or stock reservation.</p>}
+                      {basketWithTheTeam && <p className="mb-2 text-sm">Pending staff review. This is not an issued quotation, order or stock reservation.</p>}
                       <p className="text-muted-foreground max-w-sm mx-auto">
                         Thank you! Our team will review your requirements and follow up through your selected contact method.
                       </p>
